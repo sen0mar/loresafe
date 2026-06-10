@@ -1,0 +1,205 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --bg-base: #0c141b;
+  --bg-base-deep: #040e16;
+  --bg-surface: #111920;
+  --bg-elevated: #121a21;
+  --bg-inset: #10181f;
+  --border-default: #1e252c;
+  --border-strong: #2e4c54;
+  --accent-primary: #138997;
+  --accent-primary-hover: #17afb7;
+  --accent-primary-bright: #45c5d3;
+  --text-primary: #f9fbfb;
+  --text-secondary: #e4e7e9;
+  --text-muted: #bfc0c0;
+  --text-faint: #878d92;
+  --state-error: #ef4444;
+  --state-success: #4be05a;
+  --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.28);
+  --gradient-app:
+    radial-gradient(circle at 70% 0%, rgba(19, 137, 151, 0.12), transparent 34%),
+    #0c141b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg-base);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--gradient-app);
+  color: var(--text-primary);
+}
+
+button {
+  min-height: 2.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.95rem;
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  transition:
+    background 150ms ease-out,
+    border-color 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-primary-bright);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.home-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1rem;
+}
+
+.health-panel {
+  width: min(100%, 44rem);
+  border: 1px solid var(--border-default);
+  border-radius: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--accent-primary-bright);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  line-height: 1;
+}
+
+h2 {
+  margin-bottom: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+}
+
+p {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.health-card,
+.health-state {
+  display: grid;
+  gap: 1rem;
+}
+
+.health-state {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  border: 1px solid var(--border-default);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-surface);
+}
+
+.health-state--error {
+  border-color: color-mix(in srgb, var(--state-error) 46%, var(--border-default));
+}
+
+.status-dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: var(--text-faint);
+}
+
+.status-dot--ok {
+  background: var(--state-success);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--state-success) 46%, transparent);
+}
+
+.status-dot--pending {
+  background: var(--accent-primary-bright);
+}
+
+.status-dot--error {
+  background: var(--state-error);
+}
+
+dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+dl div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.6rem;
+  padding: 0.85rem;
+  background: var(--bg-inset);
+}
+
+dt {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  font-size: 0.92rem;
+}
+
+.request-id {
+  color: var(--text-faint);
+  font-family:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 520px) {
+  .health-state {
+    grid-template-columns: 1fr;
+  }
+}
