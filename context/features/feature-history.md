@@ -5,6 +5,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 ## Completed Features
 
 - Feature 1: Runnable app shell — Added the pnpm workspace, database-free Express health API with validated env and credentialed CORS, Vite React home route with live TanStack Query health status, and focused API tests.
+- Feature 2: Frontend foundation — Added Tailwind CSS v4, ThreadSync semantic tokens, shadcn/ui basics, Sonner toast support, and a responsive app shell that keeps API health visible.
 
 ## Entry Format
 
