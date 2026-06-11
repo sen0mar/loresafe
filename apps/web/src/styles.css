@@ -15,47 +15,11 @@
   --color-card-foreground: var(--text-primary);
   --color-popover: var(--bg-surface);
   --color-popover-foreground: var(--text-primary);
-  --color-primary: var(--accent-primary);
-  --color-primary-foreground: var(--accent-on-primary);
-  --color-secondary: var(--bg-active);
-  --color-secondary-foreground: var(--text-secondary);
-  --color-muted: var(--bg-inset);
-  --color-muted-foreground: var(--text-faint);
-  --color-accent: var(--accent-primary-soft);
-  --color-accent-foreground: var(--accent-primary-text);
   --color-destructive: var(--state-error);
   --color-destructive-foreground: var(--text-primary);
   --color-border: var(--border-default);
   --color-input: var(--border-default);
   --color-ring: var(--accent-primary-bright);
-
-  --color-base: var(--bg-base);
-  --color-base-deep: var(--bg-base-deep);
-  --color-surface: var(--bg-surface);
-  --color-elevated: var(--bg-elevated);
-  --color-subtle: var(--bg-subtle);
-  --color-inset: var(--bg-inset);
-  --color-active: var(--bg-active);
-  --color-overlay: var(--bg-overlay);
-  --color-pattern: var(--bg-pattern);
-  --color-brand: var(--accent-primary);
-  --color-brand-hover: var(--accent-primary-hover);
-  --color-brand-active: var(--accent-primary-active);
-  --color-brand-bright: var(--accent-primary-bright);
-  --color-brand-text: var(--accent-primary-text);
-  --color-on-brand: var(--accent-on-primary);
-  --color-brand-soft: var(--accent-primary-soft);
-  --color-brand-dim: var(--accent-primary-dim);
-  --color-success: var(--state-success);
-  --color-warning: var(--state-warning);
-  --color-error: var(--state-error);
-  --color-info: var(--state-info);
-  --color-purple: var(--state-purple);
-  --color-hot: var(--state-hot);
-  --color-chart-read: var(--chart-read);
-  --color-chart-locked: var(--chart-locked);
-  --color-chart-available: var(--chart-available);
-  --color-chart-future: var(--chart-future);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -122,6 +86,110 @@
   background: var(--gradient-primary);
 }
 
+@utility bg-base {
+  background-color: var(--bg-base);
+}
+
+@utility bg-base-90 {
+  background-color: rgba(12, 20, 27, 0.9);
+}
+
+@utility bg-base-deep {
+  background-color: var(--bg-base-deep);
+}
+
+@utility bg-surface {
+  background-color: var(--bg-surface);
+}
+
+@utility bg-elevated {
+  background-color: var(--bg-elevated);
+}
+
+@utility bg-subtle {
+  background-color: var(--bg-subtle);
+}
+
+@utility bg-inset {
+  background-color: var(--bg-inset);
+}
+
+@utility bg-active {
+  background-color: var(--bg-active);
+}
+
+@utility bg-overlay {
+  background-color: var(--bg-overlay);
+}
+
+@utility bg-pattern {
+  background-color: var(--bg-pattern);
+}
+
+@utility bg-border {
+  background-color: var(--border-default);
+}
+
+@utility bg-brand {
+  background-color: var(--accent-primary);
+}
+
+@utility bg-brand-hover {
+  background-color: var(--accent-primary-hover);
+}
+
+@utility bg-brand-active {
+  background-color: var(--accent-primary-active);
+}
+
+@utility bg-brand-soft {
+  background-color: var(--accent-primary-soft);
+}
+
+@utility bg-brand-dim {
+  background-color: var(--accent-primary-dim);
+}
+
+@utility bg-success {
+  background-color: var(--state-success);
+}
+
+@utility bg-warning {
+  background-color: var(--state-warning);
+}
+
+@utility bg-error {
+  background-color: var(--state-error);
+}
+
+@utility bg-info {
+  background-color: var(--state-info);
+}
+
+@utility bg-purple {
+  background-color: var(--state-purple);
+}
+
+@utility bg-hot {
+  background-color: var(--state-hot);
+}
+
+@utility bg-chart-read {
+  background-color: var(--chart-read);
+}
+
+@utility bg-chart-locked {
+  background-color: var(--chart-locked);
+}
+
+@utility bg-chart-available {
+  background-color: var(--chart-available);
+}
+
+@utility bg-chart-future {
+  background-color: var(--chart-future);
+}
+
 @utility text-primary {
   color: var(--text-primary);
 }
@@ -144,6 +212,34 @@
 
 @utility text-brand {
   color: var(--accent-primary-text);
+}
+
+@utility text-on-brand {
+  color: var(--accent-on-primary);
+}
+
+@utility text-success {
+  color: var(--state-success);
+}
+
+@utility text-warning {
+  color: var(--state-warning);
+}
+
+@utility text-error {
+  color: var(--state-error);
+}
+
+@utility text-info {
+  color: var(--state-info);
+}
+
+@utility text-purple {
+  color: var(--state-purple);
+}
+
+@utility text-hot {
+  color: var(--state-hot);
 }
 
 @utility border-default {

@@ -35,14 +35,41 @@ export class ApiError extends Error {
 export const apiGet = async <TResponse,>(
   path: string
 ): Promise<TResponse> => {
+  return apiRequest<TResponse>(path, {
+    method: "GET"
+  });
+};
+
+export const apiPost = async <TResponse, TBody = unknown>(
+  path: string,
+  body: TBody
+): Promise<TResponse> => {
+  return apiRequest<TResponse>(path, {
+    method: "POST",
+    body
+  });
+};
+
+const apiRequest = async <TResponse,>(
+  path: string,
+  options: {
+    method: "GET" | "POST";
+    body?: unknown;
+  }
+): Promise<TResponse> => {
   let response: Response;
+  const hasBody = options.body !== undefined;
 
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
+      method: options.method,
+      // Required so the browser accepts and sends the HttpOnly session cookie.
       credentials: "include",
       headers: {
-        Accept: "application/json"
-      }
+        Accept: "application/json",
+        ...(hasBody ? { "Content-Type": "application/json" } : {})
+      },
+      body: hasBody ? JSON.stringify(options.body) : undefined
     });
   } catch (error) {
     throw new ApiError(

@@ -1,7 +1,9 @@
 export type ApiErrorCode =
   | "BAD_REQUEST"
+  | "CONFLICT"
   | "INTERNAL_SERVER_ERROR"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "TOO_MANY_REQUESTS";
 
 export class HttpError extends Error {
   readonly statusCode: number;
