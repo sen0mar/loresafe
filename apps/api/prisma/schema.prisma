@@ -1,0 +1,24 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String    @db.VarChar(320)
+  displayName    String    @map("display_name") @db.VarChar(80)
+  passwordHash   String    @map("password_hash")
+  sessionVersion Int       @default(1) @map("session_version")
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
+  @@index([deletedAt], map: "users_deleted_at_idx")
+  @@map("users")
+}

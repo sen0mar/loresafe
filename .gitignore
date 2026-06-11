@@ -2,10 +2,12 @@ node_modules
 dist
 coverage
 .vite
+apps/api/src/generated/prisma
 
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 *.log
 .DS_Store

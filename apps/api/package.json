@@ -6,15 +6,25 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "build": "pnpm prisma:generate && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
+    "test": "pnpm prisma:generate && vitest run",
+    "prisma:generate": "node -e \"require('node:fs').rmSync('src/generated/prisma', { recursive: true, force: true })\" && prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "jose": "^6.2.3",
+    "pg": "^8.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -22,7 +32,9 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.2",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
+    "prisma": "^7.8.0",
     "supertest": "^7.2.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
