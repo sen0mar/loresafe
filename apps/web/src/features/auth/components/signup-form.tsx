@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -70,7 +71,7 @@ export const SignupForm = () => {
       onSuccess: () => {
         // By this point the browser has processed Set-Cookie from the signup response.
         toast.success("Account created");
-        navigate("/app/settings/profile", { replace: true });
+        navigate(AUTHENTICATED_HOME_PATH, { replace: true });
       }
     });
   };
