@@ -10,6 +10,7 @@ import { SignupPage } from "../features/auth/pages/signup-page.js";
 import { HomePage } from "../features/health/pages/home-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
 import { Toaster } from "../shared/components/ui/sonner.js";
+import { AUTHENTICATED_HOME_PATH } from "./routes.js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,7 +37,7 @@ export const App = () => (
           path="/app"
           element={
             <ProtectedRoute>
-              <Navigate to="/app/settings/profile" replace />
+              <Navigate to={AUTHENTICATED_HOME_PATH} replace />
             </ProtectedRoute>
           }
         />
@@ -44,7 +45,7 @@ export const App = () => (
           path="/app/profile"
           element={
             <ProtectedRoute>
-              <Navigate to="/app/settings/profile" replace />
+              <Navigate to={AUTHENTICATED_HOME_PATH} replace />
             </ProtectedRoute>
           }
         />
@@ -60,7 +61,7 @@ export const App = () => (
           path="/app/*"
           element={
             <ProtectedRoute>
-              <Navigate to="/app/settings/profile" replace />
+              <Navigate to={AUTHENTICATED_HOME_PATH} replace />
             </ProtectedRoute>
           }
         />

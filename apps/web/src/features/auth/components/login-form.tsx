@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "sonner";
 
+import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -63,7 +64,7 @@ export const LoginForm = () => {
     loginMutation.mutate(parseResult.data, {
       onSuccess: () => {
         toast.success("Logged in");
-        navigate("/app/settings/profile", { replace: true });
+        navigate(AUTHENTICATED_HOME_PATH, { replace: true });
       }
     });
   };

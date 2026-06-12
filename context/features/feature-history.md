@@ -11,6 +11,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 5: Auth middleware and protected profile — Added reusable session-loading middleware with `requireUser`, protected current-user API handling, frontend protected/public-only route guards, and a `/app/profile` page for the authenticated user.
 - Feature 6: Auth Upstash rate limits — Added Redis-backed auth rate limiting with Upstash REST credentials, strict signup/login/logout limits, consistent `429` errors, proxy-aware IP handling, and focused backend regression tests.
 - Feature 7: Profile settings slice — Added username and bio profile fields with committed migrations, authenticated profile updates with duplicate username validation, a profile update rate limit, `/app/settings/profile`, and focused backend regression tests.
+- Feature 8: Authenticated home redirects — Updated automatic authenticated redirects so login, signup, public-only route guards, and `/app` fallbacks land on the protected home route while keeping profile settings directly accessible.
 
 ## Entry Format
 

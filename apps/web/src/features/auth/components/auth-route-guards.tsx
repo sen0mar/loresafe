@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 
+import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -62,7 +63,7 @@ export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
   }
 
   if (meQuery.data) {
-    return <Navigate to="/app/settings/profile" replace />;
+    return <Navigate to={AUTHENTICATED_HOME_PATH} replace />;
   }
 
   return children;
