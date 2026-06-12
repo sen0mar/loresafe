@@ -1,5 +1,6 @@
 import cookieParser from "cookie-parser";
 import express from "express";
+import { SignJWT } from "jose";
 import request from "supertest";
 import type { Response } from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -10,6 +11,7 @@ import { requestIdMiddleware } from "../../core/http/request-id.js";
 import { hashPassword } from "../../core/security/password.js";
 import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthController } from "./auth.controller.js";
+import { createAuthMiddleware } from "./auth.middleware.js";
 import {
   type AuthUserCredentialsRecord,
   type AuthUserRecord,
@@ -231,7 +233,7 @@ describe("auth routes", () => {
     expect(response.body.user).not.toHaveProperty("deletedAt");
   });
 
-  it("rejects missing, invalid, and stale current-user sessions", async () => {
+  it("rejects missing, malformed, tampered, expired, and stale current-user sessions", async () => {
     await request(app)
       .get("/api/auth/me")
       .set("x-request-id", "me-missing")
@@ -262,6 +264,41 @@ describe("auth routes", () => {
       displayName: "Existing Reader",
       passwordHash: await hashPassword("correct horse battery staple")
     });
+    const validSessionToken = await createSessionToken({
+      userId: user.id,
+      sessionVersion: user.sessionVersion
+    });
+    const expiredSessionToken = await createExpiredSessionToken(user);
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-tampered")
+      .set(
+        "Cookie",
+        `${env.SESSION_COOKIE_NAME}=${tamperToken(validSessionToken)}`
+      )
+      .expect(401)
+      .expect({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          requestId: "me-tampered"
+        }
+      });
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-expired")
+      .set("Cookie", `${env.SESSION_COOKIE_NAME}=${expiredSessionToken}`)
+      .expect(401)
+      .expect({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          requestId: "me-expired"
+        }
+      });
+
     const staleSessionToken = await createSessionToken({
       userId: user.id,
       sessionVersion: user.sessionVersion
@@ -291,11 +328,12 @@ const createAuthTestApp = (repository: AuthUsersRepository) => {
   const app = express();
   const service = createAuthService(repository);
   const controller = createAuthController(service);
+  const middleware = createAuthMiddleware(service);
 
   app.use(requestIdMiddleware);
   app.use(express.json());
   app.use(cookieParser());
-  app.use("/api/auth", createAuthRouter(controller));
+  app.use("/api/auth", createAuthRouter(controller, middleware));
   app.use(errorHandler);
 
   return app;
@@ -351,4 +389,26 @@ const extractSessionCookie = (response: Response) => {
   }
 
   return cookie.split(";")[0];
+};
+
+const tamperToken = (token: string) => {
+  const parts = token.split(".");
+  const signature = parts[2] ?? "";
+  const replacement = signature.endsWith("a") ? "b" : "a";
+
+  parts[2] = `${signature.slice(0, -1)}${replacement}`;
+
+  return parts.join(".");
+};
+
+const createExpiredSessionToken = (user: AuthUserRecord) => {
+  const secretKey = new TextEncoder().encode(env.JWT_SECRET);
+  const now = Math.floor(Date.now() / 1000);
+
+  return new SignJWT({ sessionVersion: user.sessionVersion })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setSubject(user.id)
+    .setIssuedAt(now - 120)
+    .setExpirationTime(now - 60)
+    .sign(secretKey);
 };

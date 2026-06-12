@@ -63,7 +63,7 @@ export const LoginForm = () => {
     loginMutation.mutate(parseResult.data, {
       onSuccess: () => {
         toast.success("Logged in");
-        navigate("/", { replace: true });
+        navigate("/app/profile", { replace: true });
       }
     });
   };

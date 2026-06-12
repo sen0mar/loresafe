@@ -70,7 +70,7 @@ export const SignupForm = () => {
       onSuccess: () => {
         // By this point the browser has processed Set-Cookie from the signup response.
         toast.success("Account created");
-        navigate("/", { replace: true });
+        navigate("/app/profile", { replace: true });
       }
     });
   };

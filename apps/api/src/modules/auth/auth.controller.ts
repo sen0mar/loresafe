@@ -8,6 +8,7 @@ import {
 } from "../../core/security/session-token.js";
 import { authService, type AuthService } from "./auth.service.js";
 import { loginRequestSchema, signupRequestSchema } from "./auth.schema.js";
+import "./auth.request.js";
 
 export type AuthController = {
   login: RequestHandler;
@@ -79,13 +80,14 @@ export const createAuthController = (
     res.status(204).send();
   },
 
-  me: async (req, res, next) => {
+  me: (req, res, next) => {
     try {
-      const sessionToken = getSessionCookie(req.cookies);
-      const user = await service.getCurrentUser(sessionToken);
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
 
       res.status(200).json({
-        user
+        user: req.currentUser
       });
     } catch (error) {
       next(error);
@@ -94,15 +96,3 @@ export const createAuthController = (
 });
 
 export const authController = createAuthController();
-
-const getSessionCookie = (cookies: unknown) => {
-  if (!cookies || typeof cookies !== "object") {
-    return undefined;
-  }
-
-  const sessionCookie = (cookies as Record<string, unknown>)[
-    env.SESSION_COOKIE_NAME
-  ];
-
-  return typeof sessionCookie === "string" ? sessionCookie : undefined;
-};

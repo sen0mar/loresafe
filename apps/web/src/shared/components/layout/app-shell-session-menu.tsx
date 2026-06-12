@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronDown, LogIn, LogOut, UserPlus } from "lucide-react";
+import { ChevronDown, LogIn, LogOut, UserPlus, UserRound } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
@@ -97,7 +97,12 @@ export const SessionMenu = ({
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Account settings</DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/app/profile">
+            <UserRound />
+            Profile
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem disabled>Reading modes</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
