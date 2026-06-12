@@ -39,7 +39,7 @@ const envSchema = z
       .default("development"),
     PORT: z.coerce.number().int().positive().max(65535).default(3000),
     CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
-    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).optional(),
     DATABASE_URL: z.string().trim().min(1),
     JWT_SECRET: z.string().min(32),
     SESSION_COOKIE_NAME: z
@@ -98,6 +98,7 @@ const isProduction = parsedEnv.NODE_ENV === "production";
 
 export const env = {
   ...parsedEnv,
+  TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (isProduction ? 1 : 0),
   SESSION_COOKIE_SECURE: isProduction
     ? true
     : (parsedEnv.SESSION_COOKIE_SECURE ?? false)
