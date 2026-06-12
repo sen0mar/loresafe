@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import {
   loginRateLimiter,
+  logoutRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -18,6 +19,7 @@ export const createApp = () => {
   const app = express();
 
   app.disable("x-powered-by");
+  app.set("trust proxy", env.TRUST_PROXY_HOPS);
 
   app.use(requestIdMiddleware);
   app.use(
@@ -28,7 +30,9 @@ export const createApp = () => {
     })
   );
 
+  // Keep auth limiters before JSON parsing so blocked requests avoid expensive auth work.
   app.use("/api/auth/login", loginRateLimiter);
+  app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());

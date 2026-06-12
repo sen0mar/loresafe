@@ -1,5 +1,10 @@
 import cookieParser from "cookie-parser";
 import express from "express";
+import type {
+  ClientRateLimitInfo,
+  Options as RateLimitOptions,
+  Store
+} from "express-rate-limit";
 import { SignJWT } from "jose";
 import request from "supertest";
 import type { Response } from "supertest";
@@ -8,6 +13,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
+import {
+  createAuthRateLimiters,
+  type AuthRateLimiterOptions,
+  type AuthRateLimiters
+} from "../../core/security/rate-limit.js";
 import { hashPassword } from "../../core/security/password.js";
 import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthController } from "./auth.controller.js";
@@ -190,6 +200,71 @@ describe("auth routes", () => {
     });
   });
 
+  it("rate limits repeated failed login attempts before credential lookup", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({ login: 2 })
+    });
+
+    await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await request(app)
+        .post("/api/auth/login")
+        .set("x-request-id", `login-failed-${attempt}`)
+        .send({
+          email: "reader@example.com",
+          password: "wrong password"
+        })
+        .expect(401);
+    }
+
+    const limitedResponse = await request(app)
+      .post("/api/auth/login")
+      .set("x-request-id", "login-limited")
+      .send({
+        email: "reader@example.com",
+        password: "wrong password"
+      })
+      .expect(429);
+
+    expect(limitedResponse.body).toEqual({
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many attempts. Try again later.",
+        requestId: "login-limited"
+      }
+    });
+    expect(repository.credentialLookupCount).toBe(2);
+  });
+
+  it("does not count successful logins against the failed-login limiter", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({ login: 1 })
+    });
+
+    await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await request(app)
+        .post("/api/auth/login")
+        .set("x-request-id", `login-success-${attempt}`)
+        .send({
+          email: "reader@example.com",
+          password: "correct horse battery staple"
+        })
+        .expect(200);
+      await waitForRateLimitDecrement();
+    }
+  });
+
   it("clears the session cookie on logout", async () => {
     const response = await request(app)
       .post("/api/auth/logout")
@@ -202,6 +277,64 @@ describe("auth routes", () => {
     expect(cookie).toContain("Expires=Thu, 01 Jan 1970");
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("SameSite=Lax");
+  });
+
+  it("rate limits signup with the shared 429 response shape", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({ signup: 1 })
+    });
+
+    await request(app)
+      .post("/api/auth/signup")
+      .set("x-request-id", "signup-first")
+      .send({
+        email: "reader@example.com",
+        displayName: "New Reader",
+        password: "correct horse battery staple"
+      })
+      .expect(201);
+
+    const limitedResponse = await request(app)
+      .post("/api/auth/signup")
+      .set("x-request-id", "signup-limited")
+      .send({
+        email: "another@example.com",
+        displayName: "Another Reader",
+        password: "correct horse battery staple"
+      })
+      .expect(429);
+
+    expect(limitedResponse.body).toEqual({
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many attempts. Try again later.",
+        requestId: "signup-limited"
+      }
+    });
+  });
+
+  it("rate limits logout with the shared 429 response shape", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({ logout: 1 })
+    });
+
+    await request(app)
+      .post("/api/auth/logout")
+      .set("x-request-id", "logout-first")
+      .expect(204);
+
+    const limitedResponse = await request(app)
+      .post("/api/auth/logout")
+      .set("x-request-id", "logout-limited")
+      .expect(429);
+
+    expect(limitedResponse.body).toEqual({
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many attempts. Try again later.",
+        requestId: "logout-limited"
+      }
+    });
   });
 
   it("returns the current safe user profile for a valid session", async () => {
@@ -324,13 +457,23 @@ describe("auth routes", () => {
   });
 });
 
-const createAuthTestApp = (repository: AuthUsersRepository) => {
+const createAuthTestApp = (
+  repository: AuthUsersRepository,
+  options: { rateLimiters?: AuthRateLimiters } = {}
+) => {
   const app = express();
   const service = createAuthService(repository);
   const controller = createAuthController(service);
   const middleware = createAuthMiddleware(service);
 
   app.use(requestIdMiddleware);
+
+  if (options.rateLimiters) {
+    app.use("/api/auth/login", options.rateLimiters.loginRateLimiter);
+    app.use("/api/auth/logout", options.rateLimiters.logoutRateLimiter);
+    app.use("/api/auth/signup", options.rateLimiters.signupRateLimiter);
+  }
+
   app.use(express.json());
   app.use(cookieParser());
   app.use("/api/auth", createAuthRouter(controller, middleware));
@@ -344,6 +487,7 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     string,
     AuthUserRecord & { passwordHash: string }
   >();
+  credentialLookupCount = 0;
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -360,8 +504,11 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
 
   findActiveUserCredentialsByEmail = async (
     email: string
-  ): Promise<AuthUserCredentialsRecord | null> =>
-    this.usersByEmail.get(email) ?? null;
+  ): Promise<AuthUserCredentialsRecord | null> => {
+    this.credentialLookupCount += 1;
+
+    return this.usersByEmail.get(email) ?? null;
+  };
 
   createUser = async ({ email, displayName, passwordHash }: CreateAuthUserInput) => {
     const now = new Date();
@@ -380,6 +527,67 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     return user;
   };
 }
+
+type InMemoryRateLimitClient = {
+  resetTime: Date;
+  totalHits: number;
+};
+
+class InMemoryRateLimitStore implements Store {
+  private clients = new Map<string, InMemoryRateLimitClient>();
+  private windowMs = 0;
+
+  init = (options: RateLimitOptions) => {
+    this.windowMs = options.windowMs;
+  };
+
+  increment = (key: string) => {
+    const now = Date.now();
+    const currentClient = this.clients.get(key);
+
+    if (!currentClient || currentClient.resetTime.getTime() <= now) {
+      const nextClient = {
+        totalHits: 1,
+        resetTime: new Date(now + this.windowMs)
+      };
+
+      this.clients.set(key, nextClient);
+
+      return nextClient;
+    }
+
+    currentClient.totalHits += 1;
+
+    return currentClient;
+  };
+
+  decrement = (key: string) => {
+    const currentClient = this.clients.get(key);
+
+    if (!currentClient) {
+      return;
+    }
+
+    currentClient.totalHits = Math.max(currentClient.totalHits - 1, 0);
+  };
+
+  resetKey = (key: string) => {
+    this.clients.delete(key);
+  };
+}
+
+const createAuthTestRateLimiters = (
+  limitOverrides: AuthRateLimiterOptions["limitOverrides"]
+) =>
+  createAuthRateLimiters({
+    limitOverrides,
+    storeFactory: () => new InMemoryRateLimitStore()
+  });
+
+const waitForRateLimitDecrement = () =>
+  new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 
 const extractSessionCookie = (response: Response) => {
   const cookie = response.headers["set-cookie"]?.[0];
