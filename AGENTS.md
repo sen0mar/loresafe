@@ -10,6 +10,25 @@ Read these before implementation:
 6. `context/features/current-feature.md` — active feature plan.
 7. `context/features/feature-history.md` — completed feature summaries.
 
+# Workflow
+
+- Before starting a new feature, create a new feature branch from `main`; if the user explicitly says not to create a branch, skip this workflow and follow the user's instructions.
+- After agreeing on the feature scope with the user and before implementation, fill the placeholders in `context/features/current-feature.md`, then ask whether to start implementation.
+- After implementation is complete and the user asks to commit and merge into `main`, reset `context/features/current-feature.md` back to placeholders and add a concise entry to `context/features/feature-history.md`.
+- Commit messages must use a short title and a concise description of what changed.
+- Do not mention routine `current-feature.md` or `feature-history.md` updates in commit messages.
+
+## Dependency Installs
+
+- Package manager install commands require network access and may hang in the default sandbox. For npm install, npm ci, npx, pnpm, yarn, or equivalent dependency-download commands, request escalated permissions up front instead of first trying the sandboxed command.
+- If a dependency install produces no output for about 5 seconds, treat it as stuck: stop the stale process, rerun with escalated permissions, and do not leave background install sessions running.
+- Prefer installing from the package directory that owns the lockfile, for example client/ for frontend packages.
+
+## Code Style
+
+- Prefer arrow functions assigned to `const` over regular `function` declarations for components, helpers, and callbacks.
+- Keep every file focused, readable, and compositional. Build features from reusable components, hooks, data/config modules, and model utilities in folders that match their responsibility instead of placing substantial UI or logic directly in one file. Entrypoints such as `src/App.tsx` should be especially small composition layers.
+
 ## Hard Rules
 
 - Keep the implementation simple and readable. Avoid clever abstractions, large mixed-purpose files, and long functions/components.
