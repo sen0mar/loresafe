@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from "jose";
 import { env } from "../../config/env.js";
 
 const secretKey = new TextEncoder().encode(env.JWT_SECRET);
+const sessionCookieSameSite = env.NODE_ENV === "production" ? "none" : "lax";
 
 type CreateSessionTokenInput = {
   userId: string;
@@ -18,7 +19,7 @@ export type VerifiedSessionToken = {
 export const sessionCookieOptions = {
   httpOnly: true,
   secure: env.SESSION_COOKIE_SECURE,
-  sameSite: "lax" as const,
+  sameSite: sessionCookieSameSite,
   path: "/",
   maxAge: env.SESSION_TTL_SECONDS * 1000
 };

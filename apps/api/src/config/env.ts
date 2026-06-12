@@ -94,9 +94,11 @@ if (!envResult.success) {
 }
 
 const parsedEnv = envResult.data;
+const isProduction = parsedEnv.NODE_ENV === "production";
 
 export const env = {
   ...parsedEnv,
-  SESSION_COOKIE_SECURE:
-    parsedEnv.SESSION_COOKIE_SECURE ?? parsedEnv.NODE_ENV === "production"
+  SESSION_COOKIE_SECURE: isProduction
+    ? true
+    : (parsedEnv.SESSION_COOKIE_SECURE ?? false)
 };
