@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/shared/components/ui/dropdown-menu";
+import { getUserInitials } from "@/shared/lib/user-display";
 
 export type AppShellUser = {
   email: string;
@@ -98,7 +99,7 @@ export const SessionMenu = ({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to="/app/profile">
+          <Link to="/app/settings/profile">
             <UserRound />
             Profile
           </Link>
@@ -119,15 +120,4 @@ export const SessionMenu = ({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-};
-
-const getUserInitials = (displayName: string) => {
-  const initials = displayName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-
-  return initials || "TS";
 };

@@ -62,7 +62,7 @@ export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
   }
 
   if (meQuery.data) {
-    return <Navigate to="/app/profile" replace />;
+    return <Navigate to="/app/settings/profile" replace />;
   }
 
   return children;

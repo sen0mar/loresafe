@@ -109,3 +109,15 @@ export const {
   passwordResetRateLimiter,
   signupRateLimiter
 } = createAuthRateLimiters();
+
+export const profileUpdateRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:users:profile-update:"),
+  identifier: "users-profile-update",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
