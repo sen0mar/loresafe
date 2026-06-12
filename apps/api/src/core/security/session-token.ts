@@ -1,9 +1,11 @@
 import { jwtVerify, SignJWT } from "jose";
+import type { CookieOptions } from "express";
 
 import { env } from "../../config/env.js";
 
 const secretKey = new TextEncoder().encode(env.JWT_SECRET);
-const sessionCookieSameSite = env.NODE_ENV === "production" ? "none" : "lax";
+const sessionCookieSameSite: CookieOptions["sameSite"] =
+  env.NODE_ENV === "production" ? "none" : "lax";
 
 type CreateSessionTokenInput = {
   userId: string;
@@ -22,7 +24,7 @@ export const sessionCookieOptions = {
   sameSite: sessionCookieSameSite,
   path: "/",
   maxAge: env.SESSION_TTL_SECONDS * 1000
-};
+} satisfies CookieOptions;
 
 // Clearing must match the set-cookie scope, or browsers can keep the old session.
 export const clearedSessionCookieOptions = {
@@ -30,7 +32,7 @@ export const clearedSessionCookieOptions = {
   secure: sessionCookieOptions.secure,
   sameSite: sessionCookieOptions.sameSite,
   path: sessionCookieOptions.path
-};
+} satisfies CookieOptions;
 
 export const createSessionToken = ({
   userId,
