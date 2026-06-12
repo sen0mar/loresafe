@@ -4,6 +4,8 @@ export type AuthUserRecord = {
   id: string;
   email: string;
   displayName: string;
+  username: string | null;
+  bio: string | null;
   sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +34,8 @@ const userSelect = {
   id: true,
   email: true,
   displayName: true,
+  username: true,
+  bio: true,
   sessionVersion: true,
   createdAt: true,
   updatedAt: true

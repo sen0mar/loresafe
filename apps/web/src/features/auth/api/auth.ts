@@ -9,6 +9,8 @@ export type AuthUser = {
   id: string;
   email: string;
   displayName: string;
+  username: string | null;
+  bio: string | null;
   createdAt: string;
   updatedAt: string;
 };

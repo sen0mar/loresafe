@@ -50,10 +50,20 @@ export const apiPost = async <TResponse, TBody = unknown>(
   });
 };
 
+export const apiPatch = async <TResponse, TBody = unknown>(
+  path: string,
+  body?: TBody
+): Promise<TResponse> => {
+  return apiRequest<TResponse>(path, {
+    method: "PATCH",
+    body
+  });
+};
+
 const apiRequest = async <TResponse,>(
   path: string,
   options: {
-    method: "GET" | "POST";
+    method: "GET" | "PATCH" | "POST";
     body?: unknown;
   }
 ): Promise<TResponse> => {

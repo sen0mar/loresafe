@@ -56,6 +56,8 @@ describe("auth routes", () => {
         id: expect.any(String),
         email: "reader@example.com",
         displayName: "New Reader",
+        username: null,
+        bio: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -145,6 +147,8 @@ describe("auth routes", () => {
         id: expect.any(String),
         email: "reader@example.com",
         displayName: "Existing Reader",
+        username: null,
+        bio: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -357,6 +361,8 @@ describe("auth routes", () => {
         id: signupResponse.body.user.id,
         email: "reader@example.com",
         displayName: "New Reader",
+        username: null,
+        bio: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -516,6 +522,8 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
       id: crypto.randomUUID(),
       email,
       displayName,
+      username: null,
+      bio: null,
       passwordHash,
       sessionVersion: 1,
       createdAt: now,
