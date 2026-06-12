@@ -42,7 +42,7 @@ export const apiGet = async <TResponse,>(
 
 export const apiPost = async <TResponse, TBody = unknown>(
   path: string,
-  body: TBody
+  body?: TBody
 ): Promise<TResponse> => {
   return apiRequest<TResponse>(path, {
     method: "POST",

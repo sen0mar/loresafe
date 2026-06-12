@@ -1,3 +1,6 @@
+import { toast } from "sonner";
+
+import { useLogout, useMe } from "@/features/auth/api/auth";
 import { AppShell } from "@/shared/components/layout/app-shell";
 
 import { useHealthQuery } from "../api/health.js";
@@ -8,9 +11,28 @@ import { HomeRightRail } from "../components/home-right-rail.js";
 
 export const HomePage = () => {
   const healthQuery = useHealthQuery();
+  const meQuery = useMe();
+  const logoutMutation = useLogout();
+
+  const logout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("Logged out");
+      },
+      onError: () => {
+        toast.error("Could not log out. Try again.");
+      }
+    });
+  };
 
   return (
-    <AppShell rightRail={<HomeRightRail />}>
+    <AppShell
+      currentUser={meQuery.data ?? null}
+      isCurrentUserLoading={meQuery.isPending}
+      isLoggingOut={logoutMutation.isPending}
+      onLogout={logout}
+      rightRail={<HomeRightRail />}
+    >
       <div className="space-y-4">
         <ClubHeader />
         <HealthStatusPanel

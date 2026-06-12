@@ -18,3 +18,19 @@ export const signupRateLimiter = rateLimit({
     );
   }
 });
+
+export const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(
+      new HttpError(
+        429,
+        "TOO_MANY_REQUESTS",
+        "Too many login attempts. Try again later."
+      )
+    );
+  }
+});

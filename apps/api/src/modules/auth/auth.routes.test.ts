@@ -1,13 +1,17 @@
 import cookieParser from "cookie-parser";
 import express from "express";
 import request from "supertest";
+import type { Response } from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
+import { hashPassword } from "../../core/security/password.js";
+import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthController } from "./auth.controller.js";
 import {
+  type AuthUserCredentialsRecord,
   type AuthUserRecord,
   type AuthUsersRepository,
   type CreateAuthUserInput
@@ -45,6 +49,7 @@ describe("auth routes", () => {
       }
     });
     expect(response.body.user).not.toHaveProperty("passwordHash");
+    expect(response.body.user).not.toHaveProperty("sessionVersion");
 
     const storedUser = repository.usersByEmail.get("reader@example.com");
     expect(storedUser?.passwordHash).toMatch(/^\$argon2id\$/);
@@ -106,6 +111,180 @@ describe("auth routes", () => {
       }
     });
   });
+
+  it("logs in an existing user and sends an HttpOnly session cookie", async () => {
+    await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .set("x-request-id", "login-success")
+      .send({
+        email: "Reader@Example.com",
+        password: "correct horse battery staple"
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      user: {
+        id: expect.any(String),
+        email: "reader@example.com",
+        displayName: "Existing Reader",
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      }
+    });
+    expect(response.body.user).not.toHaveProperty("passwordHash");
+    expect(response.body.user).not.toHaveProperty("sessionVersion");
+
+    const cookie = response.headers["set-cookie"]?.[0] ?? "";
+    expect(cookie).toContain(`${env.SESSION_COOKIE_NAME}=`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+  });
+
+  it("uses a generic auth error for unknown email and wrong password", async () => {
+    await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    const unknownEmailResponse = await request(app)
+      .post("/api/auth/login")
+      .set("x-request-id", "login-unknown")
+      .send({
+        email: "missing@example.com",
+        password: "correct horse battery staple"
+      })
+      .expect(401);
+
+    expect(unknownEmailResponse.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid credentials",
+        requestId: "login-unknown"
+      }
+    });
+
+    const wrongPasswordResponse = await request(app)
+      .post("/api/auth/login")
+      .set("x-request-id", "login-wrong-password")
+      .send({
+        email: "reader@example.com",
+        password: "wrong password"
+      })
+      .expect(401);
+
+    expect(wrongPasswordResponse.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid credentials",
+        requestId: "login-wrong-password"
+      }
+    });
+  });
+
+  it("clears the session cookie on logout", async () => {
+    const response = await request(app)
+      .post("/api/auth/logout")
+      .set("x-request-id", "logout")
+      .expect(204);
+
+    const cookie = response.headers["set-cookie"]?.[0] ?? "";
+
+    expect(cookie).toContain(`${env.SESSION_COOKIE_NAME}=`);
+    expect(cookie).toContain("Expires=Thu, 01 Jan 1970");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+  });
+
+  it("returns the current safe user profile for a valid session", async () => {
+    const signupResponse = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "reader@example.com",
+        displayName: "New Reader",
+        password: "correct horse battery staple"
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", extractSessionCookie(signupResponse))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      user: {
+        id: signupResponse.body.user.id,
+        email: "reader@example.com",
+        displayName: "New Reader",
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      }
+    });
+    expect(response.body.user).not.toHaveProperty("passwordHash");
+    expect(response.body.user).not.toHaveProperty("sessionVersion");
+    expect(response.body.user).not.toHaveProperty("deletedAt");
+  });
+
+  it("rejects missing, invalid, and stale current-user sessions", async () => {
+    await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-missing")
+      .expect(401)
+      .expect({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          requestId: "me-missing"
+        }
+      });
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-invalid")
+      .set("Cookie", `${env.SESSION_COOKIE_NAME}=not-a-token`)
+      .expect(401)
+      .expect({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          requestId: "me-invalid"
+        }
+      });
+
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+    const staleSessionToken = await createSessionToken({
+      userId: user.id,
+      sessionVersion: user.sessionVersion
+    });
+    const storedUser = repository.usersByEmail.get("reader@example.com");
+
+    if (storedUser) {
+      storedUser.sessionVersion += 1;
+    }
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-stale")
+      .set("Cookie", `${env.SESSION_COOKIE_NAME}=${staleSessionToken}`)
+      .expect(401)
+      .expect({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          requestId: "me-stale"
+        }
+      });
+  });
 });
 
 const createAuthTestApp = (repository: AuthUsersRepository) => {
@@ -131,6 +310,21 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
 
+  findActiveUserById = async (id: string) => {
+    for (const user of this.usersByEmail.values()) {
+      if (user.id === id) {
+        return user;
+      }
+    }
+
+    return null;
+  };
+
+  findActiveUserCredentialsByEmail = async (
+    email: string
+  ): Promise<AuthUserCredentialsRecord | null> =>
+    this.usersByEmail.get(email) ?? null;
+
   createUser = async ({ email, displayName, passwordHash }: CreateAuthUserInput) => {
     const now = new Date();
     const user = {
@@ -148,3 +342,13 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     return user;
   };
 }
+
+const extractSessionCookie = (response: Response) => {
+  const cookie = response.headers["set-cookie"]?.[0];
+
+  if (!cookie) {
+    throw new Error("Expected response to include a session cookie.");
+  }
+
+  return cookie.split(";")[0];
+};
