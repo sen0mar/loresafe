@@ -15,8 +15,16 @@ export type CreateAuthUserInput = {
   passwordHash: string;
 };
 
+export type AuthUserCredentialsRecord = AuthUserRecord & {
+  passwordHash: string;
+};
+
 export type AuthUsersRepository = {
   findActiveUserByEmail: (email: string) => Promise<AuthUserRecord | null>;
+  findActiveUserById: (id: string) => Promise<AuthUserRecord | null>;
+  findActiveUserCredentialsByEmail: (
+    email: string
+  ) => Promise<AuthUserCredentialsRecord | null>;
   createUser: (input: CreateAuthUserInput) => Promise<AuthUserRecord>;
 };
 
@@ -29,6 +37,12 @@ const userSelect = {
   updatedAt: true
 } as const;
 
+const userCredentialsSelect = {
+  ...userSelect,
+  // Login verification is the only read path that may load the password hash.
+  passwordHash: true
+} as const;
+
 export const authUsersRepository: AuthUsersRepository = {
   findActiveUserByEmail: (email) =>
     prisma.user.findFirst({
@@ -38,6 +52,24 @@ export const authUsersRepository: AuthUsersRepository = {
         deletedAt: null
       },
       select: userSelect
+    }),
+
+  findActiveUserById: (id) =>
+    prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null
+      },
+      select: userSelect
+    }),
+
+  findActiveUserCredentialsByEmail: (email) =>
+    prisma.user.findFirst({
+      where: {
+        email,
+        deletedAt: null
+      },
+      select: userCredentialsSelect
     }),
 
   // The repository accepts the hash for writes but never selects it back into auth DTOs.

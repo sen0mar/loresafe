@@ -2,11 +2,17 @@ import type { RequestHandler } from "express";
 
 import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
-import { sessionCookieOptions } from "../../core/security/session-token.js";
+import {
+  clearedSessionCookieOptions,
+  sessionCookieOptions
+} from "../../core/security/session-token.js";
 import { authService, type AuthService } from "./auth.service.js";
-import { signupRequestSchema } from "./auth.schema.js";
+import { loginRequestSchema, signupRequestSchema } from "./auth.schema.js";
 
 export type AuthController = {
+  login: RequestHandler;
+  logout: RequestHandler;
+  me: RequestHandler;
   signup: RequestHandler;
 };
 
@@ -39,7 +45,64 @@ export const createAuthController = (
     } catch (error) {
       next(error);
     }
+  },
+
+  login: async (req, res, next) => {
+    try {
+      const parseResult = loginRequestSchema.safeParse(req.body);
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the login fields and try again."
+        );
+      }
+
+      const result = await service.login(parseResult.data);
+
+      res.cookie(
+        env.SESSION_COOKIE_NAME,
+        result.sessionToken,
+        sessionCookieOptions
+      );
+      res.status(200).json({
+        user: result.user
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  logout: (_req, res) => {
+    res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
+    res.status(204).send();
+  },
+
+  me: async (req, res, next) => {
+    try {
+      const sessionToken = getSessionCookie(req.cookies);
+      const user = await service.getCurrentUser(sessionToken);
+
+      res.status(200).json({
+        user
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 });
 
 export const authController = createAuthController();
+
+const getSessionCookie = (cookies: unknown) => {
+  if (!cookies || typeof cookies !== "object") {
+    return undefined;
+  }
+
+  const sessionCookie = (cookies as Record<string, unknown>)[
+    env.SESSION_COOKIE_NAME
+  ];
+
+  return typeof sessionCookie === "string" ? sessionCookie : undefined;
+};

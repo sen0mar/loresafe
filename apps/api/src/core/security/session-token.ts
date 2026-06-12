@@ -23,6 +23,14 @@ export const sessionCookieOptions = {
   maxAge: env.SESSION_TTL_SECONDS * 1000
 };
 
+// Clearing must match the set-cookie scope, or browsers can keep the old session.
+export const clearedSessionCookieOptions = {
+  httpOnly: sessionCookieOptions.httpOnly,
+  secure: sessionCookieOptions.secure,
+  sameSite: sessionCookieOptions.sameSite,
+  path: sessionCookieOptions.path
+};
+
 export const createSessionToken = ({
   userId,
   sessionVersion

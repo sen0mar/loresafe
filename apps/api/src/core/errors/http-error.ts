@@ -3,6 +3,7 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "INTERNAL_SERVER_ERROR"
   | "NOT_FOUND"
+  | "UNAUTHORIZED"
   | "TOO_MANY_REQUESTS";
 
 export class HttpError extends Error {
