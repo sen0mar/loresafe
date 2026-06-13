@@ -46,6 +46,7 @@ model Club {
   slug        String         @db.VarChar(80)
   description String?        @db.VarChar(280)
   category    String?        @db.VarChar(60)
+  rules       String?        @db.VarChar(2000)
   visibility  ClubVisibility @default(PUBLIC)
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)

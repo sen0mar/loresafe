@@ -1,9 +1,11 @@
-import { Compass, Globe2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Compass, Globe2, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLogout, useMe } from "@/features/auth/api/auth";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
 
 import { usePublicClubsQuery } from "../api/clubs.js";
 import { ClubDiscoveryCard } from "../components/club-discovery-card.js";
@@ -55,10 +57,18 @@ export const ExplorePage = () => {
               Find spoiler-safe spaces that are open for discovery.
             </p>
           </div>
-          <Badge>
-            <Globe2 className="size-3" />
-            Public only
-          </Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge>
+              <Globe2 className="size-3" />
+              Public only
+            </Badge>
+            <Button asChild>
+              <Link to="/app/clubs/new">
+                <PlusCircle />
+                Create club
+              </Link>
+            </Button>
+          </div>
         </section>
 
         {clubsQuery.isPending ? (

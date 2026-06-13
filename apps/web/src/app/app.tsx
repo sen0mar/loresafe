@@ -7,6 +7,8 @@ import {
 } from "../features/auth/components/auth-route-guards.js";
 import { LoginPage } from "../features/auth/pages/login-page.js";
 import { SignupPage } from "../features/auth/pages/signup-page.js";
+import { ClubDetailPage } from "../features/clubs/pages/club-detail-page.js";
+import { CreateClubPage } from "../features/clubs/pages/create-club-page.js";
 import { ExplorePage } from "../features/clubs/pages/explore-page.js";
 import { HomePage } from "../features/health/pages/home-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
@@ -55,6 +57,22 @@ export const App = () => (
           element={
             <ProtectedRoute>
               <ExplorePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/clubs/new"
+          element={
+            <ProtectedRoute>
+              <CreateClubPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/clubs/:slug"
+          element={
+            <ProtectedRoute>
+              <ClubDetailPage />
             </ProtectedRoute>
           }
         />
