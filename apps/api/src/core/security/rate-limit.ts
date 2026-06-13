@@ -145,3 +145,27 @@ export const clubJoinRateLimiter = rateLimit({
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
   }
 });
+
+export const clubInviteCreateRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:clubs:invites:create:"),
+  identifier: "clubs-invites-create",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const inviteAcceptRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:invites:accept:"),
+  identifier: "invites-accept",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});

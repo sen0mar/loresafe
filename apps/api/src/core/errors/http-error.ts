@@ -1,7 +1,11 @@
 export type ApiErrorCode =
   | "BAD_REQUEST"
   | "CONFLICT"
+  | "FORBIDDEN"
   | "INTERNAL_SERVER_ERROR"
+  | "INVITE_EXPIRED"
+  | "INVITE_MAXED"
+  | "INVITE_REVOKED"
   | "NOT_FOUND"
   | "UNAUTHORIZED"
   | "TOO_MANY_REQUESTS";

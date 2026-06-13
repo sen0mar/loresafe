@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -222,6 +223,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                     {club.settings.rules ?? "No rules posted yet."}
                   </p>
                 </div>
+                <ClubInviteSection club={club} />
               </CardContent>
             </Card>
           </TabsContent>

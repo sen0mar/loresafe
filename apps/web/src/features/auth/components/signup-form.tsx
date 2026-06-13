@@ -1,10 +1,13 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
-import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import {
+  AUTHENTICATED_HOME_PATH,
+  getSafeInternalRedirectPath
+} from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -32,9 +35,17 @@ const initialValues: SignupFormValues = {
 
 export const SignupForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const signupMutation = useSignup();
   const [values, setValues] = useState<SignupFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
+  const redirectTo =
+    getSafeInternalRedirectPath(searchParams.get("redirectTo")) ??
+    AUTHENTICATED_HOME_PATH;
+  const loginPath =
+    redirectTo === AUTHENTICATED_HOME_PATH
+      ? "/login"
+      : `/login?${new URLSearchParams({ redirectTo }).toString()}`;
 
   const updateField =
     (field: keyof SignupFormValues) =>
@@ -71,7 +82,7 @@ export const SignupForm = () => {
       onSuccess: () => {
         // By this point the browser has processed Set-Cookie from the signup response.
         toast.success("Account created");
-        navigate(AUTHENTICATED_HOME_PATH, { replace: true });
+        navigate(redirectTo, { replace: true });
       }
     });
   };
@@ -160,7 +171,7 @@ export const SignupForm = () => {
 
         <p className="mt-4 text-center text-sm text-faint">
           Already have an account?{" "}
-          <Link className="text-brand hover:underline" to="/login">
+          <Link className="text-brand hover:underline" to={loginPath}>
             Log in
           </Link>
         </p>

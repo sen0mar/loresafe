@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 
-import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import {
+  AUTHENTICATED_HOME_PATH,
+  getSafeInternalRedirectPath
+} from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -20,6 +23,7 @@ type AuthRouteGuardProps = {
 
 export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
   const meQuery = useMe();
+  const location = useLocation();
 
   if (meQuery.isPending) {
     return <AuthRouteStatus title="Checking session" />;
@@ -38,7 +42,12 @@ export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
 
   // getMe maps 401s to null, so missing, expired, and tampered cookies all land here.
   if (!meQuery.data) {
-    return <Navigate to="/login" replace />;
+    const redirectTo = `${location.pathname}${location.search}${location.hash}`;
+    const searchParams = new URLSearchParams({
+      redirectTo
+    });
+
+    return <Navigate to={`/login?${searchParams.toString()}`} replace />;
   }
 
   return children;
@@ -46,6 +55,7 @@ export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
 
 export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
   const meQuery = useMe();
+  const location = useLocation();
 
   if (meQuery.isPending) {
     return <AuthRouteStatus title="Checking session" />;
@@ -63,7 +73,12 @@ export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
   }
 
   if (meQuery.data) {
-    return <Navigate to={AUTHENTICATED_HOME_PATH} replace />;
+    const redirectTo =
+      getSafeInternalRedirectPath(
+        new URLSearchParams(location.search).get("redirectTo")
+      ) ?? AUTHENTICATED_HOME_PATH;
+
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;

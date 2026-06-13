@@ -1,10 +1,13 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "sonner";
 
-import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import {
+  AUTHENTICATED_HOME_PATH,
+  getSafeInternalRedirectPath
+} from "@/app/routes";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -28,9 +31,17 @@ const initialValues: LoginFormValues = {
 
 export const LoginForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const loginMutation = useLogin();
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
+  const redirectTo =
+    getSafeInternalRedirectPath(searchParams.get("redirectTo")) ??
+    AUTHENTICATED_HOME_PATH;
+  const signupPath =
+    redirectTo === AUTHENTICATED_HOME_PATH
+      ? "/signup"
+      : `/signup?${new URLSearchParams({ redirectTo }).toString()}`;
 
   const updateField =
     (field: keyof LoginFormValues) =>
@@ -64,7 +75,7 @@ export const LoginForm = () => {
     loginMutation.mutate(parseResult.data, {
       onSuccess: () => {
         toast.success("Logged in");
-        navigate(AUTHENTICATED_HOME_PATH, { replace: true });
+        navigate(redirectTo, { replace: true });
       }
     });
   };
@@ -132,7 +143,7 @@ export const LoginForm = () => {
 
         <p className="mt-4 text-center text-sm text-faint">
           New to ThreadSync?{" "}
-          <Link className="text-brand hover:underline" to="/signup">
+          <Link className="text-brand hover:underline" to={signupPath}>
             Create an account
           </Link>
         </p>

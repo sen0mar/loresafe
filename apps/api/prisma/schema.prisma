@@ -32,7 +32,8 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  clubMemberships ClubMembership[]
+  clubMemberships   ClubMembership[]
+  createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -52,6 +53,7 @@ model Club {
   updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships ClubMembership[]
+  invites     ClubInvite[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -73,4 +75,26 @@ model ClubMembership {
   @@index([userId], map: "club_memberships_user_id_idx")
   @@index([clubId], map: "club_memberships_club_id_idx")
   @@map("club_memberships")
+}
+
+model ClubInvite {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId      String    @map("club_id") @db.Uuid
+  createdById String    @map("created_by_id") @db.Uuid
+  tokenHash   String    @map("token_hash") @db.VarChar(64)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  maxUses     Int       @map("max_uses")
+  usedCount   Int       @default(0) @map("used_count")
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club      Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy User @relation("ClubInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash], map: "club_invites_token_hash_unique")
+  @@index([clubId, createdAt], map: "club_invites_club_id_created_at_idx")
+  @@index([createdById], map: "club_invites_created_by_id_idx")
+  @@index([expiresAt], map: "club_invites_expires_at_idx")
+  @@map("club_invites")
 }
