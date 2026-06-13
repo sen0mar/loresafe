@@ -10,14 +10,14 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  UserPlus,
   Users,
   type LucideIcon
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useLogout, useMe } from "@/features/auth/api/auth";
+import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { ApiError } from "@/shared/api/api-client";
-import { AppShell } from "@/shared/components/layout/app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -38,7 +38,8 @@ import {
   type Club,
   type ClubMembershipRole,
   type ClubVisibility,
-  useClubQuery
+  useClubQuery,
+  useJoinClubMutation
 } from "../api/clubs.js";
 
 const memberFormatter = new Intl.NumberFormat();
@@ -79,33 +80,10 @@ const formatDate = (value: string) =>
 
 export const ClubDetailPage = () => {
   const { slug = "" } = useParams();
-  const meQuery = useMe();
-  const logoutMutation = useLogout();
   const clubQuery = useClubQuery(slug);
-  const currentUser = meQuery.data;
-
-  const logout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("Logged out");
-      },
-      onError: () => {
-        toast.error("Could not log out. Try again.");
-      }
-    });
-  };
-
-  if (!currentUser) {
-    return null;
-  }
 
   return (
-    <AppShell
-      currentUser={currentUser}
-      isCurrentUserLoading={meQuery.isPending}
-      isLoggingOut={logoutMutation.isPending}
-      onLogout={logout}
-    >
+    <AuthenticatedAppShell>
       <div className="space-y-4">
         {clubQuery.isPending ? (
           <ClubDetailLoading />
@@ -118,13 +96,32 @@ export const ClubDetailPage = () => {
           <ClubDetailContent club={clubQuery.data.club} />
         )}
       </div>
-    </AppShell>
+    </AuthenticatedAppShell>
   );
 };
 
 const ClubDetailContent = ({ club }: { club: Club }) => {
   const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
+  const joinClubMutation = useJoinClubMutation();
   const role = club.membership.role;
+  const canJoin =
+    club.settings.visibility === "PUBLIC" && !club.membership.isMember;
+
+  const joinClub = () => {
+    joinClubMutation.mutate(club.slug, {
+      onSuccess: () => {
+        toast.success("Joined club");
+      },
+      onError: (error) => {
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : "Could not join club. Try again.";
+
+        toast.error(message);
+      }
+    });
+  };
 
   return (
     <>
@@ -157,6 +154,12 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               Not a member
             </Badge>
           )}
+          {canJoin ? (
+            <Button onClick={joinClub} disabled={joinClubMutation.isPending}>
+              <UserPlus />
+              {joinClubMutation.isPending ? "Joining" : "Join club"}
+            </Button>
+          ) : null}
         </div>
       </section>
 

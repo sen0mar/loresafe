@@ -24,6 +24,10 @@ export type ClubsService = {
     slug: string,
     userId: string
   ) => Promise<ClubResponse>;
+  joinPublicClubBySlug: (
+    slug: string,
+    userId: string
+  ) => Promise<ClubResponse>;
   listPublicClubs: (
     query: ListClubsQuery
   ) => Promise<ClubsDiscoveryResponse>;
@@ -56,6 +60,18 @@ export const createClubsService = (
 
   getVisibleClubBySlug: async (slug, userId) => {
     const club = await repository.findVisibleClubBySlugForUser(slug, userId);
+
+    if (!club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    return {
+      club: toClubDto(club)
+    };
+  },
+
+  joinPublicClubBySlug: async (slug, userId) => {
+    const club = await repository.joinPublicClubBySlug(slug, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");

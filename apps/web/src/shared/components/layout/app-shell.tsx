@@ -6,7 +6,8 @@ import { Input } from "@/shared/components/ui/input";
 
 import {
   DesktopSidebar,
-  MobileNav
+  MobileNav,
+  type AppShellJoinedClub
 } from "./app-shell-navigation.js";
 import {
   SessionMenu,
@@ -17,8 +18,13 @@ type AppShellProps = {
   children: ReactNode;
   currentUser?: AppShellUser | null;
   isCurrentUserLoading?: boolean;
+  isJoinedClubsError?: boolean;
+  isJoinedClubsLoading?: boolean;
   isLoggingOut?: boolean;
+  joinedClubs?: AppShellJoinedClub[];
+  joinedClubsTotal?: number;
   onLogout?: () => void;
+  onRetryJoinedClubs?: () => void;
   rightRail?: ReactNode;
 };
 
@@ -26,17 +32,34 @@ export const AppShell = ({
   children,
   currentUser,
   isCurrentUserLoading = false,
+  isJoinedClubsError = false,
+  isJoinedClubsLoading = false,
   isLoggingOut = false,
+  joinedClubs = [],
+  joinedClubsTotal,
   onLogout,
+  onRetryJoinedClubs,
   rightRail
 }: AppShellProps) => (
   <div className="min-h-screen bg-gradient-app text-primary">
     <div className="mx-auto flex min-h-screen w-full max-w-[112rem] p-2 lg:p-3">
-      <DesktopSidebar />
+      <DesktopSidebar
+        joinedClubs={joinedClubs}
+        joinedClubsTotal={joinedClubsTotal}
+        isJoinedClubsError={isJoinedClubsError}
+        isJoinedClubsLoading={isJoinedClubsLoading}
+        onRetryJoinedClubs={onRetryJoinedClubs}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-default bg-base-90 px-2 py-3 backdrop-blur-md lg:px-6">
-          <MobileNav />
+          <MobileNav
+            joinedClubs={joinedClubs}
+            joinedClubsTotal={joinedClubsTotal}
+            isJoinedClubsError={isJoinedClubsError}
+            isJoinedClubsLoading={isJoinedClubsLoading}
+            onRetryJoinedClubs={onRetryJoinedClubs}
+          />
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
             <Input

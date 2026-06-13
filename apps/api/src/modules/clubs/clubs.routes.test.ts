@@ -313,6 +313,155 @@ describe("clubs routes", () => {
     });
   });
 
+  it("lets a signed-in user join a public club as a member", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      description: "Safe public discussion.",
+      category: "Books",
+      visibility: "PUBLIC"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/join")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      id: club.id,
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      visibility: "PUBLIC",
+      memberCount: 1,
+      currentUserRole: "MEMBER",
+      membership: {
+        isMember: true,
+        role: "MEMBER"
+      }
+    });
+    expect(repository.memberships).toEqual([
+      {
+        userId: reader.id,
+        clubId: club.id,
+        role: "MEMBER"
+      }
+    ]);
+  });
+
+  it("treats duplicate public club joins as idempotent", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(reader.id, club.id, "MEMBER");
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/join")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      id: club.id,
+      memberCount: 1,
+      currentUserRole: "MEMBER",
+      membership: {
+        isMember: true,
+        role: "MEMBER"
+      }
+    });
+    expect(
+      repository.memberships.filter(
+        (membership) =>
+          membership.userId === reader.id && membership.clubId === club.id
+      )
+    ).toHaveLength(1);
+  });
+
+  it("preserves an existing elevated role during an idempotent public club join", async () => {
+    const moderator = await repository.createUser({
+      email: "mod@example.com",
+      displayName: "Moderator",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(moderator.id, club.id, "MODERATOR");
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/join")
+      .set("Cookie", await createSessionCookie(moderator))
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      id: club.id,
+      memberCount: 1,
+      currentUserRole: "MODERATOR",
+      membership: {
+        isMember: true,
+        role: "MODERATOR"
+      }
+    });
+    expect(repository.memberships).toEqual([
+      {
+        userId: moderator.id,
+        clubId: club.id,
+        role: "MODERATOR"
+      }
+    ]);
+  });
+
+  it.each([
+    ["private", "PRIVATE"],
+    ["invite-only", "INVITE_ONLY"]
+  ] as const)(
+    "does not let signed-in users join %s clubs through the public join endpoint",
+    async (_label, visibility) => {
+      const reader = await repository.createUser({
+        email: `${visibility.toLowerCase()}@example.com`,
+        displayName: "Reader",
+        passwordHash: "$argon2id$v=19$hash"
+      });
+
+      repository.createClub({
+        title: "Hidden Story Circle",
+        slug: "hidden-story-circle",
+        visibility
+      });
+
+      const response = await request(app)
+        .post("/api/clubs/hidden-story-circle/join")
+        .set("x-request-id", `clubs-join-${visibility.toLowerCase()}`)
+        .set("Cookie", await createSessionCookie(reader))
+        .expect(404);
+
+      expect(response.body).toEqual({
+        error: {
+          code: "NOT_FOUND",
+          message: "Club not found",
+          requestId: `clubs-join-${visibility.toLowerCase()}`
+        }
+      });
+      expect(JSON.stringify(response.body)).not.toContain("Hidden Story Circle");
+      expect(repository.memberships).toHaveLength(0);
+    }
+  );
+
   it("rejects discovery without an authenticated session", async () => {
     const response = await request(app)
       .get("/api/clubs")
@@ -705,6 +854,25 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     }
 
     return detail;
+  };
+
+  joinPublicClubBySlug = async (slug: string, userId: string) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club || club.visibility !== "PUBLIC") {
+      return null;
+    }
+
+    const existingMembership = this.memberships.find(
+      (membership) =>
+        membership.clubId === club.id && membership.userId === userId
+    );
+
+    if (!existingMembership) {
+      this.createMembership(userId, club.id, "MEMBER");
+    }
+
+    return this.toClubDetailRecord(club, userId);
   };
 
   listPublicClubs = async ({ page, limit }: { page: number; limit: number }) => {

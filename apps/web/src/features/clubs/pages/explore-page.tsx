@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
 import { Compass, Globe2, PlusCircle } from "lucide-react";
-import { toast } from "sonner";
 
-import { useLogout, useMe } from "@/features/auth/api/auth";
-import { AppShell } from "@/shared/components/layout/app-shell";
+import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 
@@ -16,33 +14,10 @@ import {
 } from "../components/explore-clubs-states.js";
 
 export const ExplorePage = () => {
-  const meQuery = useMe();
-  const logoutMutation = useLogout();
   const clubsQuery = usePublicClubsQuery();
-  const currentUser = meQuery.data;
-
-  const logout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("Logged out");
-      },
-      onError: () => {
-        toast.error("Could not log out. Try again.");
-      }
-    });
-  };
-
-  if (!currentUser) {
-    return null;
-  }
 
   return (
-    <AppShell
-      currentUser={currentUser}
-      isCurrentUserLoading={meQuery.isPending}
-      isLoggingOut={logoutMutation.isPending}
-      onLogout={logout}
-    >
+    <AuthenticatedAppShell>
       <div className="space-y-4">
         <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
           <div className="min-w-0 space-y-2">
@@ -85,6 +60,6 @@ export const ExplorePage = () => {
           </div>
         )}
       </div>
-    </AppShell>
+    </AuthenticatedAppShell>
   );
 };

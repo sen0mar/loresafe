@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
+import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 export type UpdateCurrentUserProfileInput = {
   displayName?: string;
@@ -7,8 +8,30 @@ export type UpdateCurrentUserProfileInput = {
   bio?: string | null;
 };
 
+type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
+
+export type JoinedClubRecord = {
+  id: string;
+  title: string;
+  slug: string;
+  visibility: ClubVisibility;
+  role: ClubMembershipRole;
+  memberCount: number;
+  joinedAt: Date;
+};
+
+export type ListJoinedClubsResult = {
+  clubs: JoinedClubRecord[];
+  total: number;
+};
+
 export type UsersRepository = {
   findActiveUserByUsername: (username: string) => Promise<AuthUserRecord | null>;
+  listJoinedClubsForUser: (
+    userId: string,
+    query: ListCurrentUserClubsQuery
+  ) => Promise<ListJoinedClubsResult>;
   updateActiveUserProfile: (
     userId: string,
     input: UpdateCurrentUserProfileInput
@@ -35,6 +58,63 @@ export const usersRepository: UsersRepository = {
       },
       select: userSelect
     }),
+
+  listJoinedClubsForUser: async (userId, { page, limit }) => {
+    const skip = (page - 1) * limit;
+
+    const [memberships, total] = await prisma.$transaction([
+      prisma.clubMembership.findMany({
+        where: {
+          userId
+        },
+        orderBy: [
+          {
+            createdAt: "desc"
+          },
+          {
+            id: "asc"
+          }
+        ],
+        skip,
+        take: limit,
+        select: {
+          role: true,
+          createdAt: true,
+          club: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              visibility: true,
+              _count: {
+                select: {
+                  memberships: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      prisma.clubMembership.count({
+        where: {
+          userId
+        }
+      })
+    ]);
+
+    return {
+      clubs: memberships.map((membership) => ({
+        id: membership.club.id,
+        title: membership.club.title,
+        slug: membership.club.slug,
+        visibility: membership.club.visibility,
+        role: membership.role,
+        memberCount: membership.club._count.memberships,
+        joinedAt: membership.createdAt
+      })),
+      total
+    };
+  },
 
   updateActiveUserProfile: async (userId, input) => {
     const updateResult = await prisma.user.updateMany({

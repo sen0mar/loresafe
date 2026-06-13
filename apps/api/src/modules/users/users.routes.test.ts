@@ -18,12 +18,14 @@ import {
 import { createAuthRouter } from "../auth/auth.routes.js";
 import { createAuthService } from "../auth/auth.service.js";
 import {
+  type JoinedClubRecord,
   type UpdateCurrentUserProfileInput,
   type UsersRepository
 } from "./users.repository.js";
 import { createUsersController } from "./users.controller.js";
 import { createUsersRouter } from "./users.routes.js";
 import { createUsersService } from "./users.service.js";
+import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 describe("users routes", () => {
   let repository: InMemoryUsersRepository;
@@ -32,6 +34,181 @@ describe("users routes", () => {
   beforeEach(() => {
     repository = new InMemoryUsersRepository();
     app = createUsersTestApp(repository);
+  });
+
+  it("rejects joined club reads without an authenticated session", async () => {
+    const response = await request(app)
+      .get("/api/users/me/clubs")
+      .set("x-request-id", "joined-clubs-missing-session")
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "joined-clubs-missing-session"
+      }
+    });
+  });
+
+  it("returns all clubs joined by the current user with safe sidebar fields", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherUser = await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const publicClub = repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    const privateClub = repository.createClub({
+      title: "Private Plot Room",
+      slug: "private-plot-room",
+      visibility: "PRIVATE"
+    });
+    const inviteOnlyClub = repository.createClub({
+      title: "Invite Arc Watch",
+      slug: "invite-arc-watch",
+      visibility: "INVITE_ONLY"
+    });
+    const unjoinedClub = repository.createClub({
+      title: "Unjoined Spoiler Room",
+      slug: "unjoined-spoiler-room",
+      visibility: "PRIVATE"
+    });
+    const publicJoinedAt = new Date("2026-01-01T00:00:00.000Z");
+    const inviteJoinedAt = new Date("2026-01-02T00:00:00.000Z");
+    const privateJoinedAt = new Date("2026-01-03T00:00:00.000Z");
+
+    repository.createMembership(user.id, publicClub.id, "MEMBER", publicJoinedAt);
+    repository.createMembership(
+      user.id,
+      inviteOnlyClub.id,
+      "MODERATOR",
+      inviteJoinedAt
+    );
+    repository.createMembership(user.id, privateClub.id, "OWNER", privateJoinedAt);
+    repository.createMembership(otherUser.id, publicClub.id);
+    repository.createMembership(otherUser.id, unjoinedClub.id);
+
+    const response = await request(app)
+      .get("/api/users/me/clubs")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      clubs: [
+        {
+          id: privateClub.id,
+          title: "Private Plot Room",
+          slug: "private-plot-room",
+          visibility: "PRIVATE",
+          role: "OWNER",
+          memberCount: 1,
+          joinedAt: privateJoinedAt.toISOString()
+        },
+        {
+          id: inviteOnlyClub.id,
+          title: "Invite Arc Watch",
+          slug: "invite-arc-watch",
+          visibility: "INVITE_ONLY",
+          role: "MODERATOR",
+          memberCount: 1,
+          joinedAt: inviteJoinedAt.toISOString()
+        },
+        {
+          id: publicClub.id,
+          title: "Public Story Circle",
+          slug: "public-story-circle",
+          visibility: "PUBLIC",
+          role: "MEMBER",
+          memberCount: 2,
+          joinedAt: publicJoinedAt.toISOString()
+        }
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total: 3,
+        pageCount: 1
+      }
+    });
+    expect(Object.keys(response.body.clubs[0]).sort()).toEqual(
+      [
+        "id",
+        "joinedAt",
+        "memberCount",
+        "role",
+        "slug",
+        "title",
+        "visibility"
+      ].sort()
+    );
+    expect(JSON.stringify(response.body)).not.toContain("Unjoined Spoiler Room");
+  });
+
+  it("paginates joined clubs by newest membership first", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const oldestClub = repository.createClub({
+      title: "Oldest Club",
+      slug: "oldest-club",
+      visibility: "PUBLIC"
+    });
+    const middleClub = repository.createClub({
+      title: "Middle Club",
+      slug: "middle-club",
+      visibility: "PUBLIC"
+    });
+    const newestClub = repository.createClub({
+      title: "Newest Club",
+      slug: "newest-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(
+      user.id,
+      oldestClub.id,
+      "MEMBER",
+      new Date("2026-01-01T00:00:00.000Z")
+    );
+    repository.createMembership(
+      user.id,
+      middleClub.id,
+      "MEMBER",
+      new Date("2026-01-02T00:00:00.000Z")
+    );
+    repository.createMembership(
+      user.id,
+      newestClub.id,
+      "MEMBER",
+      new Date("2026-01-03T00:00:00.000Z")
+    );
+
+    const response = await request(app)
+      .get("/api/users/me/clubs?page=2&limit=2")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.clubs.map((club: { slug: string }) => club.slug)).toEqual([
+      "oldest-club"
+    ]);
+    expect(response.body.pagination).toEqual({
+      page: 2,
+      limit: 2,
+      total: 3,
+      pageCount: 2
+    });
   });
 
   it("updates the authenticated user's profile and returns the persisted current user", async () => {
@@ -215,6 +392,8 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     string,
     AuthUserRecord & { passwordHash: string }
   >();
+  readonly clubs = new Map<string, StoredClub>();
+  readonly memberships: StoredMembership[] = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -267,6 +446,82 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     return user;
   };
 
+  createClub = ({
+    title,
+    slug,
+    visibility,
+    createdAt = new Date()
+  }: CreateStoredClubInput) => {
+    const club = {
+      id: crypto.randomUUID(),
+      title,
+      slug,
+      visibility,
+      createdAt,
+      updatedAt: createdAt
+    };
+
+    this.clubs.set(club.id, club);
+
+    return club;
+  };
+
+  createMembership = (
+    userId: string,
+    clubId: string,
+    role: StoredMembership["role"] = "MEMBER",
+    createdAt = new Date()
+  ) => {
+    this.memberships.push({
+      id: crypto.randomUUID(),
+      userId,
+      clubId,
+      role,
+      createdAt
+    });
+  };
+
+  listJoinedClubsForUser = async (
+    userId: string,
+    { page, limit }: ListCurrentUserClubsQuery
+  ) => {
+    const joinedMemberships = this.memberships
+      .filter((membership) => membership.userId === userId)
+      .sort(
+        (leftMembership, rightMembership) =>
+          rightMembership.createdAt.getTime() -
+            leftMembership.createdAt.getTime() ||
+          leftMembership.id.localeCompare(rightMembership.id)
+      );
+    const start = (page - 1) * limit;
+    const clubs: JoinedClubRecord[] = joinedMemberships
+      .slice(start, start + limit)
+      .map((membership) => {
+        const club = this.clubs.get(membership.clubId);
+
+        if (!club) {
+          throw new Error(`Missing test club ${membership.clubId}`);
+        }
+
+        return {
+          id: club.id,
+          title: club.title,
+          slug: club.slug,
+          visibility: club.visibility,
+          role: membership.role,
+          memberCount: this.memberships.filter(
+            (storedMembership) => storedMembership.clubId === club.id
+          ).length,
+          joinedAt: membership.createdAt
+        };
+      });
+
+    return {
+      clubs,
+      total: joinedMemberships.length
+    };
+  };
+
   updateActiveUserProfile = async (
     userId: string,
     input: UpdateCurrentUserProfileInput
@@ -295,6 +550,30 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     return updatedUser;
   };
 }
+
+type StoredClub = {
+  id: string;
+  title: string;
+  slug: string;
+  visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type CreateStoredClubInput = {
+  title: string;
+  slug: string;
+  visibility: StoredClub["visibility"];
+  createdAt?: Date;
+};
+
+type StoredMembership = {
+  id: string;
+  userId: string;
+  clubId: string;
+  role: "OWNER" | "MODERATOR" | "MEMBER";
+  createdAt: Date;
+};
 
 const createSessionCookie = async (user: AuthUserRecord) => {
   const sessionToken = await createSessionToken({

@@ -23,6 +23,13 @@ export const createClubsRouter = (
     controller.listClubs
   );
 
+  router.post(
+    "/:slug/join",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.joinPublicClubBySlug
+  );
+
   router.get(
     "/:slug",
     middleware.loadCurrentUser,

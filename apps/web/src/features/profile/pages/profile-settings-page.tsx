@@ -1,39 +1,21 @@
 import { ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
 
-import { useLogout, useMe } from "@/features/auth/api/auth";
-import { AppShell } from "@/shared/components/layout/app-shell";
+import { useMe } from "@/features/auth/api/auth";
+import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 
 import { ProfileSettingsForm } from "../components/profile-settings-form.js";
 
 export const ProfileSettingsPage = () => {
   const meQuery = useMe();
-  const logoutMutation = useLogout();
   const currentUser = meQuery.data;
-
-  const logout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("Logged out");
-      },
-      onError: () => {
-        toast.error("Could not log out. Try again.");
-      }
-    });
-  };
 
   if (!currentUser) {
     return null;
   }
 
   return (
-    <AppShell
-      currentUser={currentUser}
-      isCurrentUserLoading={meQuery.isPending}
-      isLoggingOut={logoutMutation.isPending}
-      onLogout={logout}
-    >
+    <AuthenticatedAppShell>
       <div className="mx-auto max-w-2xl space-y-4">
         <section className="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
           <div className="min-w-0 space-y-2">
@@ -53,6 +35,6 @@ export const ProfileSettingsPage = () => {
 
         <ProfileSettingsForm currentUser={currentUser} />
       </div>
-    </AppShell>
+    </AuthenticatedAppShell>
   );
 };

@@ -48,6 +48,10 @@ export type ClubsRepository = {
     slug: string,
     userId: string
   ) => Promise<ClubDetailRecord | null>;
+  joinPublicClubBySlug: (
+    slug: string,
+    userId: string
+  ) => Promise<ClubDetailRecord | null>;
   listPublicClubs: (
     input: ListClubsQuery
   ) => Promise<ListPublicClubsResult>;
@@ -164,6 +168,49 @@ export const clubsRepository: ClubsRepository = {
 
     return detail;
   },
+
+  joinPublicClubBySlug: async (slug, userId) =>
+    prisma.$transaction(async (transaction) => {
+      const club = await transaction.club.findUnique({
+        where: {
+          slug
+        },
+        select: {
+          id: true,
+          visibility: true
+        }
+      });
+
+      if (!club || club.visibility !== "PUBLIC") {
+        return null;
+      }
+
+      try {
+        await transaction.clubMembership.create({
+          data: {
+            clubId: club.id,
+            userId,
+            role: "MEMBER"
+          },
+          select: {
+            id: true
+          }
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+      }
+
+      const joinedClub = await transaction.club.findUniqueOrThrow({
+        where: {
+          id: club.id
+        },
+        select: clubDetailSelect(userId)
+      });
+
+      return toClubDetailRecord(joinedClub);
+    }),
 
   listPublicClubs: async ({ page, limit }) => {
     const skip = (page - 1) * limit;

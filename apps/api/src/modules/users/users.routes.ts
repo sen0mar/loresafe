@@ -9,6 +9,13 @@ export const createUsersRouter = (
 ) => {
   const router = Router();
 
+  router.get(
+    "/me/clubs",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.listCurrentUserClubs
+  );
+
   router.patch(
     "/me",
     middleware.loadCurrentUser,

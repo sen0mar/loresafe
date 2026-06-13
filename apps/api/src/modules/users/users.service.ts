@@ -1,6 +1,13 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import { type AuthUserDto, toAuthUserDto } from "../auth/auth.dto.js";
-import type { UpdateCurrentUserProfileRequest } from "./users.schema.js";
+import {
+  type JoinedClubsResponse,
+  toJoinedClubDto
+} from "./users.dto.js";
+import type {
+  ListCurrentUserClubsQuery,
+  UpdateCurrentUserProfileRequest
+} from "./users.schema.js";
 import {
   isUniqueConstraintError,
   usersRepository,
@@ -8,6 +15,10 @@ import {
 } from "./users.repository.js";
 
 export type UsersService = {
+  listCurrentUserClubs: (
+    userId: string,
+    query: ListCurrentUserClubsQuery
+  ) => Promise<JoinedClubsResponse>;
   updateCurrentUserProfile: (
     userId: string,
     input: UpdateCurrentUserProfileRequest
@@ -17,6 +28,20 @@ export type UsersService = {
 export const createUsersService = (
   repository: UsersRepository = usersRepository
 ): UsersService => ({
+  listCurrentUserClubs: async (userId, query) => {
+    const result = await repository.listJoinedClubsForUser(userId, query);
+
+    return {
+      clubs: result.clubs.map(toJoinedClubDto),
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: result.total,
+        pageCount: Math.ceil(result.total / query.limit)
+      }
+    };
+  },
+
   updateCurrentUserProfile: async (userId, input) => {
     if (input.username !== undefined) {
       const existingUser = await repository.findActiveUserByUsername(input.username);

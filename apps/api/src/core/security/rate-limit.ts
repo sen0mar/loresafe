@@ -133,3 +133,15 @@ export const clubCreateRateLimiter = rateLimit({
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
   }
 });
+
+export const clubJoinRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:clubs:join:"),
+  identifier: "clubs-join",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});

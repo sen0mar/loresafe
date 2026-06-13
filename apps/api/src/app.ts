@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import {
   clubCreateRateLimiter,
+  clubJoinRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
   profileUpdateRateLimiter,
@@ -39,6 +40,7 @@ export const createApp = () => {
   app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
   app.post("/api/clubs", clubCreateRateLimiter);
+  app.post("/api/clubs/:slug/join", clubJoinRateLimiter);
   app.patch("/api/users/me", profileUpdateRateLimiter);
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());

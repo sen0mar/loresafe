@@ -40,6 +40,16 @@ export type Club = {
   updatedAt: string;
 };
 
+export type JoinedClub = {
+  id: string;
+  title: string;
+  slug: string;
+  visibility: ClubVisibility;
+  role: ClubMembershipRole;
+  memberCount: number;
+  joinedAt: string;
+};
+
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
   pagination: {
@@ -54,6 +64,16 @@ export type ClubResponse = {
   club: Club;
 };
 
+export type JoinedClubsResponse = {
+  clubs: JoinedClub[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
 export type CreateClubInput = {
   title: string;
   slug: string;
@@ -65,6 +85,7 @@ export type CreateClubInput = {
 
 export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
+  joined: ["users", "me", "clubs"] as const,
   detail: (slug: string) => ["clubs", "detail", slug] as const
 };
 
@@ -74,8 +95,14 @@ export const getPublicClubs = () =>
 export const getClubBySlug = (slug: string) =>
   apiGet<ClubResponse>(`/api/clubs/${slug}`);
 
+export const getJoinedClubs = () =>
+  apiGet<JoinedClubsResponse>("/api/users/me/clubs");
+
 export const createClub = (input: CreateClubInput) =>
   apiPost<ClubResponse, CreateClubInput>("/api/clubs", input);
+
+export const joinClub = (slug: string) =>
+  apiPost<ClubResponse>(`/api/clubs/${slug}/join`);
 
 export const usePublicClubsQuery = () =>
   useQuery({
@@ -90,6 +117,13 @@ export const useClubQuery = (slug: string) =>
     enabled: slug.length > 0
   });
 
+export const useJoinedClubsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.joined,
+    queryFn: getJoinedClubs,
+    enabled
+  });
+
 export const useCreateClubMutation = () => {
   const queryClient = useQueryClient();
 
@@ -102,6 +136,29 @@ export const useCreateClubMutation = () => {
       );
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.discovery
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.joined
+      });
+    }
+  });
+};
+
+export const useJoinClubMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: joinClub,
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        clubsQueryKeys.detail(response.club.slug),
+        response
+      );
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.discovery
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.joined
       });
     }
   });

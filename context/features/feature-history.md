@@ -15,6 +15,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 9: Clubs discovery foundation — Added club and membership models with visibility/role enums, a committed clubs discovery migration, demo public club seeding, authenticated public-only `GET /api/clubs`, `/app/explore`, and focused discovery regression tests.
 - Feature 10: Create club flow — Added optional club rules with a committed migration, authenticated `POST /api/clubs` transactional owner membership creation, member-aware club detail reads, duplicate slug handling, private discovery protection, `/app/clubs/new`, and post-create club redirects.
 - Feature 11: Club detail route and page — Added nested membership and safe settings to authenticated club detail responses, private/invite-only non-member denial, `/app/clubs/:slug` header/tabs/status UI, and focused club detail authorization tests.
+- Feature 12: Public club join and joined sidebar — Added authenticated public-club joins with idempotent membership creation, joined-club sidebar data, live sidebar refresh after joining, and focused backend authorization tests.
 
 ## Entry Format
 

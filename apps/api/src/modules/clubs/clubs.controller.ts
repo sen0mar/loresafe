@@ -12,6 +12,7 @@ import { clubsService, type ClubsService } from "./clubs.service.js";
 export type ClubsController = {
   createClub: RequestHandler;
   getClubBySlug: RequestHandler;
+  joinPublicClubBySlug: RequestHandler;
   listClubs: RequestHandler;
 };
 
@@ -62,6 +63,41 @@ export const createClubsController = (
       }
 
       const response = await service.getVisibleClubBySlug(
+        parseResult.data.slug,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  joinPublicClubBySlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const parseResult = clubSlugParamsSchema.safeParse(req.params);
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club URL and try again."
+        );
+      }
+
+      if (req.body && Object.keys(req.body).length > 0) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Join requests do not accept a body."
+        );
+      }
+
+      const response = await service.joinPublicClubBySlug(
         parseResult.data.slug,
         req.currentUser.id
       );
