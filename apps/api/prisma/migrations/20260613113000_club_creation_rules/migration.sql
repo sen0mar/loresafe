@@ -1,0 +1,1 @@
+ALTER TABLE "clubs" ADD COLUMN "rules" VARCHAR(2000);

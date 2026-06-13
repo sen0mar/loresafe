@@ -16,12 +16,14 @@ import {
 } from "../auth/auth.repository.js";
 import { createAuthService } from "../auth/auth.service.js";
 import type {
+  ClubDetailRecord,
   ClubDiscoveryRecord,
   ClubsRepository
 } from "./clubs.repository.js";
 import { createClubsController } from "./clubs.controller.js";
 import { createClubsRouter } from "./clubs.routes.js";
 import { createClubsService } from "./clubs.service.js";
+import type { CreateClubRequest } from "./clubs.schema.js";
 
 describe("clubs routes", () => {
   let repository: InMemoryClubsRepository;
@@ -30,6 +32,194 @@ describe("clubs routes", () => {
   beforeEach(() => {
     repository = new InMemoryClubsRepository();
     app = createClubsTestApp(repository);
+  });
+
+  it("rejects club creation without an authenticated session", async () => {
+    const response = await request(app)
+      .post("/api/clubs")
+      .set("x-request-id", "clubs-create-missing-session")
+      .send(validCreateClubPayload())
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "clubs-create-missing-session"
+      }
+    });
+  });
+
+  it("creates a club and exactly one owner membership", async () => {
+    const user = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        title: "  New Story Circle  ",
+        slug: " New-Story-Circle ",
+        description: "  Spoiler-safe theories.  ",
+        category: "  Books  ",
+        visibility: "PUBLIC",
+        rules: "  Keep future chapters out of early discussions.  "
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      club: {
+        id: expect.any(String),
+        title: "New Story Circle",
+        slug: "new-story-circle",
+        description: "Spoiler-safe theories.",
+        category: "Books",
+        rules: "Keep future chapters out of early discussions.",
+        visibility: "PUBLIC",
+        memberCount: 1,
+        currentUserRole: "OWNER",
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      }
+    });
+    expect(repository.memberships).toEqual([
+      {
+        userId: user.id,
+        clubId: response.body.club.id,
+        role: "OWNER"
+      }
+    ]);
+  });
+
+  it("rejects duplicate club slugs cleanly", async () => {
+    const user = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    repository.createClub({
+      title: "Existing Club",
+      slug: "existing-club",
+      visibility: "PUBLIC"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs")
+      .set("x-request-id", "clubs-duplicate-slug")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        ...validCreateClubPayload(),
+        slug: "existing-club"
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message: "That club slug is already taken.",
+        requestId: "clubs-duplicate-slug"
+      }
+    });
+    expect(repository.clubs.size).toBe(1);
+    expect(repository.memberships).toHaveLength(0);
+  });
+
+  it.each([
+    ["title", { title: "x" }],
+    ["slug", { slug: "not ok" }],
+    ["description", { description: "x".repeat(281) }],
+    ["category", { category: "x".repeat(61) }],
+    ["visibility", { visibility: "FRIENDS_ONLY" }],
+    ["rules", { rules: "x".repeat(2001) }]
+  ])("rejects invalid club %s fields", async (_field, override) => {
+    const user = await repository.createUser({
+      email: `${_field}@example.com`,
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs")
+      .set("x-request-id", `clubs-invalid-${_field}`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        ...validCreateClubPayload(),
+        ...override
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the club fields and try again.",
+        requestId: `clubs-invalid-${_field}`
+      }
+    });
+  });
+
+  it("lets a private club owner view the club but hides it from non-members and discovery", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const nonMember = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const createResponse = await request(app)
+      .post("/api/clubs")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        ...validCreateClubPayload(),
+        title: "Private Plot Room",
+        slug: "private-plot-room",
+        visibility: "PRIVATE"
+      })
+      .expect(201);
+
+    const ownerResponse = await request(app)
+      .get("/api/clubs/private-plot-room")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(ownerResponse.body.club).toMatchObject({
+      id: createResponse.body.club.id,
+      title: "Private Plot Room",
+      slug: "private-plot-room",
+      visibility: "PRIVATE",
+      currentUserRole: "OWNER",
+      memberCount: 1
+    });
+
+    const nonMemberResponse = await request(app)
+      .get("/api/clubs/private-plot-room")
+      .set("x-request-id", "clubs-private-non-member")
+      .set("Cookie", await createSessionCookie(nonMember))
+      .expect(404);
+
+    expect(nonMemberResponse.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Club not found",
+        requestId: "clubs-private-non-member"
+      }
+    });
+
+    const discoveryResponse = await request(app)
+      .get("/api/clubs")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(discoveryResponse.body.clubs).toEqual([]);
+    expect(JSON.stringify(discoveryResponse.body)).not.toContain(
+      "Private Plot Room"
+    );
   });
 
   it("rejects discovery without an authenticated session", async () => {
@@ -229,6 +419,7 @@ const createClubsTestApp = (
 
 type StoredClub = Omit<ClubDiscoveryRecord, "memberCount" | "visibility"> & {
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+  rules: string | null;
 };
 
 type CreateStoredClubInput = {
@@ -236,6 +427,7 @@ type CreateStoredClubInput = {
   slug: string;
   description?: string | null;
   category?: string | null;
+  rules?: string | null;
   visibility: StoredClub["visibility"];
   createdAt?: Date;
 };
@@ -246,7 +438,11 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     AuthUserRecord & { passwordHash: string }
   >();
   readonly clubs = new Map<string, StoredClub>();
-  readonly memberships: Array<{ userId: string; clubId: string }> = [];
+  readonly memberships: Array<{
+    userId: string;
+    clubId: string;
+    role: "OWNER" | "MODERATOR" | "MEMBER";
+  }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -294,6 +490,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     slug,
     description = null,
     category = null,
+    rules = null,
     visibility,
     createdAt = new Date()
   }: CreateStoredClubInput) => {
@@ -303,6 +500,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       slug,
       description,
       category,
+      rules,
       visibility,
       createdAt,
       updatedAt: createdAt
@@ -313,11 +511,62 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return club;
   };
 
-  createMembership = (userId: string, clubId: string) => {
+  createMembership = (
+    userId: string,
+    clubId: string,
+    role: "OWNER" | "MODERATOR" | "MEMBER" = "MEMBER"
+  ) => {
     this.memberships.push({
       userId,
-      clubId
+      clubId,
+      role
     });
+  };
+
+  createClubWithOwnerMembership = async (
+    userId: string,
+    input: CreateClubRequest
+  ) => {
+    if (await this.findClubBySlug(input.slug)) {
+      throw {
+        code: "P2002"
+      };
+    }
+
+    const club = this.createClub({
+      title: input.title,
+      slug: input.slug,
+      description: input.description,
+      category: input.category,
+      rules: input.rules,
+      visibility: input.visibility
+    });
+
+    this.createMembership(userId, club.id, "OWNER");
+
+    return this.toClubDetailRecord(club, userId);
+  };
+
+  findClubBySlug = async (slug: string) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    return club ? { id: club.id } : null;
+  };
+
+  findVisibleClubBySlugForUser = async (slug: string, userId: string) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club) {
+      return null;
+    }
+
+    const detail = this.toClubDetailRecord(club, userId);
+
+    if (detail.visibility !== "PUBLIC" && !detail.currentUserRole) {
+      return null;
+    }
+
+    return detail;
   };
 
   listPublicClubs = async ({ page, limit }: { page: number; limit: number }) => {
@@ -342,6 +591,31 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       total: publicClubs.length
     };
   };
+
+  private findStoredClubBySlug = (slug: string) => {
+    for (const club of this.clubs.values()) {
+      if (club.slug === slug) {
+        return club;
+      }
+    }
+
+    return null;
+  };
+
+  private toClubDetailRecord = (
+    club: StoredClub,
+    userId: string
+  ): ClubDetailRecord => ({
+    ...club,
+    memberCount: this.memberships.filter(
+      (membership) => membership.clubId === club.id
+    ).length,
+    currentUserRole:
+      this.memberships.find(
+        (membership) =>
+          membership.clubId === club.id && membership.userId === userId
+      )?.role ?? null
+  });
 }
 
 const createSessionCookie = async (user: AuthUserRecord) => {
@@ -352,3 +626,12 @@ const createSessionCookie = async (user: AuthUserRecord) => {
 
   return `${env.SESSION_COOKIE_NAME}=${token}`;
 };
+
+const validCreateClubPayload = () => ({
+  title: "New Story Circle",
+  slug: "new-story-circle",
+  description: "Spoiler-safe theories.",
+  category: "Books",
+  visibility: "PUBLIC",
+  rules: "Keep future chapters out of early discussions."
+});

@@ -13,6 +13,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 7: Profile settings slice — Added username and bio profile fields with committed migrations, authenticated profile updates with duplicate username validation, a profile update rate limit, `/app/settings/profile`, and focused backend regression tests.
 - Feature 8: Authenticated home redirects — Updated automatic authenticated redirects so login, signup, public-only route guards, and `/app` fallbacks land on the protected home route while keeping profile settings directly accessible.
 - Feature 9: Clubs discovery foundation — Added club and membership models with visibility/role enums, a committed clubs discovery migration, demo public club seeding, authenticated public-only `GET /api/clubs`, `/app/explore`, and focused discovery regression tests.
+- Feature 10: Create club flow — Added optional club rules with a committed migration, authenticated `POST /api/clubs` transactional owner membership creation, member-aware club detail reads, duplicate slug handling, private discovery protection, `/app/clubs/new`, and post-create club redirects.
 
 ## Entry Format
 

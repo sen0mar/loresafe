@@ -9,11 +9,25 @@ export const createClubsRouter = (
 ) => {
   const router = Router();
 
+  router.post(
+    "/",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.createClub
+  );
+
   router.get(
     "/",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.listClubs
+  );
+
+  router.get(
+    "/:slug",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.getClubBySlug
   );
 
   return router;
