@@ -1,12 +1,11 @@
 import type { ComponentType } from "react";
+import { NavLink } from "react-router-dom";
 import {
   Bell,
   Bookmark,
-  BookOpen,
   Compass,
   Home,
   Menu,
-  Plus,
   Settings,
   ShieldCheck,
   TrendingUp
@@ -27,25 +26,17 @@ import { cn } from "@/shared/lib/utils";
 type NavItem = {
   label: string;
   icon: ComponentType<{ className?: string }>;
-  isActive?: boolean;
+  path?: string;
   badge?: string;
 };
 
 const primaryNavItems: NavItem[] = [
-  { label: "Home", icon: Home, isActive: true },
+  { label: "Home", icon: Home, path: "/" },
   { label: "My Progress", icon: TrendingUp },
   { label: "Notifications", icon: Bell, badge: "3" },
-  { label: "Explore", icon: Compass },
+  { label: "Explore", icon: Compass, path: "/app/explore" },
   { label: "Saved", icon: Bookmark },
-  { label: "Settings", icon: Settings }
-];
-
-const clubs = [
-  "The First Law Book Club",
-  "Cosmere Collective",
-  "Straw Hat Fleet",
-  "Shonen Watchers",
-  "Reel Talk"
+  { label: "Settings", icon: Settings, path: "/app/settings/profile" }
 ];
 
 export const DesktopSidebar = () => (
@@ -56,34 +47,6 @@ export const DesktopSidebar = () => (
         <NavButton key={item.label} item={item} />
       ))}
     </nav>
-
-    <div className="mt-8">
-      <p className="px-3 text-xs font-medium tracking-normal text-faint">
-        Your clubs
-      </p>
-      <div className="mt-3 grid gap-1">
-        {clubs.map((club, index) => (
-          <button
-            key={club}
-            type="button"
-            className={cn(
-              "flex h-10 items-center gap-3 rounded-lg px-3 text-left text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-              index === 0 && "bg-active text-primary"
-            )}
-          >
-            <span className="flex size-6 items-center justify-center rounded-md border border-default bg-inset text-brand">
-              <BookOpen className="size-3.5" />
-            </span>
-            <span className="min-w-0 flex-1 truncate">{club}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-
-    <Button variant="ghost" className="mt-auto justify-start">
-      <Plus />
-      Create club
-    </Button>
   </aside>
 );
 
@@ -110,22 +73,26 @@ export const MobileNav = () => (
       {primaryNavItems.map((item) => {
         const Icon = item.icon;
 
+        if (item.path) {
+          return (
+            <DropdownMenuItem key={item.label} asChild>
+              <NavLink to={item.path} end={item.path === "/"}>
+                <Icon className="size-4" />
+                {item.label}
+                {item.badge ? <Badge className="ml-auto">{item.badge}</Badge> : null}
+              </NavLink>
+            </DropdownMenuItem>
+          );
+        }
+
         return (
-          <DropdownMenuItem key={item.label}>
+          <DropdownMenuItem key={item.label} disabled>
             <Icon className="size-4" />
             {item.label}
             {item.badge ? <Badge className="ml-auto">{item.badge}</Badge> : null}
           </DropdownMenuItem>
         );
       })}
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Your clubs</DropdownMenuLabel>
-      {clubs.slice(0, 3).map((club) => (
-        <DropdownMenuItem key={club}>
-          <BookOpen className="size-4" />
-          <span className="truncate">{club}</span>
-        </DropdownMenuItem>
-      ))}
     </DropdownMenuContent>
   </DropdownMenu>
 );
@@ -144,13 +111,30 @@ const ShellBrand = () => (
 const NavButton = ({ item }: { item: NavItem }) => {
   const Icon = item.icon;
 
+  if (item.path) {
+    return (
+      <NavLink
+        to={item.path}
+        end={item.path === "/"}
+        className={({ isActive }) =>
+          cn(
+            navButtonClassName,
+            isActive && "border-brand bg-active text-brand shadow-glow"
+          )
+        }
+      >
+        <Icon className="size-5" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {item.badge ? <Badge>{item.badge}</Badge> : null}
+      </NavLink>
+    );
+  }
+
   return (
     <button
       type="button"
-      className={cn(
-        "flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-        item.isActive && "border-brand bg-active text-brand shadow-glow"
-      )}
+      className={cn(navButtonClassName, "opacity-60")}
+      disabled
     >
       <Icon className="size-5" />
       <span className="flex-1 text-left">{item.label}</span>
@@ -158,3 +142,6 @@ const NavButton = ({ item }: { item: NavItem }) => {
     </button>
   );
 };
+
+const navButtonClassName =
+  "flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";

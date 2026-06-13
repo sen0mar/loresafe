@@ -8,6 +8,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ClubVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum ClubMembershipRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -20,8 +32,44 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  clubMemberships ClubMembership[]
+
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
   @@index([deletedAt], map: "users_deleted_at_idx")
   @@map("users")
+}
+
+model Club {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String         @db.VarChar(120)
+  slug        String         @db.VarChar(80)
+  description String?        @db.VarChar(280)
+  category    String?        @db.VarChar(60)
+  visibility  ClubVisibility @default(PUBLIC)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships ClubMembership[]
+
+  @@unique([slug], map: "clubs_slug_unique")
+  @@index([visibility], map: "clubs_visibility_idx")
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId    String             @map("club_id") @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  role      ClubMembershipRole @default(MEMBER)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId], map: "club_memberships_user_id_club_id_unique")
+  @@index([userId], map: "club_memberships_user_id_idx")
+  @@index([clubId], map: "club_memberships_club_id_idx")
+  @@map("club_memberships")
 }
