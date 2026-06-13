@@ -28,6 +28,14 @@ export type ClubDto = {
   visibility: ClubVisibilityDto;
   memberCount: number;
   currentUserRole: ClubMembershipRoleDto | null;
+  membership: {
+    isMember: boolean;
+    role: ClubMembershipRoleDto | null;
+  };
+  settings: {
+    visibility: ClubVisibilityDto;
+    rules: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -70,6 +78,14 @@ export const toClubDto = (club: ClubDetailRecord): ClubDto => ({
   visibility: club.visibility,
   memberCount: club.memberCount,
   currentUserRole: club.currentUserRole,
+  membership: {
+    isMember: club.currentUserRole !== null,
+    role: club.currentUserRole
+  },
+  settings: {
+    visibility: club.visibility,
+    rules: club.rules
+  },
   createdAt: club.createdAt.toISOString(),
   updatedAt: club.updatedAt.toISOString()
 });
