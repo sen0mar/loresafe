@@ -28,6 +28,14 @@ export type Club = {
   visibility: ClubVisibility;
   memberCount: number;
   currentUserRole: ClubMembershipRole | null;
+  membership: {
+    isMember: boolean;
+    role: ClubMembershipRole | null;
+  };
+  settings: {
+    visibility: ClubVisibility;
+    rules: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 };

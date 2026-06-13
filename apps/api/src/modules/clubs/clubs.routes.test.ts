@@ -81,6 +81,14 @@ describe("clubs routes", () => {
         visibility: "PUBLIC",
         memberCount: 1,
         currentUserRole: "OWNER",
+        membership: {
+          isMember: true,
+          role: "OWNER"
+        },
+        settings: {
+          visibility: "PUBLIC",
+          rules: "Keep future chapters out of early discussions."
+        },
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -160,7 +168,7 @@ describe("clubs routes", () => {
     });
   });
 
-  it("lets a private club owner view the club but hides it from non-members and discovery", async () => {
+  it("lets a private club owner view membership and settings but hides it from non-members and discovery", async () => {
     const owner = await repository.createUser({
       email: "owner@example.com",
       displayName: "Owner",
@@ -194,6 +202,14 @@ describe("clubs routes", () => {
       slug: "private-plot-room",
       visibility: "PRIVATE",
       currentUserRole: "OWNER",
+      membership: {
+        isMember: true,
+        role: "OWNER"
+      },
+      settings: {
+        visibility: "PRIVATE",
+        rules: "Keep future chapters out of early discussions."
+      },
       memberCount: 1
     });
 
@@ -220,6 +236,81 @@ describe("clubs routes", () => {
     expect(JSON.stringify(discoveryResponse.body)).not.toContain(
       "Private Plot Room"
     );
+  });
+
+  it("hides invite-only club details from signed-in non-members", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const nonMember = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const club = repository.createClub({
+      title: "Invite Arc Watch",
+      slug: "invite-arc-watch",
+      description: "Hidden invite-only discussion.",
+      category: "Anime",
+      visibility: "INVITE_ONLY"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .get("/api/clubs/invite-arc-watch")
+      .set("x-request-id", "clubs-invite-only-non-member")
+      .set("Cookie", await createSessionCookie(nonMember))
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Club not found",
+        requestId: "clubs-invite-only-non-member"
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("Invite Arc Watch");
+  });
+
+  it("lets signed-in non-members open public club details", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      description: "Safe public discussion.",
+      category: "Books",
+      rules: "Keep future chapters out of early discussions.",
+      visibility: "PUBLIC"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      id: club.id,
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      visibility: "PUBLIC",
+      currentUserRole: null,
+      membership: {
+        isMember: false,
+        role: null
+      },
+      settings: {
+        visibility: "PUBLIC",
+        rules: "Keep future chapters out of early discussions."
+      },
+      memberCount: 0
+    });
   });
 
   it("rejects discovery without an authenticated session", async () => {
@@ -332,6 +423,53 @@ describe("clubs routes", () => {
         "visibility"
       ].sort()
     );
+  });
+
+  it("returns narrow club detail DTO fields", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    repository.createClub({
+      title: "Public Story Circle",
+      slug: "public-story-circle",
+      description: null,
+      category: null,
+      rules: "Mind the spoiler line.",
+      visibility: "PUBLIC"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(Object.keys(response.body.club).sort()).toEqual(
+      [
+        "category",
+        "createdAt",
+        "currentUserRole",
+        "description",
+        "id",
+        "memberCount",
+        "membership",
+        "rules",
+        "settings",
+        "slug",
+        "title",
+        "updatedAt",
+        "visibility"
+      ].sort()
+    );
+    expect(Object.keys(response.body.club.membership).sort()).toEqual(
+      ["isMember", "role"].sort()
+    );
+    expect(Object.keys(response.body.club.settings).sort()).toEqual(
+      ["rules", "visibility"].sort()
+    );
+    expect(response.body.club).not.toHaveProperty("memberships");
   });
 
   it("paginates public discovery results", async () => {

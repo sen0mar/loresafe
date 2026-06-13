@@ -1,17 +1,22 @@
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  BookOpen,
+  CalendarDays,
   Globe2,
   KeyRound,
   LockKeyhole,
+  MessageSquareText,
   RefreshCw,
   ShieldCheck,
   Sparkles,
-  Users
+  Users,
+  type LucideIcon
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLogout, useMe } from "@/features/auth/api/auth";
+import { ApiError } from "@/shared/api/api-client";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -22,6 +27,12 @@ import {
   CardTitle
 } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/shared/components/ui/tabs";
 
 import {
   type Club,
@@ -36,7 +47,7 @@ const visibilityMeta: Record<
   ClubVisibility,
   {
     label: string;
-    icon: typeof Globe2;
+    icon: LucideIcon;
   }
 > = {
   PUBLIC: {
@@ -58,6 +69,13 @@ const roleLabels: Record<ClubMembershipRole, string> = {
   MODERATOR: "Moderator",
   MEMBER: "Member"
 };
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
 
 export const ClubDetailPage = () => {
   const { slug = "" } = useParams();
@@ -92,7 +110,10 @@ export const ClubDetailPage = () => {
         {clubQuery.isPending ? (
           <ClubDetailLoading />
         ) : clubQuery.isError ? (
-          <ClubDetailError onRetry={() => void clubQuery.refetch()} />
+          <ClubDetailError
+            error={clubQuery.error}
+            onRetry={() => void clubQuery.refetch()}
+          />
         ) : (
           <ClubDetailContent club={clubQuery.data.club} />
         )}
@@ -102,7 +123,8 @@ export const ClubDetailPage = () => {
 };
 
 const ClubDetailContent = ({ club }: { club: Club }) => {
-  const VisibilityIcon = visibilityMeta[club.visibility].icon;
+  const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
+  const role = club.membership.role;
 
   return (
     <>
@@ -122,47 +144,116 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         <div className="flex flex-wrap gap-2">
           <Badge>
             <VisibilityIcon className="size-3" />
-            {visibilityMeta[club.visibility].label}
+            {visibilityMeta[club.settings.visibility].label}
           </Badge>
-          {club.currentUserRole ? (
+          {role ? (
             <Badge>
               <ShieldCheck className="size-3" />
-              {roleLabels[club.currentUserRole]}
+              {roleLabels[role]}
             </Badge>
-          ) : null}
+          ) : (
+            <Badge variant="secondary">
+              <Users className="size-3" />
+              Not a member
+            </Badge>
+          )}
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-muted">
-              {club.description ?? "No description yet."}
-            </p>
-            {club.rules ? (
-              <div className="rounded-lg border border-default bg-inset p-4">
-                <h2 className="text-sm font-medium text-primary">Rules</h2>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
-                  {club.rules}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Tabs defaultValue="overview" className="min-w-0">
+          <TabsList className="w-full overflow-x-auto sm:w-fit">
+            <TabsTrigger value="overview">
+              <BookOpen className="mr-2 size-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <ShieldCheck className="mr-2 size-4" />
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="activity">
+              <MessageSquareText className="mr-2 size-4" />
+              Activity
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <Card>
+              <CardHeader>
+                <CardTitle>Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm leading-6 text-muted">
+                  {club.description ?? "No description yet."}
                 </p>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ClubMetric
+                    icon={Users}
+                    label="Members"
+                    value={memberFormatter.format(club.memberCount)}
+                  />
+                  <ClubMetric
+                    icon={CalendarDays}
+                    label="Created"
+                    value={formatDate(club.createdAt)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Safe settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ClubMetric
+                  icon={VisibilityIcon}
+                  label="Visibility"
+                  value={visibilityMeta[club.settings.visibility].label}
+                />
+                <div className="rounded-lg border border-default bg-inset p-4">
+                  <h2 className="text-sm font-medium text-primary">Rules</h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
+                    {club.settings.rules ?? "No rules posted yet."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <Card>
+              <CardContent className="flex min-h-48 flex-col justify-center gap-2">
+                <h2 className="text-base font-semibold text-primary">
+                  No discussions yet
+                </h2>
+                <p className="max-w-lg text-sm leading-6 text-muted">
+                  Club conversations will appear here after posts are added.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         <Card>
           <CardHeader>
-            <CardTitle>Club details</CardTitle>
+            <CardTitle>Membership</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted">
-            <span className="flex items-center gap-2">
-              <Users className="size-4 text-faint" />
-              {memberFormatter.format(club.memberCount)}{" "}
-              {club.memberCount === 1 ? "member" : "members"}
-            </span>
+          <CardContent className="space-y-4 text-sm text-muted">
+            <div className="rounded-lg border border-default bg-inset p-4">
+              <p className="text-xs text-faint">Status</p>
+              <p className="mt-1 font-medium text-primary">
+                {club.membership.isMember ? "Member" : "Not a member"}
+              </p>
+            </div>
+            {role ? (
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-brand" />
+                {roleLabels[role]}
+              </span>
+            ) : null}
             {club.category ? (
               <span className="flex items-center gap-2">
                 <Sparkles className="size-4 text-faint" />
@@ -176,6 +267,24 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
   );
 };
 
+const ClubMetric = ({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-lg border border-default bg-inset p-4">
+    <span className="flex items-center gap-2 text-xs text-faint">
+      <Icon className="size-4" />
+      {label}
+    </span>
+    <p className="mt-2 text-sm font-medium text-primary">{value}</p>
+  </div>
+);
+
 const ClubDetailLoading = () => (
   <div className="space-y-4">
     <section className="space-y-3 border-b border-default pb-4">
@@ -183,10 +292,10 @@ const ClubDetailLoading = () => (
       <Skeleton className="h-5 w-72" />
       <Skeleton className="h-4 w-32" />
     </section>
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Card>
         <CardHeader>
-          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-10 w-72" />
         </CardHeader>
         <CardContent className="space-y-3">
           <Skeleton className="h-4 w-full" />
@@ -207,30 +316,46 @@ const ClubDetailLoading = () => (
   </div>
 );
 
-const ClubDetailError = ({ onRetry }: { onRetry: () => void }) => (
-  <Card>
-    <CardContent className="flex min-h-72 flex-col items-center justify-center gap-4 text-center">
-      <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-warning">
-        <LockKeyhole className="size-6" />
-      </span>
-      <div>
-        <h2 className="text-lg font-semibold text-primary">Club not found</h2>
-        <p className="mt-1 max-w-md text-sm leading-6 text-muted">
-          The club may be private, invite-only, or unavailable.
-        </p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button variant="secondary" onClick={onRetry}>
-          <RefreshCw />
-          Retry
-        </Button>
-        <Button variant="ghost" asChild>
-          <Link to="/app/explore">
-            <ArrowLeft />
-            Explore
-          </Link>
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+const ClubDetailError = ({
+  error,
+  onRetry
+}: {
+  error: Error;
+  onRetry: () => void;
+}) => {
+  const isNotFound = error instanceof ApiError && error.statusCode === 404;
+
+  return (
+    <Card>
+      <CardContent className="flex min-h-72 flex-col items-center justify-center gap-4 text-center">
+        <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-warning">
+          <LockKeyhole className="size-6" />
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold text-primary">
+            {isNotFound ? "Club not found" : "Could not load club"}
+          </h2>
+          <p className="mt-1 max-w-md text-sm leading-6 text-muted">
+            {isNotFound
+              ? "This club is unavailable from your account."
+              : "Refresh the club page and try again."}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          {isNotFound ? null : (
+            <Button variant="secondary" onClick={onRetry}>
+              <RefreshCw />
+              Retry
+            </Button>
+          )}
+          <Button variant={isNotFound ? "secondary" : "ghost"} asChild>
+            <Link to="/app/explore">
+              <ArrowLeft />
+              Explore
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
