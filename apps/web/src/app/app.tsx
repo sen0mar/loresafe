@@ -7,6 +7,7 @@ import {
 } from "../features/auth/components/auth-route-guards.js";
 import { LoginPage } from "../features/auth/pages/login-page.js";
 import { SignupPage } from "../features/auth/pages/signup-page.js";
+import { ExplorePage } from "../features/clubs/pages/explore-page.js";
 import { HomePage } from "../features/health/pages/home-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
 import { Toaster } from "../shared/components/ui/sonner.js";
@@ -46,6 +47,14 @@ export const App = () => (
           element={
             <ProtectedRoute>
               <Navigate to={AUTHENTICATED_HOME_PATH} replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/explore"
+          element={
+            <ProtectedRoute>
+              <ExplorePage />
             </ProtectedRoute>
           }
         />

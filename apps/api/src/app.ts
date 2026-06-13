@@ -12,6 +12,7 @@ import {
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { clubsRouter } from "./modules/clubs/clubs.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -42,6 +43,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/clubs", clubsRouter);
   app.use("/api/users", usersRouter);
 
   app.use(notFoundHandler);
