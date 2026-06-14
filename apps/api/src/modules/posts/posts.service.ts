@@ -2,6 +2,7 @@ import { HttpError } from "../../core/errors/http-error.js";
 import {
   type ClubPostsResponse,
   type CreateClubPostResponse,
+  type PostDetailResponse,
   toClubPostCardDto
 } from "./posts.dto.js";
 import { canCreateClubPost, canViewClubFeed } from "./posts.policy.js";
@@ -23,6 +24,7 @@ export type PostsService = {
     userId: string,
     query: ListClubPostsQuery
   ) => Promise<ClubPostsResponse>;
+  getPostById: (postId: string, userId: string) => Promise<PostDetailResponse>;
 };
 
 export const createPostsService = (
@@ -79,6 +81,18 @@ export const createPostsService = (
         total: result.total,
         pageCount: Math.ceil(result.total / query.limit)
       }
+    };
+  },
+
+  getPostById: async (postId, userId) => {
+    const detail = await repository.findPostForDetail(postId, userId);
+
+    if (!detail || !canViewClubFeed(detail.club)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    return {
+      post: toClubPostCardDto(detail.post, detail.club.progress)
     };
   }
 });

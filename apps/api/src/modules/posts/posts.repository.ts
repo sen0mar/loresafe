@@ -57,6 +57,11 @@ export type ListClubPostsResult = {
   total: number;
 };
 
+export type PostDetailRecord = {
+  post: ClubPostRecord;
+  club: ClubFeedRecord;
+};
+
 export type PostsRepository = {
   findClubForFeed: (
     slug: string,
@@ -75,6 +80,10 @@ export type PostsRepository = {
     clubId: string,
     query: ListClubPostsQuery
   ) => Promise<ListClubPostsResult>;
+  findPostForDetail: (
+    postId: string,
+    userId: string
+  ) => Promise<PostDetailRecord | null>;
 };
 
 const postSelect = {
@@ -298,6 +307,78 @@ export const postsRepository: PostsRepository = {
         status: post.status as ClubPostRecord["status"]
       })),
       total
+    };
+  },
+
+  findPostForDetail: async (postId, userId) => {
+    const post = await prisma.post.findFirst({
+      where: {
+        id: postId,
+        status: "VISIBLE",
+        deletedAt: null
+      },
+      select: {
+        ...postSelect,
+        club: {
+          select: {
+            id: true,
+            visibility: true,
+            memberships: {
+              where: {
+                userId
+              },
+              select: {
+                role: true
+              },
+              take: 1
+            },
+            progress: {
+              where: {
+                userId
+              },
+              select: {
+                mode: true,
+                currentMilestone: {
+                  select: {
+                    position: true
+                  }
+                }
+              },
+              take: 1
+            }
+          }
+        }
+      }
+    });
+
+    if (!post) {
+      return null;
+    }
+
+    const progress = post.club.progress[0];
+
+    return {
+      post: {
+        id: post.id,
+        type: post.type as ClubPostRecord["type"],
+        status: post.status as ClubPostRecord["status"],
+        title: post.title,
+        body: post.body,
+        author: post.author,
+        requiredMilestone: post.requiredMilestone,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      },
+      club: {
+        id: post.club.id,
+        visibility: post.club.visibility,
+        currentUserRole: post.club.memberships[0]?.role ?? null,
+        progress: {
+          mode: (progress?.mode ?? "STRICT") as ProgressMode,
+          currentMilestonePosition:
+            progress?.currentMilestone?.position ?? null
+        }
+      }
     };
   }
 };

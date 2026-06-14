@@ -76,6 +76,10 @@ export type CreateClubPostResponse = {
   post: ClubPostCardDto;
 };
 
+export type PostDetailResponse = {
+  post: ClubPostCardDto;
+};
+
 export type PostVisibilityContext = {
   mode: ProgressMode;
   currentMilestonePosition: number | null;
