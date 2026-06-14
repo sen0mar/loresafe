@@ -24,6 +24,14 @@ export type CreateMilestoneResponse = {
   milestone: MilestoneDto;
 };
 
+export type UpdateMilestoneResponse = {
+  milestone: MilestoneDto;
+};
+
+export type MoveMilestoneResponse = {
+  milestones: MilestoneDto[];
+};
+
 export type CreateMilestoneTemplateResponse = {
   milestones: MilestoneDto[];
 };

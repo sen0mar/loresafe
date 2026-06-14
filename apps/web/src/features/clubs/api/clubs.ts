@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiGet, apiPost } from "@/shared/api/api-client";
+import { apiGet, apiPatch, apiPost } from "@/shared/api/api-client";
 
 export type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
@@ -105,6 +105,21 @@ export type CreateClubMilestoneResponse = {
   milestone: ClubMilestone;
 };
 
+export type UpdateClubMilestoneInput = CreateClubMilestoneInput;
+
+export type UpdateClubMilestoneResponse = {
+  milestone: ClubMilestone;
+};
+
+export type MoveClubMilestoneInput = {
+  milestoneId: string;
+  direction: "UP" | "DOWN";
+};
+
+export type MoveClubMilestoneResponse = {
+  milestones: ClubMilestone[];
+};
+
 export type MilestoneTemplate =
   | "BOOK"
   | "SHOW"
@@ -165,6 +180,30 @@ export const createClubMilestone = (
   apiPost<CreateClubMilestoneResponse, CreateClubMilestoneInput>(
     `/api/clubs/${slug}/milestones`,
     input
+  );
+
+export const updateClubMilestone = (
+  slug: string,
+  milestoneId: string,
+  input: UpdateClubMilestoneInput
+) =>
+  apiPatch<UpdateClubMilestoneResponse, UpdateClubMilestoneInput>(
+    `/api/clubs/${slug}/milestones/${milestoneId}`,
+    input
+  );
+
+export const moveClubMilestone = (
+  slug: string,
+  input: MoveClubMilestoneInput
+) =>
+  apiPost<
+    MoveClubMilestoneResponse,
+    { direction: MoveClubMilestoneInput["direction"] }
+  >(
+    `/api/clubs/${slug}/milestones/${input.milestoneId}/move`,
+    {
+      direction: input.direction
+    }
   );
 
 export const createClubMilestoneTemplate = (
@@ -232,7 +271,26 @@ export const useCreateClubMilestoneMutation = (slug: string) => {
   return useMutation({
     mutationFn: (input: CreateClubMilestoneInput) =>
       createClubMilestone(slug, input),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      queryClient.setQueriesData<ClubMilestonesResponse>(
+        {
+          queryKey: clubsQueryKeys.milestonesRoot(slug)
+        },
+        (currentResponse) => {
+          if (!currentResponse) {
+            return currentResponse;
+          }
+
+          return {
+            ...currentResponse,
+            milestones: currentResponse.milestones.map((milestone) =>
+              milestone.id === response.milestone.id
+                ? response.milestone
+                : milestone
+            )
+          };
+        }
+      );
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
       });
@@ -246,6 +304,61 @@ export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
   return useMutation({
     mutationFn: (input: CreateClubMilestoneTemplateInput) =>
       createClubMilestoneTemplate(slug, input),
+    onSuccess: (response) => {
+      queryClient.setQueriesData<ClubMilestonesResponse>(
+        {
+          queryKey: clubsQueryKeys.milestonesRoot(slug)
+        },
+        (currentResponse) => {
+          if (!currentResponse) {
+            return currentResponse;
+          }
+
+          const { page, limit } = currentResponse.pagination;
+          const start = (page - 1) * limit;
+
+          return {
+            milestones: response.milestones.slice(start, start + limit),
+            pagination: {
+              ...currentResponse.pagination,
+              total: response.milestones.length,
+              pageCount: Math.ceil(response.milestones.length / limit)
+            }
+          };
+        }
+      );
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+    }
+  });
+};
+
+export const useUpdateClubMilestoneMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      milestoneId,
+      input
+    }: {
+      milestoneId: string;
+      input: UpdateClubMilestoneInput;
+    }) => updateClubMilestone(slug, milestoneId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+    }
+  });
+};
+
+export const useMoveClubMilestoneMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: MoveClubMilestoneInput) =>
+      moveClubMilestone(slug, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)

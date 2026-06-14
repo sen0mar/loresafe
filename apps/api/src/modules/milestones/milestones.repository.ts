@@ -3,7 +3,9 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import type {
   CreateMilestoneRequest,
   CreateMilestoneTemplateRequest,
-  ListMilestonesQuery
+  ListMilestonesQuery,
+  MoveMilestoneRequest,
+  UpdateMilestoneRequest
 } from "./milestones.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
@@ -35,6 +37,12 @@ export type MilestonesRepository = {
   createMilestoneAtNextPosition: (
     input: CreateMilestoneAtNextPositionInput
   ) => Promise<MilestoneRecord>;
+  updateMilestoneForClub: (
+    input: UpdateMilestoneForClubInput
+  ) => Promise<MilestoneRecord | null>;
+  moveMilestoneForClub: (
+    input: MoveMilestoneForClubInput
+  ) => Promise<MilestoneRecord[] | null>;
   findClubForMilestoneCreation: (
     slug: string,
     userId: string
@@ -48,6 +56,16 @@ export type MilestonesRepository = {
 
 type CreateMilestoneAtNextPositionInput = CreateMilestoneRequest & {
   clubId: string;
+};
+
+type UpdateMilestoneForClubInput = UpdateMilestoneRequest & {
+  clubId: string;
+  milestoneId: string;
+};
+
+type MoveMilestoneForClubInput = MoveMilestoneRequest & {
+  clubId: string;
+  milestoneId: string;
 };
 
 type CreateMilestonesFromTemplateIfEmptyInput =
@@ -65,6 +83,13 @@ export class MilestoneTemplateConflictError extends Error {
   constructor() {
     super("Milestone template generation requires an empty timeline.");
     this.name = "MilestoneTemplateConflictError";
+  }
+}
+
+export class MilestoneMoveConflictError extends Error {
+  constructor() {
+    super("Milestone move could not be applied.");
+    this.name = "MilestoneMoveConflictError";
   }
 }
 
@@ -160,6 +185,144 @@ export const milestonesRepository: MilestonesRepository = {
       }
 
       return createMilestone();
+    }
+  },
+
+  updateMilestoneForClub: async (input) => {
+    const existingMilestone = await prisma.milestone.findFirst({
+      where: {
+        id: input.milestoneId,
+        clubId: input.clubId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!existingMilestone) {
+      return null;
+    }
+
+    return prisma.milestone.update({
+      where: {
+        id: input.milestoneId
+      },
+      data: {
+        safeTitle: input.safeTitle,
+        fullTitle: input.fullTitle ?? null,
+        description: input.description ?? null,
+        spoilerName: input.spoilerName
+      },
+      select: milestoneSelect
+    });
+  },
+
+  moveMilestoneForClub: async (input) => {
+    try {
+      return await prisma.$transaction(async (transaction) => {
+        const milestone = await transaction.milestone.findFirst({
+          where: {
+            id: input.milestoneId,
+            clubId: input.clubId
+          },
+          select: {
+            id: true,
+            position: true
+          }
+        });
+
+        if (!milestone) {
+          return null;
+        }
+
+        const adjacentPosition =
+          input.direction === "UP"
+            ? milestone.position - 1
+            : milestone.position + 1;
+        const adjacentMilestone = await transaction.milestone.findFirst({
+          where: {
+            clubId: input.clubId,
+            position: adjacentPosition
+          },
+          select: {
+            id: true,
+            position: true
+          }
+        });
+
+        if (!adjacentMilestone) {
+          throw new MilestoneMoveConflictError();
+        }
+
+        const maxPosition = await transaction.milestone.aggregate({
+          where: {
+            clubId: input.clubId
+          },
+          _max: {
+            position: true
+          }
+        });
+        const temporaryPosition = (maxPosition._max.position ?? 0) + 1;
+
+        await transaction.milestone.update({
+          where: {
+            id: milestone.id
+          },
+          data: {
+            position: temporaryPosition
+          },
+          select: {
+            id: true
+          }
+        });
+        await transaction.milestone.update({
+          where: {
+            id: adjacentMilestone.id
+          },
+          data: {
+            position: milestone.position
+          },
+          select: {
+            id: true
+          }
+        });
+        await transaction.milestone.update({
+          where: {
+            id: milestone.id
+          },
+          data: {
+            position: adjacentMilestone.position
+          },
+          select: {
+            id: true
+          }
+        });
+
+        return transaction.milestone.findMany({
+          where: {
+            clubId: input.clubId
+          },
+          orderBy: [
+            {
+              position: "asc"
+            },
+            {
+              id: "asc"
+            }
+          ],
+          select: milestoneSelect
+        });
+      });
+    } catch (error) {
+      if (error instanceof MilestoneMoveConflictError) {
+        throw error;
+      }
+
+      if (isUniqueConstraintError(error)) {
+        throw new MilestoneMoveConflictError();
+      }
+
+      throw error;
     }
   },
 

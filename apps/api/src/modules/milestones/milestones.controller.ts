@@ -6,7 +6,10 @@ import { clubSlugParamsSchema } from "../clubs/clubs.schema.js";
 import {
   createMilestoneRequestSchema,
   createMilestoneTemplateRequestSchema,
-  listMilestonesQuerySchema
+  listMilestonesQuerySchema,
+  milestoneParamsSchema,
+  moveMilestoneRequestSchema,
+  updateMilestoneRequestSchema
 } from "./milestones.schema.js";
 import {
   milestonesService,
@@ -16,6 +19,8 @@ import {
 export type MilestonesController = {
   createMilestoneTemplateForClubSlug: RequestHandler;
   createMilestoneForClubSlug: RequestHandler;
+  updateMilestoneForClubSlug: RequestHandler;
+  moveMilestoneForClubSlug: RequestHandler;
   listMilestonesByClubSlug: RequestHandler;
 };
 
@@ -95,6 +100,84 @@ export const createMilestonesController = (
       );
 
       res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateMilestoneForClubSlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = milestoneParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club URL and try again."
+        );
+      }
+
+      const bodyResult = updateMilestoneRequestSchema.safeParse(req.body);
+
+      if (!bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the milestone details and try again."
+        );
+      }
+
+      const response = await service.updateMilestoneForClubSlug(
+        paramsResult.data.slug,
+        paramsResult.data.milestoneId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  moveMilestoneForClubSlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = milestoneParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club URL and try again."
+        );
+      }
+
+      const bodyResult = moveMilestoneRequestSchema.safeParse(req.body);
+
+      if (!bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the milestone move and try again."
+        );
+      }
+
+      const response = await service.moveMilestoneForClubSlug(
+        paramsResult.data.slug,
+        paramsResult.data.milestoneId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
     } catch (error) {
       next(error);
     }

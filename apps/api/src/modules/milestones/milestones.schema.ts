@@ -24,6 +24,27 @@ export const createMilestoneRequestSchema = z
   })
   .strict();
 
+export const milestoneParamsSchema = z
+  .object({
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(3)
+      .max(80)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    milestoneId: z.uuid()
+  })
+  .strict();
+
+export const updateMilestoneRequestSchema = createMilestoneRequestSchema;
+
+export const moveMilestoneRequestSchema = z
+  .object({
+    direction: z.enum(["UP", "DOWN"])
+  })
+  .strict();
+
 export const milestoneTemplateSchema = z.enum([
   "BOOK",
   "SHOW",
@@ -44,6 +65,10 @@ export type ListMilestonesQuery = z.infer<typeof listMilestonesQuerySchema>;
 export type CreateMilestoneRequest = z.infer<
   typeof createMilestoneRequestSchema
 >;
+export type UpdateMilestoneRequest = z.infer<
+  typeof updateMilestoneRequestSchema
+>;
+export type MoveMilestoneRequest = z.infer<typeof moveMilestoneRequestSchema>;
 export type MilestoneTemplate = z.infer<typeof milestoneTemplateSchema>;
 export type CreateMilestoneTemplateRequest = z.infer<
   typeof createMilestoneTemplateRequestSchema
