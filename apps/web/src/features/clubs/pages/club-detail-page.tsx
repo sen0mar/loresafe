@@ -237,7 +237,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
           </TabsContent>
 
           <TabsContent value="timeline">
-            <ClubTimelineTab slug={club.slug} />
+            <ClubTimelineTab club={club} />
           </TabsContent>
 
           <TabsContent value="activity">

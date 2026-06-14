@@ -17,6 +17,7 @@ import {
 import { createAuthService } from "../auth/auth.service.js";
 import {
   type ListMilestonesResult,
+  MilestoneMoveConflictError,
   MilestoneTemplateConflictError,
   type MilestoneRecord,
   type MilestonesRepository
@@ -331,6 +332,338 @@ describe("milestones routes", () => {
         requestId: "milestones-template-member"
       }
     });
+  });
+
+  it("rejects milestone updates without an authenticated session", async () => {
+    const response = await request(app)
+      .patch(`/api/clubs/public-story-circle/milestones/${crypto.randomUUID()}`)
+      .set("x-request-id", "milestones-update-missing-session")
+      .send({
+        safeTitle: "Opening chapters",
+        spoilerName: false
+      })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "milestones-update-missing-session"
+      }
+    });
+  });
+
+  it("rejects milestone moves without an authenticated session", async () => {
+    const response = await request(app)
+      .post(
+        `/api/clubs/public-story-circle/milestones/${crypto.randomUUID()}/move`
+      )
+      .set("x-request-id", "milestones-move-missing-session")
+      .send({
+        direction: "UP"
+      })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "milestones-move-missing-session"
+      }
+    });
+  });
+
+  it("rejects milestone updates from regular club members", async () => {
+    const member = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(member.id, club.id, "MEMBER");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening chapters"
+    });
+
+    const response = await request(app)
+      .patch(`/api/clubs/public-story-circle/milestones/${milestone.id}`)
+      .set("x-request-id", "milestones-update-member")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        safeTitle: "Renamed opening",
+        spoilerName: false
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only club owners and moderators can manage milestones.",
+        requestId: "milestones-update-member"
+      }
+    });
+  });
+
+  it("rejects milestone moves from regular club members", async () => {
+    const member = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(member.id, club.id, "MEMBER");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening chapters"
+    });
+
+    const response = await request(app)
+      .post(`/api/clubs/public-story-circle/milestones/${milestone.id}/move`)
+      .set("x-request-id", "milestones-move-member")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        direction: "DOWN"
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only club owners and moderators can manage milestones.",
+        requestId: "milestones-move-member"
+      }
+    });
+  });
+
+  it.each(["OWNER", "MODERATOR"] as const)(
+    "lets %s users update milestone text and spoiler-name settings",
+    async (role) => {
+      const manager = await repository.createUser({
+        ...validUserInput(),
+        email: `${role.toLowerCase()}-manager@example.com`,
+        displayName: `${role} manager`
+      });
+      const club = repository.createClub({
+        slug: "public-story-circle",
+        visibility: "PUBLIC"
+      });
+      repository.createMembership(manager.id, club.id, role);
+      const milestone = repository.createMilestone(club.id, {
+        position: 1,
+        safeTitle: "Opening chapters",
+        fullTitle: "Opening chapters",
+        spoilerName: false
+      });
+
+      const response = await request(app)
+        .patch(`/api/clubs/public-story-circle/milestones/${milestone.id}`)
+        .set("Cookie", await createSessionCookie(manager))
+        .send({
+          safeTitle: "Named revelation",
+          fullTitle: "Forbidden Name",
+          description: "Safe setup only.",
+          spoilerName: true
+        })
+        .expect(200);
+
+      expect(response.body).toEqual({
+        milestone: {
+          id: milestone.id,
+          position: 1,
+          safeTitle: "Named revelation",
+          fullTitle: null,
+          description: "Safe setup only.",
+          spoilerName: true,
+          isFullTitleHidden: true
+        }
+      });
+      expect(repository.milestones[0]).toMatchObject({
+        id: milestone.id,
+        safeTitle: "Named revelation",
+        fullTitle: "Forbidden Name",
+        description: "Safe setup only.",
+        spoilerName: true
+      });
+      expect(JSON.stringify(response.body)).not.toContain("Forbidden Name");
+    }
+  );
+
+  it("does not update milestones from another club", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    const otherClub = repository.createClub({
+      slug: "other-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const otherMilestone = repository.createMilestone(otherClub.id, {
+      position: 1,
+      safeTitle: "Other opening"
+    });
+
+    const response = await request(app)
+      .patch(`/api/clubs/public-story-circle/milestones/${otherMilestone.id}`)
+      .set("x-request-id", "milestones-update-wrong-club")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        safeTitle: "Wrong update",
+        spoilerName: false
+      })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Milestone not found",
+        requestId: "milestones-update-wrong-club"
+      }
+    });
+    expect(otherMilestone.safeTitle).toBe("Other opening");
+  });
+
+  it("moves milestones with stable ids and gap-free positions", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const first = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening chapters"
+    });
+    const second = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Middle chapters"
+    });
+    const third = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Final chapters"
+    });
+
+    await request(app)
+      .post(`/api/clubs/public-story-circle/milestones/${second.id}/move`)
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        direction: "UP"
+      })
+      .expect(200);
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle/milestones")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(
+      response.body.milestones.map(
+        (milestone: { id: string; position: number; safeTitle: string }) => ({
+          id: milestone.id,
+          position: milestone.position,
+          safeTitle: milestone.safeTitle
+        })
+      )
+    ).toEqual([
+      {
+        id: second.id,
+        position: 1,
+        safeTitle: "Middle chapters"
+      },
+      {
+        id: first.id,
+        position: 2,
+        safeTitle: "Opening chapters"
+      },
+      {
+        id: third.id,
+        position: 3,
+        safeTitle: "Final chapters"
+      }
+    ]);
+    expect(getSortedPositions(repository.milestones, club.id)).toEqual([
+      1, 2, 3
+    ]);
+  });
+
+  it("rejects boundary milestone moves", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const first = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening chapters"
+    });
+    const second = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Final chapters"
+    });
+
+    await request(app)
+      .post(`/api/clubs/public-story-circle/milestones/${first.id}/move`)
+      .set("x-request-id", "milestones-move-first-up")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        direction: "UP"
+      })
+      .expect(409);
+
+    await request(app)
+      .post(`/api/clubs/public-story-circle/milestones/${second.id}/move`)
+      .set("x-request-id", "milestones-move-last-down")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        direction: "DOWN"
+      })
+      .expect(409);
+
+    expect(getSortedPositions(repository.milestones, club.id)).toEqual([
+      1, 2
+    ]);
+  });
+
+  it("does not move milestones from another club", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    const otherClub = repository.createClub({
+      slug: "other-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening chapters"
+    });
+    const otherMilestone = repository.createMilestone(otherClub.id, {
+      position: 1,
+      safeTitle: "Other opening"
+    });
+
+    const response = await request(app)
+      .post(
+        `/api/clubs/public-story-circle/milestones/${otherMilestone.id}/move`
+      )
+      .set("x-request-id", "milestones-move-wrong-club")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        direction: "DOWN"
+      })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Milestone not found",
+        requestId: "milestones-move-wrong-club"
+      }
+    });
+    expect(otherMilestone.position).toBe(1);
   });
 
   it.each(["OWNER", "MODERATOR"] as const)(
@@ -948,6 +1281,67 @@ class InMemoryMilestonesRepository
     });
   };
 
+  updateMilestoneForClub = async (
+    input: Parameters<MilestonesRepository["updateMilestoneForClub"]>[0]
+  ) => {
+    const milestone = this.milestones.find(
+      (storedMilestone) =>
+        storedMilestone.id === input.milestoneId &&
+        storedMilestone.clubId === input.clubId
+    );
+
+    if (!milestone) {
+      return null;
+    }
+
+    milestone.safeTitle = input.safeTitle;
+    milestone.fullTitle = input.fullTitle ?? null;
+    milestone.description = input.description ?? null;
+    milestone.spoilerName = input.spoilerName;
+
+    return milestone;
+  };
+
+  moveMilestoneForClub = async (
+    input: Parameters<MilestonesRepository["moveMilestoneForClub"]>[0]
+  ) => {
+    const milestone = this.milestones.find(
+      (storedMilestone) =>
+        storedMilestone.id === input.milestoneId &&
+        storedMilestone.clubId === input.clubId
+    );
+
+    if (!milestone) {
+      return null;
+    }
+
+    const adjacentPosition =
+      input.direction === "UP"
+        ? milestone.position - 1
+        : milestone.position + 1;
+    const adjacentMilestone = this.milestones.find(
+      (storedMilestone) =>
+        storedMilestone.clubId === input.clubId &&
+        storedMilestone.position === adjacentPosition
+    );
+
+    if (!adjacentMilestone) {
+      throw new MilestoneMoveConflictError();
+    }
+
+    const originalPosition = milestone.position;
+    milestone.position = adjacentMilestone.position;
+    adjacentMilestone.position = originalPosition;
+
+    return this.milestones
+      .filter((storedMilestone) => storedMilestone.clubId === input.clubId)
+      .sort(
+        (leftMilestone, rightMilestone) =>
+          leftMilestone.position - rightMilestone.position ||
+          leftMilestone.id.localeCompare(rightMilestone.id)
+      );
+  };
+
   createMilestonesFromTemplateIfEmpty = async (
     input: Parameters<
       MilestonesRepository["createMilestonesFromTemplateIfEmpty"]
@@ -1053,6 +1447,15 @@ const createSessionCookie = async (user: AuthUserRecord) => {
 
   return `${env.SESSION_COOKIE_NAME}=${token}`;
 };
+
+const getSortedPositions = (
+  milestones: Array<MilestoneRecord & { clubId: string }>,
+  clubId: string
+) =>
+  milestones
+    .filter((milestone) => milestone.clubId === clubId)
+    .map((milestone) => milestone.position)
+    .sort((leftPosition, rightPosition) => leftPosition - rightPosition);
 
 const validUserInput = () => ({
   email: "reader@example.com",

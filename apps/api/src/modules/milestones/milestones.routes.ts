@@ -26,6 +26,20 @@ export const createMilestonesRouter = (
     controller.createMilestoneForClubSlug
   );
 
+  router.patch(
+    "/:slug/milestones/:milestoneId",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.updateMilestoneForClubSlug
+  );
+
+  router.post(
+    "/:slug/milestones/:milestoneId/move",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.moveMilestoneForClubSlug
+  );
+
   router.get(
     "/:slug/milestones",
     middleware.loadCurrentUser,
