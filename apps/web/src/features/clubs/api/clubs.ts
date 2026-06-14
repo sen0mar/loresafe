@@ -105,6 +105,23 @@ export type CreateClubMilestoneResponse = {
   milestone: ClubMilestone;
 };
 
+export type MilestoneTemplate =
+  | "BOOK"
+  | "SHOW"
+  | "MOVIE"
+  | "GAME"
+  | "PODCAST_COURSE"
+  | "CUSTOM";
+
+export type CreateClubMilestoneTemplateInput = {
+  template: MilestoneTemplate;
+  count: number;
+};
+
+export type CreateClubMilestoneTemplateResponse = {
+  milestones: ClubMilestone[];
+};
+
 export type CreateClubInput = {
   title: string;
   slug: string;
@@ -149,6 +166,15 @@ export const createClubMilestone = (
     `/api/clubs/${slug}/milestones`,
     input
   );
+
+export const createClubMilestoneTemplate = (
+  slug: string,
+  input: CreateClubMilestoneTemplateInput
+) =>
+  apiPost<
+    CreateClubMilestoneTemplateResponse,
+    CreateClubMilestoneTemplateInput
+  >(`/api/clubs/${slug}/milestones/templates`, input);
 
 export const joinClub = (slug: string) =>
   apiPost<ClubResponse>(`/api/clubs/${slug}/join`);
@@ -206,6 +232,20 @@ export const useCreateClubMilestoneMutation = (slug: string) => {
   return useMutation({
     mutationFn: (input: CreateClubMilestoneInput) =>
       createClubMilestone(slug, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+    }
+  });
+};
+
+export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateClubMilestoneTemplateInput) =>
+      createClubMilestoneTemplate(slug, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)

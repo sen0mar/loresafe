@@ -24,6 +24,10 @@ export type CreateMilestoneResponse = {
   milestone: MilestoneDto;
 };
 
+export type CreateMilestoneTemplateResponse = {
+  milestones: MilestoneDto[];
+};
+
 export const toMilestoneDto = (
   milestone: MilestoneRecord
 ): MilestoneDto => ({
