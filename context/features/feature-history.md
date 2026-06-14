@@ -18,6 +18,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 12: Public club join and joined sidebar — Added authenticated public-club joins with idempotent membership creation, joined-club sidebar data, live sidebar refresh after joining, and focused backend authorization tests.
 - Feature 13: Club invites — Added hashed-token invite storage with a committed migration, owner/moderator invite generation, authenticated invite acceptance with expired/revoked/maxed protections, safe invite redirect handling, and focused backend regression tests.
 - Feature 14: Milestone timeline — Added the club milestone model with a committed migration, demo timeline seed data, authenticated spoiler-safe milestone reads, real Timeline UI, and backend redaction tests for unsafe milestone names.
+- Feature 15: Milestone creation — Added owner/moderator milestone creation with safe response redaction, next-position appends, a club settings builder panel, timeline cache refreshes, rate limiting, and focused backend authorization/order tests.
 
 ## Entry Format
 

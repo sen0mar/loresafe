@@ -48,6 +48,25 @@ describe("milestones routes", () => {
     });
   });
 
+  it("rejects milestone creation without an authenticated session", async () => {
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones")
+      .set("x-request-id", "milestones-create-missing-session")
+      .send({
+        safeTitle: "Opening chapters",
+        spoilerName: false
+      })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "milestones-create-missing-session"
+      }
+    });
+  });
+
   it("rejects invalid club slugs", async () => {
     const user = await repository.createUser(validUserInput());
 
@@ -82,6 +101,237 @@ describe("milestones routes", () => {
         requestId: "milestones-invalid-query"
       }
     });
+  });
+
+  it("rejects invalid milestone creation bodies", async () => {
+    const owner = await repository.createUser(validUserInput());
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones")
+      .set("x-request-id", "milestones-create-invalid-body")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        safeTitle: "x",
+        fullTitle: "x".repeat(161),
+        description: "x".repeat(501),
+        spoilerName: "yes"
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the milestone details and try again.",
+        requestId: "milestones-create-invalid-body"
+      }
+    });
+  });
+
+  it("returns not found when creating milestones for an unknown club", async () => {
+    const owner = await repository.createUser(validUserInput());
+
+    const response = await request(app)
+      .post("/api/clubs/unknown-club/milestones")
+      .set("x-request-id", "milestones-create-unknown-club")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        safeTitle: "Opening chapters",
+        spoilerName: false
+      })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Club not found",
+        requestId: "milestones-create-unknown-club"
+      }
+    });
+  });
+
+  it.each([
+    ["private", "PRIVATE"],
+    ["invite-only", "INVITE_ONLY"]
+  ] as const)(
+    "hides %s clubs when non-members try to create milestones",
+    async (label, visibility) => {
+      const reader = await repository.createUser(validUserInput());
+      repository.createClub({
+        slug: `${label}-plot-room`,
+        visibility
+      });
+
+      const response = await request(app)
+        .post(`/api/clubs/${label}-plot-room/milestones`)
+        .set("x-request-id", `milestones-create-${label}-non-member`)
+        .set("Cookie", await createSessionCookie(reader))
+        .send({
+          safeTitle: "Opening chapters",
+          fullTitle: "Secret title",
+          spoilerName: false
+        })
+        .expect(404);
+
+      expect(response.body).toEqual({
+        error: {
+          code: "NOT_FOUND",
+          message: "Club not found",
+          requestId: `milestones-create-${label}-non-member`
+        }
+      });
+      expect(JSON.stringify(response.body)).not.toContain("Secret title");
+    }
+  );
+
+  it("rejects milestone creation from regular club members", async () => {
+    const member = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(member.id, club.id, "MEMBER");
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones")
+      .set("x-request-id", "milestones-create-member")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        safeTitle: "Opening chapters",
+        spoilerName: false
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only club owners and moderators can add milestones.",
+        requestId: "milestones-create-member"
+      }
+    });
+  });
+
+  it.each(["OWNER", "MODERATOR"] as const)(
+    "lets %s users append milestones",
+    async (role) => {
+      const creator = await repository.createUser({
+        ...validUserInput(),
+        email: `${role.toLowerCase()}@example.com`,
+        displayName: role
+      });
+      const club = repository.createClub({
+        slug: "public-story-circle",
+        visibility: "PUBLIC"
+      });
+      repository.createMembership(creator.id, club.id, role);
+
+      const response = await request(app)
+        .post("/api/clubs/public-story-circle/milestones")
+        .set("Cookie", await createSessionCookie(creator))
+        .send({
+          safeTitle: "Opening chapters",
+          fullTitle: "Opening chapters",
+          description: "Safe setup.",
+          spoilerName: false
+        })
+        .expect(201);
+
+      expect(response.body).toEqual({
+        milestone: {
+          id: expect.any(String),
+          position: 1,
+          safeTitle: "Opening chapters",
+          fullTitle: "Opening chapters",
+          description: "Safe setup.",
+          spoilerName: false,
+          isFullTitleHidden: false
+        }
+      });
+    }
+  );
+
+  it("appends created milestones at the next position and lists them in order", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    for (const safeTitle of [
+      "Opening chapters",
+      "Middle chapters",
+      "Final chapters"
+    ]) {
+      await request(app)
+        .post("/api/clubs/public-story-circle/milestones")
+        .set("Cookie", await createSessionCookie(owner))
+        .send({
+          safeTitle,
+          spoilerName: false
+        })
+        .expect(201);
+    }
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle/milestones")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(
+      response.body.milestones.map(
+        (milestone: { position: number; safeTitle: string }) => ({
+          position: milestone.position,
+          safeTitle: milestone.safeTitle
+        })
+      )
+    ).toEqual([
+      {
+        position: 1,
+        safeTitle: "Opening chapters"
+      },
+      {
+        position: 2,
+        safeTitle: "Middle chapters"
+      },
+      {
+        position: 3,
+        safeTitle: "Final chapters"
+      }
+    ]);
+  });
+
+  it("persists unsafe full titles but redacts them from milestone creation responses", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        safeTitle: "Named revelation",
+        fullTitle: "Forbidden Name",
+        description: "Safe setup only.",
+        spoilerName: true
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      milestone: {
+        id: expect.any(String),
+        position: 1,
+        safeTitle: "Named revelation",
+        fullTitle: null,
+        description: "Safe setup only.",
+        spoilerName: true,
+        isFullTitleHidden: true
+      }
+    });
+    expect(repository.milestones[0]?.fullTitle).toBe("Forbidden Name");
+    expect(JSON.stringify(response.body)).not.toContain("Forbidden Name");
   });
 
   it("returns public club milestones ordered by position", async () => {
@@ -297,7 +547,11 @@ class InMemoryMilestonesRepository
     AuthUserRecord & { passwordHash: string }
   >();
   readonly clubs = new Map<string, StoredClub>();
-  readonly memberships: Array<{ userId: string; clubId: string }> = [];
+  readonly memberships: Array<{
+    userId: string;
+    clubId: string;
+    role: "OWNER" | "MODERATOR" | "MEMBER";
+  }> = [];
   readonly milestones: Array<MilestoneRecord & { clubId: string }> = [];
 
   findActiveUserByEmail = async (email: string) =>
@@ -353,10 +607,15 @@ class InMemoryMilestonesRepository
     return club;
   };
 
-  createMembership = (userId: string, clubId: string) => {
+  createMembership = (
+    userId: string,
+    clubId: string,
+    role: "OWNER" | "MODERATOR" | "MEMBER" = "MEMBER"
+  ) => {
     this.memberships.push({
       userId,
-      clubId
+      clubId,
+      role
     });
   };
 
@@ -377,6 +636,39 @@ class InMemoryMilestonesRepository
     this.milestones.push(milestone);
 
     return milestone;
+  };
+
+  createMilestoneAtNextPosition = async (
+    input: Parameters<MilestonesRepository["createMilestoneAtNextPosition"]>[0]
+  ) => {
+    const nextPosition =
+      Math.max(
+        0,
+        ...this.milestones
+          .filter((milestone) => milestone.clubId === input.clubId)
+          .map((milestone) => milestone.position)
+      ) + 1;
+
+    return this.createMilestone(input.clubId, {
+      position: nextPosition,
+      safeTitle: input.safeTitle,
+      fullTitle: input.fullTitle,
+      description: input.description,
+      spoilerName: input.spoilerName
+    });
+  };
+
+  findClubForMilestoneCreation = async (slug: string, userId: string) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club || !this.canFindClubForMilestoneCreation(club, userId)) {
+      return null;
+    }
+
+    return {
+      id: club.id,
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+    };
   };
 
   listVisibleMilestonesByClubSlug = async (
@@ -420,6 +712,22 @@ class InMemoryMilestonesRepository
     this.memberships.some(
       (membership) =>
         membership.clubId === club.id && membership.userId === userId
+    );
+
+  private canFindClubForMilestoneCreation = (
+    club: StoredClub,
+    userId: string
+  ) =>
+    club.visibility === "PUBLIC" ||
+    this.memberships.some(
+      (membership) =>
+        membership.clubId === club.id && membership.userId === userId
+    );
+
+  private findMembership = (userId: string, clubId: string) =>
+    this.memberships.find(
+      (membership) =>
+        membership.clubId === clubId && membership.userId === userId
     );
 }
 

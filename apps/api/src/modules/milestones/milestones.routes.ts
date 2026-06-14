@@ -12,6 +12,13 @@ export const createMilestonesRouter = (
 ) => {
   const router = Router();
 
+  router.post(
+    "/:slug/milestones",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.createMilestoneForClubSlug
+  );
+
   router.get(
     "/:slug/milestones",
     middleware.loadCurrentUser,
