@@ -6,6 +6,8 @@ export type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
 export type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
+export type ProgressMode = "STRICT" | "SOFT" | "BRAVE" | "FINISHED";
+
 export type ClubDiscoveryClub = {
   id: string;
   title: string;
@@ -60,6 +62,34 @@ export type ClubMilestone = {
   isFullTitleHidden: boolean;
 };
 
+export type ClubProgressMilestone = {
+  id: string;
+  position: number;
+  safeTitle: string;
+  fullTitle: string | null;
+  isFullTitleHidden: boolean;
+};
+
+export type ClubProgressHistory = {
+  id: string;
+  fromMode: ProgressMode;
+  toMode: ProgressMode;
+  fromMilestone: ClubProgressMilestone | null;
+  toMilestone: ClubProgressMilestone | null;
+  createdAt: string;
+};
+
+export type ClubProgress = {
+  id: string | null;
+  mode: ProgressMode;
+  currentMilestone: ClubProgressMilestone | null;
+  totalMilestones: number;
+  completedMilestones: number;
+  percentage: number;
+  updatedAt: string | null;
+  history: ClubProgressHistory[];
+};
+
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
   pagination: {
@@ -92,6 +122,10 @@ export type ClubMilestonesResponse = {
     total: number;
     pageCount: number;
   };
+};
+
+export type ClubProgressResponse = {
+  progress: ClubProgress;
 };
 
 export type CreateClubMilestoneInput = {
@@ -146,6 +180,11 @@ export type CreateClubInput = {
   rules?: string | null;
 };
 
+export type UpdateClubProgressInput = {
+  currentMilestoneId: string | null;
+  mode: ProgressMode;
+};
+
 export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
   joined: ["users", "me", "clubs"] as const,
@@ -153,7 +192,9 @@ export const clubsQueryKeys = {
   milestonesRoot: (slug: string) =>
     ["clubs", "detail", slug, "milestones"] as const,
   milestones: (slug: string, page: number) =>
-    ["clubs", "detail", slug, "milestones", page] as const
+    ["clubs", "detail", slug, "milestones", page] as const,
+  progress: (slug: string) => ["clubs", "detail", slug, "progress"] as const,
+  feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const
 };
 
 export const getPublicClubs = () =>
@@ -166,6 +207,9 @@ export const getClubMilestones = (slug: string, page = 1) =>
   apiGet<ClubMilestonesResponse>(
     `/api/clubs/${slug}/milestones?page=${page}&limit=100`
   );
+
+export const getClubProgress = (slug: string) =>
+  apiGet<ClubProgressResponse>(`/api/clubs/${slug}/progress`);
 
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
@@ -218,6 +262,15 @@ export const createClubMilestoneTemplate = (
 export const joinClub = (slug: string) =>
   apiPost<ClubResponse>(`/api/clubs/${slug}/join`);
 
+export const updateClubProgress = (
+  slug: string,
+  input: UpdateClubProgressInput
+) =>
+  apiPatch<ClubProgressResponse, UpdateClubProgressInput>(
+    `/api/clubs/${slug}/progress`,
+    input
+  );
+
 export const usePublicClubsQuery = () =>
   useQuery({
     queryKey: clubsQueryKeys.discovery,
@@ -236,6 +289,13 @@ export const useClubMilestonesQuery = (slug: string, page: number) =>
     queryKey: clubsQueryKeys.milestones(slug, page),
     queryFn: () => getClubMilestones(slug, page),
     enabled: slug.length > 0
+  });
+
+export const useClubProgressQuery = (slug: string, enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.progress(slug),
+    queryFn: () => getClubProgress(slug),
+    enabled: enabled && slug.length > 0
   });
 
 export const useJoinedClubsQuery = (enabled = true) =>
@@ -362,6 +422,33 @@ export const useMoveClubMilestoneMutation = (slug: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+    }
+  });
+};
+
+export const useUpdateClubProgressMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateClubProgressInput) =>
+      updateClubProgress(slug, input),
+    onSuccess: (response) => {
+      queryClient.setQueryData(clubsQueryKeys.progress(slug), response);
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.progress(slug)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.detail(slug)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.joined
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.feedRoot(slug)
       });
     }
   });

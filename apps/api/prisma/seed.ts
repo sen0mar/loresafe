@@ -80,6 +80,7 @@ const seedDemoClub = async (ownerId: string) => {
   });
 
   await seedDemoMilestones(demoClub.id);
+  await seedDemoProgress(ownerId, demoClub.id);
 
   console.log("Demo club seed completed.");
 };
@@ -139,6 +140,42 @@ const seedDemoMilestones = async (clubId: string) => {
       }
     });
   }
+};
+
+const seedDemoProgress = async (userId: string, clubId: string) => {
+  const currentMilestone = await prisma.milestone.findUnique({
+    where: {
+      clubId_position: {
+        clubId,
+        position: 2
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  await prisma.clubProgress.upsert({
+    where: {
+      userId_clubId: {
+        userId,
+        clubId
+      }
+    },
+    update: {
+      currentMilestoneId: currentMilestone?.id ?? null,
+      mode: "SOFT"
+    },
+    create: {
+      userId,
+      clubId,
+      currentMilestoneId: currentMilestone?.id ?? null,
+      mode: "SOFT"
+    },
+    select: {
+      id: true
+    }
+  });
 };
 
 const seed = async () => {

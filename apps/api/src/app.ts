@@ -10,6 +10,7 @@ import {
   clubInviteCreateRateLimiter,
   clubJoinRateLimiter,
   clubMilestoneCreateRateLimiter,
+  clubProgressUpdateRateLimiter,
   inviteAcceptRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
@@ -24,6 +25,7 @@ import {
   invitesRouter
 } from "./modules/invites/invites.routes.js";
 import { milestonesRouter } from "./modules/milestones/milestones.routes.js";
+import { progressRouter } from "./modules/progress/progress.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
 const localDevOrigins = [env.CLIENT_ORIGIN, "http://localhost:5174"];
@@ -55,6 +57,7 @@ export const createApp = () => {
     "/api/clubs/:slug/milestones/templates",
     clubMilestoneCreateRateLimiter
   );
+  app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
   app.patch("/api/users/me", profileUpdateRateLimiter);
   app.use(express.json({ limit: "64kb" }));
@@ -62,6 +65,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/clubs", progressRouter);
   app.use("/api/clubs", milestonesRouter);
   app.use("/api/clubs", clubsRouter);
   app.use("/api/clubs", clubInvitesRouter);

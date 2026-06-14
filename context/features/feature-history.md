@@ -21,6 +21,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 15: Milestone creation — Added owner/moderator milestone creation with safe response redaction, next-position appends, a club settings builder panel, timeline cache refreshes, rate limiting, and focused backend authorization/order tests.
 - Feature 16: Milestone template generation — Added empty-timeline template generation for books, shows, movies, games, podcast/courses, and custom timelines with transaction-safe bulk milestone creation, overwrite protection, frontend safe-name previews, and focused backend regression tests.
 - Feature 17: Milestone editing and ordering — Added owner/moderator milestone text and spoiler-name updates, transaction-safe adjacent milestone moves with stable IDs, immediate timeline cache updates, and focused backend authorization/order regression tests.
+- Feature 18: Club progress tracking — Added per-user club progress and history with a committed migration, authenticated member-only progress read/update APIs, a right-rail progress update UI, query invalidation, demo seeding, and focused backend regression tests.
 
 ## Entry Format
 
