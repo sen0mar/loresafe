@@ -25,6 +25,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 19: Reading mode and quick progress — Added member-only quick milestone advancement, centralized conservative spoiler/mode policy helpers, explicit finished-mode storage coverage, a right-rail next-milestone action, and focused backend regression tests.
 - Feature 20: Spoiler-safe club feed — Added the Post model with a committed migration, demo visible and locked posts, authenticated spoiler-safe club feed reads with private-club protection, a Feed tab UI, and focused backend leak regression tests.
 - Feature 21: Create club posts — Added a committed club-ban migration, authenticated member-only post creation with ban and milestone ownership checks, spoiler-safe create responses, a feed create-post dialog, and focused backend regression tests.
+- Feature 22: Post detail route — Added authenticated `GET /api/posts/:postId` with feed sanitizer reuse, direct URL spoiler-lock protection, a protected `/app/posts/:postId` detail page, feed-card post links, and focused backend leak regression tests.
 
 ## Entry Format
 

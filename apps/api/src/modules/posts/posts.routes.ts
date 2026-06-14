@@ -26,4 +26,21 @@ export const createPostsRouter = (
   return router;
 };
 
+export const createPostDetailsRouter = (
+  controller: PostsController = postsController,
+  middleware: AuthMiddleware = authMiddleware
+) => {
+  const router = Router();
+
+  router.get(
+    "/:postId",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.getPostById
+  );
+
+  return router;
+};
+
 export const postsRouter = createPostsRouter();
+export const postDetailsRouter = createPostDetailsRouter();

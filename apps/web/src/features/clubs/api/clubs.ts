@@ -207,6 +207,10 @@ export type CreateClubPostResponse = {
   post: ClubPostCard;
 };
 
+export type PostDetailResponse = {
+  post: ClubPostCard;
+};
+
 export type CreateClubMilestoneInput = {
   safeTitle: string;
   fullTitle?: string | null;
@@ -275,7 +279,8 @@ export const clubsQueryKeys = {
   progress: (slug: string) => ["clubs", "detail", slug, "progress"] as const,
   feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
   feed: (slug: string, page: number) =>
-    ["clubs", "detail", slug, "feed", page] as const
+    ["clubs", "detail", slug, "feed", page] as const,
+  postDetail: (postId: string) => ["posts", "detail", postId] as const
 };
 
 export const getPublicClubs = () =>
@@ -294,6 +299,9 @@ export const getClubProgress = (slug: string) =>
 
 export const getClubPosts = (slug: string, page = 1) =>
   apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?page=${page}&limit=20`);
+
+export const getPostById = (postId: string) =>
+  apiGet<PostDetailResponse>(`/api/posts/${postId}`);
 
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
@@ -400,6 +408,13 @@ export const useClubPostsQuery = (slug: string, page: number) =>
     queryKey: clubsQueryKeys.feed(slug, page),
     queryFn: () => getClubPosts(slug, page),
     enabled: slug.length > 0
+  });
+
+export const usePostQuery = (postId: string) =>
+  useQuery({
+    queryKey: clubsQueryKeys.postDetail(postId),
+    queryFn: () => getPostById(postId),
+    enabled: postId.length > 0
   });
 
 export const useJoinedClubsQuery = (enabled = true) =>

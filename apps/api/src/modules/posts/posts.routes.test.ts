@@ -35,9 +35,13 @@ import type {
   ClubPostCreationClubRecord,
   ClubPostRecord,
   ListClubPostsResult,
+  PostDetailRecord,
   PostsRepository
 } from "./posts.repository.js";
-import { createPostsRouter } from "./posts.routes.js";
+import {
+  createPostDetailsRouter,
+  createPostsRouter
+} from "./posts.routes.js";
 import { createPostsService } from "./posts.service.js";
 import type {
   CreateClubPostRequest,
@@ -64,6 +68,21 @@ describe("posts routes", () => {
         code: "UNAUTHORIZED",
         message: "Authentication required",
         requestId: "posts-missing-session"
+      }
+    });
+  });
+
+  it("rejects post detail reads without an authenticated session", async () => {
+    const response = await request(app)
+      .get(`/api/posts/${crypto.randomUUID()}`)
+      .set("x-request-id", "post-detail-missing-session")
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "post-detail-missing-session"
       }
     });
   });
@@ -150,6 +169,62 @@ describe("posts routes", () => {
       message: "Join this club before creating posts."
     });
     expect(repository.posts).toHaveLength(0);
+  });
+
+  it("validates post detail ids", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    const response = await request(app)
+      .get("/api/posts/not-a-uuid")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Check the post request and try again."
+    });
+  });
+
+  it("returns not found for missing, hidden, and deleted post details", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("unlisted-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    const hiddenPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Hidden title",
+      body: "HIDDEN_BODY_SHOULD_NOT_LEAK",
+      status: "HIDDEN"
+    });
+    const deletedPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Deleted title",
+      body: "DELETED_BODY_SHOULD_NOT_LEAK",
+      deletedAt: new Date()
+    });
+
+    for (const postId of [
+      crypto.randomUUID(),
+      hiddenPost.id,
+      deletedPost.id
+    ]) {
+      const response = await request(app)
+        .get(`/api/posts/${postId}`)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(404);
+
+      expect(response.body.error).toMatchObject({
+        code: "NOT_FOUND",
+        message: "Post not found"
+      });
+      expect(JSON.stringify(response.body)).not.toContain(
+        "HIDDEN_BODY_SHOULD_NOT_LEAK"
+      );
+      expect(JSON.stringify(response.body)).not.toContain(
+        "DELETED_BODY_SHOULD_NOT_LEAK"
+      );
+    }
   });
 
   it("rejects post creation from banned members", async () => {
@@ -311,6 +386,42 @@ describe("posts routes", () => {
     );
   });
 
+  it("hides private club post detail and post text from non-members", async () => {
+    const owner = repository.createStoredUser(validUserInput());
+    const reader = repository.createStoredUser({
+      ...validUserInput(),
+      email: "private-detail-reader@example.com"
+    });
+    const club = repository.createClub("private-detail-room", "PRIVATE");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Private opening"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const post = repository.createPost(club.id, owner.id, milestone.id, {
+      title: "Private direct title",
+      body: "PRIVATE_DIRECT_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("x-request-id", "post-detail-private-non-member")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Post not found",
+        requestId: "post-detail-private-non-member"
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("Private direct title");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "PRIVATE_DIRECT_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
   it("returns locked cards without title, body preview, or author data for behind-progress users", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("public-story-circle");
@@ -367,6 +478,62 @@ describe("posts routes", () => {
     );
   });
 
+  it("returns locked post detail without title, body preview, author, or media fields", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("locked-detail-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Spoiler-safe midpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "Direct unsafe title should not leak",
+      body: "DIRECT_LOCKED_SECRET_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.post).toEqual({
+      id: post.id,
+      visibility: "LOCKED",
+      type: "DISCUSSION",
+      status: "VISIBLE",
+      requiredMilestone: {
+        id: secondMilestone.id,
+        position: 2,
+        label: "Spoiler-safe midpoint"
+      },
+      counts: {
+        commentCount: 0,
+        reactionCount: 0,
+        unreadCommentCount: 0
+      },
+      lockReason:
+        "Reach milestone 2: Spoiler-safe midpoint to unlock this discussion.",
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String)
+    });
+    expect(response.body.post).not.toHaveProperty("title");
+    expect(response.body.post).not.toHaveProperty("body");
+    expect(response.body.post).not.toHaveProperty("bodyPreview");
+    expect(response.body.post).not.toHaveProperty("author");
+    expect(response.body.post).not.toHaveProperty("media");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "Direct unsafe title should not leak"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "DIRECT_LOCKED_SECRET_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
   it("returns visible card title and body preview at the required milestone", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("visible-story-circle");
@@ -396,6 +563,32 @@ describe("posts routes", () => {
         username: null
       }
     });
+  });
+
+  it("returns the same visible sanitizer shape for feed and direct detail", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("matching-detail-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Opening detail thoughts",
+      body: "The feed and detail views should agree."
+    });
+
+    const feedResponse = await request(app)
+      .get("/api/clubs/matching-detail-story-circle/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(detailResponse.body.post).toEqual(feedResponse.body.posts[0]);
   });
 
   it("changes card visibility after progress is updated", async () => {
@@ -441,6 +634,53 @@ describe("posts routes", () => {
       visibility: "VISIBLE",
       title: "Midpoint unlocked title",
       bodyPreview: "Midpoint body is visible after progress catches up."
+    });
+  });
+
+  it("changes detail visibility after progress is updated", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("detail-progress-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "Midpoint detail unlocked title",
+      body: "Midpoint detail body is visible after progress catches up."
+    });
+
+    const beforeProgressUpdate = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(beforeProgressUpdate.body.post.visibility).toBe("LOCKED");
+
+    await request(app)
+      .patch("/api/clubs/detail-progress-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: secondMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200);
+
+    const afterProgressUpdate = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(afterProgressUpdate.body.post).toMatchObject({
+      visibility: "VISIBLE",
+      title: "Midpoint detail unlocked title",
+      bodyPreview:
+        "Midpoint detail body is visible after progress catches up."
     });
   });
 
@@ -496,6 +736,10 @@ const createPostsTestApp = (
   app.use(requestIdMiddleware);
   app.use(express.json());
   app.use(cookieParser());
+  app.use(
+    "/api/posts",
+    createPostDetailsRouter(postsController, authMiddleware)
+  );
   app.use("/api/clubs", createPostsRouter(postsController, authMiddleware));
   app.use(
     "/api/clubs",
@@ -550,7 +794,11 @@ class InMemoryPostsRepository
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
   readonly posts: Array<
-    ClubPostRecord & { clubId: string; milestoneId: string }
+    ClubPostRecord & {
+      clubId: string;
+      milestoneId: string;
+      deletedAt: Date | null;
+    }
   > = [];
 
   findActiveUserByEmail = async (email: string) =>
@@ -666,6 +914,8 @@ class InMemoryPostsRepository
       title: string;
       body: string;
       type?: ClubPostRecord["type"];
+      status?: ClubPostRecord["status"];
+      deletedAt?: Date | null;
     }
   ) => {
     const author = this.findStoredUser(authorId);
@@ -681,7 +931,7 @@ class InMemoryPostsRepository
       clubId,
       milestoneId,
       type: input.type ?? "DISCUSSION",
-      status: "VISIBLE" as const,
+      status: input.status ?? "VISIBLE",
       title: input.title,
       body: input.body,
       author: {
@@ -691,7 +941,8 @@ class InMemoryPostsRepository
       },
       requiredMilestone,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      deletedAt: input.deletedAt ?? null
     };
 
     this.posts.push(post);
@@ -795,7 +1046,12 @@ class InMemoryPostsRepository
   ): Promise<ListClubPostsResult> => {
     const start = (page - 1) * limit;
     const visiblePosts = this.posts
-      .filter((post) => post.clubId === clubId && post.status === "VISIBLE")
+      .filter(
+        (post) =>
+          post.clubId === clubId &&
+          post.status === "VISIBLE" &&
+          post.deletedAt === null
+      )
       .sort(
         (firstPost, secondPost) =>
           secondPost.createdAt.getTime() - firstPost.createdAt.getTime() ||
@@ -805,6 +1061,45 @@ class InMemoryPostsRepository
     return {
       posts: visiblePosts.slice(start, start + limit),
       total: visiblePosts.length
+    };
+  };
+
+  findPostForDetail = async (
+    postId: string,
+    userId: string
+  ): Promise<PostDetailRecord | null> => {
+    const post = this.posts.find(
+      (storedPost) =>
+        storedPost.id === postId &&
+        storedPost.status === "VISIBLE" &&
+        storedPost.deletedAt === null
+    );
+
+    if (!post) {
+      return null;
+    }
+
+    const club = this.clubs.get(post.clubId);
+
+    if (!club) {
+      return null;
+    }
+
+    const progress = this.findProgress(userId, club.id);
+
+    return {
+      post,
+      club: {
+        id: club.id,
+        visibility: club.visibility,
+        currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+        progress: {
+          mode: progress?.mode ?? "STRICT",
+          currentMilestonePosition:
+            this.findMilestone(progress?.currentMilestoneId ?? null)
+              ?.position ?? null
+        }
+      }
     };
   };
 

@@ -5,6 +5,7 @@ import {
   useEffect,
   useState
 } from "react";
+import { Link } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -127,7 +128,7 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} linked />
           ))}
         </div>
       )}
@@ -443,12 +444,33 @@ const PostFormField = ({
   </label>
 );
 
-const PostCard = ({ post }: { post: ClubPostCard }) =>
-  post.visibility === "VISIBLE" ? (
-    <VisiblePostCard post={post} />
-  ) : (
-    <LockedPostCard post={post} />
+export const PostCard = ({
+  linked = false,
+  post
+}: {
+  linked?: boolean;
+  post: ClubPostCard;
+}) => {
+  const card =
+    post.visibility === "VISIBLE" ? (
+      <VisiblePostCard post={post} />
+    ) : (
+      <LockedPostCard post={post} />
+    );
+
+  if (!linked) {
+    return card;
+  }
+
+  return (
+    <Link
+      className="block rounded-xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+      to={`/app/posts/${post.id}`}
+    >
+      {card}
+    </Link>
   );
+};
 
 const VisiblePostCard = ({
   post
