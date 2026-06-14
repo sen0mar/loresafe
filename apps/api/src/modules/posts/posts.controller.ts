@@ -1,0 +1,48 @@
+import type { RequestHandler } from "express";
+
+import { HttpError } from "../../core/errors/http-error.js";
+import "../auth/auth.request.js";
+import {
+  clubPostsParamsSchema,
+  listClubPostsQuerySchema
+} from "./posts.schema.js";
+import { postsService, type PostsService } from "./posts.service.js";
+
+export type PostsController = {
+  listClubPostsBySlug: RequestHandler;
+};
+
+export const createPostsController = (
+  service: PostsService = postsService
+): PostsController => ({
+  listClubPostsBySlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubPostsParamsSchema.safeParse(req.params);
+      const queryResult = listClubPostsQuerySchema.safeParse(req.query);
+
+      if (!paramsResult.success || !queryResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the feed request and try again."
+        );
+      }
+
+      const response = await service.listClubPostsBySlug(
+        paramsResult.data.slug,
+        req.currentUser.id,
+        queryResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+});
+
+export const postsController = createPostsController();

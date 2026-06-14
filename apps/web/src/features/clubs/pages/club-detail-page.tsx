@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
@@ -182,9 +183,9 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               <ListChecks className="mr-2 size-4" />
               Timeline
             </TabsTrigger>
-            <TabsTrigger value="activity">
+            <TabsTrigger value="feed">
               <MessageSquareText className="mr-2 size-4" />
-              Activity
+              Feed
             </TabsTrigger>
           </TabsList>
 
@@ -240,17 +241,8 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
             <ClubTimelineTab club={club} />
           </TabsContent>
 
-          <TabsContent value="activity">
-            <Card>
-              <CardContent className="flex min-h-48 flex-col justify-center gap-2">
-                <h2 className="text-base font-semibold text-primary">
-                  No discussions yet
-                </h2>
-                <p className="max-w-lg text-sm leading-6 text-muted">
-                  Club conversations will appear here after posts are added.
-                </p>
-              </CardContent>
-            </Card>
+          <TabsContent value="feed">
+            <ClubFeedTab club={club} />
           </TabsContent>
         </Tabs>
 

@@ -25,6 +25,7 @@ import {
   invitesRouter
 } from "./modules/invites/invites.routes.js";
 import { milestonesRouter } from "./modules/milestones/milestones.routes.js";
+import { postsRouter } from "./modules/posts/posts.routes.js";
 import { progressRouter } from "./modules/progress/progress.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -67,6 +68,7 @@ export const createApp = () => {
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/clubs", progressRouter);
+  app.use("/api/clubs", postsRouter);
   app.use("/api/clubs", milestonesRouter);
   app.use("/api/clubs", clubsRouter);
   app.use("/api/clubs", clubInvitesRouter);
