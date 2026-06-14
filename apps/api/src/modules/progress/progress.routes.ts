@@ -26,6 +26,13 @@ export const createProgressRouter = (
     controller.updateProgressForClubSlug
   );
 
+  router.post(
+    "/:slug/progress/next",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.advanceProgressToNextMilestoneForClubSlug
+  );
+
   return router;
 };
 

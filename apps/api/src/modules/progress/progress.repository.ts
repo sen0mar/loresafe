@@ -39,6 +39,10 @@ export type ProgressRepository = {
     slug: string,
     userId: string
   ) => Promise<ProgressClubRecord | null>;
+  advanceProgressToNextMilestoneForUserClub: (
+    userId: string,
+    clubId: string
+  ) => Promise<ClubProgressRecord>;
   getProgressForUserClub: (
     userId: string,
     clubId: string
@@ -146,6 +150,175 @@ export const progressRepository: ProgressRepository = {
       updatedAt: progress?.updatedAt ?? null
     };
   },
+
+  advanceProgressToNextMilestoneForUserClub: async (userId, clubId) =>
+    prisma.$transaction(async (transaction) => {
+      const existingProgress = await transaction.clubProgress.findUnique({
+        where: {
+          userId_clubId: {
+            userId,
+            clubId
+          }
+        },
+        select: {
+          mode: true,
+          currentMilestoneId: true,
+          currentMilestone: {
+            select: {
+              position: true
+            }
+          }
+        }
+      });
+      const currentPosition =
+        existingProgress?.currentMilestone?.position ?? null;
+      const nextMilestone = await transaction.milestone.findFirst({
+        where: {
+          clubId,
+          ...(currentPosition === null
+            ? {}
+            : {
+                position: {
+                  gt: currentPosition
+                }
+              })
+        },
+        orderBy: {
+          position: "asc"
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (!nextMilestone) {
+        const [progress, totalMilestones, history] = await Promise.all([
+          transaction.clubProgress.findUnique({
+            where: {
+              userId_clubId: {
+                userId,
+                clubId
+              }
+            },
+            select: {
+              id: true,
+              mode: true,
+              currentMilestone: {
+                select: milestoneSelect
+              },
+              updatedAt: true
+            }
+          }),
+          transaction.milestone.count({
+            where: {
+              clubId
+            }
+          }),
+          transaction.progressHistory.findMany({
+            where: {
+              userId,
+              clubId
+            },
+            orderBy: {
+              createdAt: "desc"
+            },
+            take: 5,
+            select: historySelect
+          })
+        ]);
+
+        return {
+          id: progress?.id ?? null,
+          mode: (progress?.mode ?? "STRICT") as ProgressMode,
+          currentMilestone: progress?.currentMilestone ?? null,
+          totalMilestones,
+          history: history.map(toProgressHistoryRecord),
+          updatedAt: progress?.updatedAt ?? null
+        };
+      }
+
+      const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
+      const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+
+      await transaction.clubProgress.upsert({
+        where: {
+          userId_clubId: {
+            userId,
+            clubId
+          }
+        },
+        create: {
+          userId,
+          clubId,
+          currentMilestoneId: nextMilestone.id,
+          mode
+        },
+        update: {
+          currentMilestoneId: nextMilestone.id
+        },
+        select: {
+          id: true
+        }
+      });
+
+      await transaction.progressHistory.create({
+        data: {
+          userId,
+          clubId,
+          fromMilestoneId,
+          toMilestoneId: nextMilestone.id,
+          fromMode: mode,
+          toMode: mode
+        },
+        select: {
+          id: true
+        }
+      });
+
+      const [progress, totalMilestones, history] = await Promise.all([
+        transaction.clubProgress.findUniqueOrThrow({
+          where: {
+            userId_clubId: {
+              userId,
+              clubId
+            }
+          },
+          select: {
+            id: true,
+            mode: true,
+            currentMilestone: {
+              select: milestoneSelect
+            },
+            updatedAt: true
+          }
+        }),
+        transaction.milestone.count({
+          where: {
+            clubId
+          }
+        }),
+        transaction.progressHistory.findMany({
+          where: {
+            userId,
+            clubId
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          take: 5,
+          select: historySelect
+        })
+      ]);
+
+      return {
+        id: progress.id,
+        mode: progress.mode as ProgressMode,
+        currentMilestone: progress.currentMilestone,
+        totalMilestones,
+        history: history.map(toProgressHistoryRecord),
+        updatedAt: progress.updatedAt
+      };
+    }),
 
   updateProgressForUserClub: async (userId, clubId, input) =>
     prisma.$transaction(async (transaction) => {

@@ -26,6 +26,7 @@ import { createProgressController } from "./progress.controller.js";
 import { createProgressRouter } from "./progress.routes.js";
 import { createProgressService } from "./progress.service.js";
 import type { ProgressMode, UpdateProgressRequest } from "./progress.schema.js";
+import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 
 describe("progress routes", () => {
   let repository: InMemoryProgressRepository;
@@ -49,6 +50,11 @@ describe("progress routes", () => {
         currentMilestoneId: null,
         mode: "STRICT"
       })
+      .expect(401);
+
+    await request(app)
+      .post("/api/clubs/public-story-circle/progress/next")
+      .set("x-request-id", "progress-next-missing-session")
       .expect(401);
   });
 
@@ -203,6 +209,161 @@ describe("progress routes", () => {
     });
   });
 
+  it("advances unset progress to the first milestone", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("quick-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Middle"
+    });
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .post("/api/clubs/quick-club/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      mode: "STRICT",
+      currentMilestone: {
+        id: firstMilestone.id,
+        safeTitle: "Opening"
+      },
+      completedMilestones: 1,
+      totalMilestones: 2
+    });
+    expect(repository.history).toHaveLength(1);
+  });
+
+  it("advances existing progress to the next milestone and preserves mode", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("preserve-mode-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Middle"
+    });
+    repository.createMembership(user.id, club.id);
+
+    await request(app)
+      .patch("/api/clubs/preserve-mode-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+    const response = await request(app)
+      .post("/api/clubs/preserve-mode-club/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      mode: "SOFT",
+      currentMilestone: {
+        id: secondMilestone.id,
+        safeTitle: "Middle"
+      }
+    });
+    expect(repository.history).toHaveLength(2);
+    expect(repository.history[0]).toMatchObject({
+      fromMode: "SOFT",
+      toMode: "SOFT",
+      fromMilestone: {
+        id: firstMilestone.id
+      },
+      toMilestone: {
+        id: secondMilestone.id
+      }
+    });
+  });
+
+  it("stops quick progress at the final milestone without duplicate history", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("final-club");
+    const finalMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+
+    await request(app)
+      .patch("/api/clubs/final-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: finalMilestone.id,
+        mode: "BRAVE"
+      })
+      .expect(200);
+    const historyCount = repository.history.length;
+    const response = await request(app)
+      .post("/api/clubs/final-club/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      mode: "BRAVE",
+      currentMilestone: {
+        id: finalMilestone.id,
+        safeTitle: "Finale"
+      },
+      completedMilestones: 1,
+      totalMilestones: 1,
+      percentage: 100
+    });
+    expect(repository.history).toHaveLength(historyCount);
+  });
+
+  it("stores finished mode explicitly through progress updates", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("finished-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .patch("/api/clubs/finished-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: milestone.id,
+        mode: "FINISHED"
+      })
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      mode: "FINISHED",
+      completedMilestones: 1,
+      percentage: 100
+    });
+    expect(repository.progressRows[0]?.mode).toBe("FINISHED");
+  });
+
+  it("keeps mode changes conservative for future milestone visibility", () => {
+    expect(
+      canViewRequiredMilestone({
+        mode: "FINISHED",
+        currentMilestonePosition: 1,
+        requiredMilestonePosition: 2
+      })
+    ).toBe(false);
+    expect(
+      canViewRequiredMilestone({
+        mode: "BRAVE",
+        currentMilestonePosition: 1,
+        requiredMilestonePosition: 2
+      })
+    ).toBe(false);
+  });
+
   it("rejects progress updates from club non-members", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("public-story-circle");
@@ -226,6 +387,30 @@ describe("progress routes", () => {
         code: "FORBIDDEN",
         message: "Join this club before updating your progress.",
         requestId: "progress-nonmember"
+      }
+    });
+    expect(repository.progressRows).toHaveLength(0);
+  });
+
+  it("rejects quick progress from club non-members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-story-circle");
+    repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .set("x-request-id", "progress-next-nonmember")
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Join this club before updating your progress.",
+        requestId: "progress-next-nonmember"
       }
     });
     expect(repository.progressRows).toHaveLength(0);
@@ -504,6 +689,65 @@ class InMemoryProgressRepository
     clubId: string
   ): Promise<ClubProgressRecord> => {
     const progress = this.findProgress(userId, clubId);
+
+    return this.toClubProgressRecord(userId, clubId, progress);
+  };
+
+  advanceProgressToNextMilestoneForUserClub = async (
+    userId: string,
+    clubId: string
+  ): Promise<ClubProgressRecord> => {
+    const existingProgress = this.findProgress(userId, clubId);
+    const currentMilestone = this.findMilestone(
+      existingProgress?.currentMilestoneId ?? null
+    );
+    const currentPosition = currentMilestone?.position ?? null;
+    const nextMilestone = this.milestones
+      .filter(
+        (milestone) =>
+          milestone.clubId === clubId &&
+          (currentPosition === null || milestone.position > currentPosition)
+      )
+      .sort((firstMilestone, secondMilestone) => {
+        return firstMilestone.position - secondMilestone.position;
+      })[0];
+
+    if (!nextMilestone) {
+      return this.toClubProgressRecord(userId, clubId, existingProgress);
+    }
+
+    const mode = existingProgress?.mode ?? "STRICT";
+    const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+    const now = new Date();
+    const progress =
+      existingProgress ??
+      {
+        id: crypto.randomUUID(),
+        userId,
+        clubId,
+        currentMilestoneId: null,
+        mode,
+        createdAt: now,
+        updatedAt: now
+      };
+
+    progress.currentMilestoneId = nextMilestone.id;
+    progress.updatedAt = now;
+
+    if (!existingProgress) {
+      this.progressRows.push(progress);
+    }
+
+    this.history.unshift({
+      id: crypto.randomUUID(),
+      userId,
+      clubId,
+      fromMode: mode,
+      toMode: mode,
+      fromMilestone: this.findMilestone(fromMilestoneId),
+      toMilestone: this.findMilestone(nextMilestone.id),
+      createdAt: now
+    });
 
     return this.toClubProgressRecord(userId, clubId, progress);
   };

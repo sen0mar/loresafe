@@ -271,6 +271,9 @@ export const updateClubProgress = (
     input
   );
 
+export const advanceClubProgressToNextMilestone = (slug: string) =>
+  apiPost<ClubProgressResponse>(`/api/clubs/${slug}/progress/next`);
+
 export const usePublicClubsQuery = () =>
   useQuery({
     queryKey: clubsQueryKeys.discovery,
@@ -435,22 +438,41 @@ export const useUpdateClubProgressMutation = (slug: string) => {
       updateClubProgress(slug, input),
     onSuccess: (response) => {
       queryClient.setQueryData(clubsQueryKeys.progress(slug), response);
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.progress(slug)
-      });
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.detail(slug)
-      });
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.milestonesRoot(slug)
-      });
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.joined
-      });
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.feedRoot(slug)
-      });
+      invalidateClubProgressDependencies(queryClient, slug);
     }
+  });
+};
+
+export const useAdvanceClubProgressMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => advanceClubProgressToNextMilestone(slug),
+    onSuccess: (response) => {
+      queryClient.setQueryData(clubsQueryKeys.progress(slug), response);
+      invalidateClubProgressDependencies(queryClient, slug);
+    }
+  });
+};
+
+const invalidateClubProgressDependencies = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  slug: string
+) => {
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.progress(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.detail(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.milestonesRoot(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.joined
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.feedRoot(slug)
   });
 };
 
