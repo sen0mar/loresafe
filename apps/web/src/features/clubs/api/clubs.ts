@@ -50,6 +50,16 @@ export type JoinedClub = {
   joinedAt: string;
 };
 
+export type ClubMilestone = {
+  id: string;
+  position: number;
+  safeTitle: string;
+  fullTitle: string | null;
+  description: string | null;
+  spoilerName: boolean;
+  isFullTitleHidden: boolean;
+};
+
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
   pagination: {
@@ -74,6 +84,16 @@ export type JoinedClubsResponse = {
   };
 };
 
+export type ClubMilestonesResponse = {
+  milestones: ClubMilestone[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
 export type CreateClubInput = {
   title: string;
   slug: string;
@@ -86,7 +106,9 @@ export type CreateClubInput = {
 export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
   joined: ["users", "me", "clubs"] as const,
-  detail: (slug: string) => ["clubs", "detail", slug] as const
+  detail: (slug: string) => ["clubs", "detail", slug] as const,
+  milestones: (slug: string, page: number) =>
+    ["clubs", "detail", slug, "milestones", page] as const
 };
 
 export const getPublicClubs = () =>
@@ -94,6 +116,11 @@ export const getPublicClubs = () =>
 
 export const getClubBySlug = (slug: string) =>
   apiGet<ClubResponse>(`/api/clubs/${slug}`);
+
+export const getClubMilestones = (slug: string, page = 1) =>
+  apiGet<ClubMilestonesResponse>(
+    `/api/clubs/${slug}/milestones?page=${page}&limit=100`
+  );
 
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
@@ -114,6 +141,13 @@ export const useClubQuery = (slug: string) =>
   useQuery({
     queryKey: clubsQueryKeys.detail(slug),
     queryFn: () => getClubBySlug(slug),
+    enabled: slug.length > 0
+  });
+
+export const useClubMilestonesQuery = (slug: string, page: number) =>
+  useQuery({
+    queryKey: clubsQueryKeys.milestones(slug, page),
+    queryFn: () => getClubMilestones(slug, page),
     enabled: slug.length > 0
   });
 

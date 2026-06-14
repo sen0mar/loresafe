@@ -22,6 +22,7 @@ import {
   clubInvitesRouter,
   invitesRouter
 } from "./modules/invites/invites.routes.js";
+import { milestonesRouter } from "./modules/milestones/milestones.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
 const localDevOrigins = [env.CLIENT_ORIGIN, "http://localhost:5174"];
@@ -55,6 +56,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/clubs", milestonesRouter);
   app.use("/api/clubs", clubsRouter);
   app.use("/api/clubs", clubInvitesRouter);
   app.use("/api/invites", invitesRouter);

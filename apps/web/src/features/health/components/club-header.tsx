@@ -16,7 +16,14 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
-export const ClubHeader = () => (
+export type ClubHomeTab = "feed" | "about" | "members" | "timeline";
+
+type ClubHeaderProps = {
+  activeTab: ClubHomeTab;
+  onTabChange: (tab: ClubHomeTab) => void;
+};
+
+export const ClubHeader = ({ activeTab, onTabChange }: ClubHeaderProps) => (
   <section className="grid gap-4 border-b border-default pb-4 md:grid-cols-[176px_minmax(0,1fr)]">
     <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-default bg-active shadow-soft">
       <ShieldCheck className="size-12 text-brand" />
@@ -67,7 +74,7 @@ export const ClubHeader = () => (
           Fantasy
         </span>
       </div>
-      <Tabs defaultValue="feed">
+      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as ClubHomeTab)}>
         <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="feed">Feed</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>

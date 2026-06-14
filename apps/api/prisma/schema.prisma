@@ -54,6 +54,7 @@ model Club {
 
   memberships ClubMembership[]
   invites     ClubInvite[]
+  milestones  Milestone[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -97,4 +98,22 @@ model ClubInvite {
   @@index([createdById], map: "club_invites_created_by_id_idx")
   @@index([expiresAt], map: "club_invites_expires_at_idx")
   @@map("club_invites")
+}
+
+model Milestone {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId      String    @map("club_id") @db.Uuid
+  position    Int
+  safeTitle   String    @map("safe_title") @db.VarChar(120)
+  fullTitle   String?   @map("full_title") @db.VarChar(160)
+  description String?   @db.VarChar(500)
+  spoilerName Boolean   @default(false) @map("spoiler_name")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, position], map: "milestones_club_id_position_unique")
+  @@index([clubId], map: "milestones_club_id_idx")
+  @@map("milestones")
 }
