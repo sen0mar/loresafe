@@ -14,6 +14,10 @@ const membershipRequiredMessage =
   "Join this club before updating your progress.";
 
 export type ProgressService = {
+  advanceProgressToNextMilestoneForClubSlug: (
+    slug: string,
+    userId: string
+  ) => Promise<ClubProgressResponse>;
   getProgressForClubSlug: (
     slug: string,
     userId: string
@@ -28,6 +32,27 @@ export type ProgressService = {
 export const createProgressService = (
   repository: ProgressRepository = progressRepository
 ): ProgressService => ({
+  advanceProgressToNextMilestoneForClubSlug: async (slug, userId) => {
+    const club = await repository.findClubForProgress(slug, userId);
+
+    if (!club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (!canUpdateClubProgress(club.currentUserRole)) {
+      throw new HttpError(403, "FORBIDDEN", membershipRequiredMessage);
+    }
+
+    const progress = await repository.advanceProgressToNextMilestoneForUserClub(
+      userId,
+      club.id
+    );
+
+    return {
+      progress: toClubProgressDto(progress)
+    };
+  },
+
   getProgressForClubSlug: async (slug, userId) => {
     const club = await repository.findClubForProgress(slug, userId);
 

@@ -6,7 +6,8 @@ import {
   ListChecks,
   LockKeyhole,
   RefreshCw,
-  Save
+  Save,
+  StepForward
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ import { cn } from "@/shared/lib/utils";
 import {
   type ClubMilestone,
   type ProgressMode,
+  useAdvanceClubProgressMutation,
   useClubMilestonesQuery,
   useClubProgressQuery,
   useUpdateClubProgressMutation
@@ -82,6 +84,7 @@ export const ClubProgressPanel = ({
   const progressQuery = useClubProgressQuery(slug, isMember);
   const milestonesQuery = useClubMilestonesQuery(slug, 1);
   const updateProgressMutation = useUpdateClubProgressMutation(slug);
+  const advanceProgressMutation = useAdvanceClubProgressMutation(slug);
   const [selectedMilestoneId, setSelectedMilestoneId] =
     useState(notStartedValue);
   const [selectedMode, setSelectedMode] = useState<ProgressMode>("STRICT");
@@ -163,6 +166,14 @@ export const ClubProgressPanel = ({
   const activeMode = progressModeOptions.find(
     (mode) => mode.value === progress.mode
   );
+  const finalMilestonePosition = milestones.at(-1)?.position ?? null;
+  const isFinalMilestoneComplete =
+    finalMilestonePosition !== null &&
+    progress.currentMilestone?.position === finalMilestonePosition;
+  const isProgressSaving =
+    updateProgressMutation.isPending || advanceProgressMutation.isPending;
+  const canAdvanceProgress =
+    milestones.length > 0 && !isFinalMilestoneComplete && !isProgressSaving;
 
   const saveProgress = () => {
     updateProgressMutation.mutate(
@@ -183,6 +194,27 @@ export const ClubProgressPanel = ({
         }
       }
     );
+  };
+
+  const advanceProgress = () => {
+    advanceProgressMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        const nextMilestone = response.progress.currentMilestone;
+
+        toast.success(
+          nextMilestone
+            ? `Marked ${getProgressLabel(nextMilestone)} complete`
+            : "Progress updated"
+        );
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : "Could not advance progress. Try again."
+        );
+      }
+    });
   };
 
   return (
@@ -221,7 +253,7 @@ export const ClubProgressPanel = ({
             <select
               className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary transition-colors hover:border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
               value={selectedMilestoneId}
-              disabled={updateProgressMutation.isPending}
+              disabled={isProgressSaving}
               onChange={(event) => setSelectedMilestoneId(event.target.value)}
             >
               <option value={notStartedValue}>Not started</option>
@@ -241,6 +273,20 @@ export const ClubProgressPanel = ({
             </div>
           ) : null}
 
+          <Button
+            className="w-full"
+            variant="secondary"
+            disabled={!canAdvanceProgress}
+            onClick={advanceProgress}
+          >
+            <StepForward />
+            {advanceProgressMutation.isPending
+              ? "Marking next"
+              : isFinalMilestoneComplete
+                ? "Final milestone complete"
+                : "Next milestone complete"}
+          </Button>
+
           <div className="grid gap-2">
             <p className="text-sm text-muted">Reading mode</p>
             {progressModeOptions.map((mode) => (
@@ -251,7 +297,7 @@ export const ClubProgressPanel = ({
                   "rounded-lg border border-default bg-inset px-3 py-2 text-left transition-colors hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
                   selectedMode === mode.value && "border-brand bg-active"
                 )}
-                disabled={updateProgressMutation.isPending}
+                disabled={isProgressSaving}
                 onClick={() => setSelectedMode(mode.value)}
               >
                 <span className="flex items-center justify-between gap-3">
@@ -271,7 +317,7 @@ export const ClubProgressPanel = ({
 
           <Button
             className="w-full"
-            disabled={!hasChanges || updateProgressMutation.isPending}
+            disabled={!hasChanges || isProgressSaving}
             onClick={saveProgress}
           >
             <Save />

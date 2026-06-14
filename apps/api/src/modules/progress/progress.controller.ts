@@ -10,6 +10,7 @@ import {
 import { updateProgressRequestSchema } from "./progress.schema.js";
 
 export type ProgressController = {
+  advanceProgressToNextMilestoneForClubSlug: RequestHandler;
   getProgressForClubSlug: RequestHandler;
   updateProgressForClubSlug: RequestHandler;
 };
@@ -17,6 +18,34 @@ export type ProgressController = {
 export const createProgressController = (
   service: ProgressService = progressService
 ): ProgressController => ({
+  advanceProgressToNextMilestoneForClubSlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club URL and try again."
+        );
+      }
+
+      const response =
+        await service.advanceProgressToNextMilestoneForClubSlug(
+          paramsResult.data.slug,
+          req.currentUser.id
+        );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getProgressForClubSlug: async (req, res, next) => {
     try {
       if (!req.currentUser) {

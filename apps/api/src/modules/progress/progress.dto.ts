@@ -4,6 +4,7 @@ import type {
   ProgressMilestoneRecord
 } from "./progress.repository.js";
 import type { ProgressMode } from "./progress.schema.js";
+import { getCompletedMilestoneCount } from "../spoilers/spoiler.policy.js";
 
 export type ProgressMilestoneDto = {
   id: string;
@@ -40,10 +41,11 @@ export type ClubProgressResponse = {
 export const toClubProgressDto = (
   progress: ClubProgressRecord
 ): ClubProgressDto => {
-  const completedMilestones =
-    progress.mode === "FINISHED"
-      ? progress.totalMilestones
-      : progress.currentMilestone?.position ?? 0;
+  const completedMilestones = getCompletedMilestoneCount({
+    mode: progress.mode,
+    currentMilestonePosition: progress.currentMilestone?.position ?? null,
+    totalMilestones: progress.totalMilestones
+  });
   const percentage =
     progress.totalMilestones === 0
       ? 0
