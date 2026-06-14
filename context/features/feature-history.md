@@ -23,6 +23,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 17: Milestone editing and ordering — Added owner/moderator milestone text and spoiler-name updates, transaction-safe adjacent milestone moves with stable IDs, immediate timeline cache updates, and focused backend authorization/order regression tests.
 - Feature 18: Club progress tracking — Added per-user club progress and history with a committed migration, authenticated member-only progress read/update APIs, a right-rail progress update UI, query invalidation, demo seeding, and focused backend regression tests.
 - Feature 19: Reading mode and quick progress — Added member-only quick milestone advancement, centralized conservative spoiler/mode policy helpers, explicit finished-mode storage coverage, a right-rail next-milestone action, and focused backend regression tests.
+- Feature 20: Spoiler-safe club feed — Added the Post model with a committed migration, demo visible and locked posts, authenticated spoiler-safe club feed reads with private-club protection, a Feed tab UI, and focused backend leak regression tests.
 
 ## Entry Format
 

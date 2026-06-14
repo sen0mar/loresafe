@@ -27,6 +27,24 @@ enum ProgressMode {
   FINISHED
 }
 
+enum PostType {
+  DISCUSSION
+  QUESTION
+  THEORY
+  PREDICTION
+  POLL
+  REACTION
+  REVIEW
+  IMAGE_MEME
+  QUOTE_COMMENTARY
+  JUST_REACHED
+}
+
+enum PostStatus {
+  VISIBLE
+  HIDDEN
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -43,6 +61,7 @@ model User {
   createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
   clubProgresses     ClubProgress[]
   progressHistory    ProgressHistory[]
+  posts              Post[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -66,6 +85,7 @@ model Club {
   milestones  Milestone[]
   progress    ClubProgress[]
   history     ProgressHistory[]
+  posts       Post[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -126,6 +146,7 @@ model Milestone {
   currentClubProgresses   ClubProgress[]
   progressHistoryFromRows ProgressHistory[] @relation("ProgressHistoryFromMilestone")
   progressHistoryToRows   ProgressHistory[] @relation("ProgressHistoryToMilestone")
+  posts                   Post[]
 
   @@unique([clubId, position], map: "milestones_club_id_position_unique")
   @@index([clubId], map: "milestones_club_id_idx")
@@ -172,4 +193,28 @@ model ProgressHistory {
   @@index([fromMilestoneId], map: "progress_history_from_milestone_id_idx")
   @@index([toMilestoneId], map: "progress_history_to_milestone_id_idx")
   @@map("progress_history")
+}
+
+model Post {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId              String     @map("club_id") @db.Uuid
+  authorId            String     @map("author_id") @db.Uuid
+  type                PostType
+  title               String     @db.VarChar(160)
+  body                String     @db.VarChar(8000)
+  requiredMilestoneId String     @map("required_milestone_id") @db.Uuid
+  status              PostStatus @default(VISIBLE)
+  deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club              Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+
+  @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
+  @@index([clubId, requiredMilestoneId], map: "posts_club_id_required_milestone_id_idx")
+  @@index([authorId], map: "posts_author_id_idx")
+  @@index([requiredMilestoneId], map: "posts_required_milestone_id_idx")
+  @@map("posts")
 }

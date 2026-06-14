@@ -81,6 +81,7 @@ const seedDemoClub = async (ownerId: string) => {
 
   await seedDemoMilestones(demoClub.id);
   await seedDemoProgress(ownerId, demoClub.id);
+  await seedDemoPosts(ownerId, demoClub.id);
 
   console.log("Demo club seed completed.");
 };
@@ -176,6 +177,105 @@ const seedDemoProgress = async (userId: string, clubId: string) => {
       id: true
     }
   });
+};
+
+const seedDemoPosts = async (authorId: string, clubId: string) => {
+  const milestones = await prisma.milestone.findMany({
+    where: {
+      clubId
+    },
+    orderBy: {
+      position: "asc"
+    },
+    select: {
+      id: true,
+      position: true
+    }
+  });
+  const milestoneByPosition = new Map(
+    milestones.map((milestone) => [milestone.position, milestone.id])
+  );
+  const demoPosts = [
+    {
+      type: "DISCUSSION" as const,
+      title: "First impressions without future hints",
+      body: "What did everyone make of the opening tone and the way the first point-of-view chapters establish the world?",
+      requiredMilestonePosition: 1
+    },
+    {
+      type: "QUESTION" as const,
+      title: "Northern journey check-in",
+      body: "The early travel chapters make the world feel wider without needing finale context. Which detail stood out most?",
+      requiredMilestonePosition: 2
+    },
+    {
+      type: "THEORY" as const,
+      title: "After the named revelation",
+      body: "LOCKED_DEMO_SECRET_BODY_DO_NOT_LEAK: later readers can discuss the full implications of the name reveal here.",
+      requiredMilestonePosition: 3
+    },
+    {
+      type: "REVIEW" as const,
+      title: "Book one finale reactions",
+      body: "LOCKED_FINALE_SECRET_BODY_DO_NOT_LEAK: finale readers can compare the ending against the opening promises here.",
+      requiredMilestonePosition: 4
+    }
+  ];
+
+  for (const post of demoPosts) {
+    const requiredMilestoneId = milestoneByPosition.get(
+      post.requiredMilestonePosition
+    );
+
+    if (!requiredMilestoneId) {
+      continue;
+    }
+
+    const existingPost = await prisma.post.findFirst({
+      where: {
+        clubId,
+        title: post.title,
+        deletedAt: null
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existingPost) {
+      await prisma.post.update({
+        where: {
+          id: existingPost.id
+        },
+        data: {
+          authorId,
+          type: post.type,
+          body: post.body,
+          requiredMilestoneId,
+          status: "VISIBLE"
+        },
+        select: {
+          id: true
+        }
+      });
+      continue;
+    }
+
+    await prisma.post.create({
+      data: {
+        clubId,
+        authorId,
+        type: post.type,
+        title: post.title,
+        body: post.body,
+        requiredMilestoneId,
+        status: "VISIBLE"
+      },
+      select: {
+        id: true
+      }
+    });
+  }
 };
 
 const seed = async () => {

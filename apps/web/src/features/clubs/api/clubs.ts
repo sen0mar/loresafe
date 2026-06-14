@@ -8,6 +8,20 @@ export type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export type ProgressMode = "STRICT" | "SOFT" | "BRAVE" | "FINISHED";
 
+export type PostType =
+  | "DISCUSSION"
+  | "QUESTION"
+  | "THEORY"
+  | "PREDICTION"
+  | "POLL"
+  | "REACTION"
+  | "REVIEW"
+  | "IMAGE_MEME"
+  | "QUOTE_COMMENTARY"
+  | "JUST_REACHED";
+
+export type PostStatus = "VISIBLE" | "HIDDEN";
+
 export type ClubDiscoveryClub = {
   id: string;
   title: string;
@@ -90,6 +104,50 @@ export type ClubProgress = {
   history: ClubProgressHistory[];
 };
 
+export type ClubPostCounts = {
+  commentCount: 0;
+  reactionCount: 0;
+  unreadCommentCount: 0;
+};
+
+export type ClubPostRequiredMilestone = {
+  id: string;
+  position: number;
+  label: string;
+};
+
+export type VisibleClubPostCard = {
+  id: string;
+  visibility: "VISIBLE";
+  type: PostType;
+  status: PostStatus;
+  title: string;
+  bodyPreview: string;
+  author: {
+    id: string;
+    displayName: string;
+    username: string | null;
+  };
+  requiredMilestone: ClubPostRequiredMilestone;
+  counts: ClubPostCounts;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LockedClubPostCard = {
+  id: string;
+  visibility: "LOCKED";
+  type: PostType;
+  status: PostStatus;
+  requiredMilestone: ClubPostRequiredMilestone;
+  counts: ClubPostCounts;
+  lockReason: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClubPostCard = VisibleClubPostCard | LockedClubPostCard;
+
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
   pagination: {
@@ -126,6 +184,16 @@ export type ClubMilestonesResponse = {
 
 export type ClubProgressResponse = {
   progress: ClubProgress;
+};
+
+export type ClubPostsResponse = {
+  posts: ClubPostCard[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
 };
 
 export type CreateClubMilestoneInput = {
@@ -194,7 +262,9 @@ export const clubsQueryKeys = {
   milestones: (slug: string, page: number) =>
     ["clubs", "detail", slug, "milestones", page] as const,
   progress: (slug: string) => ["clubs", "detail", slug, "progress"] as const,
-  feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const
+  feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
+  feed: (slug: string, page: number) =>
+    ["clubs", "detail", slug, "feed", page] as const
 };
 
 export const getPublicClubs = () =>
@@ -210,6 +280,9 @@ export const getClubMilestones = (slug: string, page = 1) =>
 
 export const getClubProgress = (slug: string) =>
   apiGet<ClubProgressResponse>(`/api/clubs/${slug}/progress`);
+
+export const getClubPosts = (slug: string, page = 1) =>
+  apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?page=${page}&limit=20`);
 
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
@@ -299,6 +372,13 @@ export const useClubProgressQuery = (slug: string, enabled = true) =>
     queryKey: clubsQueryKeys.progress(slug),
     queryFn: () => getClubProgress(slug),
     enabled: enabled && slug.length > 0
+  });
+
+export const useClubPostsQuery = (slug: string, page: number) =>
+  useQuery({
+    queryKey: clubsQueryKeys.feed(slug, page),
+    queryFn: () => getClubPosts(slug, page),
+    enabled: slug.length > 0
   });
 
 export const useJoinedClubsQuery = (enabled = true) =>
