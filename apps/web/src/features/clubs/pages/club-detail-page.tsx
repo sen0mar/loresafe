@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Globe2,
   KeyRound,
+  ListChecks,
   LockKeyhole,
   MessageSquareText,
   RefreshCw,
@@ -17,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
 import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
@@ -175,6 +177,10 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               <ShieldCheck className="mr-2 size-4" />
               Settings
             </TabsTrigger>
+            <TabsTrigger value="timeline">
+              <ListChecks className="mr-2 size-4" />
+              Timeline
+            </TabsTrigger>
             <TabsTrigger value="activity">
               <MessageSquareText className="mr-2 size-4" />
               Activity
@@ -226,6 +232,10 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                 <ClubInviteSection club={club} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="timeline">
+            <ClubTimelineTab slug={club.slug} />
           </TabsContent>
 
           <TabsContent value="activity">

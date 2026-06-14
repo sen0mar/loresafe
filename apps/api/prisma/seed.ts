@@ -79,7 +79,66 @@ const seedDemoClub = async (ownerId: string) => {
     }
   });
 
+  await seedDemoMilestones(demoClub.id);
+
   console.log("Demo club seed completed.");
+};
+
+const seedDemoMilestones = async (clubId: string) => {
+  const demoMilestones = [
+    {
+      position: 1,
+      safeTitle: "Opening chapters",
+      fullTitle: "The Blade Itself: opening chapters",
+      description: "Start the timeline with first impressions and early character setup.",
+      spoilerName: false
+    },
+    {
+      position: 2,
+      safeTitle: "Northern journey",
+      fullTitle: "The Blade Itself: northern journey",
+      description: "Discussion checkpoint for early travels and shifting alliances.",
+      spoilerName: false
+    },
+    {
+      position: 3,
+      safeTitle: "Named revelation",
+      fullTitle: "The Bloody-Nine",
+      description: "A name-sensitive checkpoint; use only the safe title in locked views.",
+      spoilerName: true
+    },
+    {
+      position: 4,
+      safeTitle: "Book one finale",
+      fullTitle: "The Blade Itself finale",
+      description: "Wrap-up checkpoint for the first book.",
+      spoilerName: false
+    }
+  ];
+
+  for (const milestone of demoMilestones) {
+    await prisma.milestone.upsert({
+      where: {
+        clubId_position: {
+          clubId,
+          position: milestone.position
+        }
+      },
+      update: {
+        safeTitle: milestone.safeTitle,
+        fullTitle: milestone.fullTitle,
+        description: milestone.description,
+        spoilerName: milestone.spoilerName
+      },
+      create: {
+        clubId,
+        ...milestone
+      },
+      select: {
+        id: true
+      }
+    });
+  }
 };
 
 const seed = async () => {
