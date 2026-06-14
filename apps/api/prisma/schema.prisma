@@ -58,6 +58,7 @@ model User {
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   clubMemberships   ClubMembership[]
+  clubBans          ClubBan[]
   createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
   clubProgresses     ClubProgress[]
   progressHistory    ProgressHistory[]
@@ -82,6 +83,7 @@ model Club {
 
   memberships ClubMembership[]
   invites     ClubInvite[]
+  bans        ClubBan[]
   milestones  Milestone[]
   progress    ClubProgress[]
   history     ProgressHistory[]
@@ -107,6 +109,24 @@ model ClubMembership {
   @@index([userId], map: "club_memberships_user_id_idx")
   @@index([clubId], map: "club_memberships_club_id_idx")
   @@map("club_memberships")
+}
+
+model ClubBan {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId    String    @map("club_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  reason    String?   @db.VarChar(500)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, clubId], map: "club_bans_user_id_club_id_idx")
+  @@index([clubId, userId, revokedAt, expiresAt], map: "club_bans_active_lookup_idx")
+  @@map("club_bans")
 }
 
 model ClubInvite {

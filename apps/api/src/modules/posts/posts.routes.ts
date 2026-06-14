@@ -9,6 +9,13 @@ export const createPostsRouter = (
 ) => {
   const router = Router();
 
+  router.post(
+    "/:slug/posts",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.createClubPostForSlug
+  );
+
   router.get(
     "/:slug/posts",
     middleware.loadCurrentUser,

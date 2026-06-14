@@ -10,6 +10,7 @@ import {
   clubInviteCreateRateLimiter,
   clubJoinRateLimiter,
   clubMilestoneCreateRateLimiter,
+  clubPostCreateRateLimiter,
   clubProgressUpdateRateLimiter,
   inviteAcceptRateLimiter,
   loginRateLimiter,
@@ -58,6 +59,7 @@ export const createApp = () => {
     "/api/clubs/:slug/milestones/templates",
     clubMilestoneCreateRateLimiter
   );
+  app.post("/api/clubs/:slug/posts", clubPostCreateRateLimiter);
   app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);

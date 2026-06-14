@@ -4,3 +4,8 @@ export const canViewClubFeed = (club: {
   visibility: ClubVisibility;
   currentUserRole: string | null;
 }) => club.visibility === "PUBLIC" || club.currentUserRole !== null;
+
+export const canCreateClubPost = (club: {
+  currentUserRole: string | null;
+  isCurrentUserBanned: boolean;
+}) => club.currentUserRole !== null && !club.isCurrentUserBanned;

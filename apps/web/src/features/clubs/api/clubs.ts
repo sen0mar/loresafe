@@ -196,6 +196,17 @@ export type ClubPostsResponse = {
   };
 };
 
+export type CreateClubPostInput = {
+  title: string;
+  body: string;
+  type: PostType;
+  requiredMilestoneId: string;
+};
+
+export type CreateClubPostResponse = {
+  post: ClubPostCard;
+};
+
 export type CreateClubMilestoneInput = {
   safeTitle: string;
   fullTitle?: string | null;
@@ -290,6 +301,12 @@ export const getJoinedClubs = () =>
 export const createClub = (input: CreateClubInput) =>
   apiPost<ClubResponse, CreateClubInput>("/api/clubs", input);
 
+export const createClubPost = (slug: string, input: CreateClubPostInput) =>
+  apiPost<CreateClubPostResponse, CreateClubPostInput>(
+    `/api/clubs/${slug}/posts`,
+    input
+  );
+
 export const createClubMilestone = (
   slug: string,
   input: CreateClubMilestoneInput
@@ -360,11 +377,15 @@ export const useClubQuery = (slug: string) =>
     enabled: slug.length > 0
   });
 
-export const useClubMilestonesQuery = (slug: string, page: number) =>
+export const useClubMilestonesQuery = (
+  slug: string,
+  page: number,
+  enabled = true
+) =>
   useQuery({
     queryKey: clubsQueryKeys.milestones(slug, page),
     queryFn: () => getClubMilestones(slug, page),
-    enabled: slug.length > 0
+    enabled: enabled && slug.length > 0
   });
 
 export const useClubProgressQuery = (slug: string, enabled = true) =>
@@ -436,6 +457,42 @@ export const useCreateClubMilestoneMutation = (slug: string) => {
       );
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+    }
+  });
+};
+
+export const useCreateClubPostMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateClubPostInput) => createClubPost(slug, input),
+    onSuccess: (response) => {
+      queryClient.setQueryData<ClubPostsResponse>(
+        clubsQueryKeys.feed(slug, 1),
+        (currentResponse) => {
+          if (!currentResponse) {
+            return currentResponse;
+          }
+
+          const posts = [
+            response.post,
+            ...currentResponse.posts.filter((post) => post.id !== response.post.id)
+          ].slice(0, currentResponse.pagination.limit);
+          const total = currentResponse.pagination.total + 1;
+
+          return {
+            posts,
+            pagination: {
+              ...currentResponse.pagination,
+              total,
+              pageCount: Math.ceil(total / currentResponse.pagination.limit)
+            }
+          };
+        }
+      );
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.feedRoot(slug)
       });
     }
   });

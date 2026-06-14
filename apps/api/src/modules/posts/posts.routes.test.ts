@@ -32,13 +32,17 @@ import type {
 import { createPostsController } from "./posts.controller.js";
 import type {
   ClubFeedRecord,
+  ClubPostCreationClubRecord,
   ClubPostRecord,
   ListClubPostsResult,
   PostsRepository
 } from "./posts.repository.js";
 import { createPostsRouter } from "./posts.routes.js";
 import { createPostsService } from "./posts.service.js";
-import type { ListClubPostsQuery } from "./posts.schema.js";
+import type {
+  CreateClubPostRequest,
+  ListClubPostsQuery
+} from "./posts.schema.js";
 
 describe("posts routes", () => {
   let repository: InMemoryPostsRepository;
@@ -62,6 +66,213 @@ describe("posts routes", () => {
         requestId: "posts-missing-session"
       }
     });
+  });
+
+  it("rejects post creation without an authenticated session", async () => {
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/posts")
+      .set("x-request-id", "posts-create-missing-session")
+      .send(validPostInput(crypto.randomUUID()))
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "posts-create-missing-session"
+      }
+    });
+  });
+
+  it("lets members create visible posts at their current milestone", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("member-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+
+    const response = await request(app)
+      .post("/api/clubs/member-post-club/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        title: "  Opening thoughts  ",
+        body: "  This is safe for the opening checkpoint.  ",
+        type: "QUESTION",
+        requiredMilestoneId: milestone.id
+      })
+      .expect(201);
+
+    expect(repository.posts).toHaveLength(1);
+    expect(repository.posts[0]).toMatchObject({
+      clubId: club.id,
+      title: "Opening thoughts",
+      body: "This is safe for the opening checkpoint.",
+      type: "QUESTION",
+      milestoneId: milestone.id
+    });
+    expect(response.body.post).toMatchObject({
+      visibility: "VISIBLE",
+      type: "QUESTION",
+      title: "Opening thoughts",
+      bodyPreview: "This is safe for the opening checkpoint.",
+      author: {
+        id: user.id,
+        displayName: "Reader",
+        username: null
+      },
+      requiredMilestone: {
+        id: milestone.id,
+        position: 1,
+        label: "Opening"
+      }
+    });
+  });
+
+  it("rejects post creation from public-club non-members", async () => {
+    const reader = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-nonmember-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs/public-nonmember-post-club/posts")
+      .set("Cookie", await createSessionCookie(reader))
+      .send(validPostInput(milestone.id))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Join this club before creating posts."
+    });
+    expect(repository.posts).toHaveLength(0);
+  });
+
+  it("rejects post creation from banned members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("banned-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.createBan(user.id, club.id);
+
+    const response = await request(app)
+      .post("/api/clubs/banned-post-club/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .send(validPostInput(milestone.id))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot create posts in this club."
+    });
+    expect(repository.posts).toHaveLength(0);
+  });
+
+  it("validates post creation input", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("invalid-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+
+    for (const input of [
+      validPostInput(milestone.id, { title: "" }),
+      validPostInput(milestone.id, { body: "" }),
+      { ...validPostInput(milestone.id), type: "NOT_A_TYPE" },
+      validPostInput("not-a-uuid")
+    ]) {
+      await request(app)
+        .post("/api/clubs/invalid-post-club/posts")
+        .set("Cookie", await createSessionCookie(user))
+        .send(input)
+        .expect(400);
+    }
+
+    expect(repository.posts).toHaveLength(0);
+  });
+
+  it("rejects required milestones from another club", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("milestone-owner-post-club");
+    const otherClub = repository.createClub("other-post-club");
+    const otherMilestone = repository.createMilestone(otherClub.id, {
+      position: 1,
+      safeTitle: "Other opening"
+    });
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .post("/api/clubs/milestone-owner-post-club/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .send(validPostInput(otherMilestone.id))
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Choose a milestone from this club."
+    });
+    expect(repository.posts).toHaveLength(0);
+  });
+
+  it("returns a locked card when members create posts beyond their progress", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("future-post-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const futureMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+
+    const response = await request(app)
+      .post("/api/clubs/future-post-club/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        title: "Future title should not echo",
+        body: "FUTURE_BODY_SHOULD_NOT_LEAK",
+        type: "THEORY",
+        requiredMilestoneId: futureMilestone.id
+      })
+      .expect(201);
+
+    expect(response.body.post).toEqual({
+      id: expect.any(String),
+      visibility: "LOCKED",
+      type: "THEORY",
+      status: "VISIBLE",
+      requiredMilestone: {
+        id: futureMilestone.id,
+        position: 3,
+        label: "Finale"
+      },
+      counts: {
+        commentCount: 0,
+        reactionCount: 0,
+        unreadCommentCount: 0
+      },
+      lockReason: "Reach milestone 3: Finale to unlock this discussion.",
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String)
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "Future title should not echo"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "FUTURE_BODY_SHOULD_NOT_LEAK"
+    );
   });
 
   it("hides private club feed and post text from non-members", async () => {
@@ -329,6 +540,12 @@ class InMemoryPostsRepository
     clubId: string;
     role: "OWNER" | "MODERATOR" | "MEMBER";
   }> = [];
+  readonly bans: Array<{
+    userId: string;
+    clubId: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+  }> = [];
   readonly milestones: Array<ProgressMilestoneRecord & { clubId: string }> = [];
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
@@ -404,6 +621,22 @@ class InMemoryPostsRepository
       userId,
       clubId,
       role
+    });
+  };
+
+  createBan = (
+    userId: string,
+    clubId: string,
+    input: {
+      expiresAt?: Date | null;
+      revokedAt?: Date | null;
+    } = {}
+  ) => {
+    this.bans.push({
+      userId,
+      clubId,
+      expiresAt: input.expiresAt ?? null,
+      revokedAt: input.revokedAt ?? null
     });
   };
 
@@ -507,6 +740,53 @@ class InMemoryPostsRepository
           null
       }
     };
+  };
+
+  findClubForPostCreation = async (
+    slug: string,
+    userId: string
+  ): Promise<ClubPostCreationClubRecord | null> => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club) {
+      return null;
+    }
+
+    const progress = this.findProgress(userId, club.id);
+
+    return {
+      id: club.id,
+      visibility: club.visibility,
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id),
+      progress: {
+        mode: progress?.mode ?? "STRICT",
+        currentMilestonePosition:
+          this.findMilestone(progress?.currentMilestoneId ?? null)?.position ??
+          null
+      }
+    };
+  };
+
+  createClubPost = async (
+    clubId: string,
+    authorId: string,
+    input: CreateClubPostRequest
+  ) => {
+    const requiredMilestone = this.findMilestoneForClub(
+      input.requiredMilestoneId,
+      clubId
+    );
+
+    if (!requiredMilestone) {
+      return null;
+    }
+
+    return this.createPost(clubId, authorId, requiredMilestone.id, {
+      title: input.title,
+      body: input.body,
+      type: input.type
+    });
   };
 
   listClubPosts = async (
@@ -693,6 +973,33 @@ class InMemoryPostsRepository
       (progress) => progress.userId === userId && progress.clubId === clubId
     );
 
+  private hasActiveBan = (userId: string, clubId: string) => {
+    const now = new Date();
+
+    return this.bans.some(
+      (ban) =>
+        ban.userId === userId &&
+        ban.clubId === clubId &&
+        !ban.revokedAt &&
+        (!ban.expiresAt || ban.expiresAt > now)
+    );
+  };
+
+  private findMilestoneForClub = (milestoneId: string, clubId: string) => {
+    const milestone = this.milestones.find(
+      (storedMilestone) =>
+        storedMilestone.id === milestoneId && storedMilestone.clubId === clubId
+    );
+
+    if (!milestone) {
+      return null;
+    }
+
+    const { clubId: _clubId, ...milestoneRecord } = milestone;
+
+    return milestoneRecord;
+  };
+
   private findMilestone = (milestoneId: string | null) => {
     if (!milestoneId) {
       return null;
@@ -725,4 +1032,15 @@ const validUserInput = () => ({
   email: "reader@example.com",
   displayName: "Reader",
   passwordHash: "$argon2id$v=19$hash"
+});
+
+const validPostInput = (
+  requiredMilestoneId: string,
+  overrides: Partial<CreateClubPostRequest> = {}
+) => ({
+  title: "Opening thoughts",
+  body: "This is a spoiler-safe post body.",
+  type: "DISCUSSION" as const,
+  requiredMilestoneId,
+  ...overrides
 });

@@ -4,17 +4,48 @@ import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
   clubPostsParamsSchema,
+  createClubPostRequestSchema,
   listClubPostsQuerySchema
 } from "./posts.schema.js";
 import { postsService, type PostsService } from "./posts.service.js";
 
 export type PostsController = {
+  createClubPostForSlug: RequestHandler;
   listClubPostsBySlug: RequestHandler;
 };
 
 export const createPostsController = (
   service: PostsService = postsService
 ): PostsController => ({
+  createClubPostForSlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubPostsParamsSchema.safeParse(req.params);
+      const bodyResult = createClubPostRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the post details and try again."
+        );
+      }
+
+      const response = await service.createClubPostForSlug(
+        paramsResult.data.slug,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   listClubPostsBySlug: async (req, res, next) => {
     try {
       if (!req.currentUser) {
