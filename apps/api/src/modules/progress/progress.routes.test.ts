@@ -1,0 +1,642 @@
+import cookieParser from "cookie-parser";
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { env } from "../../config/env.js";
+import { errorHandler } from "../../core/http/error-middleware.js";
+import { requestIdMiddleware } from "../../core/http/request-id.js";
+import { createSessionToken } from "../../core/security/session-token.js";
+import { createAuthMiddleware } from "../auth/auth.middleware.js";
+import {
+  type AuthUserCredentialsRecord,
+  type AuthUserRecord,
+  type AuthUsersRepository,
+  type CreateAuthUserInput
+} from "../auth/auth.repository.js";
+import { createAuthService } from "../auth/auth.service.js";
+import {
+  type ClubProgressRecord,
+  type ProgressClubRecord,
+  type ProgressHistoryRecord,
+  type ProgressMilestoneRecord,
+  type ProgressRepository
+} from "./progress.repository.js";
+import { createProgressController } from "./progress.controller.js";
+import { createProgressRouter } from "./progress.routes.js";
+import { createProgressService } from "./progress.service.js";
+import type { ProgressMode, UpdateProgressRequest } from "./progress.schema.js";
+
+describe("progress routes", () => {
+  let repository: InMemoryProgressRepository;
+  let app: express.Express;
+
+  beforeEach(() => {
+    repository = new InMemoryProgressRepository();
+    app = createProgressTestApp(repository);
+  });
+
+  it("rejects progress reads and updates without an authenticated session", async () => {
+    await request(app)
+      .get("/api/clubs/public-story-circle/progress")
+      .set("x-request-id", "progress-read-missing-session")
+      .expect(401);
+
+    await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("x-request-id", "progress-update-missing-session")
+      .send({
+        currentMilestoneId: null,
+        mode: "STRICT"
+      })
+      .expect(401);
+  });
+
+  it("returns default unset progress for club members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-story-circle");
+    repository.createMembership(user.id, club.id);
+    repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      id: null,
+      mode: "STRICT",
+      currentMilestone: null,
+      totalMilestones: 1,
+      completedMilestones: 0,
+      percentage: 0,
+      updatedAt: null,
+      history: []
+    });
+  });
+
+  it("persists progress per user and per club", async () => {
+    const firstUser = repository.createStoredUser(validUserInput());
+    const secondUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "second@example.com",
+      displayName: "Second"
+    });
+    const firstClub = repository.createClub("first-club");
+    const secondClub = repository.createClub("second-club");
+    const firstMilestone = repository.createMilestone(firstClub.id, {
+      position: 1,
+      safeTitle: "First opening"
+    });
+    const secondMilestone = repository.createMilestone(secondClub.id, {
+      position: 1,
+      safeTitle: "Second opening"
+    });
+    repository.createMembership(firstUser.id, firstClub.id);
+    repository.createMembership(firstUser.id, secondClub.id);
+    repository.createMembership(secondUser.id, firstClub.id);
+
+    await request(app)
+      .patch("/api/clubs/first-club/progress")
+      .set("Cookie", await createSessionCookie(firstUser))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+    await request(app)
+      .patch("/api/clubs/second-club/progress")
+      .set("Cookie", await createSessionCookie(firstUser))
+      .send({
+        currentMilestoneId: secondMilestone.id,
+        mode: "BRAVE"
+      })
+      .expect(200);
+
+    const firstUserFirstClub = await request(app)
+      .get("/api/clubs/first-club/progress")
+      .set("Cookie", await createSessionCookie(firstUser))
+      .expect(200);
+    const firstUserSecondClub = await request(app)
+      .get("/api/clubs/second-club/progress")
+      .set("Cookie", await createSessionCookie(firstUser))
+      .expect(200);
+    const secondUserFirstClub = await request(app)
+      .get("/api/clubs/first-club/progress")
+      .set("Cookie", await createSessionCookie(secondUser))
+      .expect(200);
+
+    expect(firstUserFirstClub.body.progress).toMatchObject({
+      mode: "SOFT",
+      currentMilestone: {
+        id: firstMilestone.id,
+        safeTitle: "First opening"
+      }
+    });
+    expect(firstUserSecondClub.body.progress).toMatchObject({
+      mode: "BRAVE",
+      currentMilestone: {
+        id: secondMilestone.id,
+        safeTitle: "Second opening"
+      }
+    });
+    expect(secondUserFirstClub.body.progress).toMatchObject({
+      mode: "STRICT",
+      currentMilestone: null
+    });
+  });
+
+  it("creates history only when progress changes", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("history-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Middle"
+    });
+    repository.createMembership(user.id, club.id);
+
+    await request(app)
+      .patch("/api/clubs/history-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+    await request(app)
+      .patch("/api/clubs/history-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+    const response = await request(app)
+      .patch("/api/clubs/history-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: secondMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+
+    expect(repository.history).toHaveLength(2);
+    expect(response.body.progress.history).toHaveLength(2);
+    expect(response.body.progress.history[0]).toMatchObject({
+      fromMode: "SOFT",
+      toMode: "SOFT",
+      fromMilestone: {
+        id: firstMilestone.id,
+        safeTitle: "Opening"
+      },
+      toMilestone: {
+        id: secondMilestone.id,
+        safeTitle: "Middle"
+      }
+    });
+  });
+
+  it("rejects progress updates from club non-members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+
+    const response = await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .set("x-request-id", "progress-nonmember")
+      .send({
+        currentMilestoneId: milestone.id,
+        mode: "SOFT"
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Join this club before updating your progress.",
+        requestId: "progress-nonmember"
+      }
+    });
+    expect(repository.progressRows).toHaveLength(0);
+  });
+
+  it("rejects progress reads from club non-members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    repository.createClub("public-story-circle");
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .set("x-request-id", "progress-read-nonmember")
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Join this club to view progress.",
+        requestId: "progress-read-nonmember"
+      }
+    });
+  });
+
+  it("rejects milestones from another club", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-story-circle");
+    const otherClub = repository.createClub("other-story-circle");
+    const otherMilestone = repository.createMilestone(otherClub.id, {
+      position: 1,
+      safeTitle: "Other opening"
+    });
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .set("x-request-id", "progress-wrong-milestone")
+      .send({
+        currentMilestoneId: otherMilestone.id,
+        mode: "SOFT"
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Choose a club milestone.",
+        requestId: "progress-wrong-milestone"
+      }
+    });
+  });
+
+  it("rejects invalid slugs and progress bodies", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .get("/api/clubs/Invalid Slug/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: null,
+        mode: "FAST"
+      })
+      .expect(400);
+  });
+
+  it("returns narrow spoiler-safe progress DTO fields", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("public-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Safe checkpoint",
+      fullTitle: "The unsafe reveal",
+      spoilerName: true
+    });
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: milestone.id,
+        mode: "SOFT"
+      })
+      .expect(200);
+
+    expect(Object.keys(response.body.progress).sort()).toEqual([
+      "completedMilestones",
+      "currentMilestone",
+      "history",
+      "id",
+      "mode",
+      "percentage",
+      "totalMilestones",
+      "updatedAt"
+    ]);
+    expect(Object.keys(response.body.progress.currentMilestone).sort()).toEqual([
+      "fullTitle",
+      "id",
+      "isFullTitleHidden",
+      "position",
+      "safeTitle"
+    ]);
+    expect(response.body.progress.currentMilestone).toMatchObject({
+      fullTitle: null,
+      isFullTitleHidden: true,
+      safeTitle: "Safe checkpoint"
+    });
+    expect(JSON.stringify(response.body)).not.toContain("The unsafe reveal");
+  });
+});
+
+const createProgressTestApp = (
+  repository: AuthUsersRepository & ProgressRepository
+) => {
+  const app = express();
+  const authService = createAuthService(repository);
+  const authMiddleware = createAuthMiddleware(authService);
+  const progressService = createProgressService(repository);
+  const progressController = createProgressController(progressService);
+
+  app.use(requestIdMiddleware);
+  app.use(express.json());
+  app.use(cookieParser());
+  app.use("/api/clubs", createProgressRouter(progressController, authMiddleware));
+  app.use(errorHandler);
+
+  return app;
+};
+
+type StoredClub = {
+  id: string;
+  slug: string;
+};
+
+type StoredProgress = {
+  id: string;
+  userId: string;
+  clubId: string;
+  currentMilestoneId: string | null;
+  mode: ProgressMode;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type StoredProgressHistory = ProgressHistoryRecord & {
+  userId: string;
+  clubId: string;
+};
+
+class InMemoryProgressRepository
+  implements AuthUsersRepository, ProgressRepository
+{
+  readonly usersByEmail = new Map<
+    string,
+    AuthUserRecord & { passwordHash: string }
+  >();
+  readonly clubs = new Map<string, StoredClub>();
+  readonly memberships: Array<{
+    userId: string;
+    clubId: string;
+    role: "OWNER" | "MODERATOR" | "MEMBER";
+  }> = [];
+  readonly milestones: Array<ProgressMilestoneRecord & { clubId: string }> = [];
+  readonly progressRows: StoredProgress[] = [];
+  readonly history: StoredProgressHistory[] = [];
+
+  findActiveUserByEmail = async (email: string) =>
+    this.usersByEmail.get(email) ?? null;
+
+  findActiveUserById = async (id: string) => {
+    for (const user of this.usersByEmail.values()) {
+      if (user.id === id) {
+        return user;
+      }
+    }
+
+    return null;
+  };
+
+  findActiveUserCredentialsByEmail = async (
+    email: string
+  ): Promise<AuthUserCredentialsRecord | null> =>
+    this.usersByEmail.get(email) ?? null;
+
+  createUser = async (input: CreateAuthUserInput) =>
+    this.createStoredUser(input);
+
+  createStoredUser = ({
+    email,
+    displayName,
+    passwordHash
+  }: CreateAuthUserInput) => {
+    const now = new Date();
+    const user = {
+      id: crypto.randomUUID(),
+      email,
+      displayName,
+      username: null,
+      bio: null,
+      passwordHash,
+      sessionVersion: 1,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    this.usersByEmail.set(email, user);
+
+    return user;
+  };
+
+  createClub = (slug: string) => {
+    const club = {
+      id: crypto.randomUUID(),
+      slug
+    };
+
+    this.clubs.set(club.id, club);
+
+    return club;
+  };
+
+  createMembership = (
+    userId: string,
+    clubId: string,
+    role: "OWNER" | "MODERATOR" | "MEMBER" = "MEMBER"
+  ) => {
+    this.memberships.push({
+      userId,
+      clubId,
+      role
+    });
+  };
+
+  createMilestone = (
+    clubId: string,
+    input: Partial<ProgressMilestoneRecord> &
+      Pick<ProgressMilestoneRecord, "position" | "safeTitle">
+  ) => {
+    const milestone = {
+      id: crypto.randomUUID(),
+      clubId,
+      fullTitle: null,
+      spoilerName: false,
+      ...input
+    };
+
+    this.milestones.push(milestone);
+
+    return milestone;
+  };
+
+  findClubForProgress = async (
+    slug: string,
+    userId: string
+  ): Promise<ProgressClubRecord | null> => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club) {
+      return null;
+    }
+
+    return {
+      id: club.id,
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+    };
+  };
+
+  getProgressForUserClub = async (
+    userId: string,
+    clubId: string
+  ): Promise<ClubProgressRecord> => {
+    const progress = this.findProgress(userId, clubId);
+
+    return this.toClubProgressRecord(userId, clubId, progress);
+  };
+
+  updateProgressForUserClub = async (
+    userId: string,
+    clubId: string,
+    input: UpdateProgressRequest
+  ): Promise<ClubProgressRecord | null> => {
+    if (
+      input.currentMilestoneId &&
+      !this.milestones.some(
+        (milestone) =>
+          milestone.id === input.currentMilestoneId && milestone.clubId === clubId
+      )
+    ) {
+      return null;
+    }
+
+    const existingProgress = this.findProgress(userId, clubId);
+    const fromMode = existingProgress?.mode ?? "STRICT";
+    const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+    const hasChanged =
+      fromMode !== input.mode ||
+      fromMilestoneId !== input.currentMilestoneId;
+    const now = new Date();
+    const progress =
+      existingProgress ??
+      {
+        id: crypto.randomUUID(),
+        userId,
+        clubId,
+        currentMilestoneId: null,
+        mode: "STRICT" as ProgressMode,
+        createdAt: now,
+        updatedAt: now
+      };
+
+    progress.currentMilestoneId = input.currentMilestoneId;
+    progress.mode = input.mode;
+    progress.updatedAt = now;
+
+    if (!existingProgress) {
+      this.progressRows.push(progress);
+    }
+
+    if (hasChanged) {
+      this.history.unshift({
+        id: crypto.randomUUID(),
+        userId,
+        clubId,
+        fromMode,
+        toMode: input.mode,
+        fromMilestone: this.findMilestone(fromMilestoneId),
+        toMilestone: this.findMilestone(input.currentMilestoneId),
+        createdAt: now
+      });
+    }
+
+    return this.toClubProgressRecord(userId, clubId, progress);
+  };
+
+  private toClubProgressRecord = (
+    userId: string,
+    clubId: string,
+    progress: StoredProgress | undefined
+  ): ClubProgressRecord => ({
+    id: progress?.id ?? null,
+    mode: progress?.mode ?? "STRICT",
+    currentMilestone: this.findMilestone(progress?.currentMilestoneId ?? null),
+    totalMilestones: this.milestones.filter(
+      (milestone) => milestone.clubId === clubId
+    ).length,
+    history: this.history
+      .filter(
+        (historyRow) =>
+          historyRow.userId === userId && historyRow.clubId === clubId
+      )
+      .slice(0, 5),
+    updatedAt: progress?.updatedAt ?? null
+  });
+
+  private findStoredClubBySlug = (slug: string) => {
+    for (const club of this.clubs.values()) {
+      if (club.slug === slug) {
+        return club;
+      }
+    }
+
+    return null;
+  };
+
+  private findMembership = (userId: string, clubId: string) =>
+    this.memberships.find(
+      (membership) =>
+        membership.clubId === clubId && membership.userId === userId
+    );
+
+  private findProgress = (userId: string, clubId: string) =>
+    this.progressRows.find(
+      (progress) => progress.userId === userId && progress.clubId === clubId
+    );
+
+  private findMilestone = (milestoneId: string | null) => {
+    if (!milestoneId) {
+      return null;
+    }
+
+    const milestone = this.milestones.find(
+      (storedMilestone) => storedMilestone.id === milestoneId
+    );
+
+    if (!milestone) {
+      return null;
+    }
+
+    const { clubId: _clubId, ...milestoneRecord } = milestone;
+
+    return milestoneRecord;
+  };
+}
+
+const createSessionCookie = async (user: AuthUserRecord) => {
+  const token = await createSessionToken({
+    userId: user.id,
+    sessionVersion: user.sessionVersion
+  });
+
+  return `${env.SESSION_COOKIE_NAME}=${token}`;
+};
+
+const validUserInput = () => ({
+  email: "reader@example.com",
+  displayName: "Reader",
+  passwordHash: "$argon2id$v=19$hash"
+});

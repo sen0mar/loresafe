@@ -20,6 +20,13 @@ enum ClubMembershipRole {
   MEMBER
 }
 
+enum ProgressMode {
+  STRICT
+  SOFT
+  BRAVE
+  FINISHED
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -34,6 +41,8 @@ model User {
 
   clubMemberships   ClubMembership[]
   createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
+  clubProgresses     ClubProgress[]
+  progressHistory    ProgressHistory[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -55,6 +64,8 @@ model Club {
   memberships ClubMembership[]
   invites     ClubInvite[]
   milestones  Milestone[]
+  progress    ClubProgress[]
+  history     ProgressHistory[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -111,9 +122,54 @@ model Milestone {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  club                    Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  currentClubProgresses   ClubProgress[]
+  progressHistoryFromRows ProgressHistory[] @relation("ProgressHistoryFromMilestone")
+  progressHistoryToRows   ProgressHistory[] @relation("ProgressHistoryToMilestone")
 
   @@unique([clubId, position], map: "milestones_club_id_position_unique")
   @@index([clubId], map: "milestones_club_id_idx")
   @@map("milestones")
+}
+
+model ClubProgress {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId             String       @map("club_id") @db.Uuid
+  userId             String       @map("user_id") @db.Uuid
+  currentMilestoneId String?      @map("current_milestone_id") @db.Uuid
+  mode               ProgressMode @default(STRICT)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club             Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentMilestone Milestone? @relation(fields: [currentMilestoneId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clubId], map: "club_progress_user_id_club_id_unique")
+  @@index([userId], map: "club_progress_user_id_idx")
+  @@index([clubId], map: "club_progress_club_id_idx")
+  @@index([currentMilestoneId], map: "club_progress_current_milestone_id_idx")
+  @@map("club_progress")
+}
+
+model ProgressHistory {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId          String       @map("club_id") @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  fromMilestoneId String?      @map("from_milestone_id") @db.Uuid
+  toMilestoneId   String?      @map("to_milestone_id") @db.Uuid
+  fromMode        ProgressMode @map("from_mode")
+  toMode          ProgressMode @map("to_mode")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  club          Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromMilestone Milestone? @relation("ProgressHistoryFromMilestone", fields: [fromMilestoneId], references: [id], onDelete: SetNull)
+  toMilestone   Milestone? @relation("ProgressHistoryToMilestone", fields: [toMilestoneId], references: [id], onDelete: SetNull)
+
+  @@index([userId, clubId, createdAt], map: "progress_history_user_id_club_id_created_at_idx")
+  @@index([clubId, createdAt], map: "progress_history_club_id_created_at_idx")
+  @@index([fromMilestoneId], map: "progress_history_from_milestone_id_idx")
+  @@index([toMilestoneId], map: "progress_history_to_milestone_id_idx")
+  @@map("progress_history")
 }

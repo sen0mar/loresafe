@@ -10,7 +10,6 @@ import {
   MessageSquareText,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   UserPlus,
   Users,
   type LucideIcon
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
+import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
 import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
@@ -254,31 +254,11 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
           </TabsContent>
         </Tabs>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Membership</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted">
-            <div className="rounded-lg border border-default bg-inset p-4">
-              <p className="text-xs text-faint">Status</p>
-              <p className="mt-1 font-medium text-primary">
-                {club.membership.isMember ? "Member" : "Not a member"}
-              </p>
-            </div>
-            {role ? (
-              <span className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-brand" />
-                {roleLabels[role]}
-              </span>
-            ) : null}
-            {club.category ? (
-              <span className="flex items-center gap-2">
-                <Sparkles className="size-4 text-faint" />
-                {club.category}
-              </span>
-            ) : null}
-          </CardContent>
-        </Card>
+        <ClubProgressPanel
+          slug={club.slug}
+          clubTitle={club.title}
+          isMember={club.membership.isMember}
+        />
       </div>
     </>
   );
