@@ -24,7 +24,27 @@ export const createMilestoneRequestSchema = z
   })
   .strict();
 
+export const milestoneTemplateSchema = z.enum([
+  "BOOK",
+  "SHOW",
+  "MOVIE",
+  "GAME",
+  "PODCAST_COURSE",
+  "CUSTOM"
+]);
+
+export const createMilestoneTemplateRequestSchema = z
+  .object({
+    template: milestoneTemplateSchema,
+    count: z.number().int().min(1).max(200)
+  })
+  .strict();
+
 export type ListMilestonesQuery = z.infer<typeof listMilestonesQuerySchema>;
 export type CreateMilestoneRequest = z.infer<
   typeof createMilestoneRequestSchema
+>;
+export type MilestoneTemplate = z.infer<typeof milestoneTemplateSchema>;
+export type CreateMilestoneTemplateRequest = z.infer<
+  typeof createMilestoneTemplateRequestSchema
 >;

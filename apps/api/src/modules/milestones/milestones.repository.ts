@@ -2,6 +2,7 @@ import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type {
   CreateMilestoneRequest,
+  CreateMilestoneTemplateRequest,
   ListMilestonesQuery
 } from "./milestones.schema.js";
 
@@ -28,6 +29,9 @@ export type ListMilestonesResult = {
 };
 
 export type MilestonesRepository = {
+  createMilestonesFromTemplateIfEmpty: (
+    input: CreateMilestonesFromTemplateIfEmptyInput
+  ) => Promise<MilestoneRecord[]>;
   createMilestoneAtNextPosition: (
     input: CreateMilestoneAtNextPositionInput
   ) => Promise<MilestoneRecord>;
@@ -46,6 +50,24 @@ type CreateMilestoneAtNextPositionInput = CreateMilestoneRequest & {
   clubId: string;
 };
 
+type CreateMilestonesFromTemplateIfEmptyInput =
+  CreateMilestoneTemplateRequest & {
+    clubId: string;
+    milestones: Array<{
+      safeTitle: string;
+      fullTitle: null;
+      description: null;
+      spoilerName: false;
+    }>;
+  };
+
+export class MilestoneTemplateConflictError extends Error {
+  constructor() {
+    super("Milestone template generation requires an empty timeline.");
+    this.name = "MilestoneTemplateConflictError";
+  }
+}
+
 const milestoneSelect = {
   id: true,
   position: true,
@@ -56,6 +78,52 @@ const milestoneSelect = {
 } as const;
 
 export const milestonesRepository: MilestonesRepository = {
+  createMilestonesFromTemplateIfEmpty: async (input) => {
+    try {
+      return await prisma.$transaction(async (transaction) => {
+        const existingMilestoneCount = await transaction.milestone.count({
+          where: {
+            clubId: input.clubId
+          }
+        });
+
+        if (existingMilestoneCount > 0) {
+          throw new MilestoneTemplateConflictError();
+        }
+
+        const createdMilestones = [];
+
+        for (const [index, milestone] of input.milestones.entries()) {
+          createdMilestones.push(
+            await transaction.milestone.create({
+              data: {
+                clubId: input.clubId,
+                position: index + 1,
+                safeTitle: milestone.safeTitle,
+                fullTitle: milestone.fullTitle,
+                description: milestone.description,
+                spoilerName: milestone.spoilerName
+              },
+              select: milestoneSelect
+            })
+          );
+        }
+
+        return createdMilestones;
+      });
+    } catch (error) {
+      if (error instanceof MilestoneTemplateConflictError) {
+        throw error;
+      }
+
+      if (isUniqueConstraintError(error)) {
+        throw new MilestoneTemplateConflictError();
+      }
+
+      throw error;
+    }
+  },
+
   createMilestoneAtNextPosition: async (input) => {
     const createMilestone = async () =>
       prisma.$transaction(async (transaction) => {

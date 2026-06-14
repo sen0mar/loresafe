@@ -1,22 +1,48 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useState } from "react";
-import { EyeOff, FileText, ListPlus, Sparkles, Type } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  BookOpen,
+  Clapperboard,
+  EyeOff,
+  FileText,
+  Film,
+  Gamepad2,
+  GraduationCap,
+  ListChecks,
+  ListPlus,
+  Podcast,
+  Sparkles,
+  Type
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { cn } from "@/shared/lib/utils";
 
-import { type Club, useCreateClubMilestoneMutation } from "../api/clubs.js";
+import {
+  type Club,
+  type MilestoneTemplate,
+  useCreateClubMilestoneMutation,
+  useCreateClubMilestoneTemplateMutation
+} from "../api/clubs.js";
 import {
   createMilestoneFormSchema,
+  createMilestoneTemplateFormSchema,
   type CreateMilestoneFormValues
 } from "../schemas/milestone.schema.js";
 
+type BuilderMode = "manual" | "template";
 type MilestoneFieldErrors = Partial<
   Record<keyof CreateMilestoneFormValues, string>
 >;
+type TemplateFormValues = {
+  template: MilestoneTemplate;
+  count: string;
+};
+type TemplateFieldErrors = Partial<Record<keyof TemplateFormValues, string>>;
 
 const initialValues: CreateMilestoneFormValues = {
   safeTitle: "",
@@ -25,18 +51,85 @@ const initialValues: CreateMilestoneFormValues = {
   spoilerName: false
 };
 
+const initialTemplateValues: TemplateFormValues = {
+  template: "BOOK",
+  count: "12"
+};
+
+const templateOptions: Array<{
+  value: MilestoneTemplate;
+  label: string;
+  previewPrefix: string;
+  icon: ReactNode;
+}> = [
+  {
+    value: "BOOK",
+    label: "Book",
+    previewPrefix: "Chapter",
+    icon: <BookOpen className="size-4" />
+  },
+  {
+    value: "SHOW",
+    label: "Show",
+    previewPrefix: "Episode",
+    icon: <Clapperboard className="size-4" />
+  },
+  {
+    value: "MOVIE",
+    label: "Movie",
+    previewPrefix: "Part",
+    icon: <Film className="size-4" />
+  },
+  {
+    value: "GAME",
+    label: "Game",
+    previewPrefix: "Mission",
+    icon: <Gamepad2 className="size-4" />
+  },
+  {
+    value: "PODCAST_COURSE",
+    label: "Podcast/course",
+    previewPrefix: "Episode",
+    icon: <Podcast className="size-4" />
+  },
+  {
+    value: "CUSTOM",
+    label: "Custom",
+    previewPrefix: "Checkpoint",
+    icon: <GraduationCap className="size-4" />
+  }
+];
+
 export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
   const role = club.membership.role;
   const canCreateMilestone = role === "OWNER" || role === "MODERATOR";
   const createMilestoneMutation = useCreateClubMilestoneMutation(club.slug);
+  const createTemplateMutation = useCreateClubMilestoneTemplateMutation(
+    club.slug
+  );
+  const [mode, setMode] = useState<BuilderMode>("manual");
   const [values, setValues] =
     useState<CreateMilestoneFormValues>(initialValues);
+  const [templateValues, setTemplateValues] =
+    useState<TemplateFormValues>(initialTemplateValues);
   const [fieldErrors, setFieldErrors] = useState<MilestoneFieldErrors>({});
+  const [templateErrors, setTemplateErrors] = useState<TemplateFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const templatePreviewNames = useMemo(
+    () => generatePreviewNames(templateValues),
+    [templateValues]
+  );
 
   if (!canCreateMilestone) {
     return null;
   }
+
+  const setBuilderMode = (nextMode: BuilderMode) => {
+    setMode(nextMode);
+    setFormError(null);
+    setTemplateError(null);
+  };
 
   const updateField =
     (field: keyof Omit<CreateMilestoneFormValues, "spoilerName">) =>
@@ -62,6 +155,30 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
       spoilerName: undefined
     }));
     setFormError(null);
+  };
+
+  const updateTemplate = (template: MilestoneTemplate) => {
+    setTemplateValues((currentValues) => ({
+      ...currentValues,
+      template
+    }));
+    setTemplateErrors((currentErrors) => ({
+      ...currentErrors,
+      template: undefined
+    }));
+    setTemplateError(null);
+  };
+
+  const updateTemplateCount = (event: ChangeEvent<HTMLInputElement>) => {
+    setTemplateValues((currentValues) => ({
+      ...currentValues,
+      count: event.target.value
+    }));
+    setTemplateErrors((currentErrors) => ({
+      ...currentErrors,
+      count: undefined
+    }));
+    setTemplateError(null);
   };
 
   const submitMilestone = (event: FormEvent<HTMLFormElement>) => {
@@ -98,6 +215,43 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
     });
   };
 
+  const submitTemplate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parseResult = createMilestoneTemplateFormSchema.safeParse({
+      template: templateValues.template,
+      count: Number(templateValues.count)
+    });
+
+    if (!parseResult.success) {
+      const flattenedErrors = parseResult.error.flatten().fieldErrors;
+
+      setTemplateErrors({
+        template: flattenedErrors.template?.[0],
+        count: flattenedErrors.count?.[0]
+      });
+      return;
+    }
+
+    setTemplateErrors({});
+    setTemplateError(null);
+    createTemplateMutation.mutate(parseResult.data, {
+      onSuccess: (response) => {
+        toast.success(`${response.milestones.length} milestones generated`);
+      },
+      onError: (error) => {
+        setTemplateError(
+          error instanceof ApiError
+            ? error.message
+            : "Could not generate milestones. Try again."
+        );
+      }
+    });
+  };
+
+  const isManualPending = createMilestoneMutation.isPending;
+  const isTemplatePending = createTemplateMutation.isPending;
+
   return (
     <div className="rounded-lg border border-default bg-inset p-4">
       <div>
@@ -106,112 +260,267 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
           Milestone builder
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted">
-          Add one checkpoint to the end of this club timeline.
+          Add one checkpoint or generate an empty timeline from a template.
         </p>
       </div>
 
-      <form className="mt-4 grid gap-3" onSubmit={submitMilestone} noValidate>
-        {formError ? (
-          <div
-            className="rounded-lg border border-default bg-surface p-3"
-            role="alert"
-          >
-            <p className="text-sm text-error">{formError}</p>
-          </div>
-        ) : null}
+      <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-default bg-surface p-1">
+        <BuilderModeButton
+          active={mode === "manual"}
+          disabled={isManualPending || isTemplatePending}
+          icon={<ListPlus className="size-4" />}
+          label="Single"
+          onClick={() => setBuilderMode("manual")}
+        />
+        <BuilderModeButton
+          active={mode === "template"}
+          disabled={isManualPending || isTemplatePending}
+          icon={<ListChecks className="size-4" />}
+          label="Template"
+          onClick={() => setBuilderMode("template")}
+        />
+      </div>
 
-        <MilestoneFormField
-          id="milestone-safe-title"
-          label="Safe title"
-          error={fieldErrors.safeTitle}
-          icon={<Sparkles className="size-4" />}
-        >
-          <Input
+      {mode === "manual" ? (
+        <form className="mt-4 grid gap-3" onSubmit={submitMilestone} noValidate>
+          {formError ? <FormError message={formError} /> : null}
+
+          <MilestoneFormField
             id="milestone-safe-title"
-            type="text"
-            value={values.safeTitle}
-            onChange={updateField("safeTitle")}
-            disabled={createMilestoneMutation.isPending}
-            aria-invalid={!!fieldErrors.safeTitle}
-            aria-describedby={
-              fieldErrors.safeTitle ? "milestone-safe-title-error" : undefined
-            }
-            maxLength={120}
-          />
-        </MilestoneFormField>
+            label="Safe title"
+            error={fieldErrors.safeTitle}
+            icon={<Sparkles className="size-4" />}
+          >
+            <Input
+              id="milestone-safe-title"
+              type="text"
+              value={values.safeTitle}
+              onChange={updateField("safeTitle")}
+              disabled={isManualPending}
+              aria-invalid={!!fieldErrors.safeTitle}
+              aria-describedby={
+                fieldErrors.safeTitle
+                  ? "milestone-safe-title-error"
+                  : undefined
+              }
+              maxLength={120}
+            />
+          </MilestoneFormField>
 
-        <MilestoneFormField
-          id="milestone-full-title"
-          label="Full title"
-          error={fieldErrors.fullTitle}
-          icon={<Type className="size-4" />}
-        >
-          <Input
+          <MilestoneFormField
             id="milestone-full-title"
-            type="text"
-            value={values.fullTitle ?? ""}
-            onChange={updateField("fullTitle")}
-            disabled={createMilestoneMutation.isPending}
-            aria-invalid={!!fieldErrors.fullTitle}
-            aria-describedby={
-              fieldErrors.fullTitle ? "milestone-full-title-error" : undefined
-            }
-            maxLength={160}
-          />
-        </MilestoneFormField>
+            label="Full title"
+            error={fieldErrors.fullTitle}
+            icon={<Type className="size-4" />}
+          >
+            <Input
+              id="milestone-full-title"
+              type="text"
+              value={values.fullTitle ?? ""}
+              onChange={updateField("fullTitle")}
+              disabled={isManualPending}
+              aria-invalid={!!fieldErrors.fullTitle}
+              aria-describedby={
+                fieldErrors.fullTitle
+                  ? "milestone-full-title-error"
+                  : undefined
+              }
+              maxLength={160}
+            />
+          </MilestoneFormField>
 
-        <MilestoneFormField
-          id="milestone-description"
-          label="Description"
-          error={fieldErrors.description}
-          icon={<FileText className="size-4" />}
-        >
-          <Textarea
+          <MilestoneFormField
             id="milestone-description"
-            value={values.description ?? ""}
-            onChange={updateField("description")}
-            disabled={createMilestoneMutation.isPending}
-            aria-invalid={!!fieldErrors.description}
-            aria-describedby={
-              fieldErrors.description
-                ? "milestone-description-error"
-                : undefined
-            }
-            maxLength={500}
-          />
-        </MilestoneFormField>
+            label="Description"
+            error={fieldErrors.description}
+            icon={<FileText className="size-4" />}
+          >
+            <Textarea
+              id="milestone-description"
+              value={values.description ?? ""}
+              onChange={updateField("description")}
+              disabled={isManualPending}
+              aria-invalid={!!fieldErrors.description}
+              aria-describedby={
+                fieldErrors.description
+                  ? "milestone-description-error"
+                  : undefined
+              }
+              maxLength={500}
+            />
+          </MilestoneFormField>
 
-        <label className="flex items-start gap-3 rounded-lg border border-default bg-surface p-3 text-sm text-muted">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 rounded border-default bg-inset accent-[var(--accent-primary)]"
-            checked={values.spoilerName}
-            onChange={updateSpoilerName}
-            disabled={createMilestoneMutation.isPending}
-          />
-          <span className="grid gap-1">
-            <span className="flex items-center gap-2 font-medium text-secondary">
-              <EyeOff className="size-4 text-faint" />
-              Hide full title on the public timeline
+          <label className="flex items-start gap-3 rounded-lg border border-default bg-surface p-3 text-sm text-muted">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 rounded border-default bg-inset accent-[var(--accent-primary)]"
+              checked={values.spoilerName}
+              onChange={updateSpoilerName}
+              disabled={isManualPending}
+            />
+            <span className="grid gap-1">
+              <span className="flex items-center gap-2 font-medium text-secondary">
+                <EyeOff className="size-4 text-faint" />
+                Hide full title on the public timeline
+              </span>
+              <span>
+                Readers will see the safe title until this name is safe to show.
+              </span>
             </span>
-            <span>
-              Readers will see the safe title until this name is safe to show.
-            </span>
-          </span>
-        </label>
+          </label>
 
-        <Button
-          type="submit"
-          className="justify-self-start"
-          disabled={createMilestoneMutation.isPending}
-        >
-          <ListPlus />
-          {createMilestoneMutation.isPending ? "Adding..." : "Add milestone"}
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            className="justify-self-start"
+            disabled={isManualPending}
+          >
+            <ListPlus />
+            {isManualPending ? "Adding..." : "Add milestone"}
+          </Button>
+        </form>
+      ) : (
+        <form className="mt-4 grid gap-4" onSubmit={submitTemplate} noValidate>
+          {templateError ? <FormError message={templateError} /> : null}
+
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium text-secondary">
+              Template
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {templateOptions.map((option) => {
+                const isSelected = templateValues.template === option.value;
+
+                return (
+                  <label
+                    className={cn(
+                      "flex min-h-20 cursor-pointer flex-col gap-2 rounded-lg border border-default bg-surface p-3 text-sm transition-colors duration-150 hover:border-strong hover:bg-active",
+                      isSelected &&
+                        "border-brand bg-active text-brand shadow-glow"
+                    )}
+                    key={option.value}
+                  >
+                    <input
+                      className="sr-only"
+                      type="radio"
+                      name="milestone-template"
+                      value={option.value}
+                      checked={isSelected}
+                      onChange={() => updateTemplate(option.value)}
+                      disabled={isTemplatePending}
+                    />
+                    <span className="flex items-center gap-2 font-medium text-primary">
+                      <span className="text-brand">{option.icon}</span>
+                      {option.label}
+                    </span>
+                    <span className="text-xs leading-5 text-muted">
+                      {option.previewPrefix} 1, {option.previewPrefix} 2
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {templateErrors.template ? (
+              <p className="text-sm text-error" id="template-error">
+                {templateErrors.template}
+              </p>
+            ) : null}
+          </fieldset>
+
+          <MilestoneFormField
+            id="milestone-template-count"
+            label="Count"
+            error={templateErrors.count}
+            icon={<ListChecks className="size-4" />}
+          >
+            <Input
+              id="milestone-template-count"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={200}
+              value={templateValues.count}
+              onChange={updateTemplateCount}
+              disabled={isTemplatePending}
+              aria-invalid={!!templateErrors.count}
+              aria-describedby={
+                templateErrors.count
+                  ? "milestone-template-count-error"
+                  : undefined
+              }
+            />
+          </MilestoneFormField>
+
+          <div className="rounded-lg border border-default bg-surface p-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-secondary">
+                <Sparkles className="size-4 text-brand" />
+                Safe name preview
+              </h3>
+              <span className="font-mono text-xs text-faint">
+                {templatePreviewNames.length}
+              </span>
+            </div>
+            {templatePreviewNames.length > 0 ? (
+              <ol className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1">
+                {templatePreviewNames.map((name, index) => (
+                  <li
+                    className="flex items-center gap-3 rounded-md border border-subtle bg-inset px-3 py-2 text-sm text-secondary"
+                    key={name}
+                  >
+                    <span className="w-8 font-mono text-xs text-brand">
+                      {index + 1}
+                    </span>
+                    <span>{name}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-muted">
+                Enter a count from 1 to 200.
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            className="justify-self-start"
+            disabled={isTemplatePending}
+          >
+            <ListChecks />
+            {isTemplatePending ? "Generating..." : "Generate milestones"}
+          </Button>
+        </form>
+      )}
     </div>
   );
 };
+
+const BuilderModeButton = ({
+  active,
+  disabled,
+  icon,
+  label,
+  onClick
+}: {
+  active: boolean;
+  disabled: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    className={cn(
+      "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:text-disabled",
+      active && "bg-active text-brand"
+    )}
+    disabled={disabled}
+    onClick={onClick}
+  >
+    {icon}
+    {label}
+  </button>
+);
 
 const MilestoneFormField = ({
   id,
@@ -242,3 +551,33 @@ const MilestoneFormField = ({
     ) : null}
   </div>
 );
+
+const FormError = ({ message }: { message: string }) => (
+  <div
+    className="rounded-lg border border-default bg-surface p-3"
+    role="alert"
+  >
+    <p className="text-sm text-error">{message}</p>
+  </div>
+);
+
+const generatePreviewNames = ({ template, count }: TemplateFormValues) => {
+  const parsedCount = Number(count);
+
+  if (!Number.isInteger(parsedCount) || parsedCount < 1 || parsedCount > 200) {
+    return [];
+  }
+
+  const selectedTemplate = templateOptions.find(
+    (option) => option.value === template
+  );
+
+  if (!selectedTemplate) {
+    return [];
+  }
+
+  return Array.from(
+    { length: parsedCount },
+    (_, index) => `${selectedTemplate.previewPrefix} ${index + 1}`
+  );
+};

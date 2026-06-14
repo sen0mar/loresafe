@@ -25,9 +25,27 @@ export const createMilestoneFormSchema = z.object({
   spoilerName: z.boolean()
 });
 
+export const createMilestoneTemplateFormSchema = z.object({
+  template: z.enum([
+    "BOOK",
+    "SHOW",
+    "MOVIE",
+    "GAME",
+    "PODCAST_COURSE",
+    "CUSTOM"
+  ]),
+  count: z.number().int("Count must be a whole number.").min(1).max(200)
+});
+
 export type CreateMilestoneFormValues = z.input<
   typeof createMilestoneFormSchema
 >;
 export type CreateMilestonePayload = z.output<
   typeof createMilestoneFormSchema
+>;
+export type CreateMilestoneTemplateFormValues = z.input<
+  typeof createMilestoneTemplateFormSchema
+>;
+export type CreateMilestoneTemplatePayload = z.output<
+  typeof createMilestoneTemplateFormSchema
 >;

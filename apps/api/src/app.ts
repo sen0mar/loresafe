@@ -51,6 +51,10 @@ export const createApp = () => {
   app.post("/api/clubs/:slug/invites", clubInviteCreateRateLimiter);
   app.post("/api/clubs/:slug/join", clubJoinRateLimiter);
   app.post("/api/clubs/:slug/milestones", clubMilestoneCreateRateLimiter);
+  app.post(
+    "/api/clubs/:slug/milestones/templates",
+    clubMilestoneCreateRateLimiter
+  );
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
   app.patch("/api/users/me", profileUpdateRateLimiter);
   app.use(express.json({ limit: "64kb" }));

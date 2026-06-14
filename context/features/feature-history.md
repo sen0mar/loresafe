@@ -19,6 +19,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 13: Club invites — Added hashed-token invite storage with a committed migration, owner/moderator invite generation, authenticated invite acceptance with expired/revoked/maxed protections, safe invite redirect handling, and focused backend regression tests.
 - Feature 14: Milestone timeline — Added the club milestone model with a committed migration, demo timeline seed data, authenticated spoiler-safe milestone reads, real Timeline UI, and backend redaction tests for unsafe milestone names.
 - Feature 15: Milestone creation — Added owner/moderator milestone creation with safe response redaction, next-position appends, a club settings builder panel, timeline cache refreshes, rate limiting, and focused backend authorization/order tests.
+- Feature 16: Milestone template generation — Added empty-timeline template generation for books, shows, movies, games, podcast/courses, and custom timelines with transaction-safe bulk milestone creation, overwrite protection, frontend safe-name previews, and focused backend regression tests.
 
 ## Entry Format
 
