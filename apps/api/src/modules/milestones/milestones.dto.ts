@@ -20,6 +20,10 @@ export type MilestonesResponse = {
   };
 };
 
+export type CreateMilestoneResponse = {
+  milestone: MilestoneDto;
+};
+
 export const toMilestoneDto = (
   milestone: MilestoneRecord
 ): MilestoneDto => ({

@@ -1,7 +1,17 @@
 import { prisma } from "../../core/prisma/client.js";
-import type { ListMilestonesQuery } from "./milestones.schema.js";
+import type { Prisma } from "../../generated/prisma/client.js";
+import type {
+  CreateMilestoneRequest,
+  ListMilestonesQuery
+} from "./milestones.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
+
+export type ClubMilestoneCreationClubRecord = {
+  id: string;
+  currentUserRole: ClubMembershipRole | null;
+};
 
 export type MilestoneRecord = {
   id: string;
@@ -18,11 +28,22 @@ export type ListMilestonesResult = {
 };
 
 export type MilestonesRepository = {
+  createMilestoneAtNextPosition: (
+    input: CreateMilestoneAtNextPositionInput
+  ) => Promise<MilestoneRecord>;
+  findClubForMilestoneCreation: (
+    slug: string,
+    userId: string
+  ) => Promise<ClubMilestoneCreationClubRecord | null>;
   listVisibleMilestonesByClubSlug: (
     slug: string,
     userId: string,
     query: ListMilestonesQuery
   ) => Promise<ListMilestonesResult | null>;
+};
+
+type CreateMilestoneAtNextPositionInput = CreateMilestoneRequest & {
+  clubId: string;
 };
 
 const milestoneSelect = {
@@ -35,6 +56,78 @@ const milestoneSelect = {
 } as const;
 
 export const milestonesRepository: MilestonesRepository = {
+  createMilestoneAtNextPosition: async (input) => {
+    const createMilestone = async () =>
+      prisma.$transaction(async (transaction) => {
+        const lastMilestone = await transaction.milestone.findFirst({
+          where: {
+            clubId: input.clubId
+          },
+          orderBy: {
+            position: "desc"
+          },
+          select: {
+            position: true
+          }
+        });
+
+        return transaction.milestone.create({
+          data: {
+            clubId: input.clubId,
+            position: (lastMilestone?.position ?? 0) + 1,
+            safeTitle: input.safeTitle,
+            fullTitle: input.fullTitle ?? null,
+            description: input.description ?? null,
+            spoilerName: input.spoilerName
+          },
+          select: milestoneSelect
+        });
+      });
+
+    try {
+      return await createMilestone();
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      return createMilestone();
+    }
+  },
+
+  findClubForMilestoneCreation: async (slug, userId) => {
+    const club = await prisma.club.findUnique({
+      where: {
+        slug
+      },
+      select: {
+        id: true,
+        visibility: true,
+        memberships: {
+          where: {
+            userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
+        }
+      }
+    });
+
+    if (
+      !club ||
+      (club.visibility !== "PUBLIC" && club.memberships.length === 0)
+    ) {
+      return null;
+    }
+
+    return {
+      id: club.id,
+      currentUserRole: club.memberships[0]?.role ?? null
+    };
+  },
+
   listVisibleMilestonesByClubSlug: async (slug, userId, { page, limit }) => {
     const club = await prisma.club.findUnique({
       where: {
@@ -91,6 +184,12 @@ export const milestonesRepository: MilestonesRepository = {
     };
   }
 };
+
+const isUniqueConstraintError = (error: unknown) =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as Prisma.PrismaClientKnownRequestError).code === "P2002";
 
 const canViewClubMilestones = (club: {
   visibility: ClubVisibility;

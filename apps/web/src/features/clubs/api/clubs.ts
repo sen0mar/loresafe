@@ -94,6 +94,17 @@ export type ClubMilestonesResponse = {
   };
 };
 
+export type CreateClubMilestoneInput = {
+  safeTitle: string;
+  fullTitle?: string | null;
+  description?: string | null;
+  spoilerName: boolean;
+};
+
+export type CreateClubMilestoneResponse = {
+  milestone: ClubMilestone;
+};
+
 export type CreateClubInput = {
   title: string;
   slug: string;
@@ -107,6 +118,8 @@ export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
   joined: ["users", "me", "clubs"] as const,
   detail: (slug: string) => ["clubs", "detail", slug] as const,
+  milestonesRoot: (slug: string) =>
+    ["clubs", "detail", slug, "milestones"] as const,
   milestones: (slug: string, page: number) =>
     ["clubs", "detail", slug, "milestones", page] as const
 };
@@ -127,6 +140,15 @@ export const getJoinedClubs = () =>
 
 export const createClub = (input: CreateClubInput) =>
   apiPost<ClubResponse, CreateClubInput>("/api/clubs", input);
+
+export const createClubMilestone = (
+  slug: string,
+  input: CreateClubMilestoneInput
+) =>
+  apiPost<CreateClubMilestoneResponse, CreateClubMilestoneInput>(
+    `/api/clubs/${slug}/milestones`,
+    input
+  );
 
 export const joinClub = (slug: string) =>
   apiPost<ClubResponse>(`/api/clubs/${slug}/join`);
@@ -173,6 +195,20 @@ export const useCreateClubMutation = () => {
       });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
+      });
+    }
+  });
+};
+
+export const useCreateClubMilestoneMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateClubMilestoneInput) =>
+      createClubMilestone(slug, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.milestonesRoot(slug)
       });
     }
   });

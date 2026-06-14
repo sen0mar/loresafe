@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
 import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
@@ -229,6 +230,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                     {club.settings.rules ?? "No rules posted yet."}
                   </p>
                 </div>
+                <ClubMilestoneBuilderPanel club={club} />
                 <ClubInviteSection club={club} />
               </CardContent>
             </Card>

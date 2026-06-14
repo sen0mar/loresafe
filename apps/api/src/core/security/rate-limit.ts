@@ -158,6 +158,18 @@ export const clubInviteCreateRateLimiter = rateLimit({
   }
 });
 
+export const clubMilestoneCreateRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:clubs:milestones:create:"),
+  identifier: "clubs-milestones-create",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const inviteAcceptRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 30,
