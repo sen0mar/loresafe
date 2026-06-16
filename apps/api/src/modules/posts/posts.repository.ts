@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import type { Prisma } from "../../generated/prisma/client.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   ClubFeedTab,
@@ -306,7 +307,7 @@ export const postsRepository: PostsRepository = {
     clubId,
     { authorId, cursor, currentMilestonePosition, limit, mode, tab }
   ) => {
-    const cursorWhere = cursor
+    const cursorWhere: Prisma.PostWhereInput = cursor
       ? {
           OR: [
             {
@@ -324,7 +325,7 @@ export const postsRepository: PostsRepository = {
         }
       : {};
     const progressPosition = currentMilestonePosition ?? 0;
-    const tabWhere =
+    const tabWhere: Prisma.PostWhereInput =
       tab === "safe"
         ? mode === "FINISHED"
           ? {}
@@ -346,6 +347,15 @@ export const postsRepository: PostsRepository = {
                 requiredMilestone: {
                   position: {
                     gt: progressPosition
+                  }
+                }
+              }
+          : tab === "unanswered"
+            ? {
+                comments: {
+                  none: {
+                    status: "VISIBLE",
+                    deletedAt: null
                   }
                 }
               }
