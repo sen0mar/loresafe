@@ -6,6 +6,13 @@ export const postCommentsParamsSchema = z
   })
   .strict();
 
+export const revealPostCommentParamsSchema = z
+  .object({
+    postId: z.uuid(),
+    commentId: z.uuid()
+  })
+  .strict();
+
 export const createPostCommentRequestSchema = z
   .object({
     body: z.string().trim().min(1).max(8000),
@@ -15,6 +22,9 @@ export const createPostCommentRequestSchema = z
   .strict();
 
 export type PostCommentsParams = z.infer<typeof postCommentsParamsSchema>;
+export type RevealPostCommentParams = z.infer<
+  typeof revealPostCommentParamsSchema
+>;
 export type CreatePostCommentRequest = z.infer<
   typeof createPostCommentRequestSchema
 >;

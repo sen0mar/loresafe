@@ -69,6 +69,7 @@ export type ListClubPostsInput = {
   cursor: ClubPostsCursor | null;
   limit: number;
   authorId: string;
+  mode: ProgressMode;
   currentMilestonePosition: number | null;
 };
 
@@ -303,7 +304,7 @@ export const postsRepository: PostsRepository = {
 
   listClubPosts: async (
     clubId,
-    { authorId, cursor, currentMilestonePosition, limit, tab }
+    { authorId, cursor, currentMilestonePosition, limit, mode, tab }
   ) => {
     const cursorWhere = cursor
       ? {
@@ -325,21 +326,29 @@ export const postsRepository: PostsRepository = {
     const progressPosition = currentMilestonePosition ?? 0;
     const tabWhere =
       tab === "safe"
-        ? {
-            requiredMilestone: {
-              position: {
-                lte: progressPosition
-              }
-            }
-          }
-        : tab === "locked"
-          ? {
+        ? mode === "FINISHED"
+          ? {}
+          : {
               requiredMilestone: {
                 position: {
-                  gt: progressPosition
+                  lte: progressPosition
                 }
               }
             }
+        : tab === "locked"
+          ? mode === "FINISHED"
+            ? {
+                id: {
+                  equals: "00000000-0000-0000-0000-000000000000"
+                }
+              }
+            : {
+                requiredMilestone: {
+                  position: {
+                    gt: progressPosition
+                  }
+                }
+              }
           : tab === "my-posts"
             ? {
                 authorId

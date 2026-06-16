@@ -39,12 +39,20 @@ export type LockedCommentDto = {
 
 export type CommentDto = VisibleCommentDto | LockedCommentDto;
 
+export type RevealedCommentDto = Omit<VisibleCommentDto, "visibility"> & {
+  visibility: "REVEALED";
+};
+
 export type PostCommentsResponse = {
   comments: CommentDto[];
 };
 
 export type CreatePostCommentResponse = {
   comment: CommentDto;
+};
+
+export type RevealCommentResponse = {
+  comment: RevealedCommentDto;
 };
 
 export type CommentVisibilityContext = {
@@ -94,3 +102,25 @@ export const toCommentDto = (
     }
   };
 };
+
+export const toRevealedCommentDto = (
+  comment: CommentRecord
+): RevealedCommentDto => ({
+  id: comment.id,
+  visibility: "REVEALED",
+  status: comment.status,
+  body: comment.body,
+  author: {
+    id: comment.author.id,
+    displayName: comment.author.displayName,
+    username: comment.author.username
+  },
+  parentId: comment.parentId,
+  requiredMilestone: {
+    id: comment.requiredMilestone.id,
+    position: comment.requiredMilestone.position,
+    label: comment.requiredMilestone.safeTitle
+  },
+  createdAt: comment.createdAt.toISOString(),
+  updatedAt: comment.updatedAt.toISOString()
+});

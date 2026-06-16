@@ -25,7 +25,24 @@ export const getCompletedMilestoneCount = ({
 };
 
 export const canViewRequiredMilestone = ({
+  mode,
+  currentMilestonePosition,
+  requiredMilestonePosition
+}: MilestoneVisibilityInput) => {
+  if (mode === "FINISHED") {
+    return true;
+  }
+
+  return requiredMilestonePosition <= (currentMilestonePosition ?? 0);
+};
+
+export const canRevealRequiredMilestone = ({
+  mode,
   currentMilestonePosition,
   requiredMilestonePosition
 }: MilestoneVisibilityInput) =>
-  requiredMilestonePosition <= (currentMilestonePosition ?? 0);
+  canViewRequiredMilestone({
+    mode,
+    currentMilestonePosition,
+    requiredMilestonePosition
+  }) || mode === "BRAVE";

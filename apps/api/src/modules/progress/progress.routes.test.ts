@@ -347,14 +347,14 @@ describe("progress routes", () => {
     expect(repository.progressRows[0]?.mode).toBe("FINISHED");
   });
 
-  it("keeps mode changes conservative for future milestone visibility", () => {
+  it("allows Finished mode but keeps Brave conservative for normal visibility", () => {
     expect(
       canViewRequiredMilestone({
         mode: "FINISHED",
         currentMilestonePosition: 1,
         requiredMilestonePosition: 2
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canViewRequiredMilestone({
         mode: "BRAVE",

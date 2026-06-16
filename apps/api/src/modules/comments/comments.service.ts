@@ -1,10 +1,15 @@
 import { HttpError } from "../../core/errors/http-error.js";
-import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import {
+  canRevealRequiredMilestone,
+  canViewRequiredMilestone
+} from "../spoilers/spoiler.policy.js";
 import {
   type CommentDto,
   type CreatePostCommentResponse,
   type PostCommentsResponse,
-  toCommentDto
+  type RevealCommentResponse,
+  toCommentDto,
+  toRevealedCommentDto
 } from "./comments.dto.js";
 import {
   commentsRepository,
@@ -25,6 +30,11 @@ export type CommentsService = {
     userId: string,
     input: CreatePostCommentRequest
   ) => Promise<CreatePostCommentResponse>;
+  revealPostComment: (
+    postId: string,
+    commentId: string,
+    userId: string
+  ) => Promise<RevealCommentResponse>;
 };
 
 export const createCommentsService = (
@@ -105,6 +115,41 @@ export const createCommentsService = (
 
     return {
       comment: toCommentDto(comment, post.club.progress) as CommentDto
+    };
+  },
+
+  revealPostComment: async (postId, commentId, userId) => {
+    const post = await repository.findPostForComments(postId, userId);
+
+    if (!post || !canViewPostComments(post)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    const comment = await repository.findVisibleCommentForPost(
+      commentId,
+      post.id
+    );
+
+    if (!comment) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (
+      !canRevealRequiredMilestone({
+        mode: post.club.progress.mode,
+        currentMilestonePosition: post.club.progress.currentMilestonePosition,
+        requiredMilestonePosition: comment.requiredMilestone.position
+      })
+    ) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Switch to Brave mode before revealing this comment."
+      );
+    }
+
+    return {
+      comment: toRevealedCommentDto(comment)
     };
   }
 });

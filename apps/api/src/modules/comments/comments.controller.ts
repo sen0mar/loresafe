@@ -4,7 +4,8 @@ import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
   createPostCommentRequestSchema,
-  postCommentsParamsSchema
+  postCommentsParamsSchema,
+  revealPostCommentParamsSchema
 } from "./comments.schema.js";
 import {
   commentsService,
@@ -14,6 +15,7 @@ import {
 export type CommentsController = {
   listPostComments: RequestHandler;
   createPostComment: RequestHandler;
+  revealPostComment: RequestHandler;
 };
 
 export const createCommentsController = (
@@ -70,6 +72,34 @@ export const createCommentsController = (
       );
 
       res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  revealPostComment: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = revealPostCommentParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the comment request and try again."
+        );
+      }
+
+      const response = await service.revealPostComment(
+        paramsResult.data.postId,
+        paramsResult.data.commentId,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
     } catch (error) {
       next(error);
     }
