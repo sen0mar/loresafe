@@ -63,6 +63,26 @@ enum NotificationType {
   PROGRESS_UNLOCK
 }
 
+enum ReportTargetType {
+  POST
+  COMMENT
+}
+
+enum ReportReason {
+  SPOILER
+  HARASSMENT
+  HATE
+  SPAM
+  OFF_TOPIC
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 enum FileAssetPurpose {
   AVATAR
   CLUB_COVER
@@ -104,6 +124,7 @@ model User {
   postReactions      PostReaction[]
   commentReactions   CommentReaction[]
   notifications      Notification[]
+  reports            Report[]
   fileAssets         FileAsset[] @relation("FileAssetOwner")
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
@@ -133,6 +154,7 @@ model Club {
   history     ProgressHistory[]
   posts       Post[]
   notifications Notification[]
+  reports     Report[]
   fileAssets  FileAsset[]
 
   @@unique([slug], map: "clubs_slug_unique")
@@ -285,6 +307,7 @@ model Post {
   prediction        Prediction?
   notifications     Notification[]
   mediaAssets       FileAsset[] @relation("PostMediaAssets")
+  reports           Report[]
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -349,6 +372,7 @@ model Comment {
   reactions         CommentReaction[]
   notifications     Notification[]
   mediaAssets       FileAsset[] @relation("CommentMediaAssets")
+  reports           Report[]
 
   @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
   @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
@@ -403,6 +427,33 @@ model Notification {
   @@index([commentId], map: "notifications_comment_id_idx")
   @@index([requiredMilestoneId], map: "notifications_required_milestone_id_idx")
   @@map("notifications")
+}
+
+model Report {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetType ReportTargetType @map("target_type")
+  reason     ReportReason
+  details    String?          @db.VarChar(1000)
+  reporterId String           @map("reporter_id") @db.Uuid
+  clubId     String           @map("club_id") @db.Uuid
+  postId     String?          @map("post_id") @db.Uuid
+  commentId  String?          @map("comment_id") @db.Uuid
+  status     ReportStatus     @default(OPEN)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reporter User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  club     Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post     Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, postId], map: "reports_reporter_id_post_id_open_unique", where: raw("\"status\" = 'OPEN' AND \"post_id\" IS NOT NULL"))
+  @@unique([reporterId, commentId], map: "reports_reporter_id_comment_id_open_unique", where: raw("\"status\" = 'OPEN' AND \"comment_id\" IS NOT NULL"))
+  @@index([clubId, status, createdAt], map: "reports_club_id_status_created_at_idx")
+  @@index([reporterId, createdAt], map: "reports_reporter_id_created_at_idx")
+  @@index([postId], map: "reports_post_id_idx")
+  @@index([commentId], map: "reports_comment_id_idx")
+  @@map("reports")
 }
 
 model FileAsset {

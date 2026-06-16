@@ -49,6 +49,7 @@ import {
   useToggleCommentReactionMutation
 } from "../api/clubs.js";
 import { ReactionButtonGroup } from "../components/reaction-button-group.js";
+import { ReportDialog } from "../components/report-dialog.js";
 import {
   createCommentSchema,
   type CreateCommentFormValues
@@ -764,12 +765,15 @@ const VisibleCommentBlock = ({
     </p>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
       <CommentReactionButtons comment={comment} postId={postId} />
-      {canReply ? (
-        <Button type="button" size="sm" variant="secondary" onClick={onReply}>
-          <MessageCircleReply />
-          Reply
-        </Button>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <ReportDialog targetId={comment.id} targetType="COMMENT" />
+        {canReply ? (
+          <Button type="button" size="sm" variant="secondary" onClick={onReply}>
+            <MessageCircleReply />
+            Reply
+          </Button>
+        ) : null}
+      </div>
     </div>
   </div>
 );

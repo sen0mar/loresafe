@@ -37,6 +37,16 @@ export type PredictionStatus =
 export type PostReactionEmoji = "👍" | "❤️" | "😂" | "😮" | "👀";
 export type CommentReactionEmoji = PostReactionEmoji;
 
+export type ReportTargetType = "POST" | "COMMENT";
+
+export type ReportReason =
+  | "SPOILER"
+  | "HARASSMENT"
+  | "HATE"
+  | "SPAM"
+  | "OFF_TOPIC"
+  | "OTHER";
+
 export const postReactionEmojis: PostReactionEmoji[] = [
   "👍",
   "❤️",
@@ -379,6 +389,28 @@ export type CreatePostCommentResponse = {
   comment: Comment;
 };
 
+export type CreateReportInput = {
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  details?: string;
+};
+
+export type Report = {
+  id: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  details: string | null;
+  status: "OPEN" | "RESOLVED" | "DISMISSED";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateReportResponse = {
+  report: Report;
+};
+
 export type RevealCommentResponse = {
   comment: RevealedComment;
 };
@@ -574,6 +606,9 @@ export const createPostComment = (
     `/api/posts/${postId}/comments`,
     input
   );
+
+export const createReport = (input: CreateReportInput) =>
+  apiPost<CreateReportResponse, CreateReportInput>("/api/reports", input);
 
 export const createClubMilestone = (
   slug: string,
@@ -791,6 +826,11 @@ export const useCreatePostCommentMutation = (postId: string) => {
     }
   });
 };
+
+export const useCreateReportMutation = () =>
+  useMutation({
+    mutationFn: createReport
+  });
 
 export const useRevealPostMutation = (postId: string) =>
   useMutation({

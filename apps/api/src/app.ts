@@ -20,6 +20,7 @@ import {
   postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
   publicAssetUploadRateLimiter,
+  reportCreateRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -41,6 +42,7 @@ import {
   postsRouter
 } from "./modules/posts/posts.routes.js";
 import { progressRouter } from "./modules/progress/progress.routes.js";
+import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -83,6 +85,7 @@ export const createApp = () => {
     "/api/posts/:postId/reactions/toggle",
     postReactionToggleRateLimiter
   );
+  app.post("/api/reports", reportCreateRateLimiter);
   app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
@@ -97,6 +100,7 @@ export const createApp = () => {
   app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/reports", reportsRouter);
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);
   app.use("/api/posts", postDetailsRouter);

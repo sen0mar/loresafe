@@ -56,6 +56,7 @@ import {
   type CreatePostFormValues
 } from "../schemas/create-post.schema.js";
 import { ReactionButtonGroup } from "./reaction-button-group.js";
+import { ReportDialog } from "./report-dialog.js";
 import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
@@ -735,6 +736,7 @@ const VisiblePostCard = ({
         </span>
         <div className="flex flex-wrap items-center gap-3">
           <PostCounts post={post} />
+          <ReportDialog targetId={post.id} targetType="POST" />
           <PostReactionButtons
             counts={post.counts}
             onOptimisticReaction={onOptimisticReaction}
