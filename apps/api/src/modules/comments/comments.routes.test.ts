@@ -235,6 +235,179 @@ describe("comments routes", () => {
       .expect(400);
   });
 
+  it("rejects replies to replies", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 2,
+      postMilestonePosition: 1
+    });
+    const parent = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Parent"
+      }
+    );
+    const reply = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Reply",
+        parentId: parent.id
+      }
+    );
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Too nested",
+        parentId: reply.id
+      })
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Replies can only be one level deep."
+    });
+  });
+
+  it("allows comments and replies to require a later club milestone", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 3,
+      postMilestonePosition: 1
+    });
+    const laterMilestone = repository.createMilestone(post.clubId, 3);
+    const parent = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Parent"
+      }
+    );
+
+    const topLevelResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Future-aware top level",
+        requiredMilestoneId: laterMilestone.id
+      })
+      .expect(201);
+
+    expect(topLevelResponse.body.comment).toMatchObject({
+      visibility: "VISIBLE",
+      parentId: null,
+      requiredMilestone: {
+        id: laterMilestone.id,
+        position: 3
+      }
+    });
+
+    const replyResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Future-aware reply",
+        parentId: parent.id,
+        requiredMilestoneId: laterMilestone.id
+      })
+      .expect(201);
+
+    expect(replyResponse.body.comment).toMatchObject({
+      visibility: "VISIBLE",
+      parentId: parent.id,
+      requiredMilestone: {
+        id: laterMilestone.id,
+        position: 3
+      }
+    });
+  });
+
+  it("rejects unknown, cross-club, and earlier milestone overrides", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 3,
+      postMilestonePosition: 2
+    });
+    const otherPost = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 3,
+      postMilestonePosition: 1
+    });
+    const earlierMilestone = repository.createMilestone(post.clubId, 1);
+
+    const unknownResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Unknown milestone",
+        requiredMilestoneId: crypto.randomUUID()
+      })
+      .expect(400);
+
+    expect(unknownResponse.body.error).toMatchObject({
+      message: "Choose a milestone from this club."
+    });
+
+    const crossClubResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Cross-club milestone",
+        requiredMilestoneId: otherPost.requiredMilestone.id
+      })
+      .expect(400);
+
+    expect(crossClubResponse.body.error).toMatchObject({
+      message: "Choose a milestone from this club."
+    });
+
+    const earlierResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Earlier milestone",
+        requiredMilestoneId: earlierMilestone.id
+      })
+      .expect(400);
+
+    expect(earlierResponse.body.error).toMatchObject({
+      message: "Choose this discussion's milestone or a later one."
+    });
+  });
+
+  it("rejects comments when the user is behind the selected later milestone", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 2,
+      postMilestonePosition: 1
+    });
+    const laterMilestone = repository.createMilestone(post.clubId, 3);
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Not there yet",
+        requiredMilestoneId: laterMilestone.id
+      })
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Reach the required milestone before commenting."
+    });
+  });
+
   it("omits locked comment bodies and authors independently from visible posts", async () => {
     const user = repository.createStoredUser(validUserInput());
     const post = repository.createPostFixture(user.id, {
@@ -356,6 +529,8 @@ class InMemoryCommentsRepository
     position: number | null;
     mode: ProgressMode;
   }> = [];
+  readonly milestones: Array<CommentRecord["requiredMilestone"] & { clubId: string }> =
+    [];
   readonly posts: StoredPost[] = [];
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
 
@@ -454,12 +629,18 @@ class InMemoryCommentsRepository
     return post;
   };
 
-  createMilestone = (clubId: string, position: number) => ({
-    id: crypto.randomUUID(),
-    position,
-    safeTitle: `Milestone ${position}`,
-    clubId
-  });
+  createMilestone = (clubId: string, position: number) => {
+    const milestone = {
+      id: crypto.randomUUID(),
+      position,
+      safeTitle: `Milestone ${position}`,
+      clubId
+    };
+
+    this.milestones.push(milestone);
+
+    return milestone;
+  };
 
   createMembership = (
     userId: string,
@@ -615,6 +796,11 @@ class InMemoryCommentsRepository
     return comment ?? null;
   };
 
+  findMilestoneForClub = async (milestoneId: string, clubId: string) =>
+    this.milestones.find(
+      (milestone) => milestone.id === milestoneId && milestone.clubId === clubId
+    ) ?? null;
+
   listVisibleCommentsForPost = async (postId: string) =>
     this.comments
       .filter(
@@ -637,14 +823,9 @@ class InMemoryCommentsRepository
     }
   ): Promise<CommentRecord | null> => {
     const post = this.posts.find((storedPost) => storedPost.id === postId);
-    const milestone =
-      post?.requiredMilestone.id === input.requiredMilestoneId
-        ? post.requiredMilestone
-        : this.comments.find(
-            (comment) =>
-              comment.postId === postId &&
-              comment.requiredMilestone.id === input.requiredMilestoneId
-          )?.requiredMilestone;
+    const milestone = this.milestones.find(
+      (storedMilestone) => storedMilestone.id === input.requiredMilestoneId
+    );
 
     if (!post || !milestone) {
       return null;
@@ -659,7 +840,7 @@ class InMemoryCommentsRepository
           comment.deletedAt === null
       );
 
-      if (!parent || parent.requiredMilestone.id !== input.requiredMilestoneId) {
+      if (!parent || parent.parentId !== null) {
         return null;
       }
     }

@@ -8,6 +8,7 @@ import {
 } from "./comments.dto.js";
 import {
   commentsRepository,
+  type CommentMilestoneRecord,
   type CommentPostRecord,
   type CommentsRepository
 } from "./comments.repository.js";
@@ -64,20 +65,34 @@ export const createCommentsService = (
       );
     }
 
+    if (parentComment?.parentId) {
+      throw new HttpError(
+        400,
+        "BAD_REQUEST",
+        "Replies can only be one level deep."
+      );
+    }
+
     const inheritedMilestone =
       parentComment?.requiredMilestone ?? post.requiredMilestone;
+    const selectedMilestone = await resolveRequiredMilestone(
+      repository,
+      post,
+      inheritedMilestone,
+      input.requiredMilestoneId
+    );
 
-    if (!canCreatePostComment(post, inheritedMilestone.position)) {
+    if (!canCreatePostComment(post, selectedMilestone.position)) {
       throw new HttpError(
         403,
         "FORBIDDEN",
-        getCommentDeniedMessage(post, inheritedMilestone.position)
+        getCommentDeniedMessage(post, selectedMilestone.position)
       );
     }
 
     const comment = await repository.createPostComment(post.id, userId, {
       ...input,
-      requiredMilestoneId: inheritedMilestone.id
+      requiredMilestoneId: selectedMilestone.id
     });
 
     if (!comment) {
@@ -95,6 +110,40 @@ export const createCommentsService = (
 });
 
 export const commentsService = createCommentsService();
+
+const resolveRequiredMilestone = async (
+  repository: CommentsRepository,
+  post: CommentPostRecord,
+  inheritedMilestone: CommentMilestoneRecord,
+  requiredMilestoneId?: string
+) => {
+  if (!requiredMilestoneId) {
+    return inheritedMilestone;
+  }
+
+  const selectedMilestone = await repository.findMilestoneForClub(
+    requiredMilestoneId,
+    post.clubId
+  );
+
+  if (!selectedMilestone) {
+    throw new HttpError(
+      400,
+      "BAD_REQUEST",
+      "Choose a milestone from this club."
+    );
+  }
+
+  if (selectedMilestone.position < inheritedMilestone.position) {
+    throw new HttpError(
+      400,
+      "BAD_REQUEST",
+      "Choose this discussion's milestone or a later one."
+    );
+  }
+
+  return selectedMilestone;
+};
 
 const getCommentDeniedMessage = (
   post: CommentPostRecord,

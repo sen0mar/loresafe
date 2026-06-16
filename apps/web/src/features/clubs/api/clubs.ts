@@ -244,6 +244,10 @@ export type CreateClubPostResponse = {
 
 export type PostDetailResponse = {
   post: ClubPostCard;
+  club: {
+    id: string;
+    slug: string;
+  };
 };
 
 export type PostCommentsResponse = {
@@ -253,6 +257,7 @@ export type PostCommentsResponse = {
 export type CreatePostCommentInput = {
   body: string;
   parentId?: string;
+  requiredMilestoneId?: string;
 };
 
 export type CreatePostCommentResponse = {

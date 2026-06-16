@@ -55,6 +55,10 @@ export type CommentsRepository = {
     commentId: string,
     postId: string
   ) => Promise<CommentRecord | null>;
+  findMilestoneForClub: (
+    milestoneId: string,
+    clubId: string
+  ) => Promise<CommentMilestoneRecord | null>;
   listVisibleCommentsForPost: (postId: string) => Promise<CommentRecord[]>;
   createPostComment: (
     postId: string,
@@ -213,6 +217,19 @@ export const commentsRepository: CommentsRepository = {
     return comment ? toCommentRecord(comment) : null;
   },
 
+  findMilestoneForClub: async (milestoneId, clubId) =>
+    prisma.milestone.findFirst({
+      where: {
+        id: milestoneId,
+        clubId
+      },
+      select: {
+        id: true,
+        position: true,
+        safeTitle: true
+      }
+    }),
+
   listVisibleCommentsForPost: async (postId) => {
     const comments = await prisma.comment.findMany({
       where: {
@@ -247,11 +264,11 @@ export const commentsRepository: CommentsRepository = {
           },
           select: {
             id: true,
-            requiredMilestoneId: true
+            parentId: true
           }
         });
 
-        if (!parent || parent.requiredMilestoneId !== input.requiredMilestoneId) {
+        if (!parent || parent.parentId !== null) {
           return null;
         }
       }

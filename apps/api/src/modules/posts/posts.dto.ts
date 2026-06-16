@@ -75,8 +75,14 @@ export type CreateClubPostResponse = {
   post: ClubPostCardDto;
 };
 
+type PostDetailClubDto = {
+  id: string;
+  slug: string;
+};
+
 export type PostDetailResponse = {
   post: ClubPostCardDto;
+  club: PostDetailClubDto;
 };
 
 export type PostVisibilityContext = {

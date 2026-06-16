@@ -9,7 +9,8 @@ export const postCommentsParamsSchema = z
 export const createPostCommentRequestSchema = z
   .object({
     body: z.string().trim().min(1).max(8000),
-    parentId: z.uuid().optional()
+    parentId: z.uuid().optional(),
+    requiredMilestoneId: z.uuid().optional()
   })
   .strict();
 
