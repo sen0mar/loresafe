@@ -154,6 +154,119 @@ describe("posts routes", () => {
     });
   });
 
+  it("lets members create visible prediction posts with reveal metadata", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("member-prediction-club");
+    const requiredMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const revealMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Reveal checkpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, requiredMilestone.id, "STRICT");
+
+    const response = await request(app)
+      .post("/api/clubs/member-prediction-club/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        title: "  My careful prediction  ",
+        body: "  I think the map is hiding something.  ",
+        type: "PREDICTION",
+        requiredMilestoneId: requiredMilestone.id,
+        prediction: {
+          revealMilestoneId: revealMilestone.id
+        }
+      })
+      .expect(201);
+
+    expect(repository.posts).toHaveLength(1);
+    expect(repository.predictions).toHaveLength(1);
+    expect(repository.posts[0]).toMatchObject({
+      type: "PREDICTION",
+      title: "My careful prediction",
+      body: "I think the map is hiding something.",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone: {
+          id: revealMilestone.id,
+          position: 2,
+          safeTitle: "Reveal checkpoint"
+        }
+      }
+    });
+    expect(response.body.post).toMatchObject({
+      visibility: "VISIBLE",
+      type: "PREDICTION",
+      title: "My careful prediction",
+      bodyPreview: "I think the map is hiding something.",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone: {
+          id: revealMilestone.id,
+          position: 2,
+          label: "Reveal checkpoint"
+        }
+      }
+    });
+  });
+
+  it("returns visible prediction metadata in feed and detail reads", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("visible-prediction-club");
+    const requiredMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const revealMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Final reveal"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, requiredMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, requiredMilestone.id, {
+      title: "Visible prediction",
+      body: "This prediction is safe to inspect.",
+      type: "PREDICTION",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone
+      }
+    });
+
+    const cookie = await createSessionCookie(user);
+    const feedResponse = await request(app)
+      .get("/api/clubs/visible-prediction-club/posts")
+      .set("Cookie", cookie)
+      .expect(200);
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    const expectedPrediction = {
+      status: "UNRESOLVED",
+      revealMilestone: {
+        id: revealMilestone.id,
+        position: 3,
+        label: "Final reveal"
+      }
+    };
+
+    expect(feedResponse.body.posts[0]).toMatchObject({
+      visibility: "VISIBLE",
+      type: "PREDICTION",
+      prediction: expectedPrediction
+    });
+    expect(detailResponse.body.post).toMatchObject({
+      visibility: "VISIBLE",
+      type: "PREDICTION",
+      prediction: expectedPrediction
+    });
+  });
+
   it("rejects post creation from public-club non-members", async () => {
     const reader = repository.createStoredUser(validUserInput());
     const club = repository.createClub("public-nonmember-post-club");
@@ -173,6 +286,57 @@ describe("posts routes", () => {
       message: "Join this club before creating posts."
     });
     expect(repository.posts).toHaveLength(0);
+  });
+
+  it("validates prediction creation input", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("invalid-prediction-club");
+    const otherClub = repository.createClub("other-prediction-club");
+    const openingMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const laterMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Later"
+    });
+    const otherMilestone = repository.createMilestone(otherClub.id, {
+      position: 2,
+      safeTitle: "Other later"
+    });
+    repository.createMembership(user.id, club.id);
+
+    for (const input of [
+      validPostInput(openingMilestone.id, {
+        type: "PREDICTION"
+      }),
+      validPostInput(openingMilestone.id, {
+        prediction: {
+          revealMilestoneId: laterMilestone.id
+        }
+      }),
+      validPostInput(openingMilestone.id, {
+        type: "PREDICTION",
+        prediction: {
+          revealMilestoneId: otherMilestone.id
+        }
+      }),
+      validPostInput(laterMilestone.id, {
+        type: "PREDICTION",
+        prediction: {
+          revealMilestoneId: openingMilestone.id
+        }
+      })
+    ]) {
+      await request(app)
+        .post("/api/clubs/invalid-prediction-club/posts")
+        .set("Cookie", await createSessionCookie(user))
+        .send(input)
+        .expect(400);
+    }
+
+    expect(repository.posts).toHaveLength(0);
+    expect(repository.predictions).toHaveLength(0);
   });
 
   it("validates post detail ids", async () => {
@@ -482,6 +646,71 @@ describe("posts routes", () => {
     expect(JSON.stringify(response.body)).not.toContain(
       "LOCKED_SECRET_BODY_SHOULD_NOT_LEAK"
     );
+  });
+
+  it("keeps locked prediction metadata sanitized in feed and detail reads", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("locked-prediction-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    const revealMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Prediction reveal metadata"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "LOCKED_PREDICTION_TITLE_SHOULD_NOT_LEAK",
+      body: "LOCKED_PREDICTION_BODY_SHOULD_NOT_LEAK",
+      type: "PREDICTION",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone
+      }
+    });
+
+    const cookie = await createSessionCookie(user);
+    const feedResponse = await request(app)
+      .get("/api/clubs/locked-prediction-story-circle/posts")
+      .set("Cookie", cookie)
+      .expect(200);
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    for (const responseBody of [feedResponse.body, detailResponse.body]) {
+      const serialized = JSON.stringify(responseBody);
+      const card =
+        "posts" in responseBody ? responseBody.posts[0] : responseBody.post;
+
+      expect(card).toMatchObject({
+        visibility: "LOCKED",
+        type: "PREDICTION",
+        requiredMilestone: {
+          id: secondMilestone.id,
+          position: 2,
+          label: "Midpoint"
+        }
+      });
+      expect(card).not.toHaveProperty("prediction");
+      expect(card).not.toHaveProperty("title");
+      expect(card).not.toHaveProperty("author");
+      expect(serialized).not.toContain(
+        "LOCKED_PREDICTION_TITLE_SHOULD_NOT_LEAK"
+      );
+      expect(serialized).not.toContain(
+        "LOCKED_PREDICTION_BODY_SHOULD_NOT_LEAK"
+      );
+      expect(serialized).not.toContain("Prediction reveal metadata");
+      expect(serialized).not.toContain("UNRESOLVED");
+    }
   });
 
   it("returns locked post detail without title, body preview, author, or media fields", async () => {
@@ -847,6 +1076,55 @@ describe("posts routes", () => {
         id: user.id,
         displayName: user.displayName,
         username: null
+      }
+    });
+  });
+
+  it("returns prediction metadata when Brave reveals a locked prediction", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("brave-prediction-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    const revealMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Prediction reveal"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "BRAVE");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "BRAVE_PREDICTION_TITLE",
+      body: "BRAVE_PREDICTION_BODY",
+      type: "PREDICTION",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone
+      }
+    });
+
+    const revealResponse = await request(app)
+      .post(`/api/posts/${post.id}/reveal`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(revealResponse.body.post).toMatchObject({
+      id: post.id,
+      visibility: "REVEALED",
+      type: "PREDICTION",
+      title: "BRAVE_PREDICTION_TITLE",
+      body: "BRAVE_PREDICTION_BODY",
+      prediction: {
+        status: "UNRESOLVED",
+        revealMilestone: {
+          id: revealMilestone.id,
+          position: 3,
+          label: "Prediction reveal"
+        }
       }
     });
   });
@@ -1504,6 +1782,8 @@ type StoredPostReaction = {
   emoji: PostReactionEmoji;
 };
 
+type StoredPrediction = NonNullable<ClubPostRecord["prediction"]>;
+
 class InMemoryPostsRepository
   implements AuthUsersRepository, PostsRepository, ProgressRepository
 {
@@ -1528,6 +1808,7 @@ class InMemoryPostsRepository
   readonly history: StoredProgressHistory[] = [];
   readonly comments: StoredComment[] = [];
   readonly postReactions: StoredPostReaction[] = [];
+  readonly predictions: Array<StoredPrediction & { postId: string }> = [];
   readonly posts: Array<
     ClubPostRecord & {
       clubId: string;
@@ -1653,6 +1934,7 @@ class InMemoryPostsRepository
       deletedAt?: Date | null;
       createdAt?: Date;
       commentCount?: number;
+      prediction?: StoredPrediction | null;
     }
   ) => {
     const author = this.findStoredUser(authorId);
@@ -1678,6 +1960,7 @@ class InMemoryPostsRepository
         username: author.username
       },
       requiredMilestone,
+      prediction: input.prediction ?? null,
       commentCount: input.commentCount ?? 0,
       reactionCount: 0,
       reactions: this.emptyReactions(),
@@ -1687,6 +1970,13 @@ class InMemoryPostsRepository
     };
 
     this.posts.push(post);
+
+    if (post.prediction) {
+      this.predictions.push({
+        postId: post.id,
+        ...post.prediction
+      });
+    }
 
     return post;
   };
@@ -1835,10 +2125,29 @@ class InMemoryPostsRepository
       return null;
     }
 
+    const revealMilestone = input.prediction
+      ? this.findMilestoneForClub(input.prediction.revealMilestoneId, clubId)
+      : null;
+
+    if (
+      input.type === "PREDICTION" &&
+      (!revealMilestone ||
+        revealMilestone.position < requiredMilestone.position)
+    ) {
+      return null;
+    }
+
     return this.createPost(clubId, authorId, requiredMilestone.id, {
       title: input.title,
       body: input.body,
-      type: input.type
+      type: input.type,
+      prediction:
+        input.type === "PREDICTION" && revealMilestone
+          ? {
+              status: "UNRESOLVED",
+              revealMilestone
+            }
+          : null
     });
   };
 

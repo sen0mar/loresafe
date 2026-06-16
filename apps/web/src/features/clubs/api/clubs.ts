@@ -28,6 +28,12 @@ export type PostType =
 
 export type PostStatus = "VISIBLE" | "HIDDEN";
 
+export type PredictionStatus =
+  | "UNRESOLVED"
+  | "CORRECT"
+  | "WRONG"
+  | "PARTIAL";
+
 export type PostReactionEmoji = "👍" | "❤️" | "😂" | "😮" | "👀";
 export type CommentReactionEmoji = PostReactionEmoji;
 
@@ -155,6 +161,11 @@ export type ClubPostRequiredMilestone = {
   label: string;
 };
 
+export type ClubPostPrediction = {
+  status: PredictionStatus;
+  revealMilestone: ClubPostRequiredMilestone;
+};
+
 export type VisibleClubPostCard = {
   id: string;
   visibility: "VISIBLE";
@@ -168,6 +179,7 @@ export type VisibleClubPostCard = {
     username: string | null;
   };
   requiredMilestone: ClubPostRequiredMilestone;
+  prediction?: ClubPostPrediction;
   counts: ClubPostCounts;
   createdAt: string;
   updatedAt: string;
@@ -282,6 +294,9 @@ export type CreateClubPostInput = {
   body: string;
   type: PostType;
   requiredMilestoneId: string;
+  prediction?: {
+    revealMilestoneId: string;
+  };
 };
 
 export type CreateClubPostResponse = {

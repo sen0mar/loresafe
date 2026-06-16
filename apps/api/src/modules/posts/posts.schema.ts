@@ -36,9 +36,33 @@ export const createClubPostRequestSchema = z
     title: z.string().trim().min(2).max(160),
     body: z.string().trim().min(1).max(8000),
     type: postTypeSchema,
-    requiredMilestoneId: z.uuid()
+    requiredMilestoneId: z.uuid(),
+    prediction: z
+      .object({
+        revealMilestoneId: z.uuid()
+      })
+      .strict()
+      .optional()
   })
-  .strict();
+  .strict()
+  .superRefine((input, context) => {
+    if (input.type === "PREDICTION" && !input.prediction) {
+      context.addIssue({
+        code: "custom",
+        path: ["prediction"],
+        message: "Prediction details are required."
+      });
+      return;
+    }
+
+    if (input.type !== "PREDICTION" && input.prediction) {
+      context.addIssue({
+        code: "custom",
+        path: ["prediction"],
+        message: "Prediction details are only allowed for prediction posts."
+      });
+    }
+  });
 
 export const togglePostReactionRequestSchema = z
   .object({

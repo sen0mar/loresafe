@@ -11,6 +11,7 @@ import { postReactionEmojis } from "./posts.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
+type PredictionStatus = "UNRESOLVED" | "CORRECT" | "WRONG" | "PARTIAL";
 
 export type ClubFeedRecord = {
   id: string;
@@ -52,6 +53,14 @@ export type ClubPostRecord = {
     position: number;
     safeTitle: string;
   };
+  prediction: {
+    status: PredictionStatus;
+    revealMilestone: {
+      id: string;
+      position: number;
+      safeTitle: string;
+    };
+  } | null;
   commentCount: number;
   reactionCount: number;
   reactions: Array<{
@@ -137,6 +146,18 @@ const postSelect = {
       id: true,
       position: true,
       safeTitle: true
+    }
+  },
+  prediction: {
+    select: {
+      status: true,
+      revealMilestone: {
+        select: {
+          id: true,
+          position: true,
+          safeTitle: true
+        }
+      }
     }
   },
   _count: {
@@ -288,11 +309,33 @@ export const postsRepository: PostsRepository = {
           clubId
         },
         select: {
-          id: true
+          id: true,
+          position: true
         }
       });
 
       if (!requiredMilestone) {
+        return null;
+      }
+
+      const revealMilestone = input.prediction
+        ? await transaction.milestone.findFirst({
+            where: {
+              id: input.prediction.revealMilestoneId,
+              clubId
+            },
+            select: {
+              id: true,
+              position: true
+            }
+          })
+        : null;
+
+      if (
+        input.type === "PREDICTION" &&
+        (!revealMilestone ||
+          revealMilestone.position < requiredMilestone.position)
+      ) {
         return null;
       }
 
@@ -304,14 +347,23 @@ export const postsRepository: PostsRepository = {
           title: input.title,
           body: input.body,
           requiredMilestoneId: requiredMilestone.id,
-          status: "VISIBLE"
+          status: "VISIBLE",
+          ...(input.type === "PREDICTION" && revealMilestone
+            ? {
+                prediction: {
+                  create: {
+                    revealMilestoneId: revealMilestone.id
+                  }
+                }
+              }
+            : {})
         },
         select: postSelect
       });
 
       return toClubPostRecord(
         post,
-        await userReactionMapForPostIds([], authorId)
+        await userReactionMapForPostIds([post.id], authorId)
       );
     }),
 
@@ -548,6 +600,12 @@ const toClubPostRecord = (
     body: post.body,
     author: post.author,
     requiredMilestone: post.requiredMilestone,
+    prediction: post.prediction
+      ? {
+          status: post.prediction.status as PredictionStatus,
+          revealMilestone: post.prediction.revealMilestone
+        }
+      : null,
     commentCount: post._count.comments,
     reactionCount: reactions.reduce(
       (total, reaction) => total + reaction.count,
