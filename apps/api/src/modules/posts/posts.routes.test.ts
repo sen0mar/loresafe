@@ -34,6 +34,8 @@ import type {
   ClubFeedRecord,
   ClubPostCreationClubRecord,
   ClubPostRecord,
+  ClubPostsCursor,
+  ListClubPostsInput,
   ListClubPostsResult,
   PostDetailRecord,
   PostsRepository
@@ -43,10 +45,7 @@ import {
   createPostsRouter
 } from "./posts.routes.js";
 import { createPostsService } from "./posts.service.js";
-import type {
-  CreateClubPostRequest,
-  ListClubPostsQuery
-} from "./posts.schema.js";
+import type { CreateClubPostRequest } from "./posts.schema.js";
 
 describe("posts routes", () => {
   let repository: InMemoryPostsRepository;
@@ -684,7 +683,7 @@ describe("posts routes", () => {
     });
   });
 
-  it("validates and bounds pagination", async () => {
+  it("validates feed tab, cursor, and limit query params", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("pagination-story-circle");
     const milestone = repository.createMilestone(club.id, {
@@ -702,23 +701,200 @@ describe("posts routes", () => {
       body: "Second body."
     });
 
-    await request(app)
-      .get("/api/clubs/pagination-story-circle/posts?page=0&limit=20")
-      .set("Cookie", await createSessionCookie(user))
-      .expect(400);
+    for (const path of [
+      "/api/clubs/pagination-story-circle/posts?tab=unknown",
+      "/api/clubs/pagination-story-circle/posts?cursor=not-a-cursor",
+      "/api/clubs/pagination-story-circle/posts?limit=51"
+    ]) {
+      const response = await request(app)
+        .get(path)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(400);
+
+      expect(response.body.error).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "Check the feed request and try again."
+      });
+    }
 
     const response = await request(app)
-      .get("/api/clubs/pagination-story-circle/posts?page=1&limit=1")
+      .get("/api/clubs/pagination-story-circle/posts?limit=1")
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
     expect(response.body.posts).toHaveLength(1);
     expect(response.body.pagination).toEqual({
-      page: 1,
       limit: 1,
-      total: 2,
-      pageCount: 2
+      nextCursor: expect.any(String),
+      hasMore: true
     });
+  });
+
+  it("filters safe, locked, and all feed tabs before returning sanitized cards", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("tabbed-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, firstMilestone.id, {
+      title: "Safe title",
+      body: "Safe body."
+    });
+    repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "Locked title should not leak",
+      body: "LOCKED_TAB_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const cookie = await createSessionCookie(user);
+    const safeResponse = await request(app)
+      .get("/api/clubs/tabbed-story-circle/posts?tab=safe")
+      .set("Cookie", cookie)
+      .expect(200);
+    const lockedResponse = await request(app)
+      .get("/api/clubs/tabbed-story-circle/posts?tab=locked")
+      .set("Cookie", cookie)
+      .expect(200);
+    const allResponse = await request(app)
+      .get("/api/clubs/tabbed-story-circle/posts?tab=all")
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(safeResponse.body.posts).toHaveLength(1);
+    expect(safeResponse.body.posts[0]).toMatchObject({
+      visibility: "VISIBLE",
+      title: "Safe title"
+    });
+    expect(lockedResponse.body.posts).toHaveLength(1);
+    expect(lockedResponse.body.posts[0]).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        position: 2,
+        label: "Midpoint"
+      }
+    });
+    expect(lockedResponse.body.posts[0]).not.toHaveProperty("title");
+    expect(lockedResponse.body.posts[0]).not.toHaveProperty("author");
+    expect(JSON.stringify(lockedResponse.body)).not.toContain(
+      "LOCKED_TAB_BODY_SHOULD_NOT_LEAK"
+    );
+    expect(
+      allResponse.body.posts.map(
+        (post: { visibility: string }) => post.visibility
+      )
+    ).toEqual(["LOCKED", "VISIBLE"]);
+  });
+
+  it("returns only current-user posts for the my-posts tab and still sanitizes locked posts", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other-post-author@example.com"
+    });
+    const club = repository.createClub("my-posts-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.createMembership(otherUser.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, firstMilestone.id, {
+      title: "My safe post",
+      body: "My safe body."
+    });
+    repository.createPost(club.id, otherUser.id, firstMilestone.id, {
+      title: "Other user post",
+      body: "Other user body."
+    });
+    repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "My future title should not leak",
+      body: "MY_FUTURE_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/my-posts-story-circle/posts?tab=my-posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.posts).toHaveLength(2);
+    expect(
+      response.body.posts.map((post: { visibility: string }) => post.visibility)
+    ).toEqual(["LOCKED", "VISIBLE"]);
+    expect(JSON.stringify(response.body)).toContain("My safe post");
+    expect(JSON.stringify(response.body)).not.toContain("Other user post");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "MY_FUTURE_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
+  it("paginates cursor results without duplicates or skipped same-timestamp posts", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("cursor-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const sharedCreatedAt = new Date(Date.UTC(2026, 0, 2, 12));
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const posts = [
+      repository.createPost(club.id, user.id, milestone.id, {
+        title: "Same time A",
+        body: "A.",
+        createdAt: sharedCreatedAt
+      }),
+      repository.createPost(club.id, user.id, milestone.id, {
+        title: "Same time B",
+        body: "B.",
+        createdAt: sharedCreatedAt
+      }),
+      repository.createPost(club.id, user.id, milestone.id, {
+        title: "Same time C",
+        body: "C.",
+        createdAt: sharedCreatedAt
+      })
+    ].sort((firstPost, secondPost) =>
+      firstPost.id.localeCompare(secondPost.id)
+    );
+    const cookie = await createSessionCookie(user);
+    const receivedIds: string[] = [];
+    let cursor: string | null = null;
+
+    for (let page = 0; page < posts.length; page += 1) {
+      const cursorQuery: string = cursor
+        ? `&cursor=${encodeURIComponent(cursor)}`
+        : "";
+      const responseBody: {
+        posts: Array<{ id: string }>;
+        pagination: { nextCursor: string | null };
+      } = (
+        await request(app)
+          .get(
+            `/api/clubs/cursor-story-circle/posts?tab=safe&limit=1${cursorQuery}`
+          )
+          .set("Cookie", cookie)
+          .expect(200)
+      ).body;
+
+      expect(responseBody.posts).toHaveLength(1);
+      receivedIds.push(responseBody.posts[0].id);
+      cursor = responseBody.pagination.nextCursor;
+    }
+
+    expect(receivedIds).toEqual(posts.map((post) => post.id));
+    expect(new Set(receivedIds).size).toBe(posts.length);
+    expect(cursor).toBeNull();
   });
 });
 
@@ -916,6 +1092,7 @@ class InMemoryPostsRepository
       type?: ClubPostRecord["type"];
       status?: ClubPostRecord["status"];
       deletedAt?: Date | null;
+      createdAt?: Date;
     }
   ) => {
     const author = this.findStoredUser(authorId);
@@ -925,7 +1102,8 @@ class InMemoryPostsRepository
       throw new Error("Post fixture requires existing author and milestone.");
     }
 
-    const now = new Date(Date.UTC(2026, 0, 1, 12, this.posts.length));
+    const now =
+      input.createdAt ?? new Date(Date.UTC(2026, 0, 1, 12, this.posts.length));
     const post = {
       id: crypto.randomUUID(),
       clubId,
@@ -1042,25 +1220,42 @@ class InMemoryPostsRepository
 
   listClubPosts = async (
     clubId: string,
-    { page, limit }: ListClubPostsQuery
+    {
+      authorId,
+      cursor,
+      currentMilestonePosition,
+      limit,
+      tab
+    }: ListClubPostsInput
   ): Promise<ListClubPostsResult> => {
-    const start = (page - 1) * limit;
+    const progressPosition = currentMilestonePosition ?? 0;
     const visiblePosts = this.posts
       .filter(
         (post) =>
           post.clubId === clubId &&
           post.status === "VISIBLE" &&
-          post.deletedAt === null
+          post.deletedAt === null &&
+          this.matchesFeedTab(post, tab, authorId, progressPosition) &&
+          this.isAfterCursor(post, cursor)
       )
       .sort(
         (firstPost, secondPost) =>
           secondPost.createdAt.getTime() - firstPost.createdAt.getTime() ||
           firstPost.id.localeCompare(secondPost.id)
       );
+    const pagePosts = visiblePosts.slice(0, limit);
+    const lastPost = pagePosts[pagePosts.length - 1];
 
     return {
-      posts: visiblePosts.slice(start, start + limit),
-      total: visiblePosts.length
+      posts: pagePosts,
+      nextCursor:
+        visiblePosts.length > limit && lastPost
+          ? {
+              createdAt: lastPost.createdAt,
+              id: lastPost.id
+            }
+          : null,
+      hasMore: visiblePosts.length > limit
     };
   };
 
@@ -1277,6 +1472,48 @@ class InMemoryPostsRepository
         ban.clubId === clubId &&
         !ban.revokedAt &&
         (!ban.expiresAt || ban.expiresAt > now)
+    );
+  };
+
+  private matchesFeedTab = (
+    post: ClubPostRecord & {
+      clubId: string;
+      milestoneId: string;
+      deletedAt: Date | null;
+    },
+    tab: ListClubPostsInput["tab"],
+    authorId: string,
+    progressPosition: number
+  ) => {
+    if (tab === "safe") {
+      return post.requiredMilestone.position <= progressPosition;
+    }
+
+    if (tab === "locked") {
+      return post.requiredMilestone.position > progressPosition;
+    }
+
+    if (tab === "my-posts") {
+      return post.author.id === authorId;
+    }
+
+    return true;
+  };
+
+  private isAfterCursor = (
+    post: ClubPostRecord,
+    cursor: ClubPostsCursor | null
+  ) => {
+    if (!cursor) {
+      return true;
+    }
+
+    const createdAtTime = post.createdAt.getTime();
+    const cursorTime = cursor.createdAt.getTime();
+
+    return (
+      createdAtTime < cursorTime ||
+      (createdAtTime === cursorTime && post.id > cursor.id)
     );
   };
 

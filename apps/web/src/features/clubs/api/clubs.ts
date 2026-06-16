@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient
+} from "@tanstack/react-query";
 
 import { apiGet, apiPatch, apiPost } from "@/shared/api/api-client";
 
@@ -21,6 +26,8 @@ export type PostType =
   | "JUST_REACHED";
 
 export type PostStatus = "VISIBLE" | "HIDDEN";
+
+export type ClubFeedTab = "safe" | "locked" | "all" | "my-posts";
 
 export type ClubDiscoveryClub = {
   id: string;
@@ -189,10 +196,9 @@ export type ClubProgressResponse = {
 export type ClubPostsResponse = {
   posts: ClubPostCard[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 
@@ -278,8 +284,8 @@ export const clubsQueryKeys = {
     ["clubs", "detail", slug, "milestones", page] as const,
   progress: (slug: string) => ["clubs", "detail", slug, "progress"] as const,
   feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
-  feed: (slug: string, page: number) =>
-    ["clubs", "detail", slug, "feed", page] as const,
+  feed: (slug: string, tab: ClubFeedTab) =>
+    ["clubs", "detail", slug, "feed", tab] as const,
   postDetail: (postId: string) => ["posts", "detail", postId] as const
 };
 
@@ -297,8 +303,22 @@ export const getClubMilestones = (slug: string, page = 1) =>
 export const getClubProgress = (slug: string) =>
   apiGet<ClubProgressResponse>(`/api/clubs/${slug}/progress`);
 
-export const getClubPosts = (slug: string, page = 1) =>
-  apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?page=${page}&limit=20`);
+export const getClubPosts = (
+  slug: string,
+  tab: ClubFeedTab,
+  cursor: string | null = null
+) => {
+  const params = new URLSearchParams({
+    tab,
+    limit: "20"
+  });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  return apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?${params}`);
+};
 
 export const getPostById = (postId: string) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`);
@@ -403,10 +423,15 @@ export const useClubProgressQuery = (slug: string, enabled = true) =>
     enabled: enabled && slug.length > 0
   });
 
-export const useClubPostsQuery = (slug: string, page: number) =>
-  useQuery({
-    queryKey: clubsQueryKeys.feed(slug, page),
-    queryFn: () => getClubPosts(slug, page),
+export const useClubPostsInfiniteQuery = (
+  slug: string,
+  tab: ClubFeedTab
+) =>
+  useInfiniteQuery({
+    queryKey: clubsQueryKeys.feed(slug, tab),
+    queryFn: ({ pageParam }) => getClubPosts(slug, tab, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
     enabled: slug.length > 0
   });
 
@@ -482,30 +507,7 @@ export const useCreateClubPostMutation = (slug: string) => {
 
   return useMutation({
     mutationFn: (input: CreateClubPostInput) => createClubPost(slug, input),
-    onSuccess: (response) => {
-      queryClient.setQueryData<ClubPostsResponse>(
-        clubsQueryKeys.feed(slug, 1),
-        (currentResponse) => {
-          if (!currentResponse) {
-            return currentResponse;
-          }
-
-          const posts = [
-            response.post,
-            ...currentResponse.posts.filter((post) => post.id !== response.post.id)
-          ].slice(0, currentResponse.pagination.limit);
-          const total = currentResponse.pagination.total + 1;
-
-          return {
-            posts,
-            pagination: {
-              ...currentResponse.pagination,
-              total,
-              pageCount: Math.ceil(total / currentResponse.pagination.limit)
-            }
-          };
-        }
-      );
+    onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.feedRoot(slug)
       });

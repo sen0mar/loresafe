@@ -7,6 +7,7 @@ import {
 } from "./posts.dto.js";
 import { canCreateClubPost, canViewClubFeed } from "./posts.policy.js";
 import {
+  type ClubPostsCursor,
   postsRepository,
   type PostsRepository
 } from "./posts.repository.js";
@@ -69,17 +70,25 @@ export const createPostsService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    const result = await repository.listClubPosts(club.id, query);
+    const cursor = decodeClubPostsCursor(query.cursor);
+    const result = await repository.listClubPosts(club.id, {
+      tab: query.tab,
+      cursor,
+      limit: query.limit,
+      authorId: userId,
+      currentMilestonePosition: club.progress.currentMilestonePosition
+    });
 
     return {
       posts: result.posts.map((post) =>
         toClubPostCardDto(post, club.progress)
       ),
       pagination: {
-        page: query.page,
         limit: query.limit,
-        total: result.total,
-        pageCount: Math.ceil(result.total / query.limit)
+        nextCursor: result.nextCursor
+          ? encodeClubPostsCursor(result.nextCursor)
+          : null,
+        hasMore: result.hasMore
       }
     };
   },
@@ -98,3 +107,53 @@ export const createPostsService = (
 });
 
 export const postsService = createPostsService();
+
+const encodeClubPostsCursor = ({ createdAt, id }: ClubPostsCursor) =>
+  Buffer.from(
+    JSON.stringify({
+      createdAt: createdAt.toISOString(),
+      id
+    })
+  ).toString("base64url");
+
+const decodeClubPostsCursor = (
+  cursor: string | undefined
+): ClubPostsCursor | null => {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf8")
+    ) as unknown;
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !("createdAt" in parsed) ||
+      !("id" in parsed) ||
+      typeof parsed.createdAt !== "string" ||
+      typeof parsed.id !== "string"
+    ) {
+      throw new Error("Malformed cursor");
+    }
+
+    const createdAt = new Date(parsed.createdAt);
+
+    if (Number.isNaN(createdAt.getTime())) {
+      throw new Error("Malformed cursor");
+    }
+
+    return {
+      createdAt,
+      id: parsed.id
+    };
+  } catch {
+    throw new HttpError(
+      400,
+      "BAD_REQUEST",
+      "Check the feed request and try again."
+    );
+  }
+};

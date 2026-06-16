@@ -26,6 +26,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 20: Spoiler-safe club feed — Added the Post model with a committed migration, demo visible and locked posts, authenticated spoiler-safe club feed reads with private-club protection, a Feed tab UI, and focused backend leak regression tests.
 - Feature 21: Create club posts — Added a committed club-ban migration, authenticated member-only post creation with ban and milestone ownership checks, spoiler-safe create responses, a feed create-post dialog, and focused backend regression tests.
 - Feature 22: Post detail route — Added authenticated `GET /api/posts/:postId` with feed sanitizer reuse, direct URL spoiler-lock protection, a protected `/app/posts/:postId` detail page, feed-card post links, and focused backend leak regression tests.
+- Feature 23: Cursor-paginated feed tabs — Added cursor-paginated `safe`, `locked`, `all`, and `my-posts` club feed tabs with backend-owned filtering, supporting indexes, tab-scoped infinite queries, and focused backend pagination/sanitization tests.
 
 ## Entry Format
 

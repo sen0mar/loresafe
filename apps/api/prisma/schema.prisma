@@ -233,6 +233,8 @@ model Post {
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
+  @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
+  @@index([clubId, authorId, status, deletedAt, createdAt, id], map: "posts_club_author_status_deleted_created_id_idx")
   @@index([clubId, requiredMilestoneId], map: "posts_club_id_required_milestone_id_idx")
   @@index([authorId], map: "posts_author_id_idx")
   @@index([requiredMilestoneId], map: "posts_required_milestone_id_idx")

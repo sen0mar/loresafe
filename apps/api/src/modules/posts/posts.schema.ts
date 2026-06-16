@@ -15,9 +15,14 @@ export const postTypeSchema = z.enum([
   "JUST_REACHED"
 ]);
 
+export const clubFeedTabSchema = z
+  .enum(["safe", "locked", "all", "my-posts"])
+  .default("all");
+
 export const listClubPostsQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    tab: clubFeedTabSchema,
+    cursor: z.string().trim().min(1).max(512).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20)
   })
   .strict();
@@ -48,4 +53,5 @@ export type PostDetailParams = z.infer<typeof postDetailParamsSchema>;
 export type CreateClubPostRequest = z.infer<
   typeof createClubPostRequestSchema
 >;
+export type ClubFeedTab = z.infer<typeof clubFeedTabSchema>;
 export type ListClubPostsQuery = z.infer<typeof listClubPostsQuerySchema>;

@@ -1,8 +1,8 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
+  ClubFeedTab,
   CreateClubPostRequest,
-  ListClubPostsQuery
 } from "./posts.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
@@ -54,7 +54,21 @@ export type ClubPostRecord = {
 
 export type ListClubPostsResult = {
   posts: ClubPostRecord[];
-  total: number;
+  nextCursor: ClubPostsCursor | null;
+  hasMore: boolean;
+};
+
+export type ClubPostsCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+export type ListClubPostsInput = {
+  tab: ClubFeedTab;
+  cursor: ClubPostsCursor | null;
+  limit: number;
+  authorId: string;
+  currentMilestonePosition: number | null;
 };
 
 export type PostDetailRecord = {
@@ -78,7 +92,7 @@ export type PostsRepository = {
   ) => Promise<ClubPostRecord | null>;
   listClubPosts: (
     clubId: string,
-    query: ListClubPostsQuery
+    input: ListClubPostsInput
   ) => Promise<ListClubPostsResult>;
   findPostForDetail: (
     postId: string,
@@ -273,40 +287,86 @@ export const postsRepository: PostsRepository = {
       };
     }),
 
-  listClubPosts: async (clubId, { page, limit }) => {
-    const skip = (page - 1) * limit;
-    const where = {
-      clubId,
-      status: "VISIBLE" as const,
-      deletedAt: null
-    };
-    const [posts, total] = await prisma.$transaction([
-      prisma.post.findMany({
-        where,
-        orderBy: [
-          {
-            createdAt: "desc"
-          },
-          {
-            id: "asc"
+  listClubPosts: async (
+    clubId,
+    { authorId, cursor, currentMilestonePosition, limit, tab }
+  ) => {
+    const cursorWhere = cursor
+      ? {
+          OR: [
+            {
+              createdAt: {
+                lt: cursor.createdAt
+              }
+            },
+            {
+              createdAt: cursor.createdAt,
+              id: {
+                gt: cursor.id
+              }
+            }
+          ]
+        }
+      : {};
+    const progressPosition = currentMilestonePosition ?? 0;
+    const tabWhere =
+      tab === "safe"
+        ? {
+            requiredMilestone: {
+              position: {
+                lte: progressPosition
+              }
+            }
           }
-        ],
-        skip,
-        take: limit,
-        select: postSelect
-      }),
-      prisma.post.count({
-        where
-      })
-    ]);
+        : tab === "locked"
+          ? {
+              requiredMilestone: {
+                position: {
+                  gt: progressPosition
+                }
+              }
+            }
+          : tab === "my-posts"
+            ? {
+                authorId
+              }
+            : {};
+    const posts = await prisma.post.findMany({
+      where: {
+        clubId,
+        status: "VISIBLE",
+        deletedAt: null,
+        ...tabWhere,
+        ...cursorWhere
+      },
+      orderBy: [
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "asc"
+        }
+      ],
+      take: limit + 1,
+      select: postSelect
+    });
+    const pagePosts = posts.slice(0, limit);
+    const lastPost = pagePosts[pagePosts.length - 1];
 
     return {
-      posts: posts.map((post) => ({
+      posts: pagePosts.map((post) => ({
         ...post,
         type: post.type as ClubPostRecord["type"],
         status: post.status as ClubPostRecord["status"]
       })),
-      total
+      nextCursor:
+        posts.length > limit && lastPost
+          ? {
+              createdAt: lastPost.createdAt,
+              id: lastPost.id
+            }
+          : null,
+      hasMore: posts.length > limit
     };
   },
 

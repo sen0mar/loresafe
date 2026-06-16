@@ -7,8 +7,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Clock3,
   LockKeyhole,
   MessageSquareText,
@@ -39,17 +38,19 @@ import { Textarea } from "@/shared/components/ui/textarea";
 
 import {
   type Club,
+  type ClubFeedTab as ClubFeedTabValue,
   type ClubMilestone,
   type ClubPostCard,
   type PostType,
   useClubMilestonesQuery,
-  useClubPostsQuery,
+  useClubPostsInfiniteQuery,
   useCreateClubPostMutation
 } from "../api/clubs.js";
 import {
   createPostSchema,
   type CreatePostFormValues
 } from "../schemas/create-post.schema.js";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 type ClubFeedTabProps = {
   club: Club;
@@ -88,21 +89,40 @@ const getDefaultPostValues = (): CreatePostFormValues => ({
 const formatMilestoneOption = (milestone: ClubMilestone) =>
   `${milestone.position}. ${milestone.safeTitle}`;
 
-export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
-  const [page, setPage] = useState(1);
-  const postsQuery = useClubPostsQuery(club.slug, page);
-  const createPostAction = club.membership.isMember ? (
-    <CreatePostDialog club={club} onCreated={() => setPage(1)} />
-  ) : null;
+const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
+  {
+    value: "safe",
+    label: "Safe"
+  },
+  {
+    value: "locked",
+    label: "Locked"
+  },
+  {
+    value: "all",
+    label: "All"
+  },
+  {
+    value: "my-posts",
+    label: "My posts"
+  }
+];
 
-  useEffect(() => {
-    setPage(1);
-  }, [club.slug]);
+export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
+  const [activeTab, setActiveTab] = useState<ClubFeedTabValue>("all");
+  const postsQuery = useClubPostsInfiniteQuery(club.slug, activeTab);
+  const createPostAction = club.membership.isMember ? (
+    <CreatePostDialog club={club} />
+  ) : null;
 
   if (postsQuery.isPending) {
     return (
       <div className="space-y-3">
-        <FeedToolbar action={createPostAction} />
+        <FeedToolbar
+          action={createPostAction}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
         <FeedLoading />
       </div>
     );
@@ -117,11 +137,15 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
     );
   }
 
-  const { posts, pagination } = postsQuery.data;
+  const posts = postsQuery.data.pages.flatMap((page) => page.posts);
 
   return (
     <div className="space-y-3">
-      <FeedToolbar action={createPostAction} />
+      <FeedToolbar
+        action={createPostAction}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {posts.length === 0 ? (
         <FeedEmpty />
@@ -133,52 +157,57 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
         </div>
       )}
 
-      {pagination.pageCount > 1 ? (
+      {postsQuery.hasNextPage ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-surface p-3">
           <p className="text-sm text-muted">
-            Page {pagination.page} of {pagination.pageCount}
+            {countFormatter.format(posts.length)} loaded
           </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={pagination.page <= 1 || postsQuery.isFetching}
-              onClick={() => setPage((currentPage) => currentPage - 1)}
-            >
-              <ChevronLeft />
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={
-                pagination.page >= pagination.pageCount ||
-                postsQuery.isFetching
-              }
-              onClick={() => setPage((currentPage) => currentPage + 1)}
-            >
-              Next
-              <ChevronRight />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={postsQuery.isFetchingNextPage}
+            onClick={() => void postsQuery.fetchNextPage()}
+          >
+            <ChevronDown />
+            {postsQuery.isFetchingNextPage ? "Loading..." : "Load more"}
+          </Button>
         </div>
       ) : null}
     </div>
   );
 };
 
-const FeedToolbar = ({ action }: { action: ReactNode }) => (
-  <div className="flex min-h-10 items-center justify-end">{action}</div>
+const FeedToolbar = ({
+  action,
+  activeTab,
+  onTabChange
+}: {
+  action: ReactNode;
+  activeTab: ClubFeedTabValue;
+  onTabChange: (tab: ClubFeedTabValue) => void;
+}) => (
+  <div className="flex min-h-10 flex-wrap items-center justify-between gap-3">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as ClubFeedTabValue)}
+    >
+      <TabsList className="max-w-full overflow-x-auto">
+        {feedTabs.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+    {action}
+  </div>
 );
 
 const CreatePostDialog = ({
-  club,
-  onCreated
+  club
 }: {
   club: Club;
-  onCreated: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<CreatePostFormValues>(
@@ -280,7 +309,6 @@ const CreatePostDialog = ({
     createPostMutation.mutate(parseResult.data, {
       onSuccess: () => {
         toast.success("Post created");
-        onCreated();
         setOpen(false);
         setValues(getDefaultPostValues());
         setErrors({});

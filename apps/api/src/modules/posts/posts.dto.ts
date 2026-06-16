@@ -65,10 +65,9 @@ export type ClubPostCardDto =
 export type ClubPostsResponse = {
   posts: ClubPostCardDto[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 
