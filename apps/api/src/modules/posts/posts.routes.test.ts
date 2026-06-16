@@ -533,6 +533,151 @@ describe("posts routes", () => {
     );
   });
 
+  it("keeps Brave normal responses locked until an explicit post reveal", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("brave-reveal-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "BRAVE");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "BRAVE_REVEALED_TITLE",
+      body: "BRAVE_REVEALED_BODY"
+    });
+
+    const cookie = await createSessionCookie(user);
+    const feedResponse = await request(app)
+      .get("/api/clubs/brave-reveal-story-circle/posts")
+      .set("Cookie", cookie)
+      .expect(200);
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+    const revealResponse = await request(app)
+      .post(`/api/posts/${post.id}/reveal`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(feedResponse.body.posts[0]).toMatchObject({
+      visibility: "LOCKED"
+    });
+    expect(detailResponse.body.post).toMatchObject({
+      visibility: "LOCKED"
+    });
+    expect(JSON.stringify(feedResponse.body)).not.toContain(
+      "BRAVE_REVEALED_BODY"
+    );
+    expect(JSON.stringify(detailResponse.body)).not.toContain(
+      "BRAVE_REVEALED_BODY"
+    );
+    expect(revealResponse.body.post).toMatchObject({
+      id: post.id,
+      visibility: "REVEALED",
+      title: "BRAVE_REVEALED_TITLE",
+      body: "BRAVE_REVEALED_BODY",
+      author: {
+        id: user.id,
+        displayName: user.displayName,
+        username: null
+      }
+    });
+  });
+
+  it("rejects Strict and Soft behind-progress post reveals", async () => {
+    for (const mode of ["STRICT", "SOFT"] as const) {
+      const user = repository.createStoredUser({
+        ...validUserInput(),
+        email: `${mode.toLowerCase()}-reveal@example.com`
+      });
+      const club = repository.createClub(`${mode.toLowerCase()}-reveal-club`);
+      const firstMilestone = repository.createMilestone(club.id, {
+        position: 1,
+        safeTitle: "Opening"
+      });
+      const secondMilestone = repository.createMilestone(club.id, {
+        position: 2,
+        safeTitle: "Future"
+      });
+      repository.createMembership(user.id, club.id);
+      repository.setProgress(user.id, club.id, firstMilestone.id, mode);
+      const post = repository.createPost(
+        club.id,
+        user.id,
+        secondMilestone.id,
+        {
+          title: `${mode}_TITLE_SHOULD_NOT_REVEAL`,
+          body: `${mode}_BODY_SHOULD_NOT_REVEAL`
+        }
+      );
+
+      const response = await request(app)
+        .post(`/api/posts/${post.id}/reveal`)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(403);
+
+      expect(response.body.error).toMatchObject({
+        code: "FORBIDDEN",
+        message: "Switch to Brave mode before revealing this discussion."
+      });
+      expect(JSON.stringify(response.body)).not.toContain(
+        `${mode}_BODY_SHOULD_NOT_REVEAL`
+      );
+    }
+  });
+
+  it("returns future posts through normal endpoints for Finished users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("finished-posts-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const finalMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "FINISHED");
+    const post = repository.createPost(club.id, user.id, finalMilestone.id, {
+      title: "Finished future title",
+      body: "Finished future body"
+    });
+
+    const cookie = await createSessionCookie(user);
+    const safeResponse = await request(app)
+      .get("/api/clubs/finished-posts-story-circle/posts?tab=safe")
+      .set("Cookie", cookie)
+      .expect(200);
+    const lockedResponse = await request(app)
+      .get("/api/clubs/finished-posts-story-circle/posts?tab=locked")
+      .set("Cookie", cookie)
+      .expect(200);
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(safeResponse.body.posts).toHaveLength(1);
+    expect(safeResponse.body.posts[0]).toMatchObject({
+      visibility: "VISIBLE",
+      title: "Finished future title",
+      bodyPreview: "Finished future body"
+    });
+    expect(lockedResponse.body.posts).toHaveLength(0);
+    expect(detailResponse.body.post).toMatchObject({
+      visibility: "VISIBLE",
+      title: "Finished future title",
+      bodyPreview: "Finished future body"
+    });
+  });
+
   it("returns visible card title and body preview at the required milestone", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("visible-story-circle");
@@ -1231,6 +1376,7 @@ class InMemoryPostsRepository
       cursor,
       currentMilestonePosition,
       limit,
+      mode,
       tab
     }: ListClubPostsInput
   ): Promise<ListClubPostsResult> => {
@@ -1241,7 +1387,7 @@ class InMemoryPostsRepository
           post.clubId === clubId &&
           post.status === "VISIBLE" &&
           post.deletedAt === null &&
-          this.matchesFeedTab(post, tab, authorId, progressPosition) &&
+          this.matchesFeedTab(post, tab, authorId, progressPosition, mode) &&
           this.isAfterCursor(post, cursor)
       )
       .sort(
@@ -1490,13 +1636,22 @@ class InMemoryPostsRepository
     },
     tab: ListClubPostsInput["tab"],
     authorId: string,
-    progressPosition: number
+    progressPosition: number,
+    mode: ProgressMode
   ) => {
     if (tab === "safe") {
+      if (mode === "FINISHED") {
+        return true;
+      }
+
       return post.requiredMilestone.position <= progressPosition;
     }
 
     if (tab === "locked") {
+      if (mode === "FINISHED") {
+        return false;
+      }
+
       return post.requiredMilestone.position > progressPosition;
     }
 

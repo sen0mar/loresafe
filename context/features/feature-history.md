@@ -29,6 +29,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 23: Cursor-paginated feed tabs — Added cursor-paginated `safe`, `locked`, `all`, and `my-posts` club feed tabs with backend-owned filtering, supporting indexes, tab-scoped infinite queries, and focused backend pagination/sanitization tests.
 - Feature 24: Comments foundation — Added the Comment model with a committed migration, authenticated comment list/create APIs, independent locked-comment sanitization, real post comment counts, post-detail comment UI, and focused backend authorization/leak regression tests.
 - Feature 25: Comment replies and later locks — Added one-level comment replies, optional same-club later milestone requirements, backend progress enforcement/redaction tests, and post-detail reply controls with advanced milestone selection.
+- Feature 26: Brave reveal for locked content — Added explicit one-time post/comment reveal endpoints for Brave mode, Finished-mode normal visibility, local-only reveal UI, and focused backend leak regression tests.
 
 ## Entry Format
 

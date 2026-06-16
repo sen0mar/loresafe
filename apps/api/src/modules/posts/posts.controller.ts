@@ -14,6 +14,7 @@ export type PostsController = {
   createClubPostForSlug: RequestHandler;
   listClubPostsBySlug: RequestHandler;
   getPostById: RequestHandler;
+  revealPostById: RequestHandler;
 };
 
 export const createPostsController = (
@@ -94,6 +95,33 @@ export const createPostsController = (
       }
 
       const response = await service.getPostById(
+        paramsResult.data.postId,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  revealPostById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = postDetailParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the post request and try again."
+        );
+      }
+
+      const response = await service.revealPostById(
         paramsResult.data.postId,
         req.currentUser.id
       );

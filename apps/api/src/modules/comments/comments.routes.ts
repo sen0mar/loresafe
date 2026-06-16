@@ -26,6 +26,13 @@ export const createCommentsRouter = (
     controller.createPostComment
   );
 
+  router.post(
+    "/:postId/comments/:commentId/reveal",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.revealPostComment
+  );
+
   return router;
 };
 

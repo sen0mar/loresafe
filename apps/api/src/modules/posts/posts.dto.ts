@@ -62,6 +62,14 @@ export type ClubPostCardDto =
   | VisibleClubPostCardDto
   | LockedClubPostCardDto;
 
+export type RevealedClubPostDto = Omit<
+  VisibleClubPostCardDto,
+  "bodyPreview" | "visibility"
+> & {
+  visibility: "REVEALED";
+  body: string;
+};
+
 export type ClubPostsResponse = {
   posts: ClubPostCardDto[];
   pagination: {
@@ -82,6 +90,11 @@ type PostDetailClubDto = {
 
 export type PostDetailResponse = {
   post: ClubPostCardDto;
+  club: PostDetailClubDto;
+};
+
+export type RevealPostResponse = {
+  post: RevealedClubPostDto;
   club: PostDetailClubDto;
 };
 
@@ -138,6 +151,34 @@ export const toClubPostCardDto = (
     }
   };
 };
+
+export const toRevealedClubPostDto = (
+  post: ClubPostRecord
+): RevealedClubPostDto => ({
+  id: post.id,
+  visibility: "REVEALED",
+  type: post.type,
+  status: post.status,
+  title: post.title,
+  body: post.body,
+  author: {
+    id: post.author.id,
+    displayName: post.author.displayName,
+    username: post.author.username
+  },
+  requiredMilestone: {
+    id: post.requiredMilestone.id,
+    position: post.requiredMilestone.position,
+    label: post.requiredMilestone.safeTitle
+  },
+  counts: {
+    commentCount: post.commentCount,
+    reactionCount: 0,
+    unreadCommentCount: 0
+  },
+  createdAt: post.createdAt.toISOString(),
+  updatedAt: post.updatedAt.toISOString()
+});
 
 const toBodyPreview = (body: string) => {
   const compactBody = body.replace(/\s+/g, " ").trim();

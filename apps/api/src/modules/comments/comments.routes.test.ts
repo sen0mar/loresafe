@@ -445,6 +445,119 @@ describe("comments routes", () => {
     expect(JSON.stringify(response.body)).not.toContain("LOCKED_COMMENT_BODY");
   });
 
+  it("keeps Brave normal comment responses locked until an explicit comment reveal", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 2);
+    repository.setProgress(user.id, post.clubId, 1, "BRAVE");
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      futureMilestone,
+      {
+        body: "BRAVE_COMMENT_BODY"
+      }
+    );
+
+    const cookie = await createSessionCookie(user);
+    const commentsResponse = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", cookie)
+      .expect(200);
+    const revealResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments/${comment.id}/reveal`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(commentsResponse.body.comments[0]).toMatchObject({
+      visibility: "LOCKED"
+    });
+    expect(JSON.stringify(commentsResponse.body)).not.toContain(
+      "BRAVE_COMMENT_BODY"
+    );
+    expect(revealResponse.body.comment).toMatchObject({
+      id: comment.id,
+      visibility: "REVEALED",
+      body: "BRAVE_COMMENT_BODY",
+      author: {
+        id: user.id,
+        displayName: user.displayName,
+        username: null
+      }
+    });
+  });
+
+  it("rejects Strict and Soft behind-progress comment reveals", async () => {
+    for (const mode of ["STRICT", "SOFT"] as const) {
+      const user = repository.createStoredUser({
+        ...validUserInput(),
+        email: `${mode.toLowerCase()}-comment-reveal@example.com`
+      });
+      const post = repository.createPostFixture(user.id, {
+        membershipUserId: user.id,
+        progressPosition: 1,
+        postMilestonePosition: 1
+      });
+      const futureMilestone = repository.createMilestone(post.clubId, 2);
+      repository.setProgress(user.id, post.clubId, 1, mode);
+      const comment = repository.createComment(
+        post.id,
+        user.id,
+        futureMilestone,
+        {
+          body: `${mode}_COMMENT_BODY_SHOULD_NOT_REVEAL`
+        }
+      );
+
+      const response = await request(app)
+        .post(`/api/posts/${post.id}/comments/${comment.id}/reveal`)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(403);
+
+      expect(response.body.error).toMatchObject({
+        code: "FORBIDDEN",
+        message: "Switch to Brave mode before revealing this comment."
+      });
+      expect(JSON.stringify(response.body)).not.toContain(
+        `${mode}_COMMENT_BODY_SHOULD_NOT_REVEAL`
+      );
+    }
+  });
+
+  it("returns future comments through normal endpoints for Finished users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 3);
+    repository.setProgress(user.id, post.clubId, 1, "FINISHED");
+    repository.createComment(post.id, user.id, futureMilestone, {
+      body: "Finished comment body"
+    });
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.comments).toHaveLength(1);
+    expect(response.body.comments[0]).toMatchObject({
+      visibility: "VISIBLE",
+      body: "Finished comment body",
+      author: {
+        id: user.id,
+        displayName: user.displayName,
+        username: null
+      }
+    });
+  });
+
   it("excludes hidden and deleted comments and counts only visible active comments", async () => {
     const user = repository.createStoredUser(validUserInput());
     const post = repository.createPostFixture(user.id, {

@@ -155,6 +155,14 @@ export type LockedClubPostCard = {
 
 export type ClubPostCard = VisibleClubPostCard | LockedClubPostCard;
 
+export type RevealedClubPost = Omit<
+  VisibleClubPostCard,
+  "bodyPreview" | "visibility"
+> & {
+  visibility: "REVEALED";
+  body: string;
+};
+
 export type VisibleComment = {
   id: string;
   visibility: "VISIBLE";
@@ -183,6 +191,10 @@ export type LockedComment = {
 };
 
 export type Comment = VisibleComment | LockedComment;
+
+export type RevealedComment = Omit<VisibleComment, "visibility"> & {
+  visibility: "REVEALED";
+};
 
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
@@ -250,6 +262,14 @@ export type PostDetailResponse = {
   };
 };
 
+export type RevealPostResponse = {
+  post: RevealedClubPost;
+  club: {
+    id: string;
+    slug: string;
+  };
+};
+
 export type PostCommentsResponse = {
   comments: Comment[];
 };
@@ -262,6 +282,10 @@ export type CreatePostCommentInput = {
 
 export type CreatePostCommentResponse = {
   comment: Comment;
+};
+
+export type RevealCommentResponse = {
+  comment: RevealedComment;
 };
 
 export type CreateClubMilestoneInput = {
@@ -374,6 +398,14 @@ export const getPostById = (postId: string) =>
 
 export const getPostComments = (postId: string) =>
   apiGet<PostCommentsResponse>(`/api/posts/${postId}/comments`);
+
+export const revealPost = (postId: string) =>
+  apiPost<RevealPostResponse>(`/api/posts/${postId}/reveal`);
+
+export const revealPostComment = (postId: string, commentId: string) =>
+  apiPost<RevealCommentResponse>(
+    `/api/posts/${postId}/comments/${commentId}/reveal`
+  );
 
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
@@ -603,6 +635,16 @@ export const useCreatePostCommentMutation = (postId: string) => {
     }
   });
 };
+
+export const useRevealPostMutation = (postId: string) =>
+  useMutation({
+    mutationFn: () => revealPost(postId)
+  });
+
+export const useRevealPostCommentMutation = (postId: string) =>
+  useMutation({
+    mutationFn: (commentId: string) => revealPostComment(postId, commentId)
+  });
 
 export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
   const queryClient = useQueryClient();

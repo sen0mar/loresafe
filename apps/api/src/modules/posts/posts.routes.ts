@@ -39,6 +39,13 @@ export const createPostDetailsRouter = (
     controller.getPostById
   );
 
+  router.post(
+    "/:postId/reveal",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.revealPostById
+  );
+
   return router;
 };
 

@@ -1,13 +1,21 @@
-import { type ChangeEvent, type FormEvent, useMemo, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Clock3,
+  Eye,
   LockKeyhole,
   MessageCircleReply,
   MessageSquareText,
   RefreshCw,
   Send,
+  ShieldAlert,
   SlidersHorizontal,
   X,
   UserCircle
@@ -27,10 +35,14 @@ import {
   type ClubMilestone,
   type ClubPostCard,
   type ClubPostRequiredMilestone,
+  type RevealedClubPost,
+  type RevealedComment,
   useClubMilestonesQuery,
   useCreatePostCommentMutation,
   usePostCommentsQuery,
-  usePostQuery
+  usePostQuery,
+  useRevealPostCommentMutation,
+  useRevealPostMutation
 } from "../api/clubs.js";
 import {
   createCommentSchema,
@@ -47,9 +59,57 @@ const formatDateTime = (value: string) =>
 
 export const PostDetailPage = () => {
   const { postId = "" } = useParams();
+  const [revealedPost, setRevealedPost] = useState<RevealedClubPost | null>(
+    null
+  );
+  const [revealedComments, setRevealedComments] = useState<
+    Record<string, RevealedComment>
+  >({});
   const postQuery = usePostQuery(postId);
   const commentsEnabled = postQuery.isSuccess;
   const commentsQuery = usePostCommentsQuery(postId, commentsEnabled);
+  const revealPostMutation = useRevealPostMutation(postId);
+  const revealCommentMutation = useRevealPostCommentMutation(postId);
+
+  useEffect(() => {
+    setRevealedPost(null);
+    setRevealedComments({});
+  }, [postId]);
+
+  const handleRevealPost = () => {
+    revealPostMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        setRevealedPost(response.post);
+        toast.warning("Discussion revealed for this view");
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : "Could not reveal this discussion. Try again."
+        );
+      }
+    });
+  };
+
+  const handleRevealComment = (commentId: string) => {
+    revealCommentMutation.mutate(commentId, {
+      onSuccess: (response) => {
+        setRevealedComments((currentComments) => ({
+          ...currentComments,
+          [response.comment.id]: response.comment
+        }));
+        toast.warning("Comment revealed for this view");
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : "Could not reveal this comment. Try again."
+        );
+      }
+    });
+  };
 
   return (
     <AuthenticatedAppShell>
@@ -70,7 +130,19 @@ export const PostDetailPage = () => {
           />
         ) : (
           <>
-            <PostCard post={postQuery.data.post} />
+            {revealedPost ? (
+              <RevealedPostCard post={revealedPost} />
+            ) : (
+              <>
+                <PostCard post={postQuery.data.post} />
+                {postQuery.data.post.visibility === "LOCKED" ? (
+                  <BraveRevealPostPanel
+                    isRevealing={revealPostMutation.isPending}
+                    onReveal={handleRevealPost}
+                  />
+                ) : null}
+              </>
+            )}
             <CommentsPanel
               clubSlug={postQuery.data.club.slug}
               comments={commentsQuery.data?.comments ?? []}
@@ -78,8 +150,15 @@ export const PostDetailPage = () => {
               isError={commentsQuery.isError}
               isLoading={commentsQuery.isPending}
               onRetry={() => void commentsQuery.refetch()}
+              onRevealComment={handleRevealComment}
               post={postQuery.data.post}
               postId={postId}
+              revealedComments={revealedComments}
+              revealingCommentId={
+                revealCommentMutation.isPending
+                  ? revealCommentMutation.variables
+                  : null
+              }
             />
           </>
         )}
@@ -138,24 +217,97 @@ const PostDetailError = ({
   );
 };
 
+const BraveRevealPostPanel = ({
+  isRevealing,
+  onReveal
+}: {
+  isRevealing: boolean;
+  onReveal: () => void;
+}) => (
+  <Card className="border-strong bg-inset">
+    <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-default bg-surface text-warning">
+          <ShieldAlert className="size-5" />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-primary">
+            Brave reveal
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-muted">
+            This will show locked post content for this view only.
+          </p>
+        </div>
+      </div>
+      <Button
+        className="w-full sm:w-fit"
+        type="button"
+        variant="secondary"
+        disabled={isRevealing}
+        onClick={onReveal}
+      >
+        <Eye />
+        {isRevealing ? "Revealing..." : "Reveal once"}
+      </Button>
+    </CardContent>
+  </Card>
+);
+
+const RevealedPostCard = ({ post }: { post: RevealedClubPost }) => (
+  <Card className="border-strong">
+    <CardContent className="space-y-4 p-4">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
+        <span className="rounded-md border border-default bg-active px-2 py-1 text-warning">
+          Revealed once
+        </span>
+        <span>
+          Milestone {post.requiredMilestone.position}:{" "}
+          {post.requiredMilestone.label}
+        </span>
+        <span>{formatDateTime(post.createdAt)}</span>
+      </div>
+      <div className="space-y-3">
+        <h1 className="text-lg font-semibold text-primary">{post.title}</h1>
+        <p className="whitespace-pre-wrap text-sm leading-6 text-muted">
+          {post.body}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3 text-xs text-faint">
+        <span className="flex items-center gap-2">
+          <UserCircle className="size-4" />
+          {post.author.displayName}
+          {post.author.username ? ` / ${post.author.username}` : ""}
+        </span>
+        <span>{post.counts.commentCount} comments</span>
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const CommentsPanel = ({
   clubSlug,
   comments,
   error,
   isError,
   isLoading,
+  onRevealComment,
   onRetry,
   post,
-  postId
+  postId,
+  revealedComments,
+  revealingCommentId
 }: {
   clubSlug: string;
   comments: Comment[];
   error: Error | null;
   isError: boolean;
   isLoading: boolean;
+  onRevealComment: (commentId: string) => void;
   onRetry: () => void;
   post: ClubPostCard;
   postId: string;
+  revealedComments: Record<string, RevealedComment>;
+  revealingCommentId: string | null;
 }) => {
   const [replyParentId, setReplyParentId] = useState<string | null>(null);
   const threads = useMemo(() => buildCommentThreads(comments), [comments]);
@@ -213,7 +365,10 @@ const CommentsPanel = ({
                 milestones={milestones}
                 onReply={(commentId) => setReplyParentId(commentId)}
                 onReplyCancel={() => setReplyParentId(null)}
+                onRevealComment={onRevealComment}
                 postId={postId}
+                revealedComments={revealedComments}
+                revealingCommentId={revealingCommentId}
                 replyParentId={replyParentId}
                 thread={thread}
               />
@@ -474,14 +629,20 @@ const CommentThreadBlock = ({
   milestones,
   onReply,
   onReplyCancel,
+  onRevealComment,
   postId,
+  revealedComments,
+  revealingCommentId,
   replyParentId,
   thread
 }: {
   milestones: ClubMilestone[];
   onReply: (commentId: string) => void;
   onReplyCancel: () => void;
+  onRevealComment: (commentId: string) => void;
   postId: string;
+  revealedComments: Record<string, RevealedComment>;
+  revealingCommentId: string | null;
   replyParentId: string | null;
   thread: CommentThread;
 }) => (
@@ -490,6 +651,9 @@ const CommentThreadBlock = ({
       comment={thread.parent}
       canReply={thread.parent.visibility === "VISIBLE"}
       onReply={() => onReply(thread.parent.id)}
+      onReveal={onRevealComment}
+      revealedComment={revealedComments[thread.parent.id]}
+      revealingCommentId={revealingCommentId}
     />
     {replyParentId === thread.parent.id &&
     thread.parent.visibility === "VISIBLE" ? (
@@ -509,7 +673,14 @@ const CommentThreadBlock = ({
     {thread.replies.length > 0 ? (
       <div className="space-y-3 border-l border-subtle pl-4 md:ml-4">
         {thread.replies.map((reply) => (
-          <CommentBlock key={reply.id} comment={reply} canReply={false} />
+          <CommentBlock
+            key={reply.id}
+            comment={reply}
+            canReply={false}
+            onReveal={onRevealComment}
+            revealedComment={revealedComments[reply.id]}
+            revealingCommentId={revealingCommentId}
+          />
         ))}
       </div>
     ) : null}
@@ -519,17 +690,32 @@ const CommentThreadBlock = ({
 const CommentBlock = ({
   canReply,
   comment,
-  onReply
+  onReply,
+  onReveal,
+  revealedComment,
+  revealingCommentId
 }: {
   canReply: boolean;
   comment: Comment;
   onReply?: () => void;
-}) =>
-  comment.visibility === "VISIBLE" ? (
+  onReveal: (commentId: string) => void;
+  revealedComment?: RevealedComment;
+  revealingCommentId: string | null;
+}) => {
+  if (revealedComment) {
+    return <RevealedCommentBlock comment={revealedComment} />;
+  }
+
+  return comment.visibility === "VISIBLE" ? (
     <VisibleCommentBlock canReply={canReply} comment={comment} onReply={onReply} />
   ) : (
-    <LockedCommentBlock comment={comment} />
+    <LockedCommentBlock
+      comment={comment}
+      isRevealing={revealingCommentId === comment.id}
+      onReveal={() => onReveal(comment.id)}
+    />
   );
+};
 
 const VisibleCommentBlock = ({
   canReply,
@@ -566,10 +752,41 @@ const VisibleCommentBlock = ({
   </div>
 );
 
-const LockedCommentBlock = ({
+const RevealedCommentBlock = ({
   comment
 }: {
+  comment: RevealedComment;
+}) => (
+  <div className="rounded-xl border border-strong bg-subtle p-4">
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-faint">
+      <span className="flex items-center gap-2">
+        <UserCircle className="size-4" />
+        {comment.author.displayName}
+        {comment.author.username ? ` / ${comment.author.username}` : ""}
+      </span>
+      <span className="flex items-center gap-2">
+        <Eye className="size-4 text-warning" />
+        Revealed once
+      </span>
+    </div>
+    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">
+      {comment.body}
+    </p>
+    <p className="mt-3 flex items-center gap-2 text-xs text-faint">
+      <Clock3 className="size-4" />
+      {formatDateTime(comment.createdAt)}
+    </p>
+  </div>
+);
+
+const LockedCommentBlock = ({
+  comment,
+  isRevealing,
+  onReveal
+}: {
   comment: Extract<Comment, { visibility: "LOCKED" }>;
+  isRevealing: boolean;
+  onReveal: () => void;
 }) => (
   <div className="rounded-xl border border-default bg-inset p-4">
     <span className="flex size-9 items-center justify-center rounded-lg border border-default bg-surface text-info">
@@ -581,6 +798,24 @@ const LockedCommentBlock = ({
       <Clock3 className="size-4" />
       {formatDateTime(comment.createdAt)}
     </p>
+    <div className="mt-3 rounded-lg border border-default bg-surface p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs leading-5 text-muted">
+          Brave mode can reveal this comment for the current view only.
+        </p>
+        <Button
+          className="w-full sm:w-fit"
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={isRevealing}
+          onClick={onReveal}
+        >
+          <Eye />
+          {isRevealing ? "Revealing..." : "Reveal once"}
+        </Button>
+      </div>
+    </div>
   </div>
 );
 

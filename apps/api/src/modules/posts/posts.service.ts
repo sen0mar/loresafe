@@ -3,7 +3,9 @@ import {
   type ClubPostsResponse,
   type CreateClubPostResponse,
   type PostDetailResponse,
-  toClubPostCardDto
+  type RevealPostResponse,
+  toClubPostCardDto,
+  toRevealedClubPostDto
 } from "./posts.dto.js";
 import { canCreateClubPost, canViewClubFeed } from "./posts.policy.js";
 import {
@@ -13,6 +15,7 @@ import {
 } from "./posts.repository.js";
 import type { ListClubPostsQuery } from "./posts.schema.js";
 import type { CreateClubPostRequest } from "./posts.schema.js";
+import { canRevealRequiredMilestone } from "../spoilers/spoiler.policy.js";
 
 export type PostsService = {
   createClubPostForSlug: (
@@ -26,6 +29,10 @@ export type PostsService = {
     query: ListClubPostsQuery
   ) => Promise<ClubPostsResponse>;
   getPostById: (postId: string, userId: string) => Promise<PostDetailResponse>;
+  revealPostById: (
+    postId: string,
+    userId: string
+  ) => Promise<RevealPostResponse>;
 };
 
 export const createPostsService = (
@@ -76,6 +83,7 @@ export const createPostsService = (
       cursor,
       limit: query.limit,
       authorId: userId,
+      mode: club.progress.mode,
       currentMilestonePosition: club.progress.currentMilestonePosition
     });
 
@@ -102,6 +110,37 @@ export const createPostsService = (
 
     return {
       post: toClubPostCardDto(detail.post, detail.club.progress),
+      club: {
+        id: detail.club.id,
+        slug: detail.club.slug
+      }
+    };
+  },
+
+  revealPostById: async (postId, userId) => {
+    const detail = await repository.findPostForDetail(postId, userId);
+
+    if (!detail || !canViewClubFeed(detail.club)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (
+      !canRevealRequiredMilestone({
+        mode: detail.club.progress.mode,
+        currentMilestonePosition:
+          detail.club.progress.currentMilestonePosition,
+        requiredMilestonePosition: detail.post.requiredMilestone.position
+      })
+    ) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Switch to Brave mode before revealing this discussion."
+      );
+    }
+
+    return {
+      post: toRevealedClubPostDto(detail.post),
       club: {
         id: detail.club.id,
         slug: detail.club.slug
