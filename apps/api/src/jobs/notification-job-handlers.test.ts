@@ -11,7 +11,11 @@ import type {
   NotificationsJobsRepository,
   ProgressUnlockNotificationSource
 } from "../modules/notifications/notifications.jobs.repository.js";
-import type { CreateCommentNotificationInput } from "../modules/notifications/notifications.repository.js";
+import type { EventsService } from "../modules/events/events.service.js";
+import type {
+  CreateCommentNotificationInput,
+  CreateNotificationResult
+} from "../modules/notifications/notifications.repository.js";
 
 describe("notification job handlers", () => {
   afterEach(() => {
@@ -20,14 +24,37 @@ describe("notification job handlers", () => {
 
   it("processes comment notification jobs idempotently", async () => {
     const repository = new InMemoryNotificationsJobsRepository();
+    const eventPublisher = createMockEventsService();
     const source = repository.createCommentSource({
       parentAuthorId: null
     });
 
-    await processCommentCreatedJob({ commentId: source.commentId }, repository);
-    await processCommentCreatedJob({ commentId: source.commentId }, repository);
+    await processCommentCreatedJob(
+      { commentId: source.commentId },
+      repository,
+      eventPublisher
+    );
+    await processCommentCreatedJob(
+      { commentId: source.commentId },
+      repository,
+      eventPublisher
+    );
 
     expect(repository.notifications).toHaveLength(1);
+    expect(eventPublisher.publishNotificationCreated).toHaveBeenCalledTimes(1);
+    expect(eventPublisher.publishNotificationCreated).toHaveBeenCalledWith(
+      source.postAuthorId,
+      {
+        notificationId: expect.any(String),
+        club: {
+          id: source.clubId,
+          slug: "fixture-story-club"
+        },
+        postId: source.postId,
+        commentId: source.commentId,
+        occurredAt: expect.any(String)
+      }
+    );
     expect(repository.notifications[0]).toMatchObject({
       userId: source.postAuthorId,
       type: "POST_COMMENT",
@@ -71,20 +98,24 @@ describe("notification job handlers", () => {
 
   it("processes progress unlock jobs idempotently", async () => {
     const repository = new InMemoryNotificationsJobsRepository();
+    const eventPublisher = createMockEventsService();
     const source = repository.createProgressSource({
       requiredMilestoneId: crypto.randomUUID()
     });
 
     await processProgressUnlockedJob(
       { progressHistoryId: source.progressHistoryId },
-      repository
+      repository,
+      eventPublisher
     );
     await processProgressUnlockedJob(
       { progressHistoryId: source.progressHistoryId },
-      repository
+      repository,
+      eventPublisher
     );
 
     expect(repository.notifications).toHaveLength(1);
+    expect(eventPublisher.publishNotificationCreated).toHaveBeenCalledTimes(1);
     expect(repository.notifications[0]).toMatchObject({
       userId: source.userId,
       type: "PROGRESS_UNLOCK",
@@ -151,7 +182,12 @@ class InMemoryNotificationsJobsRepository
 {
   readonly commentSources = new Map<string, CommentNotificationSource>();
   readonly progressSources = new Map<string, ProgressUnlockNotificationSource>();
-  readonly notifications: CreateCommentNotificationInput[] = [];
+  readonly notifications: Array<
+    CreateCommentNotificationInput & {
+      id: string;
+      createdAt: Date;
+    }
+  > = [];
 
   findCommentNotificationSource = async (commentId: string) =>
     this.commentSources.get(commentId) ?? null;
@@ -161,21 +197,45 @@ class InMemoryNotificationsJobsRepository
 
   createNotificationIfMissing = async (
     input: CreateCommentNotificationInput
-  ) => {
+  ): Promise<CreateNotificationResult> => {
     const existingNotification = this.notifications.find(
       (notification) => notification.eventKey === input.eventKey
     );
 
     if (existingNotification) {
       return {
-        id: existingNotification.eventKey
+        id: existingNotification.id,
+        userId: existingNotification.userId,
+        club: {
+          id: existingNotification.clubId,
+          slug: "fixture-story-club"
+        },
+        postId: existingNotification.postId,
+        commentId: existingNotification.commentId,
+        createdAt: existingNotification.createdAt,
+        wasCreated: false
       };
     }
 
-    this.notifications.push(input);
+    const notification = {
+      ...input,
+      id: crypto.randomUUID(),
+      createdAt: new Date("2026-01-01T12:00:00.000Z")
+    };
+
+    this.notifications.push(notification);
 
     return {
-      id: input.eventKey
+      id: notification.id,
+      userId: notification.userId,
+      club: {
+        id: notification.clubId,
+        slug: "fixture-story-club"
+      },
+      postId: notification.postId,
+      commentId: notification.commentId,
+      createdAt: notification.createdAt,
+      wasCreated: true
     };
   };
 
@@ -216,3 +276,9 @@ class InMemoryNotificationsJobsRepository
     return source;
   };
 }
+
+const createMockEventsService = (): EventsService => ({
+  subscribe: vi.fn(),
+  publishNotificationCreated: vi.fn(),
+  publishNotificationRead: vi.fn()
+});

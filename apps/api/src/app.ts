@@ -27,6 +27,7 @@ import {
   commentReactionsRouter,
   commentsRouter
 } from "./modules/comments/comments.routes.js";
+import { eventsRouter } from "./modules/events/events.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import {
   clubInvitesRouter,
@@ -89,6 +90,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/events", eventsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);

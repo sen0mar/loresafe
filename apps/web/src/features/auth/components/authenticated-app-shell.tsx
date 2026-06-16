@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { useJoinedClubsQuery } from "@/features/clubs/api/clubs";
+import { useAuthenticatedEvents } from "@/features/events/hooks/use-authenticated-events";
 import { useUnreadNotificationsQuery } from "@/features/notifications/api/notifications";
 import { AppShell } from "@/shared/components/layout/app-shell";
 
@@ -23,6 +24,7 @@ export const AuthenticatedAppShell = ({
     Boolean(meQuery.data)
   );
   const currentUser = meQuery.data;
+  useAuthenticatedEvents(Boolean(currentUser));
 
   const logout = () => {
     logoutMutation.mutate(undefined, {

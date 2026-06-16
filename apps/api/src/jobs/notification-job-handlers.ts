@@ -11,6 +11,10 @@ import {
   notificationsJobsRepository,
   type NotificationsJobsRepository
 } from "../modules/notifications/notifications.jobs.repository.js";
+import {
+  eventsService,
+  type EventsService
+} from "../modules/events/events.service.js";
 
 const commentCreatedJobSchema = z
   .object({
@@ -28,7 +32,8 @@ type CommentCreatedJob = z.infer<typeof commentCreatedJobSchema>;
 type ProgressUnlockedJob = z.infer<typeof progressUnlockedJobSchema>;
 
 export const registerNotificationJobHandlers = async (
-  repository: NotificationsJobsRepository = notificationsJobsRepository
+  repository: NotificationsJobsRepository = notificationsJobsRepository,
+  eventPublisher: EventsService = eventsService
 ) => {
   await Promise.all([
     notificationBoss.work<CommentCreatedJob>(
@@ -46,7 +51,7 @@ export const registerNotificationJobHandlers = async (
         await runLoggedNotificationJob(
           notificationJobNames.commentCreated,
           job,
-          () => processCommentCreatedJob(job.data, repository),
+          () => processCommentCreatedJob(job.data, repository, eventPublisher),
           job.data.commentId
         );
       }
@@ -66,7 +71,8 @@ export const registerNotificationJobHandlers = async (
         await runLoggedNotificationJob(
           notificationJobNames.progressUnlocked,
           job,
-          () => processProgressUnlockedJob(job.data, repository),
+          () =>
+            processProgressUnlockedJob(job.data, repository, eventPublisher),
           job.data.progressHistoryId
         );
       }
@@ -76,7 +82,8 @@ export const registerNotificationJobHandlers = async (
 
 export const processCommentCreatedJob = async (
   data: unknown,
-  repository: NotificationsJobsRepository = notificationsJobsRepository
+  repository: NotificationsJobsRepository = notificationsJobsRepository,
+  eventPublisher: EventsService = eventsService
 ) => {
   const payload = commentCreatedJobSchema.parse(data);
   const source = await repository.findCommentNotificationSource(
@@ -94,7 +101,7 @@ export const processCommentCreatedJob = async (
     return;
   }
 
-  await repository.createNotificationIfMissing({
+  const notification = await repository.createNotificationIfMissing({
     userId: recipientUserId,
     type,
     eventKey: getCommentNotificationEventKey({
@@ -111,11 +118,22 @@ export const processCommentCreatedJob = async (
     commentId: source.commentId,
     requiredMilestoneId: source.requiredMilestoneId
   });
+
+  if (notification.wasCreated) {
+    eventPublisher.publishNotificationCreated(notification.userId, {
+      notificationId: notification.id,
+      club: notification.club,
+      postId: notification.postId,
+      commentId: notification.commentId,
+      occurredAt: notification.createdAt.toISOString()
+    });
+  }
 };
 
 export const processProgressUnlockedJob = async (
   data: unknown,
-  repository: NotificationsJobsRepository = notificationsJobsRepository
+  repository: NotificationsJobsRepository = notificationsJobsRepository,
+  eventPublisher: EventsService = eventsService
 ) => {
   const payload = progressUnlockedJobSchema.parse(data);
   const source = await repository.findProgressUnlockNotificationSource(
@@ -126,7 +144,7 @@ export const processProgressUnlockedJob = async (
     return;
   }
 
-  await repository.createNotificationIfMissing({
+  const notification = await repository.createNotificationIfMissing({
     userId: source.userId,
     type: "PROGRESS_UNLOCK",
     eventKey: getProgressUnlockNotificationEventKey({
@@ -139,6 +157,16 @@ export const processProgressUnlockedJob = async (
     commentId: null,
     requiredMilestoneId: source.requiredMilestoneId
   });
+
+  if (notification.wasCreated) {
+    eventPublisher.publishNotificationCreated(notification.userId, {
+      notificationId: notification.id,
+      club: notification.club,
+      postId: notification.postId,
+      commentId: notification.commentId,
+      occurredAt: notification.createdAt.toISOString()
+    });
+  }
 };
 
 export const runLoggedNotificationJob = async (

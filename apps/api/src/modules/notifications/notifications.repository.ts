@@ -55,6 +55,19 @@ export type CreateCommentNotificationInput = {
   requiredMilestoneId: string;
 };
 
+export type CreateNotificationResult = {
+  id: string;
+  userId: string;
+  club: {
+    id: string;
+    slug: string;
+  };
+  postId: string | null;
+  commentId: string | null;
+  createdAt: Date;
+  wasCreated: boolean;
+};
+
 export type NotificationsRepository = {
   listNotificationsForUser: (
     userId: string,
@@ -212,25 +225,67 @@ export const createNotificationInTransaction = (
   transaction: Prisma.TransactionClient,
   input: CreateCommentNotificationInput
 ) =>
-  transaction.notification.upsert({
-    where: {
-      eventKey: input.eventKey
-    },
-    create: {
-      eventKey: input.eventKey,
-      userId: input.userId,
-      type: input.type,
-      safeText: input.safeText,
-      clubId: input.clubId,
-      postId: input.postId,
-      commentId: input.commentId,
-      requiredMilestoneId: input.requiredMilestoneId
-    },
-    update: {},
-    select: {
-      id: true
+  createNotificationIfMissingInTransaction(transaction, input);
+
+const createNotificationIfMissingInTransaction = async (
+  transaction: Prisma.TransactionClient,
+  input: CreateCommentNotificationInput
+): Promise<CreateNotificationResult> => {
+  try {
+    const notification = await transaction.notification.create({
+      data: {
+        eventKey: input.eventKey,
+        userId: input.userId,
+        type: input.type,
+        safeText: input.safeText,
+        clubId: input.clubId,
+        postId: input.postId,
+        commentId: input.commentId,
+        requiredMilestoneId: input.requiredMilestoneId
+      },
+      select: notificationEventSelect
+    });
+
+    return {
+      ...notification,
+      wasCreated: true
+    };
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
     }
-  });
+
+    const existingNotification = await transaction.notification.findUnique({
+      where: {
+        eventKey: input.eventKey
+      },
+      select: notificationEventSelect
+    });
+
+    if (!existingNotification) {
+      throw error;
+    }
+
+    return {
+      ...existingNotification,
+      wasCreated: false
+    };
+  }
+};
+
+const notificationEventSelect = {
+  id: true,
+  userId: true,
+  club: {
+    select: {
+      id: true,
+      slug: true
+    }
+  },
+  postId: true,
+  commentId: true,
+  createdAt: true
+} satisfies Prisma.NotificationSelect;
 
 type SelectedNotification = Prisma.NotificationGetPayload<{
   select: ReturnType<typeof notificationSelect>;
@@ -262,3 +317,9 @@ const toNotificationRecord = (
     createdAt: notification.createdAt
   };
 };
+
+const isUniqueConstraintError = (error: unknown) =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as { code: unknown }).code === "P2002";
