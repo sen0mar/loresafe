@@ -6,7 +6,12 @@ import {
   clubModerationReportsParamsSchema,
   createReportRequestSchema,
   listModerationReportsQuerySchema,
-  moderationReportRevealParamsSchema
+  moderationReportActionParamsSchema,
+  moderationReportBanRequestSchema,
+  moderationReportNoteRequestSchema,
+  moderationReportRevealParamsSchema,
+  moderationReportRequiredMilestoneRequestSchema,
+  moderationReportResolveRequestSchema
 } from "./reports.schema.js";
 import { reportsService, type ReportsService } from "./reports.service.js";
 
@@ -14,6 +19,12 @@ export type ReportsController = {
   createReport: RequestHandler;
   listModerationReportsForClub: RequestHandler;
   revealModerationReportForClub: RequestHandler;
+  updateReportRequiredMilestoneForClub: RequestHandler;
+  hideReportedContentForClub: RequestHandler;
+  deleteReportedContentForClub: RequestHandler;
+  warnReportedContentAuthorForClub: RequestHandler;
+  banReportedContentAuthorForClub: RequestHandler;
+  resolveModerationReportForClub: RequestHandler;
 };
 
 export const createReportsController = (
@@ -99,6 +110,199 @@ export const createReportsController = (
         paramsResult.data.slug,
         paramsResult.data.reportId,
         req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateReportRequiredMilestoneForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult =
+        moderationReportRequiredMilestoneRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.updateReportRequiredMilestoneForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  hideReportedContentForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult = moderationReportNoteRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.hideReportedContentForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteReportedContentForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult = moderationReportNoteRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.deleteReportedContentForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  warnReportedContentAuthorForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult = moderationReportNoteRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.warnReportedContentAuthorForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  banReportedContentAuthorForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult = moderationReportBanRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.banReportedContentAuthorForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  resolveModerationReportForClub: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = moderationReportActionParamsSchema.safeParse(
+        req.params
+      );
+      const bodyResult = moderationReportResolveRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the moderation action request and try again."
+        );
+      }
+
+      const response = await service.resolveModerationReportForClub(
+        paramsResult.data.slug,
+        paramsResult.data.reportId,
+        req.currentUser.id,
+        bodyResult.data
       );
 
       res.status(200).json(response);

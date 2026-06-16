@@ -482,6 +482,27 @@ export type RevealModerationReportResponse = {
   report: RevealedModerationReport;
 };
 
+export type ModerationReportActionResponse = {
+  report: ModerationReport;
+};
+
+export type ModerationReportNoteInput = {
+  moderatorNote?: string;
+};
+
+export type UpdateReportRequiredMilestoneInput =
+  ModerationReportNoteInput & {
+    requiredMilestoneId: string;
+  };
+
+export type BanReportedContentAuthorInput = ModerationReportNoteInput & {
+  expiresAt?: string;
+};
+
+export type ResolveModerationReportInput = ModerationReportNoteInput & {
+  status: "RESOLVED" | "DISMISSED";
+};
+
 export type RevealCommentResponse = {
   comment: RevealedComment;
 };
@@ -555,6 +576,49 @@ export const refreshClubAssetQueries = (
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
+  });
+};
+
+const reconcileModerationReportMutation = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  slug: string,
+  report: ModerationReport
+) => {
+  queryClient.setQueryData<InfiniteData<ModerationReportsResponse>>(
+    clubsQueryKeys.moderationReports(slug),
+    (currentResponse) => {
+      if (!currentResponse) {
+        return currentResponse;
+      }
+
+      return {
+        ...currentResponse,
+        pages: currentResponse.pages.map((page) => ({
+          ...page,
+          reports:
+            report.status === "OPEN"
+              ? page.reports.map((currentReport) =>
+                  currentReport.id === report.id ? report : currentReport
+                )
+              : page.reports.filter(
+                  (currentReport) => currentReport.id !== report.id
+                )
+        }))
+      };
+    }
+  );
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.feedRoot(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.moderationReports(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.postDetail(report.target.id)
+  });
+  void queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) && query.queryKey.includes("comments")
   });
 };
 
@@ -704,6 +768,66 @@ export const getModerationReports = (
 export const revealModerationReport = (slug: string, reportId: string) =>
   apiPost<RevealModerationReportResponse>(
     `/api/clubs/${slug}/moderation/reports/${reportId}/reveal`
+  );
+
+export const updateReportRequiredMilestone = (
+  slug: string,
+  reportId: string,
+  input: UpdateReportRequiredMilestoneInput
+) =>
+  apiPatch<ModerationReportActionResponse, UpdateReportRequiredMilestoneInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/required-milestone`,
+    input
+  );
+
+export const hideReportedContent = (
+  slug: string,
+  reportId: string,
+  input: ModerationReportNoteInput
+) =>
+  apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/hide`,
+    input
+  );
+
+export const deleteReportedContent = (
+  slug: string,
+  reportId: string,
+  input: ModerationReportNoteInput
+) =>
+  apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/delete`,
+    input
+  );
+
+export const warnReportedContentAuthor = (
+  slug: string,
+  reportId: string,
+  input: ModerationReportNoteInput
+) =>
+  apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/warn`,
+    input
+  );
+
+export const banReportedContentAuthor = (
+  slug: string,
+  reportId: string,
+  input: BanReportedContentAuthorInput
+) =>
+  apiPost<ModerationReportActionResponse, BanReportedContentAuthorInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/ban`,
+    input
+  );
+
+export const resolveModerationReport = (
+  slug: string,
+  reportId: string,
+  input: ResolveModerationReportInput
+) =>
+  apiPatch<ModerationReportActionResponse, ResolveModerationReportInput>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/resolve`,
+    input
   );
 
 export const createClubMilestone = (
@@ -941,6 +1065,111 @@ export const useRevealModerationReportMutation = (slug: string) =>
   useMutation({
     mutationFn: (reportId: string) => revealModerationReport(slug, reportId)
   });
+
+export const useUpdateReportRequiredMilestoneMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: UpdateReportRequiredMilestoneInput;
+    }) => updateReportRequiredMilestone(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+    }
+  });
+};
+
+export const useHideReportedContentMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: ModerationReportNoteInput;
+    }) => hideReportedContent(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+    }
+  });
+};
+
+export const useDeleteReportedContentMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: ModerationReportNoteInput;
+    }) => deleteReportedContent(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+    }
+  });
+};
+
+export const useWarnReportedContentAuthorMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: ModerationReportNoteInput;
+    }) => warnReportedContentAuthor(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+      void queryClient.invalidateQueries({
+        queryKey: ["notifications"]
+      });
+    }
+  });
+};
+
+export const useBanReportedContentAuthorMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: BanReportedContentAuthorInput;
+    }) => banReportedContentAuthor(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+    }
+  });
+};
+
+export const useResolveModerationReportMutation = (slug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input
+    }: {
+      reportId: string;
+      input: ResolveModerationReportInput;
+    }) => resolveModerationReport(slug, reportId, input),
+    onSuccess: (response) => {
+      reconcileModerationReportMutation(queryClient, slug, response.report);
+    }
+  });
+};
 
 export const useRevealPostMutation = (postId: string) =>
   useMutation({

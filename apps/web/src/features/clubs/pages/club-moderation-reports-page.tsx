@@ -2,12 +2,16 @@ import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   ChevronDown,
   Eye,
+  EyeOff,
   FileWarning,
+  Flag,
   LockKeyhole,
   MessageSquareText,
   RefreshCw,
+  Trash2,
   ShieldCheck,
   UserCircle
 } from "lucide-react";
@@ -25,14 +29,23 @@ import {
   CardTitle
 } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { Textarea } from "@/shared/components/ui/textarea";
 
 import {
+  type ClubMilestone,
   type ModerationReport,
   type ReportReason,
   type RevealedModerationReport,
   useClubQuery,
+  useBanReportedContentAuthorMutation,
+  useDeleteReportedContentMutation,
+  useHideReportedContentMutation,
+  useResolveModerationReportMutation,
+  useUpdateReportRequiredMilestoneMutation,
   useModerationReportsQuery,
-  useRevealModerationReportMutation
+  useRevealModerationReportMutation,
+  useWarnReportedContentAuthorMutation,
+  useClubMilestonesQuery
 } from "../api/clubs.js";
 
 const reasonLabels: Record<ReportReason, string> = {
@@ -66,6 +79,7 @@ export const ClubModerationReportsPage = () => {
   const { slug = "" } = useParams();
   const clubQuery = useClubQuery(slug);
   const reportsQuery = useModerationReportsQuery(slug);
+  const milestonesQuery = useClubMilestonesQuery(slug, 1);
   const reports =
     reportsQuery.data?.pages.flatMap((page) => page.reports) ?? [];
 
@@ -111,6 +125,7 @@ export const ClubModerationReportsPage = () => {
                 key={report.id}
                 report={report}
                 slug={slug}
+                milestones={milestonesQuery.data?.milestones ?? []}
               />
             ))}
           </div>
@@ -138,10 +153,12 @@ export const ClubModerationReportsPage = () => {
 
 const ModerationReportCard = ({
   report,
-  slug
+  slug,
+  milestones
 }: {
   report: ModerationReport;
   slug: string;
+  milestones: ClubMilestone[];
 }) => {
   const [revealedReport, setRevealedReport] =
     useState<RevealedModerationReport | null>(null);
@@ -222,8 +239,283 @@ const ModerationReportCard = ({
             onReveal={revealReport}
           />
         )}
+
+        <ModerationActionControls
+          report={report}
+          slug={slug}
+          milestones={milestones}
+        />
       </CardContent>
     </Card>
+  );
+};
+
+const ModerationActionControls = ({
+  report,
+  slug,
+  milestones
+}: {
+  report: ModerationReport;
+  slug: string;
+  milestones: ClubMilestone[];
+}) => {
+  const [moderatorNote, setModeratorNote] = useState("");
+  const [requiredMilestoneId, setRequiredMilestoneId] = useState(
+    report.target.requiredMilestone?.id ?? ""
+  );
+  const [banExpiresAt, setBanExpiresAt] = useState("");
+  const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(slug);
+  const hideMutation = useHideReportedContentMutation(slug);
+  const deleteMutation = useDeleteReportedContentMutation(slug);
+  const warnMutation = useWarnReportedContentAuthorMutation(slug);
+  const banMutation = useBanReportedContentAuthorMutation(slug);
+  const resolveMutation = useResolveModerationReportMutation(slug);
+  const isWorking =
+    updateMilestoneMutation.isPending ||
+    hideMutation.isPending ||
+    deleteMutation.isPending ||
+    warnMutation.isPending ||
+    banMutation.isPending ||
+    resolveMutation.isPending;
+  const noteInput = moderatorNote.trim()
+    ? {
+        moderatorNote: moderatorNote.trim()
+      }
+    : {};
+
+  const showActionError = (error: unknown) => {
+    const message =
+      error instanceof ApiError
+        ? error.message
+        : "Could not apply this moderation action.";
+
+    toast.error(message);
+  };
+
+  const showActionSuccess = (message: string) => {
+    toast.success(message);
+    setModeratorNote("");
+  };
+
+  const submitRequiredMilestone = () => {
+    if (!requiredMilestoneId) {
+      toast.error("Choose a milestone first.");
+      return;
+    }
+
+    updateMilestoneMutation.mutate(
+      {
+        reportId: report.id,
+        input: {
+          ...noteInput,
+          requiredMilestoneId
+        }
+      },
+      {
+        onSuccess: () => showActionSuccess("Required milestone updated."),
+        onError: showActionError
+      }
+    );
+  };
+
+  const submitNoteAction = (
+    action: "hide" | "delete" | "warn",
+    successMessage: string
+  ) => {
+    const mutation =
+      action === "hide"
+        ? hideMutation
+        : action === "delete"
+          ? deleteMutation
+          : warnMutation;
+
+    mutation.mutate(
+      {
+        reportId: report.id,
+        input: noteInput
+      },
+      {
+        onSuccess: () => showActionSuccess(successMessage),
+        onError: showActionError
+      }
+    );
+  };
+
+  const submitBan = () => {
+    banMutation.mutate(
+      {
+        reportId: report.id,
+        input: {
+          ...noteInput,
+          ...(banExpiresAt
+            ? {
+                expiresAt: new Date(banExpiresAt).toISOString()
+              }
+            : {})
+        }
+      },
+      {
+        onSuccess: () => showActionSuccess("User banned."),
+        onError: showActionError
+      }
+    );
+  };
+
+  const submitResolve = (status: "RESOLVED" | "DISMISSED") => {
+    resolveMutation.mutate(
+      {
+        reportId: report.id,
+        input: {
+          ...noteInput,
+          status
+        }
+      },
+      {
+        onSuccess: () =>
+          showActionSuccess(
+            status === "RESOLVED" ? "Report resolved." : "Report dismissed."
+          ),
+        onError: showActionError
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg border border-default bg-inset p-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="space-y-2">
+          <label
+            className="text-xs font-medium text-faint"
+            htmlFor={`report-${report.id}-milestone`}
+          >
+            Required milestone
+          </label>
+          <select
+            id={`report-${report.id}-milestone`}
+            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+            value={requiredMilestoneId}
+            disabled={isWorking || milestones.length === 0}
+            onChange={(event) => setRequiredMilestoneId(event.target.value)}
+          >
+            {milestones.length === 0 ? (
+              <option value="">No milestones loaded</option>
+            ) : (
+              milestones.map((milestone) => (
+                <option key={milestone.id} value={milestone.id}>
+                  {milestone.position}. {milestone.safeTitle}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label
+            className="text-xs font-medium text-faint"
+            htmlFor={`report-${report.id}-ban-expiry`}
+          >
+            Ban expires
+          </label>
+          <input
+            id={`report-${report.id}-ban-expiry`}
+            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+            type="datetime-local"
+            value={banExpiresAt}
+            disabled={isWorking}
+            onChange={(event) => setBanExpiresAt(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label
+          className="text-xs font-medium text-faint"
+          htmlFor={`report-${report.id}-note`}
+        >
+          Moderator notes
+        </label>
+        <Textarea
+          id={`report-${report.id}-note`}
+          value={moderatorNote}
+          maxLength={1000}
+          disabled={isWorking}
+          placeholder="Internal note for audit history"
+          onChange={(event) => setModeratorNote(event.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={isWorking}
+          onClick={submitRequiredMilestone}
+        >
+          <Flag />
+          Adjust
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={isWorking}
+          onClick={() => submitNoteAction("hide", "Content hidden.")}
+        >
+          <EyeOff />
+          Hide
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          disabled={isWorking}
+          onClick={() => submitNoteAction("delete", "Content deleted.")}
+        >
+          <Trash2 />
+          Delete
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={isWorking}
+          onClick={() => submitNoteAction("warn", "User warned.")}
+        >
+          <AlertTriangle />
+          Warn
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          disabled={isWorking}
+          onClick={submitBan}
+        >
+          <Ban />
+          Ban
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isWorking}
+          onClick={() => submitResolve("RESOLVED")}
+        >
+          <ShieldCheck />
+          Resolve
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isWorking}
+          onClick={() => submitResolve("DISMISSED")}
+        >
+          Dismiss
+        </Button>
+      </div>
+    </div>
   );
 };
 

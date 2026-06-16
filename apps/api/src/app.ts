@@ -16,6 +16,7 @@ import {
   inviteAcceptRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
+  moderationActionRateLimiter,
   postCommentCreateRateLimiter,
   postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
@@ -89,6 +90,30 @@ export const createApp = () => {
     postReactionToggleRateLimiter
   );
   app.post("/api/reports", reportCreateRateLimiter);
+  app.patch(
+    "/api/clubs/:slug/moderation/reports/:reportId/required-milestone",
+    moderationActionRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/moderation/reports/:reportId/hide",
+    moderationActionRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/moderation/reports/:reportId/delete",
+    moderationActionRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/moderation/reports/:reportId/warn",
+    moderationActionRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/moderation/reports/:reportId/ban",
+    moderationActionRateLimiter
+  );
+  app.patch(
+    "/api/clubs/:slug/moderation/reports/:reportId/resolve",
+    moderationActionRateLimiter
+  );
   app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
