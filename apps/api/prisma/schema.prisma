@@ -45,6 +45,11 @@ enum PostStatus {
   HIDDEN
 }
 
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -63,6 +68,7 @@ model User {
   clubProgresses     ClubProgress[]
   progressHistory    ProgressHistory[]
   posts              Post[]
+  comments           Comment[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -167,6 +173,7 @@ model Milestone {
   progressHistoryFromRows ProgressHistory[] @relation("ProgressHistoryFromMilestone")
   progressHistoryToRows   ProgressHistory[] @relation("ProgressHistoryToMilestone")
   posts                   Post[]
+  comments                Comment[]
 
   @@unique([clubId, position], map: "milestones_club_id_position_unique")
   @@index([clubId], map: "milestones_club_id_idx")
@@ -231,6 +238,7 @@ model Post {
   club              Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
   author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  comments          Comment[]
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -239,4 +247,30 @@ model Post {
   @@index([authorId], map: "posts_author_id_idx")
   @@index([requiredMilestoneId], map: "posts_required_milestone_id_idx")
   @@map("posts")
+}
+
+model Comment {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId              String        @map("post_id") @db.Uuid
+  authorId            String        @map("author_id") @db.Uuid
+  parentId            String?       @map("parent_id") @db.Uuid
+  body                String        @db.VarChar(8000)
+  requiredMilestoneId String        @map("required_milestone_id") @db.Uuid
+  status              CommentStatus @default(VISIBLE)
+  deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  post              Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent            Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies           Comment[] @relation("CommentReplies")
+  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+
+  @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
+  @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
+  @@index([authorId], map: "comments_author_id_idx")
+  @@index([parentId], map: "comments_parent_id_idx")
+  @@index([requiredMilestoneId], map: "comments_required_milestone_id_idx")
+  @@map("comments")
 }

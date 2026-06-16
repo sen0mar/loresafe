@@ -17,9 +17,9 @@ export type PostTypeDto =
 export type PostStatusDto = "VISIBLE" | "HIDDEN";
 
 type PostCountsDto = {
-  commentCount: 0;
-  reactionCount: 0;
-  unreadCommentCount: 0;
+  commentCount: number;
+  reactionCount: number;
+  unreadCommentCount: number;
 };
 
 type RequiredMilestoneDto = {
@@ -84,12 +84,6 @@ export type PostVisibilityContext = {
   currentMilestonePosition: number | null;
 };
 
-const zeroCounts: PostCountsDto = {
-  commentCount: 0,
-  reactionCount: 0,
-  unreadCommentCount: 0
-};
-
 export const toClubPostCardDto = (
   post: ClubPostRecord,
   context: PostVisibilityContext
@@ -104,7 +98,11 @@ export const toClubPostCardDto = (
     type: post.type,
     status: post.status,
     requiredMilestone,
-    counts: zeroCounts,
+    counts: {
+      commentCount: post.commentCount,
+      reactionCount: 0,
+      unreadCommentCount: 0
+    },
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString()
   };

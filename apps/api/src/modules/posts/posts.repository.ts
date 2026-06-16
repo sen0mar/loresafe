@@ -48,6 +48,7 @@ export type ClubPostRecord = {
     position: number;
     safeTitle: string;
   };
+  commentCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -118,6 +119,16 @@ const postSelect = {
       id: true,
       position: true,
       safeTitle: true
+    }
+  },
+  _count: {
+    select: {
+      comments: {
+        where: {
+          status: "VISIBLE",
+          deletedAt: null
+        }
+      }
     }
   },
   createdAt: true,
@@ -283,7 +294,8 @@ export const postsRepository: PostsRepository = {
       return {
         ...post,
         type: post.type as ClubPostRecord["type"],
-        status: post.status as ClubPostRecord["status"]
+        status: post.status as ClubPostRecord["status"],
+        commentCount: 0
       };
     }),
 
@@ -357,7 +369,8 @@ export const postsRepository: PostsRepository = {
       posts: pagePosts.map((post) => ({
         ...post,
         type: post.type as ClubPostRecord["type"],
-        status: post.status as ClubPostRecord["status"]
+        status: post.status as ClubPostRecord["status"],
+        commentCount: post._count.comments
       })),
       nextCursor:
         posts.length > limit && lastPost
@@ -426,6 +439,7 @@ export const postsRepository: PostsRepository = {
         body: post.body,
         author: post.author,
         requiredMilestone: post.requiredMilestone,
+        commentCount: post._count.comments,
         createdAt: post.createdAt,
         updatedAt: post.updatedAt
       },

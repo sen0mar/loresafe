@@ -112,9 +112,9 @@ export type ClubProgress = {
 };
 
 export type ClubPostCounts = {
-  commentCount: 0;
-  reactionCount: 0;
-  unreadCommentCount: 0;
+  commentCount: number;
+  reactionCount: number;
+  unreadCommentCount: number;
 };
 
 export type ClubPostRequiredMilestone = {
@@ -154,6 +154,35 @@ export type LockedClubPostCard = {
 };
 
 export type ClubPostCard = VisibleClubPostCard | LockedClubPostCard;
+
+export type VisibleComment = {
+  id: string;
+  visibility: "VISIBLE";
+  status: PostStatus;
+  body: string;
+  author: {
+    id: string;
+    displayName: string;
+    username: string | null;
+  };
+  parentId: string | null;
+  requiredMilestone: ClubPostRequiredMilestone;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LockedComment = {
+  id: string;
+  visibility: "LOCKED";
+  status: PostStatus;
+  parentId: string | null;
+  requiredMilestone: ClubPostRequiredMilestone;
+  lockReason: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Comment = VisibleComment | LockedComment;
 
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
@@ -215,6 +244,19 @@ export type CreateClubPostResponse = {
 
 export type PostDetailResponse = {
   post: ClubPostCard;
+};
+
+export type PostCommentsResponse = {
+  comments: Comment[];
+};
+
+export type CreatePostCommentInput = {
+  body: string;
+  parentId?: string;
+};
+
+export type CreatePostCommentResponse = {
+  comment: Comment;
 };
 
 export type CreateClubMilestoneInput = {
@@ -286,7 +328,9 @@ export const clubsQueryKeys = {
   feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
   feed: (slug: string, tab: ClubFeedTab) =>
     ["clubs", "detail", slug, "feed", tab] as const,
-  postDetail: (postId: string) => ["posts", "detail", postId] as const
+  postDetail: (postId: string) => ["posts", "detail", postId] as const,
+  postComments: (postId: string) =>
+    ["posts", "detail", postId, "comments"] as const
 };
 
 export const getPublicClubs = () =>
@@ -323,6 +367,9 @@ export const getClubPosts = (
 export const getPostById = (postId: string) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`);
 
+export const getPostComments = (postId: string) =>
+  apiGet<PostCommentsResponse>(`/api/posts/${postId}/comments`);
+
 export const getJoinedClubs = () =>
   apiGet<JoinedClubsResponse>("/api/users/me/clubs");
 
@@ -332,6 +379,15 @@ export const createClub = (input: CreateClubInput) =>
 export const createClubPost = (slug: string, input: CreateClubPostInput) =>
   apiPost<CreateClubPostResponse, CreateClubPostInput>(
     `/api/clubs/${slug}/posts`,
+    input
+  );
+
+export const createPostComment = (
+  postId: string,
+  input: CreatePostCommentInput
+) =>
+  apiPost<CreatePostCommentResponse, CreatePostCommentInput>(
+    `/api/posts/${postId}/comments`,
     input
   );
 
@@ -442,6 +498,13 @@ export const usePostQuery = (postId: string) =>
     enabled: postId.length > 0
   });
 
+export const usePostCommentsQuery = (postId: string, enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.postComments(postId),
+    queryFn: () => getPostComments(postId),
+    enabled: enabled && postId.length > 0
+  });
+
 export const useJoinedClubsQuery = (enabled = true) =>
   useQuery({
     queryKey: clubsQueryKeys.joined,
@@ -510,6 +573,27 @@ export const useCreateClubPostMutation = (slug: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.feedRoot(slug)
+      });
+    }
+  });
+};
+
+export const useCreatePostCommentMutation = (postId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreatePostCommentInput) =>
+      createPostComment(postId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.postComments(postId)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.postDetail(postId)
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("feed")
       });
     }
   });
