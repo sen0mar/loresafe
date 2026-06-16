@@ -1,7 +1,11 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
-import type { CreateReportRequest, ReportReason } from "./reports.schema.js";
+import type {
+  CreateReportRequest,
+  ModerationReportStatus,
+  ReportReason
+} from "./reports.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -39,6 +43,60 @@ export type ReportRecord = {
   updatedAt: Date;
 };
 
+export type ModerationClubAccessRecord = {
+  id: string;
+  visibility: ClubVisibility;
+  currentUserRole: ClubMembershipRole | null;
+};
+
+type ReportTargetAuthorRecord = {
+  id: string;
+  displayName: string;
+  username: string | null;
+};
+
+type ReportTargetMilestoneRecord = {
+  id: string;
+  position: number;
+  safeTitle: string;
+};
+
+export type ModerationReportRecord = ReportRecord & {
+  reporter: ReportTargetAuthorRecord;
+  target:
+    | {
+        targetType: "POST";
+        id: string;
+        status: "VISIBLE" | "HIDDEN";
+        deletedAt: Date | null;
+        title: string;
+        body: string;
+        author: ReportTargetAuthorRecord;
+        requiredMilestone: ReportTargetMilestoneRecord;
+      }
+    | {
+        targetType: "COMMENT";
+        id: string;
+        status: "VISIBLE" | "HIDDEN";
+        deletedAt: Date | null;
+        body: string;
+        author: ReportTargetAuthorRecord;
+        requiredMilestone: ReportTargetMilestoneRecord;
+      }
+    | null;
+};
+
+export type ModerationReportsCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+export type ListModerationReportsResult = {
+  reports: ModerationReportRecord[];
+  nextCursor: ModerationReportsCursor | null;
+  hasMore: boolean;
+};
+
 export type ReportsRepository = {
   findPostTarget: (
     postId: string,
@@ -57,6 +115,22 @@ export type ReportsRepository = {
     target: ReportTargetRecord,
     input: CreateReportRequest
   ) => Promise<ReportRecord>;
+  findClubAccessBySlug: (
+    slug: string,
+    userId: string
+  ) => Promise<ModerationClubAccessRecord | null>;
+  listModerationReports: (
+    clubId: string,
+    input: {
+      status: ModerationReportStatus;
+      cursor: ModerationReportsCursor | null;
+      limit: number;
+    }
+  ) => Promise<ListModerationReportsResult>;
+  findModerationReportById: (
+    clubId: string,
+    reportId: string
+  ) => Promise<ModerationReportRecord | null>;
 };
 
 const reportSelect = {
@@ -85,6 +159,85 @@ const toReportRecord = (report: SelectedReport): ReportRecord => ({
   commentId: report.commentId,
   createdAt: report.createdAt,
   updatedAt: report.updatedAt
+});
+
+const moderationReportSelect = {
+  ...reportSelect,
+  reporter: {
+    select: {
+      id: true,
+      displayName: true,
+      username: true
+    }
+  },
+  post: {
+    select: {
+      id: true,
+      status: true,
+      deletedAt: true,
+      title: true,
+      body: true,
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          username: true
+        }
+      },
+      requiredMilestone: {
+        select: {
+          id: true,
+          position: true,
+          safeTitle: true
+        }
+      }
+    }
+  },
+  comment: {
+    select: {
+      id: true,
+      status: true,
+      deletedAt: true,
+      body: true,
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          username: true
+        }
+      },
+      requiredMilestone: {
+        select: {
+          id: true,
+          position: true,
+          safeTitle: true
+        }
+      }
+    }
+  }
+} satisfies Prisma.ReportSelect;
+
+type SelectedModerationReport = Prisma.ReportGetPayload<{
+  select: typeof moderationReportSelect;
+}>;
+
+const toModerationReportRecord = (
+  report: SelectedModerationReport
+): ModerationReportRecord => ({
+  ...toReportRecord(report),
+  reporter: report.reporter,
+  target:
+    report.targetType === "POST" && report.post
+      ? {
+          targetType: "POST",
+          ...report.post
+        }
+      : report.targetType === "COMMENT" && report.comment
+        ? {
+            targetType: "COMMENT",
+            ...report.comment
+          }
+        : null
 });
 
 const toProgress = (
@@ -255,6 +408,100 @@ export const reportsRepository: ReportsRepository = {
 
       throw error;
     }
+  },
+
+  findClubAccessBySlug: async (slug, userId) => {
+    const club = await prisma.club.findUnique({
+      where: {
+        slug
+      },
+      select: {
+        id: true,
+        visibility: true,
+        memberships: {
+          where: {
+            userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
+        }
+      }
+    });
+
+    if (!club) {
+      return null;
+    }
+
+    return {
+      id: club.id,
+      visibility: club.visibility,
+      currentUserRole: club.memberships[0]?.role ?? null
+    };
+  },
+
+  listModerationReports: async (clubId, { cursor, limit, status }) => {
+    const cursorWhere: Prisma.ReportWhereInput = cursor
+      ? {
+          OR: [
+            {
+              createdAt: {
+                lt: cursor.createdAt
+              }
+            },
+            {
+              createdAt: cursor.createdAt,
+              id: {
+                gt: cursor.id
+              }
+            }
+          ]
+        }
+      : {};
+    const reports = await prisma.report.findMany({
+      where: {
+        clubId,
+        status,
+        ...cursorWhere
+      },
+      orderBy: [
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "asc"
+        }
+      ],
+      take: limit + 1,
+      select: moderationReportSelect
+    });
+    const pageReports = reports.slice(0, limit);
+    const lastReport = pageReports[pageReports.length - 1];
+
+    return {
+      reports: pageReports.map(toModerationReportRecord),
+      nextCursor:
+        reports.length > limit && lastReport
+          ? {
+              createdAt: lastReport.createdAt,
+              id: lastReport.id
+            }
+          : null,
+      hasMore: reports.length > limit
+    };
+  },
+
+  findModerationReportById: async (clubId, reportId) => {
+    const report = await prisma.report.findFirst({
+      where: {
+        id: reportId,
+        clubId
+      },
+      select: moderationReportSelect
+    });
+
+    return report ? toModerationReportRecord(report) : null;
   }
 };
 

@@ -407,8 +407,79 @@ export type Report = {
   updatedAt: string;
 };
 
+export type ModerationReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
+
+export type ModerationReportUser = {
+  id: string;
+  displayName: string;
+  username: string | null;
+};
+
+export type ModerationReportTargetMetadata = {
+  id: string;
+  targetType: ReportTargetType;
+  visibility: "HIDDEN";
+  status: "VISIBLE" | "HIDDEN" | "DELETED" | "UNAVAILABLE";
+  author: ModerationReportUser | null;
+  requiredMilestone: ClubPostRequiredMilestone | null;
+  contentHidden: true;
+};
+
+export type RevealedModerationReportTarget =
+  | (Omit<
+      ModerationReportTargetMetadata,
+      "visibility" | "contentHidden" | "targetType"
+    > & {
+      targetType: "POST";
+      visibility: "REVEALED";
+      title: string;
+      body: string;
+    })
+  | (Omit<
+      ModerationReportTargetMetadata,
+      "visibility" | "contentHidden" | "targetType"
+    > & {
+      targetType: "COMMENT";
+      visibility: "REVEALED";
+      body: string;
+    });
+
+export type ModerationReport = {
+  id: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  status: ModerationReportStatus;
+  reporter: ModerationReportUser;
+  detailsHidden: boolean;
+  target: ModerationReportTargetMetadata;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RevealedModerationReport = Omit<
+  ModerationReport,
+  "detailsHidden" | "target"
+> & {
+  details: string | null;
+  target: RevealedModerationReportTarget;
+};
+
 export type CreateReportResponse = {
   report: Report;
+};
+
+export type ModerationReportsResponse = {
+  reports: ModerationReport[];
+  pagination: {
+    limit: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
+};
+
+export type RevealModerationReportResponse = {
+  report: RevealedModerationReport;
 };
 
 export type RevealCommentResponse = {
@@ -501,6 +572,8 @@ export const clubsQueryKeys = {
     ["clubs", "detail", slug, "feed", tab] as const,
   recentlyUnlocked: (slug: string) =>
     ["clubs", "detail", slug, "recently-unlocked"] as const,
+  moderationReports: (slug: string) =>
+    ["clubs", "detail", slug, "moderation", "reports"] as const,
   postDetail: (postId: string) => ["posts", "detail", postId] as const,
   postComments: (postId: string) =>
     ["posts", "detail", postId, "comments"] as const
@@ -609,6 +682,29 @@ export const createPostComment = (
 
 export const createReport = (input: CreateReportInput) =>
   apiPost<CreateReportResponse, CreateReportInput>("/api/reports", input);
+
+export const getModerationReports = (
+  slug: string,
+  cursor: string | null = null
+) => {
+  const params = new URLSearchParams({
+    status: "OPEN",
+    limit: "20"
+  });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  return apiGet<ModerationReportsResponse>(
+    `/api/clubs/${slug}/moderation/reports?${params}`
+  );
+};
+
+export const revealModerationReport = (slug: string, reportId: string) =>
+  apiPost<RevealModerationReportResponse>(
+    `/api/clubs/${slug}/moderation/reports/${reportId}/reveal`
+  );
 
 export const createClubMilestone = (
   slug: string,
@@ -830,6 +926,20 @@ export const useCreatePostCommentMutation = (postId: string) => {
 export const useCreateReportMutation = () =>
   useMutation({
     mutationFn: createReport
+  });
+
+export const useModerationReportsQuery = (slug: string, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: clubsQueryKeys.moderationReports(slug),
+    queryFn: ({ pageParam }) => getModerationReports(slug, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
+    enabled: enabled && slug.length > 0
+  });
+
+export const useRevealModerationReportMutation = (slug: string) =>
+  useMutation({
+    mutationFn: (reportId: string) => revealModerationReport(slug, reportId)
   });
 
 export const useRevealPostMutation = (postId: string) =>

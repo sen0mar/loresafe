@@ -2,6 +2,7 @@ import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { ReportTargetRecord } from "./reports.repository.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 const canViewClub = (club: {
   visibility: ClubVisibility;
@@ -21,3 +22,6 @@ export const canReportTarget = (target: ReportTargetRecord) =>
       currentMilestonePosition: target.club.progress.currentMilestonePosition,
       requiredMilestonePosition: target.postRequiredMilestone.position
     }));
+
+export const canModerateReports = (role: ClubMembershipRole | null) =>
+  role === "OWNER" || role === "MODERATOR";
