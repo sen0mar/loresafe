@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
+  ArrowRight,
   Check,
   CircleDot,
   History,
@@ -7,6 +9,7 @@ import {
   LockKeyhole,
   RefreshCw,
   Save,
+  Sparkles,
   StepForward
 } from "lucide-react";
 import { toast } from "sonner";
@@ -166,6 +169,7 @@ export const ClubProgressPanel = ({
   const activeMode = progressModeOptions.find(
     (mode) => mode.value === progress.mode
   );
+  const latestUnlock = getLatestForwardUnlock(progress);
   const finalMilestonePosition = milestones.at(-1)?.position ?? null;
   const isFinalMilestoneComplete =
     finalMilestonePosition !== null &&
@@ -339,6 +343,31 @@ export const ClubProgressPanel = ({
         </CardContent>
       </Card>
 
+      {latestUnlock ? (
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <span className="flex size-10 items-center justify-center rounded-lg border border-brand bg-active text-brand">
+              <Sparkles className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold text-primary">
+                Recently unlocked
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                New discussions are safe through milestone{" "}
+                {latestUnlock.toPosition}.
+              </p>
+            </div>
+            <Button className="w-full" variant="secondary" asChild>
+              <Link to={`/app/clubs/${slug}/recently-unlocked`}>
+                View unlocked
+                <ArrowRight />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -416,3 +445,55 @@ const formatMilestoneOption = (milestone: ClubMilestone) =>
 
 const formatMode = (mode: ProgressMode) =>
   progressModeOptions.find((option) => option.value === mode)?.label ?? mode;
+
+const getLatestForwardUnlock = (progress: {
+  history: Array<{
+    fromMode: ProgressMode;
+    toMode: ProgressMode;
+    fromMilestone: { position: number } | null;
+    toMilestone: { position: number } | null;
+  }>;
+  totalMilestones: number;
+}) => {
+  const latestHistory = progress.history[0];
+
+  if (!latestHistory) {
+    return null;
+  }
+
+  const fromPosition = getSafeProgressPosition({
+    mode: latestHistory.fromMode,
+    milestonePosition: latestHistory.fromMilestone?.position ?? null,
+    totalMilestones: progress.totalMilestones
+  });
+  const toPosition = getSafeProgressPosition({
+    mode: latestHistory.toMode,
+    milestonePosition: latestHistory.toMilestone?.position ?? null,
+    totalMilestones: progress.totalMilestones
+  });
+
+  if (toPosition <= fromPosition) {
+    return null;
+  }
+
+  return {
+    fromPosition,
+    toPosition
+  };
+};
+
+const getSafeProgressPosition = ({
+  milestonePosition,
+  mode,
+  totalMilestones
+}: {
+  mode: ProgressMode;
+  milestonePosition: number | null;
+  totalMilestones: number;
+}) => {
+  if (mode === "FINISHED") {
+    return totalMilestones;
+  }
+
+  return milestonePosition ?? 0;
+};

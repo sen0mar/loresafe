@@ -11,6 +11,7 @@ import { ClubDetailPage } from "../features/clubs/pages/club-detail-page.js";
 import { CreateClubPage } from "../features/clubs/pages/create-club-page.js";
 import { ExplorePage } from "../features/clubs/pages/explore-page.js";
 import { PostDetailPage } from "../features/clubs/pages/post-detail-page.js";
+import { RecentlyUnlockedPage } from "../features/clubs/pages/recently-unlocked-page.js";
 import { HomePage } from "../features/health/pages/home-page.js";
 import { InviteAcceptPage } from "../features/invites/pages/invite-accept-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
@@ -67,6 +68,14 @@ export const App = () => (
           element={
             <ProtectedRoute>
               <CreateClubPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/clubs/:slug/recently-unlocked"
+          element={
+            <ProtectedRoute>
+              <RecentlyUnlockedPage />
             </ProtectedRoute>
           }
         />

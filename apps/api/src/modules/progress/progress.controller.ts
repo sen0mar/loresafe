@@ -7,11 +7,15 @@ import {
   progressService,
   type ProgressService
 } from "./progress.service.js";
-import { updateProgressRequestSchema } from "./progress.schema.js";
+import {
+  recentlyUnlockedQuerySchema,
+  updateProgressRequestSchema
+} from "./progress.schema.js";
 
 export type ProgressController = {
   advanceProgressToNextMilestoneForClubSlug: RequestHandler;
   getProgressForClubSlug: RequestHandler;
+  listRecentlyUnlockedForClubSlug: RequestHandler;
   updateProgressForClubSlug: RequestHandler;
 };
 
@@ -65,6 +69,35 @@ export const createProgressController = (
       const response = await service.getProgressForClubSlug(
         paramsResult.data.slug,
         req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  listRecentlyUnlockedForClubSlug: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const queryResult = recentlyUnlockedQuerySchema.safeParse(req.query);
+
+      if (!paramsResult.success || !queryResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the recently unlocked request and try again."
+        );
+      }
+
+      const response = await service.listRecentlyUnlockedForClubSlug(
+        paramsResult.data.slug,
+        req.currentUser.id,
+        queryResult.data
       );
 
       res.status(200).json(response);

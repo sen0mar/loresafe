@@ -17,10 +17,12 @@ import {
 import { createAuthService } from "../auth/auth.service.js";
 import {
   type ClubProgressRecord,
+  type ListRecentlyUnlockedInput,
   type ProgressClubRecord,
   type ProgressHistoryRecord,
   type ProgressMilestoneRecord,
-  type ProgressRepository
+  type ProgressRepository,
+  type RecentlyUnlockedRecord
 } from "./progress.repository.js";
 import { createProgressController } from "./progress.controller.js";
 import { createProgressRouter } from "./progress.routes.js";
@@ -808,6 +810,33 @@ class InMemoryProgressRepository
     }
 
     return this.toClubProgressRecord(userId, clubId, progress);
+  };
+
+  listRecentlyUnlockedPostsForUserClub = async (
+    userId: string,
+    clubId: string,
+    _input: ListRecentlyUnlockedInput
+  ): Promise<RecentlyUnlockedRecord> => {
+    const progress = this.findProgress(userId, clubId);
+    const currentMilestone = this.findMilestone(
+      progress?.currentMilestoneId ?? null
+    );
+
+    return {
+      unlock: {
+        historyId: null,
+        fromPosition: 0,
+        toPosition: 0,
+        unlockedAt: null
+      },
+      posts: [],
+      nextCursor: null,
+      hasMore: false,
+      currentProgress: {
+        mode: progress?.mode ?? "STRICT",
+        currentMilestonePosition: currentMilestone?.position ?? null
+      }
+    };
   };
 
   private toClubProgressRecord = (
