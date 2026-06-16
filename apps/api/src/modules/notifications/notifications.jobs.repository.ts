@@ -3,7 +3,8 @@ import type { ProgressMode } from "../progress/progress.schema.js";
 import type { NotificationType } from "./notifications.schema.js";
 import {
   createNotificationInTransaction,
-  type CreateCommentNotificationInput
+  type CreateCommentNotificationInput,
+  type CreateNotificationResult
 } from "./notifications.repository.js";
 
 export type CommentNotificationSource = {
@@ -34,7 +35,7 @@ export type NotificationsJobsRepository = {
   ) => Promise<ProgressUnlockNotificationSource | null>;
   createNotificationIfMissing: (
     input: CreateCommentNotificationInput
-  ) => Promise<{ id: string }>;
+  ) => Promise<CreateNotificationResult>;
 };
 
 export const notificationsJobsRepository: NotificationsJobsRepository = {

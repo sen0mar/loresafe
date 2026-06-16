@@ -1025,7 +1025,7 @@ export const useAdvanceClubProgressMutation = (slug: string) => {
   });
 };
 
-const invalidateClubProgressDependencies = (
+export const invalidateClubProgressDependencies = (
   queryClient: ReturnType<typeof useQueryClient>,
   slug: string
 ) => {
