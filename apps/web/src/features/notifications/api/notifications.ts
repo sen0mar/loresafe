@@ -8,7 +8,10 @@ import {
 
 import { apiGet, apiPost } from "@/shared/api/api-client";
 
-export type NotificationType = "POST_COMMENT" | "COMMENT_REPLY";
+export type NotificationType =
+  | "POST_COMMENT"
+  | "COMMENT_REPLY"
+  | "PROGRESS_UNLOCK";
 
 export type NotificationItem = {
   id: string;

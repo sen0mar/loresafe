@@ -187,7 +187,7 @@ describe("comments routes", () => {
     });
   });
 
-  it("creates a spoiler-safe notification for the post author on new comments", async () => {
+  it("enqueues an ID-only notification job for new comments", async () => {
     const author = repository.createStoredUser(validUserInput());
     const commenter = repository.createStoredUser({
       ...validUserInput(),
@@ -207,21 +207,16 @@ describe("comments routes", () => {
       })
       .expect(201);
 
-    expect(repository.notifications).toHaveLength(1);
-    expect(repository.notifications[0]).toMatchObject({
-      userId: author.id,
-      type: "POST_COMMENT",
-      safeText: "New comment in Fixture Story Club",
-      clubId: post.clubId,
-      postId: post.id,
-      requiredMilestoneId: post.requiredMilestone.id
+    expect(repository.enqueuedCommentNotificationJobs).toHaveLength(1);
+    expect(repository.enqueuedCommentNotificationJobs[0]).toMatchObject({
+      commentId: repository.comments[0].id
     });
-    expect(JSON.stringify(repository.notifications[0])).not.toContain(
+    expect(JSON.stringify(repository.enqueuedCommentNotificationJobs[0])).not.toContain(
       "UNSAFE_COMMENT_BODY_SHOULD_NOT_LEAK"
     );
   });
 
-  it("creates reply notifications for parent authors and skips self notifications", async () => {
+  it("enqueues reply notification jobs without unsafe comment content", async () => {
     const postAuthor = repository.createStoredUser(validUserInput());
     const parentAuthor = repository.createStoredUser({
       ...validUserInput(),
@@ -265,16 +260,10 @@ describe("comments routes", () => {
       })
       .expect(201);
 
-    expect(repository.notifications).toHaveLength(1);
-    expect(repository.notifications[0]).toMatchObject({
-      userId: parentAuthor.id,
-      type: "COMMENT_REPLY",
-      safeText: "New reply in Fixture Story Club",
-      clubId: post.clubId,
-      postId: post.id,
-      requiredMilestoneId: post.requiredMilestone.id
-    });
-    expect(JSON.stringify(repository.notifications[0])).not.toContain(
+    expect(repository.enqueuedCommentNotificationJobs).toHaveLength(2);
+    expect(
+      JSON.stringify(repository.enqueuedCommentNotificationJobs)
+    ).not.toContain(
       "UNSAFE_BODY"
     );
   });
@@ -1044,6 +1033,7 @@ class InMemoryCommentsRepository
   readonly posts: StoredPost[] = [];
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
   readonly notifications: StoredNotification[] = [];
+  readonly enqueuedCommentNotificationJobs: Array<{ commentId: string }> = [];
   readonly commentReactions: Array<{
     id: string;
     commentId: string;
@@ -1416,19 +1406,9 @@ class InMemoryCommentsRepository
       parentId: input.parentId ?? null
     });
 
-    if (input.notification) {
-      this.notifications.push({
-        id: crypto.randomUUID(),
-        userId: input.notification.userId,
-        type: input.notification.type,
-        safeText: input.notification.safeText,
-        clubId: input.notification.clubId,
-        postId,
-        commentId: comment.id,
-        requiredMilestoneId: input.requiredMilestoneId,
-        createdAt: comment.createdAt
-      });
-    }
+    this.enqueuedCommentNotificationJobs.push({
+      commentId: comment.id
+    });
 
     return comment;
   };

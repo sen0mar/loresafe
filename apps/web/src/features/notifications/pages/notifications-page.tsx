@@ -3,14 +3,18 @@ import {
   Check,
   ChevronRight,
   LockKeyhole,
-  MessageCircle
+  MessageCircle,
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import {
   type NotificationItem,
+  notificationsQueryKeys,
   useMarkNotificationReadMutation,
   useNotificationsInfiniteQuery
 } from "@/features/notifications/api/notifications";
@@ -27,10 +31,12 @@ import { cn } from "@/shared/lib/utils";
 
 const notificationTypeLabels: Record<NotificationItem["type"], string> = {
   POST_COMMENT: "Comment",
-  COMMENT_REPLY: "Reply"
+  COMMENT_REPLY: "Reply",
+  PROGRESS_UNLOCK: "Unlocked"
 };
 
 export const NotificationsPage = () => {
+  const queryClient = useQueryClient();
   const notificationsQuery = useNotificationsInfiniteQuery();
   const markReadMutation = useMarkNotificationReadMutation();
   const notifications =
@@ -38,6 +44,14 @@ export const NotificationsPage = () => {
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
   const hasMore =
     notificationsQuery.data?.pages.at(-1)?.pagination.hasMore ?? false;
+  const isRefreshing =
+    notificationsQuery.isFetching && !notificationsQuery.isFetchingNextPage;
+
+  const refreshNotifications = () => {
+    void queryClient.invalidateQueries({
+      queryKey: notificationsQueryKeys.root
+    });
+  };
 
   const markRead = (notification: NotificationItem) => {
     if (notification.readAt) {
@@ -64,9 +78,23 @@ export const NotificationsPage = () => {
                   : `${unreadCount} unread`}
               </p>
             </div>
-            <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand">
-              <Bell className="size-5" />
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Refresh notifications"
+                disabled={isRefreshing}
+                onClick={refreshNotifications}
+              >
+                <RefreshCw
+                  className={cn("size-4", isRefreshing && "animate-spin")}
+                />
+              </Button>
+              <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand">
+                <Bell className="size-5" />
+              </span>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {notificationsQuery.isPending ? (
@@ -127,6 +155,8 @@ const NotificationRow = ({
   const isLocked = notification.visibility === "LOCKED";
   const targetPath = notification.postId
     ? `/app/posts/${notification.postId}`
+    : notification.type === "PROGRESS_UNLOCK"
+      ? `/app/clubs/${notification.club.slug}/recently-unlocked`
     : `/app/clubs/${notification.club.slug}`;
 
   return (
@@ -143,7 +173,9 @@ const NotificationRow = ({
             isUnread && "border-brand text-brand"
           )}
         >
-          {isLocked ? (
+          {notification.type === "PROGRESS_UNLOCK" ? (
+            <Sparkles className="size-4" />
+          ) : isLocked ? (
             <LockKeyhole className="size-4" />
           ) : (
             <MessageCircle className="size-4" />

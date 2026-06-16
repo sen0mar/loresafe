@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const notificationTypeSchema = z.enum([
   "POST_COMMENT",
-  "COMMENT_REPLY"
+  "COMMENT_REPLY",
+  "PROGRESS_UNLOCK"
 ]);
 
 export const listNotificationsQuerySchema = z

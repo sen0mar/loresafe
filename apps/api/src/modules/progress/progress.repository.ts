@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import { enqueueProgressUnlockedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { PostReactionEmoji } from "../posts/posts.schema.js";
@@ -342,7 +343,7 @@ export const progressRepository: ProgressRepository = {
         }
       });
 
-      await transaction.progressHistory.create({
+      const progressHistory = await transaction.progressHistory.create({
         data: {
           userId,
           clubId,
@@ -355,6 +356,11 @@ export const progressRepository: ProgressRepository = {
           id: true
         }
       });
+
+      await enqueueProgressUnlockedNotificationJob(
+        progressHistory.id,
+        transaction
+      );
 
       const [progress, totalMilestones, history] = await Promise.all([
         transaction.clubProgress.findUniqueOrThrow({
@@ -462,7 +468,7 @@ export const progressRepository: ProgressRepository = {
       });
 
       if (hasChanged) {
-        await transaction.progressHistory.create({
+        const progressHistory = await transaction.progressHistory.create({
           data: {
             userId,
             clubId,
@@ -475,6 +481,11 @@ export const progressRepository: ProgressRepository = {
             id: true
           }
         });
+
+        await enqueueProgressUnlockedNotificationJob(
+          progressHistory.id,
+          transaction
+        );
       }
 
       const [progress, totalMilestones, history] = await Promise.all([

@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import { enqueueCommentCreatedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import {
   commentReactionEmojis,
@@ -6,8 +7,6 @@ import {
   type CreatePostCommentRequest,
   type ToggleCommentReactionRequest
 } from "./comments.schema.js";
-import { createNotificationInTransaction } from "../notifications/notifications.repository.js";
-import type { NotificationType } from "../notifications/notifications.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -59,12 +58,6 @@ export type CommentRecord = {
 
 export type CreatePostCommentInput = CreatePostCommentRequest & {
   requiredMilestoneId: string;
-  notification?: {
-    userId: string;
-    type: NotificationType;
-    safeText: string;
-    clubId: string;
-  };
 };
 
 export type CommentReactionTargetRecord = {
@@ -466,17 +459,7 @@ export const commentsRepository: CommentsRepository = {
         select: commentSelect
       });
 
-      if (input.notification) {
-        await createNotificationInTransaction(transaction, {
-          userId: input.notification.userId,
-          type: input.notification.type,
-          safeText: input.notification.safeText,
-          clubId: input.notification.clubId,
-          postId,
-          commentId: comment.id,
-          requiredMilestoneId: input.requiredMilestoneId
-        });
-      }
+      await enqueueCommentCreatedNotificationJob(comment.id, transaction);
 
       return toCommentRecord(comment);
     }),
