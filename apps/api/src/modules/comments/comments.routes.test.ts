@@ -22,8 +22,16 @@ import type {
   CommentRecord,
   CommentsRepository
 } from "./comments.repository.js";
-import { createCommentsRouter } from "./comments.routes.js";
-import type { CreatePostCommentRequest } from "./comments.schema.js";
+import {
+  createCommentReactionsRouter,
+  createCommentsRouter
+} from "./comments.routes.js";
+import {
+  commentReactionEmojis,
+  type CommentReactionEmoji,
+  type CreatePostCommentRequest,
+  type ToggleCommentReactionRequest
+} from "./comments.schema.js";
 import { createCommentsService } from "./comments.service.js";
 
 describe("comments routes", () => {
@@ -69,6 +77,47 @@ describe("comments routes", () => {
     expect(response.body.error).toMatchObject({
       code: "BAD_REQUEST",
       message: "Check the comment details and try again."
+    });
+  });
+
+  it("rejects comment reaction toggles without an authenticated session", async () => {
+    const response = await request(app)
+      .post(`/api/comments/${crypto.randomUUID()}/reactions/toggle`)
+      .set("x-request-id", "comment-reaction-missing-session")
+      .send({
+        emoji: "👍"
+      })
+      .expect(401);
+
+    expect(response.body.error).toMatchObject({
+      code: "UNAUTHORIZED",
+      message: "Authentication required",
+      requestId: "comment-reaction-missing-session"
+    });
+  });
+
+  it("validates comment reaction toggle input", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .post("/api/comments/not-a-uuid/reactions/toggle")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        emoji: "👍"
+      })
+      .expect(400);
+
+    const response = await request(app)
+      .post(`/api/comments/${crypto.randomUUID()}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        emoji: "🔥"
+      })
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Check the reaction request and try again."
     });
   });
 
@@ -558,6 +607,245 @@ describe("comments routes", () => {
     });
   });
 
+  it("toggles comment reactions and returns updated aggregate counts", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other-comment-reactor@example.com"
+    });
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    repository.createMembership(otherUser.id, post.clubId);
+    repository.setProgress(otherUser.id, post.clubId, 1);
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Reaction-worthy comment"
+      }
+    );
+    repository.createCommentReaction(comment.id, otherUser.id, "👍");
+    repository.createCommentReaction(comment.id, otherUser.id, "❤️");
+
+    const cookie = await createSessionCookie(user);
+    const firstToggleResponse = await request(app)
+      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .set("Cookie", cookie)
+      .send({
+        emoji: "👍"
+      })
+      .expect(200);
+
+    expect(firstToggleResponse.body.comment).toMatchObject({
+      id: comment.id,
+      visibility: "VISIBLE",
+      counts: {
+        reactionCount: 3,
+        reactions: expect.arrayContaining([
+          {
+            emoji: "👍",
+            count: 2,
+            reactedByMe: true
+          },
+          {
+            emoji: "❤️",
+            count: 1,
+            reactedByMe: false
+          }
+        ])
+      }
+    });
+    expect(repository.commentReactions).toHaveLength(3);
+
+    const secondToggleResponse = await request(app)
+      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .set("Cookie", cookie)
+      .send({
+        emoji: "👍"
+      })
+      .expect(200);
+
+    expect(secondToggleResponse.body.comment.counts).toMatchObject({
+      reactionCount: 2,
+      reactions: expect.arrayContaining([
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByMe: false
+        }
+      ])
+    });
+    expect(repository.commentReactions).toHaveLength(2);
+  });
+
+  it("returns comment reaction aggregates on visible and locked comment reads", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "aggregate-comment-reactor@example.com"
+    });
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 2);
+    const visibleComment = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Visible reaction count"
+      }
+    );
+    const lockedComment = repository.createComment(
+      post.id,
+      user.id,
+      futureMilestone,
+      {
+        body: "LOCKED_REACTION_COUNT_BODY"
+      }
+    );
+    repository.createCommentReaction(visibleComment.id, user.id, "👍");
+    repository.createCommentReaction(lockedComment.id, otherUser.id, "👀");
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.comments).toHaveLength(2);
+    expect(response.body.comments[0]).toMatchObject({
+      visibility: "VISIBLE",
+      counts: {
+        reactionCount: 1,
+        reactions: expect.arrayContaining([
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByMe: true
+          }
+        ])
+      }
+    });
+    expect(response.body.comments[1]).toMatchObject({
+      visibility: "LOCKED",
+      counts: {
+        reactionCount: 1,
+        reactions: expect.arrayContaining([
+          {
+            emoji: "👀",
+            count: 1,
+            reactedByMe: false
+          }
+        ])
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_REACTION_COUNT_BODY"
+    );
+  });
+
+  it("denies private and locked comment reaction toggles without creating rows", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const privatePost = repository.createPostFixture(user.id, {
+      clubVisibility: "PRIVATE",
+      postMilestonePosition: 1,
+      progressPosition: 1
+    });
+    const privateComment = repository.createComment(
+      privatePost.id,
+      user.id,
+      privatePost.requiredMilestone,
+      {
+        body: "PRIVATE_COMMENT_BODY"
+      }
+    );
+    const lockedPost = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(lockedPost.clubId, 2);
+    const lockedComment = repository.createComment(
+      lockedPost.id,
+      user.id,
+      futureMilestone,
+      {
+        body: "LOCKED_COMMENT_REACTION_BODY"
+      }
+    );
+
+    const privateResponse = await request(app)
+      .post(`/api/comments/${privateComment.id}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        emoji: "👍"
+      })
+      .expect(404);
+
+    expect(privateResponse.body.error).toMatchObject({
+      code: "NOT_FOUND",
+      message: "Comment not found"
+    });
+    expect(JSON.stringify(privateResponse.body)).not.toContain(
+      "PRIVATE_COMMENT_BODY"
+    );
+
+    const lockedResponse = await request(app)
+      .post(`/api/comments/${lockedComment.id}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        emoji: "👀"
+      })
+      .expect(403);
+
+    expect(lockedResponse.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Reach the required milestone before reacting to this comment."
+    });
+    expect(JSON.stringify(lockedResponse.body)).not.toContain(
+      "LOCKED_COMMENT_REACTION_BODY"
+    );
+    expect(repository.commentReactions).toHaveLength(0);
+  });
+
+  it("rejects comment reactions from banned members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Banned users cannot react"
+      }
+    );
+    repository.createBan(user.id, post.clubId);
+
+    const response = await request(app)
+      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        emoji: "👍"
+      })
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot react in this club."
+    });
+    expect(repository.commentReactions).toHaveLength(0);
+  });
+
   it("excludes hidden and deleted comments and counts only visible active comments", async () => {
     const user = repository.createStoredUser(validUserInput());
     const post = repository.createPostFixture(user.id, {
@@ -602,6 +890,10 @@ const createCommentsTestApp = (
   app.use(express.json());
   app.use(cookieParser());
   app.use("/api/posts", createCommentsRouter(commentsController, authMiddleware));
+  app.use(
+    "/api/comments",
+    createCommentReactionsRouter(commentsController, authMiddleware)
+  );
   app.use(errorHandler);
 
   return app;
@@ -646,6 +938,12 @@ class InMemoryCommentsRepository
     [];
   readonly posts: StoredPost[] = [];
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
+  readonly commentReactions: Array<{
+    id: string;
+    commentId: string;
+    userId: string;
+    emoji: CommentReactionEmoji;
+  }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -837,6 +1135,8 @@ class InMemoryCommentsRepository
         username: author.username
       },
       requiredMilestone,
+      reactionCount: 0,
+      reactions: emptyCommentReactions(),
       createdAt: now,
       updatedAt: now,
       deletedAt: input.deletedAt ?? null
@@ -845,6 +1145,23 @@ class InMemoryCommentsRepository
     this.comments.push(comment);
 
     return comment;
+  };
+
+  createCommentReaction = (
+    commentId: string,
+    userId: string,
+    emoji: CommentReactionEmoji
+  ) => {
+    const reaction = {
+      id: crypto.randomUUID(),
+      commentId,
+      userId,
+      emoji
+    };
+
+    this.commentReactions.push(reaction);
+
+    return reaction;
   };
 
   countVisibleComments = (postId: string) =>
@@ -906,7 +1223,7 @@ class InMemoryCommentsRepository
         storedComment.deletedAt === null
     );
 
-    return comment ?? null;
+    return comment ? this.withCommentReactions(comment) : null;
   };
 
   findMilestoneForClub = async (milestoneId: string, clubId: string) =>
@@ -914,7 +1231,7 @@ class InMemoryCommentsRepository
       (milestone) => milestone.id === milestoneId && milestone.clubId === clubId
     ) ?? null;
 
-  listVisibleCommentsForPost = async (postId: string) =>
+  listVisibleCommentsForPost = async (postId: string, userId: string) =>
     this.comments
       .filter(
         (comment) =>
@@ -926,7 +1243,35 @@ class InMemoryCommentsRepository
         (firstComment, secondComment) =>
           firstComment.createdAt.getTime() - secondComment.createdAt.getTime() ||
           firstComment.id.localeCompare(secondComment.id)
-      );
+      )
+      .map((comment) => this.withCommentReactions(comment, userId));
+
+  findVisibleCommentForReaction = async (
+    commentId: string,
+    userId: string
+  ) => {
+    const comment = this.comments.find(
+      (storedComment) =>
+        storedComment.id === commentId &&
+        storedComment.status === "VISIBLE" &&
+        storedComment.deletedAt === null
+    );
+
+    if (!comment) {
+      return null;
+    }
+
+    const post = await this.findPostForComments(comment.postId, userId);
+
+    if (!post) {
+      return null;
+    }
+
+    return {
+      comment: this.withCommentReactions(comment, userId),
+      post
+    };
+  };
 
   createPostComment = async (
     postId: string,
@@ -964,6 +1309,27 @@ class InMemoryCommentsRepository
     });
   };
 
+  toggleCommentReaction = async (
+    commentId: string,
+    userId: string,
+    input: ToggleCommentReactionRequest
+  ) => {
+    const existingReactionIndex = this.commentReactions.findIndex(
+      (reaction) =>
+        reaction.commentId === commentId &&
+        reaction.userId === userId &&
+        reaction.emoji === input.emoji
+    );
+
+    if (existingReactionIndex >= 0) {
+      this.commentReactions.splice(existingReactionIndex, 1);
+    } else {
+      this.createCommentReaction(commentId, userId, input.emoji);
+    }
+
+    return this.findVisibleCommentForReaction(commentId, userId);
+  };
+
   private findStoredUser = (id: string) => {
     for (const user of this.usersByEmail.values()) {
       if (user.id === id) {
@@ -990,6 +1356,34 @@ class InMemoryCommentsRepository
       (ban) =>
         ban.userId === userId && ban.clubId === clubId && ban.revokedAt === null
     );
+
+  private withCommentReactions = (
+    comment: CommentRecord & { deletedAt: Date | null },
+    userId?: string
+  ): CommentRecord => {
+    const reactions = commentReactionEmojis.map((emoji) => {
+      const matchingReactions = this.commentReactions.filter(
+        (reaction) => reaction.commentId === comment.id && reaction.emoji === emoji
+      );
+
+      return {
+        emoji,
+        count: matchingReactions.length,
+        reactedByMe:
+          userId !== undefined &&
+          matchingReactions.some((reaction) => reaction.userId === userId)
+      };
+    });
+
+    return {
+      ...comment,
+      reactionCount: reactions.reduce(
+        (total, reaction) => total + reaction.count,
+        0
+      ),
+      reactions
+    };
+  };
 }
 
 const createSessionCookie = async (user: AuthUserRecord) => {
@@ -1010,3 +1404,10 @@ const validUserInput = () => ({
 const validCommentInput = () => ({
   body: "This is a spoiler-safe comment."
 });
+
+const emptyCommentReactions = () =>
+  commentReactionEmojis.map((emoji) => ({
+    emoji,
+    count: 0,
+    reactedByMe: false
+  }));

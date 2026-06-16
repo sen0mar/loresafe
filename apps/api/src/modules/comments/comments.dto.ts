@@ -1,4 +1,5 @@
 import type { ProgressMode } from "../progress/progress.schema.js";
+import type { CommentReactionEmoji } from "./comments.schema.js";
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { CommentRecord } from "./comments.repository.js";
 
@@ -8,6 +9,15 @@ type RequiredMilestoneDto = {
   id: string;
   position: number;
   label: string;
+};
+
+export type CommentReactionCountsDto = {
+  reactionCount: number;
+  reactions: Array<{
+    emoji: CommentReactionEmoji;
+    count: number;
+    reactedByMe: boolean;
+  }>;
 };
 
 export type VisibleCommentDto = {
@@ -22,6 +32,7 @@ export type VisibleCommentDto = {
   };
   parentId: string | null;
   requiredMilestone: RequiredMilestoneDto;
+  counts: CommentReactionCountsDto;
   createdAt: string;
   updatedAt: string;
 };
@@ -32,6 +43,7 @@ export type LockedCommentDto = {
   status: CommentStatusDto;
   parentId: string | null;
   requiredMilestone: RequiredMilestoneDto;
+  counts: CommentReactionCountsDto;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -55,6 +67,10 @@ export type RevealCommentResponse = {
   comment: RevealedCommentDto;
 };
 
+export type ToggleCommentReactionResponse = {
+  comment: CommentDto;
+};
+
 export type CommentVisibilityContext = {
   mode: ProgressMode;
   currentMilestonePosition: number | null;
@@ -74,6 +90,10 @@ export const toCommentDto = (
     status: comment.status,
     parentId: comment.parentId,
     requiredMilestone,
+    counts: {
+      reactionCount: comment.reactionCount,
+      reactions: comment.reactions
+    },
     createdAt: comment.createdAt.toISOString(),
     updatedAt: comment.updatedAt.toISOString()
   };
@@ -120,6 +140,10 @@ export const toRevealedCommentDto = (
     id: comment.requiredMilestone.id,
     position: comment.requiredMilestone.position,
     label: comment.requiredMilestone.safeTitle
+  },
+  counts: {
+    reactionCount: comment.reactionCount,
+    reactions: comment.reactions
   },
   createdAt: comment.createdAt.toISOString(),
   updatedAt: comment.updatedAt.toISOString()

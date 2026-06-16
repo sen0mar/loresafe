@@ -8,6 +8,7 @@ import {
   type CreatePostCommentResponse,
   type PostCommentsResponse,
   type RevealCommentResponse,
+  type ToggleCommentReactionResponse,
   toCommentDto,
   toRevealedCommentDto
 } from "./comments.dto.js";
@@ -17,8 +18,15 @@ import {
   type CommentPostRecord,
   type CommentsRepository
 } from "./comments.repository.js";
-import { canCreatePostComment, canViewPostComments } from "./comments.policy.js";
-import type { CreatePostCommentRequest } from "./comments.schema.js";
+import {
+  canCreatePostComment,
+  canToggleCommentReaction,
+  canViewPostComments
+} from "./comments.policy.js";
+import type {
+  CreatePostCommentRequest,
+  ToggleCommentReactionRequest
+} from "./comments.schema.js";
 
 export type CommentsService = {
   listPostComments: (
@@ -35,6 +43,11 @@ export type CommentsService = {
     commentId: string,
     userId: string
   ) => Promise<RevealCommentResponse>;
+  toggleCommentReactionById: (
+    commentId: string,
+    userId: string,
+    input: ToggleCommentReactionRequest
+  ) => Promise<ToggleCommentReactionResponse>;
 };
 
 export const createCommentsService = (
@@ -47,7 +60,10 @@ export const createCommentsService = (
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
-    const comments = await repository.listVisibleCommentsForPost(post.id);
+    const comments = await repository.listVisibleCommentsForPost(
+      post.id,
+      userId
+    );
 
     return {
       comments: comments.map((comment) =>
@@ -150,6 +166,57 @@ export const createCommentsService = (
 
     return {
       comment: toRevealedCommentDto(comment)
+    };
+  },
+
+  toggleCommentReactionById: async (commentId, userId, input) => {
+    const target = await repository.findVisibleCommentForReaction(
+      commentId,
+      userId
+    );
+
+    if (!target || !canViewPostComments(target.post)) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (!canToggleCommentReaction(target.post)) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "You cannot react in this club."
+      );
+    }
+
+    if (
+      !canViewRequiredMilestone({
+        mode: target.post.club.progress.mode,
+        currentMilestonePosition:
+          target.post.club.progress.currentMilestonePosition,
+        requiredMilestonePosition: target.comment.requiredMilestone.position
+      })
+    ) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Reach the required milestone before reacting to this comment."
+      );
+    }
+
+    const toggledTarget = await repository.toggleCommentReaction(
+      commentId,
+      userId,
+      input
+    );
+
+    if (!toggledTarget || !canViewPostComments(toggledTarget.post)) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    return {
+      comment: toCommentDto(
+        toggledTarget.comment,
+        toggledTarget.post.club.progress
+      )
     };
   }
 });

@@ -21,3 +21,6 @@ export const canCreatePostComment = (
     currentMilestonePosition: post.club.progress.currentMilestonePosition,
     requiredMilestonePosition
   });
+
+export const canToggleCommentReaction = (post: CommentPostRecord) =>
+  !post.club.isCurrentUserBanned;

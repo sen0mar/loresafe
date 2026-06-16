@@ -29,6 +29,7 @@ export type PostType =
 export type PostStatus = "VISIBLE" | "HIDDEN";
 
 export type PostReactionEmoji = "👍" | "❤️" | "😂" | "😮" | "👀";
+export type CommentReactionEmoji = PostReactionEmoji;
 
 export const postReactionEmojis: PostReactionEmoji[] = [
   "👍",
@@ -37,6 +38,7 @@ export const postReactionEmojis: PostReactionEmoji[] = [
   "😮",
   "👀"
 ];
+export const commentReactionEmojis = postReactionEmojis;
 
 export type ClubFeedTab =
   | "safe"
@@ -138,6 +140,15 @@ export type ClubPostCounts = {
   }>;
 };
 
+export type CommentReactionCounts = {
+  reactionCount: number;
+  reactions: Array<{
+    emoji: CommentReactionEmoji;
+    count: number;
+    reactedByMe: boolean;
+  }>;
+};
+
 export type ClubPostRequiredMilestone = {
   id: string;
   position: number;
@@ -196,6 +207,7 @@ export type VisibleComment = {
   };
   parentId: string | null;
   requiredMilestone: ClubPostRequiredMilestone;
+  counts: CommentReactionCounts;
   createdAt: string;
   updatedAt: string;
 };
@@ -206,6 +218,7 @@ export type LockedComment = {
   status: PostStatus;
   parentId: string | null;
   requiredMilestone: ClubPostRequiredMilestone;
+  counts: CommentReactionCounts;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -297,6 +310,14 @@ export type TogglePostReactionInput = {
 
 export type TogglePostReactionResponse = {
   post: ClubPostCard;
+};
+
+export type ToggleCommentReactionInput = {
+  emoji: CommentReactionEmoji;
+};
+
+export type ToggleCommentReactionResponse = {
+  comment: Comment;
 };
 
 export type PostCommentsResponse = {
@@ -437,6 +458,15 @@ export const togglePostReaction = (
 ) =>
   apiPost<TogglePostReactionResponse, TogglePostReactionInput>(
     `/api/posts/${postId}/reactions/toggle`,
+    input
+  );
+
+export const toggleCommentReaction = (
+  commentId: string,
+  input: ToggleCommentReactionInput
+) =>
+  apiPost<ToggleCommentReactionResponse, ToggleCommentReactionInput>(
+    `/api/comments/${commentId}/reactions/toggle`,
     input
   );
 
@@ -785,6 +815,59 @@ export const useTogglePostReactionMutation = (
   });
 };
 
+export const useToggleCommentReactionMutation = (
+  postId: string,
+  commentId: string
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ToggleCommentReactionInput) =>
+      toggleCommentReaction(commentId, input),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
+        queryKey: clubsQueryKeys.postComments(postId)
+      });
+
+      const previousComments =
+        queryClient.getQueryData<PostCommentsResponse>(
+          clubsQueryKeys.postComments(postId)
+        ) ?? null;
+
+      queryClient.setQueryData<PostCommentsResponse>(
+        clubsQueryKeys.postComments(postId),
+        (currentResponse) =>
+          updateCommentInResponse(currentResponse, (comment) =>
+            comment.id === commentId
+              ? toggleCommentReactionOnComment(comment, input.emoji)
+              : comment
+          )
+      );
+
+      return {
+        previousComments
+      };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousComments) {
+        queryClient.setQueryData(
+          clubsQueryKeys.postComments(postId),
+          context.previousComments
+        );
+      }
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData<PostCommentsResponse>(
+        clubsQueryKeys.postComments(postId),
+        (currentResponse) =>
+          updateCommentInResponse(currentResponse, (comment) =>
+            comment.id === response.comment.id ? response.comment : comment
+          )
+      );
+    }
+  });
+};
+
 export const useRevealPostCommentMutation = (postId: string) =>
   useMutation({
     mutationFn: (commentId: string) => revealPostComment(postId, commentId)
@@ -942,6 +1025,20 @@ const updatePostInInfiniteData = (
   };
 };
 
+const updateCommentInResponse = (
+  currentResponse: PostCommentsResponse | undefined,
+  updateComment: (comment: Comment) => Comment
+) => {
+  if (!currentResponse) {
+    return currentResponse;
+  }
+
+  return {
+    ...currentResponse,
+    comments: currentResponse.comments.map(updateComment)
+  };
+};
+
 export const togglePostReactionOnCard = (
   post: ClubPostCard,
   emoji: PostReactionEmoji
@@ -971,6 +1068,43 @@ export const togglePostReactionOnCard = (
     ...post,
     counts: {
       ...post.counts,
+      reactionCount: reactions.reduce(
+        (total, reaction) => total + reaction.count,
+        0
+      ),
+      reactions
+    }
+  };
+};
+
+export const toggleCommentReactionOnComment = (
+  comment: Comment,
+  emoji: CommentReactionEmoji
+): Comment => {
+  if (comment.visibility === "LOCKED") {
+    return comment;
+  }
+
+  const reactions = comment.counts.reactions.map((reaction) => {
+    if (reaction.emoji !== emoji) {
+      return reaction;
+    }
+
+    const reactedByMe = !reaction.reactedByMe;
+    const count = reactedByMe
+      ? reaction.count + 1
+      : Math.max(0, reaction.count - 1);
+
+    return {
+      ...reaction,
+      count,
+      reactedByMe
+    };
+  });
+
+  return {
+    ...comment,
+    counts: {
       reactionCount: reactions.reduce(
         (total, reaction) => total + reaction.count,
         0

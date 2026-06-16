@@ -70,6 +70,7 @@ model User {
   posts              Post[]
   comments           Comment[]
   postReactions      PostReaction[]
+  commentReactions   CommentReaction[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -286,6 +287,7 @@ model Comment {
   parent            Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies           Comment[] @relation("CommentReplies")
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  reactions         CommentReaction[]
 
   @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
   @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
@@ -293,4 +295,22 @@ model Comment {
   @@index([parentId], map: "comments_parent_id_idx")
   @@index([requiredMilestoneId], map: "comments_required_milestone_id_idx")
   @@map("comments")
+}
+
+model CommentReaction {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String   @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId, emoji], map: "comment_reactions_user_id_comment_id_emoji_unique")
+  @@index([commentId], map: "comment_reactions_comment_id_idx")
+  @@index([commentId, emoji], map: "comment_reactions_comment_id_emoji_idx")
+  @@index([userId], map: "comment_reactions_user_id_idx")
+  @@map("comment_reactions")
 }

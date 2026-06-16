@@ -37,3 +37,21 @@ export const createCommentsRouter = (
 };
 
 export const commentsRouter = createCommentsRouter();
+
+export const createCommentReactionsRouter = (
+  controller: CommentsController = commentsController,
+  middleware: AuthMiddleware = authMiddleware
+) => {
+  const router = Router();
+
+  router.post(
+    "/:commentId/reactions/toggle",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.toggleCommentReactionById
+  );
+
+  return router;
+};
+
+export const commentReactionsRouter = createCommentReactionsRouter();
