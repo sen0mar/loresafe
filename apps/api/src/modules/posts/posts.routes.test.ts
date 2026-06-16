@@ -1292,6 +1292,7 @@ class InMemoryPostsRepository
       post,
       club: {
         id: club.id,
+        slug: club.slug,
         visibility: club.visibility,
         currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
         progress: {

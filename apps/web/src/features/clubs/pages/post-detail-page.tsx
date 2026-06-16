@@ -1,12 +1,15 @@
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Clock3,
   LockKeyhole,
+  MessageCircleReply,
   MessageSquareText,
   RefreshCw,
   Send,
+  SlidersHorizontal,
+  X,
   UserCircle
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +24,10 @@ import { Textarea } from "@/shared/components/ui/textarea";
 
 import {
   type Comment,
+  type ClubMilestone,
   type ClubPostCard,
+  type ClubPostRequiredMilestone,
+  useClubMilestonesQuery,
   useCreatePostCommentMutation,
   usePostCommentsQuery,
   usePostQuery
@@ -66,6 +72,7 @@ export const PostDetailPage = () => {
           <>
             <PostCard post={postQuery.data.post} />
             <CommentsPanel
+              clubSlug={postQuery.data.club.slug}
               comments={commentsQuery.data?.comments ?? []}
               error={commentsQuery.error}
               isError={commentsQuery.isError}
@@ -132,6 +139,7 @@ const PostDetailError = ({
 };
 
 const CommentsPanel = ({
+  clubSlug,
   comments,
   error,
   isError,
@@ -140,6 +148,7 @@ const CommentsPanel = ({
   post,
   postId
 }: {
+  clubSlug: string;
   comments: Comment[];
   error: Error | null;
   isError: boolean;
@@ -147,77 +156,204 @@ const CommentsPanel = ({
   onRetry: () => void;
   post: ClubPostCard;
   postId: string;
-}) => (
-  <Card>
-    <CardHeader className="space-y-1">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
-          <MessageSquareText className="size-5 text-brand" />
-          Comments
-        </h2>
-        <span className="text-xs text-faint">
-          {post.counts.commentCount} total
-        </span>
-      </div>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      {post.visibility === "VISIBLE" ? (
-        <CommentForm postId={postId} />
-      ) : (
-        <div className="rounded-lg border border-default bg-inset p-4 text-sm text-muted">
-          Reach the required milestone to join this discussion.
-        </div>
-      )}
+}) => {
+  const [replyParentId, setReplyParentId] = useState<string | null>(null);
+  const threads = useMemo(() => buildCommentThreads(comments), [comments]);
+  const milestonesQuery = useClubMilestonesQuery(
+    clubSlug,
+    1,
+    post.visibility === "VISIBLE"
+  );
+  const milestones = milestonesQuery.data?.milestones ?? [];
 
-      {isLoading ? (
-        <CommentsLoading />
-      ) : isError ? (
-        <CommentsError error={error} onRetry={onRetry} />
-      ) : comments.length === 0 ? (
-        <CommentsEmpty />
-      ) : (
-        <div className="space-y-3">
-          {comments.map((comment) => (
-            <CommentBlock key={comment.id} comment={comment} />
-          ))}
+  return (
+    <Card>
+      <CardHeader className="space-y-1">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
+            <MessageSquareText className="size-5 text-brand" />
+            Comments
+          </h2>
+          <span className="text-xs text-faint">
+            {post.counts.commentCount} total
+          </span>
         </div>
-      )}
-    </CardContent>
-  </Card>
-);
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {post.visibility === "VISIBLE" ? (
+          <CommentForm
+            baseMilestone={post.requiredMilestone}
+            label="Add a comment"
+            milestones={milestones}
+            milestoneHelp={
+              milestonesQuery.isError
+                ? "Could not load advanced milestone options."
+                : undefined
+            }
+            postId={postId}
+            submitLabel="Post comment"
+          />
+        ) : (
+          <div className="rounded-lg border border-default bg-inset p-4 text-sm text-muted">
+            Reach the required milestone to join this discussion.
+          </div>
+        )}
 
-const CommentForm = ({ postId }: { postId: string }) => {
-  const [values, setValues] = useState<CreateCommentFormValues>({
-    body: ""
-  });
-  const [error, setError] = useState<string | undefined>();
+        {isLoading ? (
+          <CommentsLoading />
+        ) : isError ? (
+          <CommentsError error={error} onRetry={onRetry} />
+        ) : comments.length === 0 ? (
+          <CommentsEmpty />
+        ) : (
+          <div className="space-y-3">
+            {threads.map((thread) => (
+              <CommentThreadBlock
+                key={thread.parent.id}
+                milestones={milestones}
+                onReply={(commentId) => setReplyParentId(commentId)}
+                onReplyCancel={() => setReplyParentId(null)}
+                postId={postId}
+                replyParentId={replyParentId}
+                thread={thread}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+type CommentThread = {
+  parent: Comment;
+  replies: Comment[];
+};
+
+const buildCommentThreads = (comments: Comment[]): CommentThread[] => {
+  const commentIds = new Set(comments.map((comment) => comment.id));
+  const repliesByParent = new Map<string, Comment[]>();
+  const parents: Comment[] = [];
+
+  for (const comment of comments) {
+    if (comment.parentId && commentIds.has(comment.parentId)) {
+      repliesByParent.set(comment.parentId, [
+        ...(repliesByParent.get(comment.parentId) ?? []),
+        comment
+      ]);
+      continue;
+    }
+
+    parents.push(comment);
+  }
+
+  return parents.map((parent) => ({
+    parent,
+    replies: repliesByParent.get(parent.id) ?? []
+  }));
+};
+
+const CommentForm = ({
+  baseMilestone,
+  label,
+  milestoneHelp,
+  milestones,
+  onCancel,
+  onPosted,
+  parentId,
+  postId,
+  submitLabel
+}: {
+  baseMilestone: ClubPostRequiredMilestone;
+  label: string;
+  milestoneHelp?: string;
+  milestones: ClubMilestone[];
+  onCancel?: () => void;
+  onPosted?: () => void;
+  parentId?: string;
+  postId: string;
+  submitLabel: string;
+}) => {
+  const [body, setBody] = useState("");
+  const [requiredMilestoneId, setRequiredMilestoneId] = useState(
+    baseMilestone.id
+  );
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [errors, setErrors] = useState<{
+    body?: string;
+    requiredMilestoneId?: string;
+  }>({});
   const createCommentMutation = useCreatePostCommentMutation(postId);
   const isSaving = createCommentMutation.isPending;
+  const bodyId = parentId ? `reply-${parentId}-body` : "comment-body";
+  const milestoneId = parentId
+    ? `reply-${parentId}-required-milestone`
+    : "comment-required-milestone";
+  const eligibleMilestones = milestones.filter(
+    (milestone) => milestone.position >= baseMilestone.position
+  );
+  const milestoneOptions = eligibleMilestones.some(
+    (milestone) => milestone.id === baseMilestone.id
+  )
+    ? eligibleMilestones
+    : [
+        {
+          id: baseMilestone.id,
+          position: baseMilestone.position,
+          safeTitle: baseMilestone.label,
+          fullTitle: null,
+          description: null,
+          spoilerName: false,
+          isFullTitleHidden: false
+        },
+        ...eligibleMilestones
+      ];
 
   const updateBody = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setValues({
-      body: event.target.value
-    });
-    setError(undefined);
+    setBody(event.target.value);
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      body: undefined
+    }));
+  };
+
+  const updateMilestone = (event: ChangeEvent<HTMLSelectElement>) => {
+    setRequiredMilestoneId(event.target.value);
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      requiredMilestoneId: undefined
+    }));
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const values: CreateCommentFormValues = {
+      body,
+      parentId,
+      requiredMilestoneId:
+        requiredMilestoneId === baseMilestone.id
+          ? undefined
+          : requiredMilestoneId
+    };
     const parseResult = createCommentSchema.safeParse(values);
 
     if (!parseResult.success) {
-      setError(parseResult.error.flatten().fieldErrors.body?.[0]);
+      const fieldErrors = parseResult.error.flatten().fieldErrors;
+      setErrors({
+        body: fieldErrors.body?.[0],
+        requiredMilestoneId: fieldErrors.requiredMilestoneId?.[0]
+      });
       return;
     }
 
     createCommentMutation.mutate(parseResult.data, {
       onSuccess: () => {
         toast.success("Comment posted");
-        setValues({
-          body: ""
-        });
-        setError(undefined);
+        setBody("");
+        setRequiredMilestoneId(baseMilestone.id);
+        setErrors({});
+        onPosted?.();
       },
       onError: (mutationError) => {
         toast.error(
@@ -233,47 +369,176 @@ const CommentForm = ({ postId }: { postId: string }) => {
     <form className="space-y-3" onSubmit={handleSubmit}>
       <label
         className="grid gap-2 text-sm font-medium text-secondary"
-        htmlFor="comment-body"
+        htmlFor={bodyId}
       >
-        Add a comment
+        {label}
         <Textarea
-          id="comment-body"
-          value={values.body}
+          id={bodyId}
+          value={body}
           onChange={updateBody}
           disabled={isSaving}
-          rows={4}
+          rows={parentId ? 3 : 4}
           maxLength={8000}
           placeholder="Share a spoiler-safe thought..."
-          aria-invalid={!!error}
-          aria-describedby={error ? "comment-body-error" : undefined}
+          aria-invalid={!!errors.body}
+          aria-describedby={errors.body ? `${bodyId}-error` : undefined}
         />
-        {error ? (
-          <span id="comment-body-error" className="text-xs text-warning">
-            {error}
+        {errors.body ? (
+          <span id={`${bodyId}-error`} className="text-xs text-warning">
+            {errors.body}
           </span>
         ) : null}
       </label>
-      <div className="flex justify-end">
+      <div className="space-y-3 rounded-lg border border-default bg-inset p-3">
+        <button
+          className="flex w-full items-center justify-between gap-3 text-left text-xs font-medium text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          type="button"
+          onClick={() => setIsAdvancedOpen((isOpen) => !isOpen)}
+        >
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal className="size-4 text-brand" />
+            Advanced comment options
+          </span>
+          <span className="text-faint">
+            Milestone {getSelectedMilestoneLabel(requiredMilestoneId, milestoneOptions)}
+          </span>
+        </button>
+        {isAdvancedOpen ? (
+          <label
+            className="grid gap-2 text-xs font-medium text-secondary"
+            htmlFor={milestoneId}
+          >
+            Requires later milestone
+            <select
+              id={milestoneId}
+              className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition focus-visible:ring-2 focus-visible:ring-brand"
+              value={requiredMilestoneId}
+              onChange={updateMilestone}
+              disabled={isSaving}
+              aria-invalid={!!errors.requiredMilestoneId}
+              aria-describedby={
+                errors.requiredMilestoneId
+                  ? `${milestoneId}-error`
+                  : milestoneHelp
+                    ? `${milestoneId}-help`
+                    : undefined
+              }
+            >
+              {milestoneOptions.map((milestone) => (
+                <option key={milestone.id} value={milestone.id}>
+                  {milestone.position}. {milestone.safeTitle}
+                </option>
+              ))}
+            </select>
+            {errors.requiredMilestoneId ? (
+              <span id={`${milestoneId}-error`} className="text-warning">
+                {errors.requiredMilestoneId}
+              </span>
+            ) : milestoneHelp ? (
+              <span id={`${milestoneId}-help`} className="text-faint">
+                {milestoneHelp}
+              </span>
+            ) : null}
+          </label>
+        ) : null}
+      </div>
+      <div className="flex justify-end gap-2">
+        {onCancel ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isSaving}
+          >
+            <X />
+            Cancel
+          </Button>
+        ) : null}
         <Button type="submit" disabled={isSaving}>
           <Send />
-          {isSaving ? "Posting..." : "Post comment"}
+          {isSaving ? "Posting..." : submitLabel}
         </Button>
       </div>
     </form>
   );
 };
 
-const CommentBlock = ({ comment }: { comment: Comment }) =>
+const getSelectedMilestoneLabel = (
+  selectedMilestoneId: string,
+  milestones: ClubMilestone[]
+) =>
+  milestones.find((milestone) => milestone.id === selectedMilestoneId)
+    ?.position ?? "";
+
+const CommentThreadBlock = ({
+  milestones,
+  onReply,
+  onReplyCancel,
+  postId,
+  replyParentId,
+  thread
+}: {
+  milestones: ClubMilestone[];
+  onReply: (commentId: string) => void;
+  onReplyCancel: () => void;
+  postId: string;
+  replyParentId: string | null;
+  thread: CommentThread;
+}) => (
+  <div className="space-y-3">
+    <CommentBlock
+      comment={thread.parent}
+      canReply={thread.parent.visibility === "VISIBLE"}
+      onReply={() => onReply(thread.parent.id)}
+    />
+    {replyParentId === thread.parent.id &&
+    thread.parent.visibility === "VISIBLE" ? (
+      <div className="ml-4 border-l border-subtle pl-4">
+        <CommentForm
+          baseMilestone={thread.parent.requiredMilestone}
+          label="Reply"
+          milestones={milestones}
+          onCancel={onReplyCancel}
+          onPosted={onReplyCancel}
+          parentId={thread.parent.id}
+          postId={postId}
+          submitLabel="Post reply"
+        />
+      </div>
+    ) : null}
+    {thread.replies.length > 0 ? (
+      <div className="space-y-3 border-l border-subtle pl-4 md:ml-4">
+        {thread.replies.map((reply) => (
+          <CommentBlock key={reply.id} comment={reply} canReply={false} />
+        ))}
+      </div>
+    ) : null}
+  </div>
+);
+
+const CommentBlock = ({
+  canReply,
+  comment,
+  onReply
+}: {
+  canReply: boolean;
+  comment: Comment;
+  onReply?: () => void;
+}) =>
   comment.visibility === "VISIBLE" ? (
-    <VisibleCommentBlock comment={comment} />
+    <VisibleCommentBlock canReply={canReply} comment={comment} onReply={onReply} />
   ) : (
     <LockedCommentBlock comment={comment} />
   );
 
 const VisibleCommentBlock = ({
-  comment
+  canReply,
+  comment,
+  onReply
 }: {
+  canReply: boolean;
   comment: Extract<Comment, { visibility: "VISIBLE" }>;
+  onReply?: () => void;
 }) => (
   <div className="rounded-xl border border-default bg-subtle p-4">
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-faint">
@@ -290,6 +555,14 @@ const VisibleCommentBlock = ({
     <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">
       {comment.body}
     </p>
+    {canReply ? (
+      <div className="mt-3 flex justify-end">
+        <Button type="button" size="sm" variant="secondary" onClick={onReply}>
+          <MessageCircleReply />
+          Reply
+        </Button>
+      </div>
+    ) : null}
   </div>
 );
 

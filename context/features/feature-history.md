@@ -28,6 +28,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 22: Post detail route — Added authenticated `GET /api/posts/:postId` with feed sanitizer reuse, direct URL spoiler-lock protection, a protected `/app/posts/:postId` detail page, feed-card post links, and focused backend leak regression tests.
 - Feature 23: Cursor-paginated feed tabs — Added cursor-paginated `safe`, `locked`, `all`, and `my-posts` club feed tabs with backend-owned filtering, supporting indexes, tab-scoped infinite queries, and focused backend pagination/sanitization tests.
 - Feature 24: Comments foundation — Added the Comment model with a committed migration, authenticated comment list/create APIs, independent locked-comment sanitization, real post comment counts, post-detail comment UI, and focused backend authorization/leak regression tests.
+- Feature 25: Comment replies and later locks — Added one-level comment replies, optional same-club later milestone requirements, backend progress enforcement/redaction tests, and post-detail reply controls with advanced milestone selection.
 
 ## Entry Format
 

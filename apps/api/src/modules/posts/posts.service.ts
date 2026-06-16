@@ -101,7 +101,11 @@ export const createPostsService = (
     }
 
     return {
-      post: toClubPostCardDto(detail.post, detail.club.progress)
+      post: toClubPostCardDto(detail.post, detail.club.progress),
+      club: {
+        id: detail.club.id,
+        slug: detail.club.slug
+      }
     };
   }
 });

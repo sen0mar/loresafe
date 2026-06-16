@@ -74,7 +74,9 @@ export type ListClubPostsInput = {
 
 export type PostDetailRecord = {
   post: ClubPostRecord;
-  club: ClubFeedRecord;
+  club: ClubFeedRecord & {
+    slug: string;
+  };
 };
 
 export type PostsRepository = {
@@ -395,6 +397,7 @@ export const postsRepository: PostsRepository = {
         club: {
           select: {
             id: true,
+            slug: true,
             visibility: true,
             memberships: {
               where: {
@@ -445,6 +448,7 @@ export const postsRepository: PostsRepository = {
       },
       club: {
         id: post.club.id,
+        slug: post.club.slug,
         visibility: post.club.visibility,
         currentUserRole: post.club.memberships[0]?.role ?? null,
         progress: {
