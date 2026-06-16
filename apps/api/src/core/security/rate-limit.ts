@@ -230,6 +230,18 @@ export const reportCreateRateLimiter = rateLimit({
   }
 });
 
+export const moderationActionRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:moderation:actions:"),
+  identifier: "moderation-actions",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const commentReactionToggleRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 80,

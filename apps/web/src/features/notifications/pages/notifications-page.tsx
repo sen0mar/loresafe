@@ -32,7 +32,8 @@ import { cn } from "@/shared/lib/utils";
 const notificationTypeLabels: Record<NotificationItem["type"], string> = {
   POST_COMMENT: "Comment",
   COMMENT_REPLY: "Reply",
-  PROGRESS_UNLOCK: "Unlocked"
+  PROGRESS_UNLOCK: "Unlocked",
+  MODERATION_WARNING: "Warning"
 };
 
 export const NotificationsPage = () => {
@@ -153,7 +154,10 @@ const NotificationRow = ({
 }) => {
   const isUnread = !notification.readAt;
   const isLocked = notification.visibility === "LOCKED";
-  const targetPath = notification.postId
+  const targetPath =
+    notification.type === "MODERATION_WARNING"
+      ? `/app/clubs/${notification.club.slug}`
+      : notification.postId
     ? `/app/posts/${notification.postId}`
     : notification.type === "PROGRESS_UNLOCK"
       ? `/app/clubs/${notification.club.slug}/recently-unlocked`
@@ -175,6 +179,8 @@ const NotificationRow = ({
         >
           {notification.type === "PROGRESS_UNLOCK" ? (
             <Sparkles className="size-4" />
+          ) : notification.type === "MODERATION_WARNING" ? (
+            <Bell className="size-4" />
           ) : isLocked ? (
             <LockKeyhole className="size-4" />
           ) : (

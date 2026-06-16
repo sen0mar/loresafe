@@ -1,10 +1,15 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import {
+  eventsService,
+  type EventsService
+} from "../events/events.service.js";
+import {
   toModerationReportDto,
   toReportDto,
   toRevealedModerationReportDto,
   type CreateReportResponse,
   type ListModerationReportsResponse,
+  type ModerationReportActionResponse,
   type RevealModerationReportResponse
 } from "./reports.dto.js";
 import { canModerateReports, canReportTarget } from "./reports.policy.js";
@@ -17,7 +22,11 @@ import {
 } from "./reports.repository.js";
 import type {
   CreateReportRequest,
-  ListModerationReportsQuery
+  ListModerationReportsQuery,
+  ModerationReportBanRequest,
+  ModerationReportNoteRequest,
+  ModerationReportRequiredMilestoneRequest,
+  ModerationReportResolveRequest
 } from "./reports.schema.js";
 
 export type ReportsService = {
@@ -35,10 +44,47 @@ export type ReportsService = {
     reportId: string,
     userId: string
   ) => Promise<RevealModerationReportResponse>;
+  updateReportRequiredMilestoneForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportRequiredMilestoneRequest
+  ) => Promise<ModerationReportActionResponse>;
+  hideReportedContentForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportNoteRequest
+  ) => Promise<ModerationReportActionResponse>;
+  deleteReportedContentForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportNoteRequest
+  ) => Promise<ModerationReportActionResponse>;
+  warnReportedContentAuthorForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportNoteRequest
+  ) => Promise<ModerationReportActionResponse>;
+  banReportedContentAuthorForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportBanRequest
+  ) => Promise<ModerationReportActionResponse>;
+  resolveModerationReportForClub: (
+    slug: string,
+    reportId: string,
+    userId: string,
+    input: ModerationReportResolveRequest
+  ) => Promise<ModerationReportActionResponse>;
 };
 
 export const createReportsService = (
-  repository: ReportsRepository = reportsRepository
+  repository: ReportsRepository = reportsRepository,
+  eventPublisher: EventsService = eventsService
 ): ReportsService => ({
   createReport: async (userId, input) => {
     const target = await findTarget(repository, userId, input);
@@ -92,7 +138,37 @@ export const createReportsService = (
     return {
       report: toRevealedModerationReportDto(report)
     };
-  }
+  },
+
+  updateReportRequiredMilestoneForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.updateReportRequiredMilestone(club.id, reportId, userId, input)
+    ),
+
+  hideReportedContentForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.hideReportedContent(club.id, reportId, userId, input)
+    ),
+
+  deleteReportedContentForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.deleteReportedContent(club.id, reportId, userId, input)
+    ),
+
+  warnReportedContentAuthorForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.warnReportedContentAuthor(club.id, reportId, userId, input)
+    ),
+
+  banReportedContentAuthorForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.banReportedContentAuthor(club.id, reportId, userId, input)
+    ),
+
+  resolveModerationReportForClub: async (slug, reportId, userId, input) =>
+    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+      repository.resolveModerationReport(club.id, reportId, userId, input)
+    )
 });
 
 export const reportsService = createReportsService();
@@ -122,6 +198,56 @@ const getAccessibleModerationClub = (
   }
 
   return club;
+};
+
+const runModerationAction = async (
+  slug: string,
+  reportId: string,
+  userId: string,
+  repository: ReportsRepository,
+  eventPublisher: EventsService,
+  action: (
+    club: ModerationClubAccessRecord
+  ) => ReturnType<ReportsRepository["hideReportedContent"]>
+): Promise<ModerationReportActionResponse> => {
+  const club = await repository.findClubAccessBySlug(slug, userId);
+  const moderationClub = getAccessibleModerationClub(club);
+  const result = await action(moderationClub);
+
+  if (result.status === "SUCCESS") {
+    if (result.notification?.wasCreated) {
+      eventPublisher.publishNotificationCreated(result.notification.userId, {
+        notificationId: result.notification.id,
+        club: result.notification.club,
+        postId: result.notification.postId,
+        commentId: result.notification.commentId,
+        occurredAt: result.notification.createdAt.toISOString()
+      });
+    }
+
+    return {
+      report: toModerationReportDto(result.report)
+    };
+  }
+
+  switch (result.status) {
+    case "REPORT_NOT_FOUND":
+      throw new HttpError(404, "NOT_FOUND", "Report not found");
+    case "TARGET_NOT_FOUND":
+      throw new HttpError(404, "NOT_FOUND", "Reported content not found");
+    case "MILESTONE_NOT_FOUND":
+      throw new HttpError(
+        400,
+        "BAD_REQUEST",
+        "Choose a milestone from this club."
+      );
+    case "REPORT_CLOSED":
+      throw new HttpError(
+        409,
+        "CONFLICT",
+        "This report has already been resolved."
+      );
+  }
 };
 
 const encodeModerationReportsCursor = ({ createdAt, id }: ModerationReportsCursor) =>

@@ -11,7 +11,8 @@ import { apiGet, apiPost } from "@/shared/api/api-client";
 export type NotificationType =
   | "POST_COMMENT"
   | "COMMENT_REPLY"
-  | "PROGRESS_UNLOCK";
+  | "PROGRESS_UNLOCK"
+  | "MODERATION_WARNING";
 
 export type NotificationItem = {
   id: string;

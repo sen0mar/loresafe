@@ -87,6 +87,10 @@ export type RevealModerationReportResponse = {
   report: RevealedModerationReportDto;
 };
 
+export type ModerationReportActionResponse = {
+  report: ModerationReportDto;
+};
+
 export const toReportDto = (report: ReportRecord): ReportDto => ({
   id: report.id,
   targetType: report.targetType,

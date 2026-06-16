@@ -681,12 +681,326 @@ describe("reports routes", () => {
     );
     expect(JSON.stringify(response.body)).not.toContain("UNSAFE");
   });
+
+  it("validates moderation action auth, role, notes, milestones, and ban expiry", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const member = repository.createStoredUser({
+      ...validUserInput(),
+      email: "member@example.com"
+    });
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    repository.createMembership(member.id, post.clubId, "MEMBER");
+    repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    const report = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .send({})
+      .expect(401);
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .set("Cookie", await createSessionCookie(member))
+      .send({})
+      .expect(403);
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ moderatorNote: "" })
+      .expect(400);
+
+    await request(app)
+      .patch(
+        `/api/clubs/${club.slug}/moderation/reports/${report.id}/required-milestone`
+      )
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ requiredMilestoneId: crypto.randomUUID() })
+      .expect(400);
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/ban`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ expiresAt: "2020-01-01T00:00:00.000Z" })
+      .expect(400);
+
+    expect(repository.auditLogs).toHaveLength(0);
+  });
+
+  it("adjusts a reported post required milestone and writes an audit log", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1,
+      requiredMilestonePosition: 1,
+      unsafeTitle: "UNSAFE_ACTION_TITLE",
+      unsafeBody: "UNSAFE_ACTION_BODY"
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    const laterMilestone = repository.createMilestoneFixture(post.clubId, 3);
+    repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    const report = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      {
+        ...validReportInput("POST", post.id),
+        details: "UNSAFE_REPORT_DETAILS"
+      }
+    );
+
+    const response = await request(app)
+      .patch(
+        `/api/clubs/${club.slug}/moderation/reports/${report.id}/required-milestone`
+      )
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({
+        requiredMilestoneId: laterMilestone.id,
+        moderatorNote: "Move later"
+      })
+      .expect(200);
+
+    expect(post.requiredMilestone).toMatchObject({
+      id: laterMilestone.id,
+      position: 3
+    });
+    expect(repository.auditLogs).toHaveLength(1);
+    expect(repository.auditLogs[0]).toMatchObject({
+      action: "POST_REQUIRED_MILESTONE_CHANGED",
+      actorId: moderator.id,
+      clubId: post.clubId,
+      reportId: report.id,
+      postId: post.id,
+      targetUserId: reporter.id,
+      moderatorNote: "Move later"
+    });
+    expect(response.body.report).toMatchObject({
+      id: report.id,
+      status: "RESOLVED",
+      target: {
+        status: "VISIBLE",
+        requiredMilestone: {
+          id: laterMilestone.id,
+          position: 3
+        }
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("UNSAFE");
+  });
+
+  it("hides and soft-deletes reported content while writing audit logs", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1
+    });
+    const comment = repository.createCommentFixture(post.id, {
+      authorId: reporter.id
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    const postReport = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+    const commentReport = await repository.createReport(
+      reporter.id,
+      (await repository.findCommentTarget(
+        comment.id,
+        reporter.id
+      )) as ReportTargetRecord,
+      validReportInput("COMMENT", comment.id)
+    );
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${postReport.id}/hide`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ moderatorNote: "Hide this" })
+      .expect(200);
+
+    await request(app)
+      .post(
+        `/api/clubs/${club.slug}/moderation/reports/${commentReport.id}/delete`
+      )
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ moderatorNote: "Delete this" })
+      .expect(200);
+
+    expect(post.status).toBe("HIDDEN");
+    expect(comment.deletedAt).toBeInstanceOf(Date);
+    expect(repository.auditLogs.map((log) => log.action)).toEqual([
+      "POST_HIDDEN",
+      "COMMENT_DELETED"
+    ]);
+    expect(repository.reports.find((row) => row.id === postReport.id)?.status).toBe(
+      "RESOLVED"
+    );
+    expect(
+      repository.reports.find((row) => row.id === commentReport.id)?.status
+    ).toBe("RESOLVED");
+  });
+
+  it("warns and bans reported content authors with safe notification text and audit logs", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    const warnReport = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${warnReport.id}/warn`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ moderatorNote: "UNSAFE_INTERNAL_NOTE" })
+      .expect(200);
+
+    const banReport = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${banReport.id}/ban`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ expiresAt, moderatorNote: "Repeated issue" })
+      .expect(200);
+
+    expect(repository.notifications).toHaveLength(1);
+    expect(repository.notifications[0]).toMatchObject({
+      userId: reporter.id,
+      type: "MODERATION_WARNING",
+      safeText: `A moderator issued a warning in ${club.title}.`
+    });
+    expect(repository.notifications[0].safeText).not.toContain("UNSAFE");
+    expect(repository.bans).toHaveLength(1);
+    expect(repository.bans[0]).toMatchObject({
+      userId: reporter.id,
+      clubId: post.clubId
+    });
+    expect(repository.auditLogs.map((log) => log.action)).toEqual([
+      "USER_WARNED",
+      "USER_BANNED"
+    ]);
+  });
+
+  it("resolves and dismisses reports with audit logs", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    const resolvedReport = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+
+    await request(app)
+      .patch(
+        `/api/clubs/${club.slug}/moderation/reports/${resolvedReport.id}/resolve`
+      )
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ status: "RESOLVED", moderatorNote: "Handled" })
+      .expect(200);
+
+    const dismissedReport = await repository.createReport(
+      reporter.id,
+      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+
+    await request(app)
+      .patch(
+        `/api/clubs/${club.slug}/moderation/reports/${dismissedReport.id}/resolve`
+      )
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ status: "DISMISSED" })
+      .expect(200);
+
+    expect(resolvedReport.status).toBe("RESOLVED");
+    expect(dismissedReport.status).toBe("DISMISSED");
+    expect(repository.auditLogs.map((log) => log.action)).toEqual([
+      "REPORT_RESOLVED",
+      "REPORT_DISMISSED"
+    ]);
+  });
 });
 
 type StoredClub = {
   id: string;
+  title: string;
   slug: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+};
+
+type StoredMilestone = {
+  id: string;
+  clubId: string;
+  position: number;
+  safeTitle: string;
 };
 
 type StoredPost = {
@@ -724,6 +1038,7 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     AuthUserRecord & { passwordHash: string }
   >();
   readonly clubs = new Map<string, StoredClub>();
+  readonly milestones: StoredMilestone[] = [];
   readonly posts: StoredPost[] = [];
   readonly comments: StoredComment[] = [];
   readonly memberships: Array<{
@@ -743,6 +1058,35 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       clubId: string;
     }
   > = [];
+  readonly auditLogs: Array<{
+    action: string;
+    actorId: string;
+    clubId: string;
+    reportId: string;
+    postId: string | null;
+    commentId: string | null;
+    targetUserId: string | null;
+    moderatorNote: string | null;
+    metadata: Record<string, unknown>;
+  }> = [];
+  readonly notifications: Array<{
+    id: string;
+    userId: string;
+    type: string;
+    eventKey: string;
+    safeText: string;
+    clubId: string;
+    postId: string | null;
+    commentId: string | null;
+    requiredMilestoneId: string;
+  }> = [];
+  readonly bans: Array<{
+    id: string;
+    clubId: string;
+    userId: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+  }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -806,9 +1150,14 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       (input.clubId ? this.clubs.get(input.clubId) : null) ??
       ({
         id: input.clubId ?? crypto.randomUUID(),
+        title: `Club ${this.clubs.size + 1}`,
         slug: `club-${this.clubs.size + 1}`,
         visibility: input.clubVisibility ?? "PUBLIC"
       } satisfies StoredClub);
+    const requiredMilestone = this.createMilestoneFixture(
+      club.id,
+      input.requiredMilestonePosition ?? 1
+    );
     const post = {
       id: crypto.randomUUID(),
       clubId: club.id,
@@ -816,9 +1165,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       status: input.status ?? "VISIBLE",
       deletedAt: input.deletedAt ?? null,
       requiredMilestone: {
-        id: crypto.randomUUID(),
-        position: input.requiredMilestonePosition ?? 1,
-        safeTitle: `Milestone ${input.requiredMilestonePosition ?? 1}`
+        id: requiredMilestone.id,
+        position: requiredMilestone.position,
+        safeTitle: requiredMilestone.safeTitle
       },
       unsafeTitle: input.unsafeTitle ?? "UNSAFE_POST_TITLE",
       unsafeBody: input.unsafeBody ?? "UNSAFE_POST_BODY"
@@ -848,6 +1197,10 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       unsafeBody?: string;
     } = {}
   ) => {
+    const requiredMilestone = this.createMilestoneFixture(
+      this.clubIdForPost(postId),
+      input.requiredMilestonePosition ?? 1
+    );
     const comment = {
       id: crypto.randomUUID(),
       postId,
@@ -855,9 +1208,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       status: input.status ?? "VISIBLE",
       deletedAt: input.deletedAt ?? null,
       requiredMilestone: {
-        id: crypto.randomUUID(),
-        position: input.requiredMilestonePosition ?? 1,
-        safeTitle: `Milestone ${input.requiredMilestonePosition ?? 1}`
+        id: requiredMilestone.id,
+        position: requiredMilestone.position,
+        safeTitle: requiredMilestone.safeTitle
       },
       unsafeBody: input.unsafeBody ?? "UNSAFE_COMMENT_BODY"
     };
@@ -865,6 +1218,38 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     this.comments.push(comment);
 
     return comment;
+  };
+
+  createMilestoneFixture = (clubId: string, position: number) => {
+    const existingMilestone = this.milestones.find(
+      (milestone) =>
+        milestone.clubId === clubId && milestone.position === position
+    );
+
+    if (existingMilestone) {
+      return existingMilestone;
+    }
+
+    const milestone = {
+      id: crypto.randomUUID(),
+      clubId,
+      position,
+      safeTitle: `Milestone ${position}`
+    };
+
+    this.milestones.push(milestone);
+
+    return milestone;
+  };
+
+  private clubIdForPost = (postId: string) => {
+    const post = this.posts.find((storedPost) => storedPost.id === postId);
+
+    if (!post) {
+      throw new Error("Comment fixture requires a post.");
+    }
+
+    return post.clubId;
   };
 
   createMembership = (
@@ -1061,6 +1446,363 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
 
     return report ? this.toModerationReportRecord(report) : null;
   };
+
+  updateReportRequiredMilestone = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { requiredMilestoneId: string; moderatorNote?: string }
+  ) => {
+    const action = this.prepareAction(clubId, reportId);
+
+    if (action.status !== "SUCCESS") {
+      return action;
+    }
+
+    const milestone = this.milestones.find(
+      (storedMilestone) =>
+        storedMilestone.id === input.requiredMilestoneId &&
+        storedMilestone.clubId === clubId
+    );
+
+    if (!milestone) {
+      return {
+        status: "MILESTONE_NOT_FOUND" as const
+      };
+    }
+
+    action.target.requiredMilestone = {
+      id: milestone.id,
+      position: milestone.position,
+      safeTitle: milestone.safeTitle
+    };
+    this.resolveReport(action.report);
+    this.createAuditLog({
+      action:
+        action.targetType === "POST"
+          ? "POST_REQUIRED_MILESTONE_CHANGED"
+          : "COMMENT_REQUIRED_MILESTONE_CHANGED",
+      actorId,
+      clubId,
+      report: action.report,
+      target: action.target,
+      targetType: action.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        requiredMilestoneId: milestone.id
+      }
+    });
+
+    return this.successAction(action.report);
+  };
+
+  hideReportedContent = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { moderatorNote?: string }
+  ) => {
+    const action = this.prepareAction(clubId, reportId);
+
+    if (action.status !== "SUCCESS") {
+      return action;
+    }
+
+    action.target.status = "HIDDEN";
+    this.resolveReport(action.report);
+    this.createAuditLog({
+      action: action.targetType === "POST" ? "POST_HIDDEN" : "COMMENT_HIDDEN",
+      actorId,
+      clubId,
+      report: action.report,
+      target: action.target,
+      targetType: action.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        status: "HIDDEN"
+      }
+    });
+
+    return this.successAction(action.report);
+  };
+
+  deleteReportedContent = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { moderatorNote?: string }
+  ) => {
+    const action = this.prepareAction(clubId, reportId);
+
+    if (action.status !== "SUCCESS") {
+      return action;
+    }
+
+    action.target.deletedAt = new Date();
+    this.resolveReport(action.report);
+    this.createAuditLog({
+      action:
+        action.targetType === "POST" ? "POST_DELETED" : "COMMENT_DELETED",
+      actorId,
+      clubId,
+      report: action.report,
+      target: action.target,
+      targetType: action.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        deletedAt: action.target.deletedAt.toISOString()
+      }
+    });
+
+    return this.successAction(action.report);
+  };
+
+  warnReportedContentAuthor = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { moderatorNote?: string }
+  ) => {
+    const action = this.prepareAction(clubId, reportId);
+
+    if (action.status !== "SUCCESS") {
+      return action;
+    }
+
+    this.resolveReport(action.report);
+    this.createAuditLog({
+      action: "USER_WARNED",
+      actorId,
+      clubId,
+      report: action.report,
+      target: action.target,
+      targetType: action.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        targetType: action.targetType
+      }
+    });
+
+    const club = this.clubs.get(clubId);
+    const notification = {
+      id: crypto.randomUUID(),
+      userId: action.target.authorId,
+      type: "MODERATION_WARNING",
+      eventKey: `moderation-warning:${reportId}:${action.target.authorId}`,
+      safeText: `A moderator issued a warning in ${club?.title ?? "this club"}.`,
+      clubId,
+      postId: action.targetType === "POST" ? action.target.id : action.report.postId,
+      commentId:
+        action.targetType === "COMMENT" ? action.target.id : null,
+      requiredMilestoneId: action.target.requiredMilestone.id
+    };
+
+    this.notifications.push(notification);
+
+    return {
+      ...(await this.successAction(action.report)),
+      notification: {
+        id: notification.id,
+        userId: notification.userId,
+        club: {
+          id: clubId,
+          slug: club?.slug ?? "unknown"
+        },
+        postId: notification.postId,
+        commentId: notification.commentId,
+        createdAt: new Date(),
+        wasCreated: true
+      }
+    };
+  };
+
+  banReportedContentAuthor = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { expiresAt?: string; moderatorNote?: string }
+  ) => {
+    const action = this.prepareAction(clubId, reportId);
+
+    if (action.status !== "SUCCESS") {
+      return action;
+    }
+
+    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+    const existingBan = this.bans.find(
+      (ban) =>
+        ban.clubId === clubId &&
+        ban.userId === action.target.authorId &&
+        ban.revokedAt === null
+    );
+
+    if (existingBan) {
+      existingBan.expiresAt = expiresAt;
+    } else {
+      this.bans.push({
+        id: crypto.randomUUID(),
+        clubId,
+        userId: action.target.authorId,
+        expiresAt,
+        revokedAt: null
+      });
+    }
+
+    this.resolveReport(action.report);
+    this.createAuditLog({
+      action: "USER_BANNED",
+      actorId,
+      clubId,
+      report: action.report,
+      target: action.target,
+      targetType: action.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        expiresAt: expiresAt?.toISOString() ?? null
+      }
+    });
+
+    return this.successAction(action.report);
+  };
+
+  resolveModerationReport = async (
+    clubId: string,
+    reportId: string,
+    actorId: string,
+    input: { status: "RESOLVED" | "DISMISSED"; moderatorNote?: string }
+  ) => {
+    const report = this.reports.find(
+      (storedReport) =>
+        storedReport.clubId === clubId && storedReport.id === reportId
+    );
+
+    if (!report) {
+      return {
+        status: "REPORT_NOT_FOUND" as const
+      };
+    }
+
+    const target = this.targetForReport(report);
+
+    report.status = input.status;
+    report.updatedAt = new Date();
+    this.createAuditLog({
+      action:
+        input.status === "RESOLVED" ? "REPORT_RESOLVED" : "REPORT_DISMISSED",
+      actorId,
+      clubId,
+      report,
+      target,
+      targetType: report.targetType,
+      moderatorNote: input.moderatorNote,
+      metadata: {
+        status: input.status
+      }
+    });
+
+    return this.successAction(report);
+  };
+
+  private prepareAction = (clubId: string, reportId: string) => {
+    const report = this.reports.find(
+      (storedReport) =>
+        storedReport.clubId === clubId && storedReport.id === reportId
+    );
+
+    if (!report) {
+      return {
+        status: "REPORT_NOT_FOUND" as const
+      };
+    }
+
+    if (report.status !== "OPEN") {
+      return {
+        status: "REPORT_CLOSED" as const
+      };
+    }
+
+    const target = this.targetForReport(report);
+
+    if (!target) {
+      return {
+        status: "TARGET_NOT_FOUND" as const
+      };
+    }
+
+    return {
+      status: "SUCCESS" as const,
+      report,
+      target,
+      targetType: report.targetType
+    };
+  };
+
+  private targetForReport = (
+    report: ReportRecord & {
+      reporterId: string;
+      clubId: string;
+    }
+  ) =>
+    report.targetType === "POST"
+      ? this.posts.find((storedPost) => storedPost.id === report.postId) ?? null
+      : this.comments.find(
+          (storedComment) => storedComment.id === report.commentId
+        ) ?? null;
+
+  private resolveReport = (
+    report: ReportRecord & {
+      reporterId: string;
+      clubId: string;
+    }
+  ) => {
+    report.status = "RESOLVED";
+    report.updatedAt = new Date();
+  };
+
+  private createAuditLog = ({
+    action,
+    actorId,
+    clubId,
+    report,
+    target,
+    targetType,
+    moderatorNote,
+    metadata
+  }: {
+    action: string;
+    actorId: string;
+    clubId: string;
+    report: ReportRecord & {
+      reporterId: string;
+      clubId: string;
+    };
+    target: StoredPost | StoredComment | null;
+    targetType: "POST" | "COMMENT";
+    moderatorNote?: string;
+    metadata: Record<string, unknown>;
+  }) => {
+    this.auditLogs.push({
+      action,
+      actorId,
+      clubId,
+      reportId: report.id,
+      postId: targetType === "POST" ? report.postId : report.postId,
+      commentId: targetType === "COMMENT" ? report.commentId : null,
+      targetUserId: target?.authorId ?? null,
+      moderatorNote: moderatorNote ?? null,
+      metadata
+    });
+  };
+
+  private successAction = async (
+    report: ReportRecord & {
+      reporterId: string;
+      clubId: string;
+    }
+  ) => ({
+    status: "SUCCESS" as const,
+    report: this.toModerationReportRecord(report)
+  });
 
   private toPostTarget = (
     post: StoredPost,
