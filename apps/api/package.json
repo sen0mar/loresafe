@@ -11,7 +11,7 @@
     "test": "pnpm prisma:generate && vitest run",
     "prisma:generate": "node -e \"require('node:fs').rmSync('src/generated/prisma', { recursive: true, force: true })\" && prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:deploy": "node scripts/migrate-deploy-with-retry.mjs",
     "prisma:seed": "prisma db seed"
   },
   "dependencies": {
