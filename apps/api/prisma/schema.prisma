@@ -45,6 +45,13 @@ enum PostStatus {
   HIDDEN
 }
 
+enum PredictionStatus {
+  UNRESOLVED
+  CORRECT
+  WRONG
+  PARTIAL
+}
+
 enum CommentStatus {
   VISIBLE
   HIDDEN
@@ -176,6 +183,7 @@ model Milestone {
   progressHistoryToRows   ProgressHistory[] @relation("ProgressHistoryToMilestone")
   posts                   Post[]
   comments                Comment[]
+  predictionReveals       Prediction[]      @relation("PredictionRevealMilestone")
 
   @@unique([clubId, position], map: "milestones_club_id_position_unique")
   @@index([clubId], map: "milestones_club_id_idx")
@@ -242,6 +250,7 @@ model Post {
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   comments          Comment[]
   reactions         PostReaction[]
+  prediction        Prediction?
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -250,6 +259,22 @@ model Post {
   @@index([authorId], map: "posts_author_id_idx")
   @@index([requiredMilestoneId], map: "posts_required_milestone_id_idx")
   @@map("posts")
+}
+
+model Prediction {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId            String           @unique(map: "predictions_post_id_unique") @map("post_id") @db.Uuid
+  revealMilestoneId String           @map("reveal_milestone_id") @db.Uuid
+  status            PredictionStatus @default(UNRESOLVED)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  revealMilestone Milestone @relation("PredictionRevealMilestone", fields: [revealMilestoneId], references: [id], onDelete: Restrict)
+
+  @@index([postId], map: "predictions_post_id_idx")
+  @@index([revealMilestoneId], map: "predictions_reveal_milestone_id_idx")
+  @@map("predictions")
 }
 
 model PostReaction {

@@ -23,7 +23,10 @@ import {
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import { PostCard } from "@/features/clubs/components/club-feed-tab";
+import {
+  PostCard,
+  PredictionStateBadges
+} from "@/features/clubs/components/club-feed-tab";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -273,6 +276,9 @@ const RevealedPostCard = ({ post }: { post: RevealedClubPost }) => (
         <p className="whitespace-pre-wrap text-sm leading-6 text-muted">
           {post.body}
         </p>
+        {post.prediction ? (
+          <PredictionStateBadges prediction={post.prediction} />
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3 text-xs text-faint">
         <span className="flex items-center gap-2">

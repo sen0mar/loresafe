@@ -42,6 +42,7 @@ import {
   type ClubMilestone,
   type ClubPostCounts,
   type ClubPostCard,
+  type ClubPostPrediction,
   type PostType,
   postReactionEmojis,
   useClubMilestonesQuery,
@@ -74,6 +75,13 @@ const postTypeLabels: Record<PostType, string> = {
 };
 
 const countFormatter = new Intl.NumberFormat();
+
+const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
+  UNRESOLVED: "Unresolved",
+  CORRECT: "Correct",
+  WRONG: "Wrong",
+  PARTIAL: "Partial"
+};
 
 const formatDateTime = (value: string) =>
   new Intl.DateTimeFormat(undefined, {
@@ -230,6 +238,14 @@ const CreatePostDialog = ({
   const isSaving = createPostMutation.isPending;
   const canSubmit =
     !isSaving && !milestonesQuery.isPending && milestones.length > 0;
+  const selectedRequiredMilestone = milestones.find(
+    (milestone) => milestone.id === values.requiredMilestoneId
+  );
+  const eligibleRevealMilestones = selectedRequiredMilestone
+    ? milestones.filter(
+        (milestone) => milestone.position >= selectedRequiredMilestone.position
+      )
+    : milestones;
 
   useEffect(() => {
     if (!open || milestones.length === 0) {
@@ -243,12 +259,43 @@ const CreatePostDialog = ({
           (milestone) => milestone.id === currentValues.requiredMilestoneId
         )
       ) {
-        return currentValues;
+        if (currentValues.type !== "PREDICTION") {
+          return currentValues;
+        }
+
+        const requiredMilestone = milestones.find(
+          (milestone) => milestone.id === currentValues.requiredMilestoneId
+        );
+
+        return {
+          ...currentValues,
+          prediction: {
+            revealMilestoneId: chooseRevealMilestoneId({
+              currentRevealMilestoneId:
+                currentValues.prediction?.revealMilestoneId,
+              milestones,
+              requiredMilestone
+            })
+          }
+        };
       }
+
+      const requiredMilestone = milestones[0];
 
       return {
         ...currentValues,
-        requiredMilestoneId: milestones[0]?.id ?? ""
+        requiredMilestoneId: requiredMilestone?.id ?? "",
+        prediction:
+          currentValues.type === "PREDICTION"
+            ? {
+                revealMilestoneId: chooseRevealMilestoneId({
+                  currentRevealMilestoneId:
+                    currentValues.prediction?.revealMilestoneId,
+                  milestones,
+                  requiredMilestone
+                })
+              }
+            : undefined
       };
     });
   }, [milestones, open]);
@@ -267,24 +314,69 @@ const CreatePostDialog = ({
     };
 
   const updatePostType = (event: ChangeEvent<HTMLSelectElement>) => {
+    const type = event.target.value as PostType;
+
     setValues((currentValues) => ({
       ...currentValues,
-      type: event.target.value as PostType
+      type,
+      prediction:
+        type === "PREDICTION"
+          ? {
+              revealMilestoneId:
+                currentValues.prediction?.revealMilestoneId ||
+                currentValues.requiredMilestoneId ||
+                milestones[0]?.id ||
+                ""
+            }
+          : undefined
     }));
     setErrors((currentErrors) => ({
       ...currentErrors,
-      type: undefined
+      type: undefined,
+      prediction: undefined
     }));
   };
 
   const updateMilestone = (event: ChangeEvent<HTMLSelectElement>) => {
+    const requiredMilestoneId = event.target.value;
+    const requiredMilestone = milestones.find(
+      (milestone) => milestone.id === requiredMilestoneId
+    );
+
     setValues((currentValues) => ({
       ...currentValues,
-      requiredMilestoneId: event.target.value
+      requiredMilestoneId,
+      prediction:
+        currentValues.type === "PREDICTION"
+          ? {
+              revealMilestoneId: chooseRevealMilestoneId({
+                currentRevealMilestoneId:
+                  currentValues.prediction?.revealMilestoneId,
+                milestones,
+                requiredMilestone
+              })
+            }
+          : undefined
     }));
     setErrors((currentErrors) => ({
       ...currentErrors,
-      requiredMilestoneId: undefined
+      requiredMilestoneId: undefined,
+      prediction: undefined
+    }));
+  };
+
+  const updatePredictionRevealMilestone = (
+    event: ChangeEvent<HTMLSelectElement>
+  ) => {
+    setValues((currentValues) => ({
+      ...currentValues,
+      prediction: {
+        revealMilestoneId: event.target.value
+      }
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      prediction: undefined
     }));
   };
 
@@ -309,7 +401,8 @@ const CreatePostDialog = ({
         title: fieldErrors.title?.[0],
         body: fieldErrors.body?.[0],
         type: fieldErrors.type?.[0],
-        requiredMilestoneId: fieldErrors.requiredMilestoneId?.[0]
+        requiredMilestoneId: fieldErrors.requiredMilestoneId?.[0],
+        prediction: fieldErrors.prediction?.[0]
       });
       return;
     }
@@ -430,6 +523,40 @@ const CreatePostDialog = ({
             </PostFormField>
           </div>
 
+          {values.type === "PREDICTION" ? (
+            <div className="grid gap-3 rounded-lg border border-default bg-inset p-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <PostFormField
+                id="post-prediction-reveal-milestone"
+                label="Reveal milestone"
+                error={errors.prediction}
+              >
+                <select
+                  id="post-prediction-reveal-milestone"
+                  value={values.prediction?.revealMilestoneId ?? ""}
+                  onChange={updatePredictionRevealMilestone}
+                  disabled={isSaving || milestonesQuery.isPending}
+                  className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-invalid={!!errors.prediction}
+                  aria-describedby={
+                    errors.prediction
+                      ? "post-prediction-reveal-milestone-error"
+                      : undefined
+                  }
+                >
+                  <option value="">Choose reveal milestone</option>
+                  {eligibleRevealMilestones.map((milestone) => (
+                    <option key={milestone.id} value={milestone.id}>
+                      {formatMilestoneOption(milestone)}
+                    </option>
+                  ))}
+                </select>
+              </PostFormField>
+              <div className="rounded-md border border-subtle bg-surface px-3 py-2 text-xs text-muted">
+                Status: Unresolved
+              </div>
+            </div>
+          ) : null}
+
           {milestonesQuery.isError ? (
             <p className="text-sm text-warning">
               Could not load milestones. Close this dialog and try again.
@@ -479,6 +606,33 @@ const PostFormField = ({
     ) : null}
   </label>
 );
+
+const chooseRevealMilestoneId = ({
+  currentRevealMilestoneId,
+  milestones,
+  requiredMilestone
+}: {
+  currentRevealMilestoneId?: string;
+  milestones: ClubMilestone[];
+  requiredMilestone?: ClubMilestone;
+}) => {
+  const eligibleMilestones = requiredMilestone
+    ? milestones.filter(
+        (milestone) => milestone.position >= requiredMilestone.position
+      )
+    : milestones;
+
+  if (
+    currentRevealMilestoneId &&
+    eligibleMilestones.some(
+      (milestone) => milestone.id === currentRevealMilestoneId
+    )
+  ) {
+    return currentRevealMilestoneId;
+  }
+
+  return eligibleMilestones[0]?.id ?? "";
+};
 
 export const PostCard = ({
   linked = false,
@@ -536,6 +690,9 @@ const VisiblePostCard = ({
           )}
         </h2>
         <p className="text-sm leading-6 text-muted">{post.bodyPreview}</p>
+        {post.prediction ? (
+          <PredictionStateBadges prediction={post.prediction} />
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
         <span className="flex items-center gap-2 text-xs text-faint">
@@ -556,6 +713,22 @@ const VisiblePostCard = ({
       </div>
     </CardContent>
   </Card>
+);
+
+export const PredictionStateBadges = ({
+  prediction
+}: {
+  prediction: ClubPostPrediction;
+}) => (
+  <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
+    <Badge variant="secondary">
+      Prediction {predictionStatusLabels[prediction.status]}
+    </Badge>
+    <Badge variant="outline">
+      Reveal milestone {prediction.revealMilestone.position}:{" "}
+      {prediction.revealMilestone.label}
+    </Badge>
+  </div>
 );
 
 const LockedPostCard = ({

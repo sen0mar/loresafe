@@ -17,6 +17,12 @@ export type PostTypeDto =
 
 export type PostStatusDto = "VISIBLE" | "HIDDEN";
 
+export type PredictionStatusDto =
+  | "UNRESOLVED"
+  | "CORRECT"
+  | "WRONG"
+  | "PARTIAL";
+
 type PostCountsDto = {
   commentCount: number;
   reactionCount: number;
@@ -34,6 +40,11 @@ type RequiredMilestoneDto = {
   label: string;
 };
 
+type PredictionDto = {
+  status: PredictionStatusDto;
+  revealMilestone: RequiredMilestoneDto;
+};
+
 export type VisibleClubPostCardDto = {
   id: string;
   visibility: "VISIBLE";
@@ -47,6 +58,7 @@ export type VisibleClubPostCardDto = {
     username: string | null;
   };
   requiredMilestone: RequiredMilestoneDto;
+  prediction?: PredictionDto;
   counts: PostCountsDto;
   createdAt: string;
   updatedAt: string;
@@ -136,6 +148,7 @@ export const toClubPostCardDto = (
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString()
   };
+  const prediction = toPredictionDto(post);
   const isVisible = canViewRequiredMilestone({
     mode: context.mode,
     currentMilestonePosition: context.currentMilestonePosition,
@@ -159,38 +172,59 @@ export const toClubPostCardDto = (
       id: post.author.id,
       displayName: post.author.displayName,
       username: post.author.username
-    }
+    },
+    ...(prediction ? { prediction } : {})
   };
 };
 
 export const toRevealedClubPostDto = (
   post: ClubPostRecord
-): RevealedClubPostDto => ({
-  id: post.id,
-  visibility: "REVEALED",
-  type: post.type,
-  status: post.status,
-  title: post.title,
-  body: post.body,
-  author: {
-    id: post.author.id,
-    displayName: post.author.displayName,
-    username: post.author.username
-  },
-  requiredMilestone: {
-    id: post.requiredMilestone.id,
-    position: post.requiredMilestone.position,
-    label: post.requiredMilestone.safeTitle
-  },
-  counts: {
-    commentCount: post.commentCount,
-    reactionCount: post.reactionCount,
-    unreadCommentCount: 0,
-    reactions: post.reactions
-  },
-  createdAt: post.createdAt.toISOString(),
-  updatedAt: post.updatedAt.toISOString()
-});
+): RevealedClubPostDto => {
+  const prediction = toPredictionDto(post);
+
+  return {
+    id: post.id,
+    visibility: "REVEALED",
+    type: post.type,
+    status: post.status,
+    title: post.title,
+    body: post.body,
+    author: {
+      id: post.author.id,
+      displayName: post.author.displayName,
+      username: post.author.username
+    },
+    requiredMilestone: {
+      id: post.requiredMilestone.id,
+      position: post.requiredMilestone.position,
+      label: post.requiredMilestone.safeTitle
+    },
+    ...(prediction ? { prediction } : {}),
+    counts: {
+      commentCount: post.commentCount,
+      reactionCount: post.reactionCount,
+      unreadCommentCount: 0,
+      reactions: post.reactions
+    },
+    createdAt: post.createdAt.toISOString(),
+    updatedAt: post.updatedAt.toISOString()
+  };
+};
+
+const toPredictionDto = (post: ClubPostRecord): PredictionDto | null => {
+  if (!post.prediction) {
+    return null;
+  }
+
+  return {
+    status: post.prediction.status,
+    revealMilestone: {
+      id: post.prediction.revealMilestone.id,
+      position: post.prediction.revealMilestone.position,
+      label: post.prediction.revealMilestone.safeTitle
+    }
+  };
+};
 
 const toBodyPreview = (body: string) => {
   const compactBody = body.replace(/\s+/g, " ").trim();

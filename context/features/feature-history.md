@@ -33,6 +33,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 27: Unanswered feed tab — Added an `unanswered` club feed filter backed by visible non-deleted comment counts, a frontend Unanswered tab with real empty states, and focused sanitizer/count regression tests.
 - Feature 28: Post reactions — Added the PostReaction model with a committed migration, authenticated fixed-emoji toggle API, safe aggregate counts on visible and locked post cards, optimistic frontend toggles with rollback, and focused authorization/spoiler regression tests.
 - Feature 29: Comment reactions — Added the CommentReaction model with a committed migration, authenticated fixed-emoji toggle API, safe aggregate counts on comment DTOs, optimistic frontend toggles, and focused authorization/spoiler regression tests.
+- Feature 30: Prediction post metadata — Added the Prediction model with a committed migration, normal post-flow prediction creation/read support, same-club reveal milestone validation, visible prediction metadata, locked prediction sanitization, and focused backend regression tests.
 
 ## Entry Format
 
