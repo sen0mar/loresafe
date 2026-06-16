@@ -35,6 +35,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 29: Comment reactions — Added the CommentReaction model with a committed migration, authenticated fixed-emoji toggle API, safe aggregate counts on comment DTOs, optimistic frontend toggles, and focused authorization/spoiler regression tests.
 - Feature 30: Prediction post metadata — Added the Prediction model with a committed migration, normal post-flow prediction creation/read support, same-club reveal milestone validation, visible prediction metadata, locked prediction sanitization, and focused backend regression tests.
 - Feature 31: Recently unlocked discussions — Added a member-only progress-history unlocked posts API, a `/app/clubs/:slug/recently-unlocked` page, progress-panel entry point, cache invalidation, and focused spoiler-safe backend regression tests.
+- Feature 32: Notifications foundation — Added the Notification model with a committed migration, authenticated list/read APIs, comment/reply notification creation with generic spoiler-safe text, `/app/notifications`, live unread badges, mark-as-read cache updates, and focused backend leak/ownership tests.
 
 ## Entry Format
 

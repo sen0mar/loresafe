@@ -6,6 +6,8 @@ import {
   type CreatePostCommentRequest,
   type ToggleCommentReactionRequest
 } from "./comments.schema.js";
+import { createNotificationInTransaction } from "../notifications/notifications.repository.js";
+import type { NotificationType } from "../notifications/notifications.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -19,8 +21,10 @@ export type CommentMilestoneRecord = {
 export type CommentPostRecord = {
   id: string;
   clubId: string;
+  authorId: string;
   requiredMilestone: CommentMilestoneRecord;
   club: {
+    title: string;
     visibility: ClubVisibility;
     currentUserRole: ClubMembershipRole | null;
     isCurrentUserBanned: boolean;
@@ -55,6 +59,12 @@ export type CommentRecord = {
 
 export type CreatePostCommentInput = CreatePostCommentRequest & {
   requiredMilestoneId: string;
+  notification?: {
+    userId: string;
+    type: NotificationType;
+    safeText: string;
+    clubId: string;
+  };
 };
 
 export type CommentReactionTargetRecord = {
@@ -158,8 +168,10 @@ const toCommentRecord = (
 const toCommentPostRecord = (post: {
   id: string;
   clubId: string;
+  authorId: string;
   requiredMilestone: CommentMilestoneRecord;
   club: {
+    title: string;
     visibility: ClubVisibility;
     memberships: Array<{
       role: ClubMembershipRole;
@@ -180,8 +192,10 @@ const toCommentPostRecord = (post: {
   return {
     id: post.id,
     clubId: post.clubId,
+    authorId: post.authorId,
     requiredMilestone: post.requiredMilestone,
     club: {
+      title: post.club.title,
       visibility: post.club.visibility,
       currentUserRole: post.club.memberships[0]?.role ?? null,
       isCurrentUserBanned: post.club.bans.length > 0,
@@ -205,6 +219,7 @@ export const commentsRepository: CommentsRepository = {
       select: {
         id: true,
         clubId: true,
+        authorId: true,
         requiredMilestone: {
           select: {
             id: true,
@@ -215,6 +230,7 @@ export const commentsRepository: CommentsRepository = {
         club: {
           select: {
             visibility: true,
+            title: true,
             memberships: {
               where: {
                 userId
@@ -342,6 +358,7 @@ export const commentsRepository: CommentsRepository = {
           select: {
             id: true,
             clubId: true,
+            authorId: true,
             requiredMilestone: {
               select: {
                 id: true,
@@ -352,6 +369,7 @@ export const commentsRepository: CommentsRepository = {
             club: {
               select: {
                 visibility: true,
+                title: true,
                 memberships: {
                   where: {
                     userId
@@ -447,6 +465,18 @@ export const commentsRepository: CommentsRepository = {
         },
         select: commentSelect
       });
+
+      if (input.notification) {
+        await createNotificationInTransaction(transaction, {
+          userId: input.notification.userId,
+          type: input.notification.type,
+          safeText: input.notification.safeText,
+          clubId: input.notification.clubId,
+          postId,
+          commentId: comment.id,
+          requiredMilestoneId: input.requiredMilestoneId
+        });
+      }
 
       return toCommentRecord(comment);
     }),

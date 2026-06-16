@@ -16,6 +16,7 @@ import {
   commentsRepository,
   type CommentMilestoneRecord,
   type CommentPostRecord,
+  type CommentRecord,
   type CommentsRepository
 } from "./comments.repository.js";
 import {
@@ -118,7 +119,13 @@ export const createCommentsService = (
 
     const comment = await repository.createPostComment(post.id, userId, {
       ...input,
-      requiredMilestoneId: selectedMilestone.id
+      requiredMilestoneId: selectedMilestone.id,
+      notification: createCommentNotificationInput({
+        commenterId: userId,
+        parentComment,
+        post,
+        requiredMilestoneId: selectedMilestone.id
+      })
     });
 
     if (!comment) {
@@ -280,4 +287,42 @@ const getCommentDeniedMessage = (
   }
 
   return "You cannot comment on this post.";
+};
+
+const createCommentNotificationInput = ({
+  commenterId,
+  parentComment,
+  post,
+  requiredMilestoneId
+}: {
+  commenterId: string;
+  parentComment: CommentRecord | null;
+  post: CommentPostRecord;
+  requiredMilestoneId: string;
+}) => {
+  if (parentComment) {
+    if (parentComment.author.id === commenterId) {
+      return undefined;
+    }
+
+    return {
+      userId: parentComment.author.id,
+      type: "COMMENT_REPLY" as const,
+      safeText: `New reply in ${post.club.title}`,
+      clubId: post.clubId,
+      requiredMilestoneId
+    };
+  }
+
+  if (post.authorId === commenterId) {
+    return undefined;
+  }
+
+  return {
+    userId: post.authorId,
+    type: "POST_COMMENT" as const,
+    safeText: `New comment in ${post.club.title}`,
+    clubId: post.clubId,
+    requiredMilestoneId
+  };
 };

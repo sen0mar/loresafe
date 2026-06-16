@@ -57,6 +57,11 @@ enum CommentStatus {
   HIDDEN
 }
 
+enum NotificationType {
+  POST_COMMENT
+  COMMENT_REPLY
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -78,6 +83,7 @@ model User {
   comments           Comment[]
   postReactions      PostReaction[]
   commentReactions   CommentReaction[]
+  notifications      Notification[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -103,6 +109,7 @@ model Club {
   progress    ClubProgress[]
   history     ProgressHistory[]
   posts       Post[]
+  notifications Notification[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -184,6 +191,7 @@ model Milestone {
   posts                   Post[]
   comments                Comment[]
   predictionReveals       Prediction[]      @relation("PredictionRevealMilestone")
+  notifications           Notification[]
 
   @@unique([clubId, position], map: "milestones_club_id_position_unique")
   @@index([clubId], map: "milestones_club_id_idx")
@@ -251,6 +259,7 @@ model Post {
   comments          Comment[]
   reactions         PostReaction[]
   prediction        Prediction?
+  notifications     Notification[]
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -313,6 +322,7 @@ model Comment {
   replies           Comment[] @relation("CommentReplies")
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   reactions         CommentReaction[]
+  notifications     Notification[]
 
   @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
   @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
@@ -338,4 +348,31 @@ model CommentReaction {
   @@index([commentId, emoji], map: "comment_reactions_comment_id_emoji_idx")
   @@index([userId], map: "comment_reactions_user_id_idx")
   @@map("comment_reactions")
+}
+
+model Notification {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String           @map("user_id") @db.Uuid
+  type                NotificationType
+  safeText            String           @map("safe_text") @db.VarChar(240)
+  clubId              String           @map("club_id") @db.Uuid
+  postId              String?          @map("post_id") @db.Uuid
+  commentId           String?          @map("comment_id") @db.Uuid
+  requiredMilestoneId String           @map("required_milestone_id") @db.Uuid
+  readAt              DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club              Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post              Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment           Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+
+  @@index([userId, readAt, createdAt], map: "notifications_user_id_read_at_created_at_idx")
+  @@index([userId, createdAt], map: "notifications_user_id_created_at_idx")
+  @@index([clubId], map: "notifications_club_id_idx")
+  @@index([postId], map: "notifications_post_id_idx")
+  @@index([commentId], map: "notifications_comment_id_idx")
+  @@index([requiredMilestoneId], map: "notifications_required_milestone_id_idx")
+  @@map("notifications")
 }

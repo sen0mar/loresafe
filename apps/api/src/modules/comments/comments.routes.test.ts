@@ -18,6 +18,7 @@ import { createAuthService } from "../auth/auth.service.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { createCommentsController } from "./comments.controller.js";
 import type {
+  CreatePostCommentInput,
   CommentPostRecord,
   CommentRecord,
   CommentsRepository
@@ -184,6 +185,98 @@ describe("comments routes", () => {
         label: "Milestone 2"
       }
     });
+  });
+
+  it("creates a spoiler-safe notification for the post author on new comments", async () => {
+    const author = repository.createStoredUser(validUserInput());
+    const commenter = repository.createStoredUser({
+      ...validUserInput(),
+      email: "commenter@example.com"
+    });
+    const post = repository.createPostFixture(author.id, {
+      postMilestonePosition: 1
+    });
+    repository.createMembership(commenter.id, post.clubId);
+    repository.setProgress(commenter.id, post.clubId, 1);
+
+    await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(commenter))
+      .send({
+        body: "UNSAFE_COMMENT_BODY_SHOULD_NOT_LEAK"
+      })
+      .expect(201);
+
+    expect(repository.notifications).toHaveLength(1);
+    expect(repository.notifications[0]).toMatchObject({
+      userId: author.id,
+      type: "POST_COMMENT",
+      safeText: "New comment in Fixture Story Club",
+      clubId: post.clubId,
+      postId: post.id,
+      requiredMilestoneId: post.requiredMilestone.id
+    });
+    expect(JSON.stringify(repository.notifications[0])).not.toContain(
+      "UNSAFE_COMMENT_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
+  it("creates reply notifications for parent authors and skips self notifications", async () => {
+    const postAuthor = repository.createStoredUser(validUserInput());
+    const parentAuthor = repository.createStoredUser({
+      ...validUserInput(),
+      email: "parent-author@example.com"
+    });
+    const replier = repository.createStoredUser({
+      ...validUserInput(),
+      email: "replier@example.com"
+    });
+    const post = repository.createPostFixture(postAuthor.id, {
+      postMilestonePosition: 1
+    });
+    repository.createMembership(parentAuthor.id, post.clubId);
+    repository.createMembership(replier.id, post.clubId);
+    repository.setProgress(parentAuthor.id, post.clubId, 1);
+    repository.setProgress(replier.id, post.clubId, 1);
+    const parent = repository.createComment(
+      post.id,
+      parentAuthor.id,
+      post.requiredMilestone,
+      {
+        body: "PARENT_UNSAFE_BODY_SHOULD_NOT_LEAK"
+      }
+    );
+
+    await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(replier))
+      .send({
+        body: "REPLY_UNSAFE_BODY_SHOULD_NOT_LEAK",
+        parentId: parent.id
+      })
+      .expect(201);
+
+    await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(parentAuthor))
+      .send({
+        body: "SELF_REPLY_SHOULD_NOT_NOTIFY",
+        parentId: parent.id
+      })
+      .expect(201);
+
+    expect(repository.notifications).toHaveLength(1);
+    expect(repository.notifications[0]).toMatchObject({
+      userId: parentAuthor.id,
+      type: "COMMENT_REPLY",
+      safeText: "New reply in Fixture Story Club",
+      clubId: post.clubId,
+      postId: post.id,
+      requiredMilestoneId: post.requiredMilestone.id
+    });
+    expect(JSON.stringify(repository.notifications[0])).not.toContain(
+      "UNSAFE_BODY"
+    );
   });
 
   it("rejects comments from non-members, banned members, and users behind the inherited milestone", async () => {
@@ -901,13 +994,25 @@ const createCommentsTestApp = (
 
 type StoredClub = {
   id: string;
+  title: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 };
 
 type StoredPost = CommentPostRecord & {
-  authorId: string;
   status: "VISIBLE" | "HIDDEN";
   deletedAt: Date | null;
+};
+
+type StoredNotification = {
+  id: string;
+  userId: string;
+  type: "POST_COMMENT" | "COMMENT_REPLY";
+  safeText: string;
+  clubId: string;
+  postId: string;
+  commentId: string;
+  requiredMilestoneId: string;
+  createdAt: Date;
 };
 
 class InMemoryCommentsRepository
@@ -938,6 +1043,7 @@ class InMemoryCommentsRepository
     [];
   readonly posts: StoredPost[] = [];
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
+  readonly notifications: StoredNotification[] = [];
   readonly commentReactions: Array<{
     id: string;
     commentId: string;
@@ -1002,6 +1108,7 @@ class InMemoryCommentsRepository
   ) => {
     const club = {
       id: crypto.randomUUID(),
+      title: "Fixture Story Club",
       visibility: input.clubVisibility ?? "PUBLIC"
     };
     const requiredMilestone = this.createMilestone(
@@ -1016,6 +1123,7 @@ class InMemoryCommentsRepository
       status: input.postStatus ?? "VISIBLE",
       deletedAt: input.postDeletedAt ?? null,
       club: {
+        title: club.title,
         visibility: club.visibility,
         currentUserRole: null,
         isCurrentUserBanned: false,
@@ -1198,8 +1306,10 @@ class InMemoryCommentsRepository
     return {
       id: post.id,
       clubId: post.clubId,
+      authorId: post.authorId,
       requiredMilestone: post.requiredMilestone,
       club: {
+        title: club.title,
         visibility: club.visibility,
         currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
         isCurrentUserBanned: this.hasActiveBan(userId, club.id),
@@ -1276,9 +1386,7 @@ class InMemoryCommentsRepository
   createPostComment = async (
     postId: string,
     authorId: string,
-    input: CreatePostCommentRequest & {
-      requiredMilestoneId: string;
-    }
+    input: CreatePostCommentInput
   ): Promise<CommentRecord | null> => {
     const post = this.posts.find((storedPost) => storedPost.id === postId);
     const milestone = this.milestones.find(
@@ -1303,10 +1411,26 @@ class InMemoryCommentsRepository
       }
     }
 
-    return this.createComment(postId, authorId, milestone, {
+    const comment = this.createComment(postId, authorId, milestone, {
       body: input.body,
       parentId: input.parentId ?? null
     });
+
+    if (input.notification) {
+      this.notifications.push({
+        id: crypto.randomUUID(),
+        userId: input.notification.userId,
+        type: input.notification.type,
+        safeText: input.notification.safeText,
+        clubId: input.notification.clubId,
+        postId,
+        commentId: comment.id,
+        requiredMilestoneId: input.requiredMilestoneId,
+        createdAt: comment.createdAt
+      });
+    }
+
+    return comment;
   };
 
   toggleCommentReaction = async (

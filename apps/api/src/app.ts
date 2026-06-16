@@ -33,6 +33,7 @@ import {
   invitesRouter
 } from "./modules/invites/invites.routes.js";
 import { milestonesRouter } from "./modules/milestones/milestones.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import {
   postDetailsRouter,
   postsRouter
@@ -88,6 +89,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);
   app.use("/api/posts", postDetailsRouter);

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Bell, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 
+import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 
@@ -23,6 +25,7 @@ type AppShellProps = {
   isLoggingOut?: boolean;
   joinedClubs?: AppShellJoinedClub[];
   joinedClubsTotal?: number;
+  notificationUnreadCount?: number;
   onLogout?: () => void;
   onRetryJoinedClubs?: () => void;
   rightRail?: ReactNode;
@@ -37,6 +40,7 @@ export const AppShell = ({
   isLoggingOut = false,
   joinedClubs = [],
   joinedClubsTotal,
+  notificationUnreadCount = 0,
   onLogout,
   onRetryJoinedClubs,
   rightRail
@@ -49,6 +53,7 @@ export const AppShell = ({
         isJoinedClubsError={isJoinedClubsError}
         isJoinedClubsLoading={isJoinedClubsLoading}
         onRetryJoinedClubs={onRetryJoinedClubs}
+        notificationUnreadCount={notificationUnreadCount}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -59,6 +64,7 @@ export const AppShell = ({
             isJoinedClubsError={isJoinedClubsError}
             isJoinedClubsLoading={isJoinedClubsLoading}
             onRetryJoinedClubs={onRetryJoinedClubs}
+            notificationUnreadCount={notificationUnreadCount}
           />
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
@@ -69,8 +75,21 @@ export const AppShell = ({
               className="h-9 pl-9"
             />
           </div>
-          <Button variant="ghost" size="icon" aria-label="Notifications">
-            <Bell />
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="relative"
+            aria-label="Notifications"
+          >
+            <Link to="/app/notifications">
+              <Bell />
+              {notificationUnreadCount > 0 ? (
+                <Badge className="absolute -right-1 -top-1 px-1.5 py-0 text-[10px]">
+                  {formatNotificationBadgeCount(notificationUnreadCount)}
+                </Badge>
+              ) : null}
+            </Link>
           </Button>
           <SessionMenu
             currentUser={currentUser}
@@ -92,3 +111,6 @@ export const AppShell = ({
     </div>
   </div>
 );
+
+const formatNotificationBadgeCount = (count: number) =>
+  count > 99 ? "99+" : String(count);

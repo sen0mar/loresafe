@@ -45,6 +45,7 @@ type AppShellNavigationProps = {
   isJoinedClubsLoading?: boolean;
   joinedClubs?: AppShellJoinedClub[];
   joinedClubsTotal?: number;
+  notificationUnreadCount?: number;
   onRetryJoinedClubs?: () => void;
 };
 
@@ -52,13 +53,13 @@ type NavItem = {
   label: string;
   icon: ComponentType<{ className?: string }>;
   path?: string;
-  badge?: string;
+  badge?: number;
 };
 
 const primaryNavItems: NavItem[] = [
   { label: "Home", icon: Home, path: "/" },
   { label: "My Progress", icon: TrendingUp },
-  { label: "Notifications", icon: Bell, badge: "3" },
+  { label: "Notifications", icon: Bell, path: "/app/notifications" },
   { label: "Explore", icon: Compass, path: "/app/explore" },
   { label: "Saved", icon: Bookmark },
   { label: "Settings", icon: Settings, path: "/app/settings/profile" }
@@ -86,13 +87,17 @@ export const DesktopSidebar = ({
   joinedClubsTotal,
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
+  notificationUnreadCount = 0,
   onRetryJoinedClubs
 }: AppShellNavigationProps) => (
   <aside className="hidden w-[252px] shrink-0 border-r border-default pr-3 lg:flex lg:flex-col">
     <ShellBrand />
     <nav className="mt-8 grid gap-1" aria-label="Primary navigation">
       {primaryNavItems.map((item) => (
-        <NavButton key={item.label} item={item} />
+        <NavButton
+          key={item.label}
+          item={withNotificationBadge(item, notificationUnreadCount)}
+        />
       ))}
     </nav>
     <JoinedClubsSection
@@ -110,6 +115,7 @@ export const MobileNav = ({
   joinedClubsTotal,
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
+  notificationUnreadCount = 0,
   onRetryJoinedClubs
 }: AppShellNavigationProps) => (
   <DropdownMenu>
@@ -131,7 +137,8 @@ export const MobileNav = ({
         </span>
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
-      {primaryNavItems.map((item) => {
+      {primaryNavItems.map((navItem) => {
+        const item = withNotificationBadge(navItem, notificationUnreadCount);
         const Icon = item.icon;
 
         if (item.path) {
@@ -140,7 +147,11 @@ export const MobileNav = ({
               <NavLink to={item.path} end={item.path === "/"}>
                 <Icon className="size-4" />
                 {item.label}
-                {item.badge ? <Badge className="ml-auto">{item.badge}</Badge> : null}
+                {item.badge ? (
+                  <Badge className="ml-auto">
+                    {formatBadgeCount(item.badge)}
+                  </Badge>
+                ) : null}
               </NavLink>
             </DropdownMenuItem>
           );
@@ -150,7 +161,11 @@ export const MobileNav = ({
           <DropdownMenuItem key={item.label} disabled>
             <Icon className="size-4" />
             {item.label}
-            {item.badge ? <Badge className="ml-auto">{item.badge}</Badge> : null}
+            {item.badge ? (
+              <Badge className="ml-auto">
+                {formatBadgeCount(item.badge)}
+              </Badge>
+            ) : null}
           </DropdownMenuItem>
         );
       })}
@@ -159,11 +174,11 @@ export const MobileNav = ({
         Joined clubs
       </DropdownMenuLabel>
       <MobileJoinedClubs
-      joinedClubs={joinedClubs}
-      joinedClubsTotal={joinedClubsTotal}
-      isJoinedClubsError={isJoinedClubsError}
-      isJoinedClubsLoading={isJoinedClubsLoading}
-      onRetryJoinedClubs={onRetryJoinedClubs}
+        joinedClubs={joinedClubs}
+        joinedClubsTotal={joinedClubsTotal}
+        isJoinedClubsError={isJoinedClubsError}
+        isJoinedClubsLoading={isJoinedClubsLoading}
+        onRetryJoinedClubs={onRetryJoinedClubs}
       />
     </DropdownMenuContent>
   </DropdownMenu>
@@ -197,7 +212,7 @@ const NavButton = ({ item }: { item: NavItem }) => {
       >
         <Icon className="size-5" />
         <span className="flex-1 text-left">{item.label}</span>
-        {item.badge ? <Badge>{item.badge}</Badge> : null}
+        {item.badge ? <Badge>{formatBadgeCount(item.badge)}</Badge> : null}
       </NavLink>
     );
   }
@@ -210,7 +225,7 @@ const NavButton = ({ item }: { item: NavItem }) => {
     >
       <Icon className="size-5" />
       <span className="flex-1 text-left">{item.label}</span>
-      {item.badge ? <Badge>{item.badge}</Badge> : null}
+      {item.badge ? <Badge>{formatBadgeCount(item.badge)}</Badge> : null}
     </button>
   );
 };
@@ -352,3 +367,17 @@ const JoinedClubsError = ({ onRetry }: { onRetry?: () => void }) => (
 
 const navButtonClassName =
   "flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+
+const withNotificationBadge = (
+  item: NavItem,
+  notificationUnreadCount: number
+): NavItem =>
+  item.label === "Notifications" && notificationUnreadCount > 0
+    ? {
+        ...item,
+        badge: notificationUnreadCount
+      }
+    : item;
+
+const formatBadgeCount = (count: number) =>
+  count > 99 ? "99+" : String(count);
