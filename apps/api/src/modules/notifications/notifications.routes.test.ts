@@ -25,6 +25,7 @@ import type {
 } from "./notifications.repository.js";
 import { createNotificationsRouter } from "./notifications.routes.js";
 import { createNotificationsService } from "./notifications.service.js";
+import type { NotificationType } from "./notifications.schema.js";
 
 describe("notifications routes", () => {
   let repository: InMemoryNotificationsRepository;
@@ -111,6 +112,32 @@ describe("notifications routes", () => {
       id: older.id,
       safeText: "Older safe text",
       readAt: "2026-01-01T10:30:00.000Z"
+    });
+  });
+
+  it("lists progress unlock notifications through the existing query", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("Unlock Club");
+    const milestone = repository.createMilestone(club.id, 3);
+    repository.setProgress(user.id, club.id, 3);
+    repository.createNotification(user.id, club.id, milestone, {
+      type: "PROGRESS_UNLOCK",
+      safeText: "New discussions unlocked in Unlock Club",
+      postId: null,
+      commentId: null
+    });
+
+    const response = await request(app)
+      .get("/api/notifications")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.notifications[0]).toMatchObject({
+      type: "PROGRESS_UNLOCK",
+      safeText: "New discussions unlocked in Unlock Club",
+      postId: null,
+      commentId: null,
+      visibility: "VISIBLE"
     });
   });
 
@@ -344,7 +371,9 @@ class InMemoryNotificationsRepository
       postTitle?: string;
       readAt?: Date | null;
       safeText?: string;
-      type?: "POST_COMMENT" | "COMMENT_REPLY";
+      type?: NotificationType;
+      postId?: string | null;
+      commentId?: string | null;
     } = {}
   ): StoredNotification => {
     const club = this.clubs.get(clubId);
@@ -354,14 +383,22 @@ class InMemoryNotificationsRepository
     }
 
     const progress = this.findProgress(userId, clubId);
+    const postId =
+      "postId" in input && input.postId !== undefined
+        ? input.postId
+        : crypto.randomUUID();
+    const commentId =
+      "commentId" in input && input.commentId !== undefined
+        ? input.commentId
+        : crypto.randomUUID();
     const notification = {
       id: crypto.randomUUID(),
       userId,
       type: input.type ?? "POST_COMMENT",
       safeText: input.safeText ?? `New comment in ${club.title}`,
       club,
-      postId: crypto.randomUUID(),
-      commentId: crypto.randomUUID(),
+      postId,
+      commentId,
       requiredMilestone: milestone,
       progress: {
         mode: progress?.mode ?? "STRICT",
@@ -479,9 +516,7 @@ const compareNotifications = (
 const createSessionCookie = async (user: AuthUserRecord) => {
   const token = await createSessionToken({
     userId: user.id,
-    sessionVersion: user.sessionVersion,
-    secret: env.JWT_SECRET,
-    expiresInSeconds: env.JWT_EXPIRES_IN_SECONDS
+    sessionVersion: user.sessionVersion
   });
 
   return `${env.SESSION_COOKIE_NAME}=${token}`;

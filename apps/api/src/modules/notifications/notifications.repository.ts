@@ -47,10 +47,11 @@ export type ListNotificationsInput = {
 export type CreateCommentNotificationInput = {
   userId: string;
   type: NotificationType;
+  eventKey: string;
   safeText: string;
   clubId: string;
-  postId: string;
-  commentId: string;
+  postId: string | null;
+  commentId: string | null;
   requiredMilestoneId: string;
 };
 
@@ -211,8 +212,12 @@ export const createNotificationInTransaction = (
   transaction: Prisma.TransactionClient,
   input: CreateCommentNotificationInput
 ) =>
-  transaction.notification.create({
-    data: {
+  transaction.notification.upsert({
+    where: {
+      eventKey: input.eventKey
+    },
+    create: {
+      eventKey: input.eventKey,
       userId: input.userId,
       type: input.type,
       safeText: input.safeText,
@@ -221,6 +226,7 @@ export const createNotificationInTransaction = (
       commentId: input.commentId,
       requiredMilestoneId: input.requiredMilestoneId
     },
+    update: {},
     select: {
       id: true
     }

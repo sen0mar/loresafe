@@ -60,6 +60,7 @@ enum CommentStatus {
 enum NotificationType {
   POST_COMMENT
   COMMENT_REPLY
+  PROGRESS_UNLOCK
 }
 
 model User {
@@ -354,6 +355,7 @@ model Notification {
   id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId              String           @map("user_id") @db.Uuid
   type                NotificationType
+  eventKey            String           @map("event_key") @db.VarChar(160)
   safeText            String           @map("safe_text") @db.VarChar(240)
   clubId              String           @map("club_id") @db.Uuid
   postId              String?          @map("post_id") @db.Uuid
@@ -368,6 +370,7 @@ model Notification {
   comment           Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
 
+  @@unique([eventKey], map: "notifications_event_key_unique")
   @@index([userId, readAt, createdAt], map: "notifications_user_id_read_at_created_at_idx")
   @@index([userId, createdAt], map: "notifications_user_id_created_at_idx")
   @@index([clubId], map: "notifications_club_id_idx")

@@ -196,6 +196,14 @@ describe("progress routes", () => {
       .expect(200);
 
     expect(repository.history).toHaveLength(2);
+    expect(repository.enqueuedProgressUnlockNotificationJobs).toEqual([
+      {
+        progressHistoryId: repository.history[1].id
+      },
+      {
+        progressHistoryId: repository.history[0].id
+      }
+    ]);
     expect(response.body.progress.history).toHaveLength(2);
     expect(response.body.progress.history[0]).toMatchObject({
       fromMode: "SOFT",
@@ -239,6 +247,11 @@ describe("progress routes", () => {
       totalMilestones: 2
     });
     expect(repository.history).toHaveLength(1);
+    expect(repository.enqueuedProgressUnlockNotificationJobs).toEqual([
+      {
+        progressHistoryId: repository.history[0].id
+      }
+    ]);
   });
 
   it("advances existing progress to the next milestone and preserves mode", async () => {
@@ -275,6 +288,7 @@ describe("progress routes", () => {
       }
     });
     expect(repository.history).toHaveLength(2);
+    expect(repository.enqueuedProgressUnlockNotificationJobs).toHaveLength(2);
     expect(repository.history[0]).toMatchObject({
       fromMode: "SOFT",
       toMode: "SOFT",
@@ -321,6 +335,9 @@ describe("progress routes", () => {
       percentage: 100
     });
     expect(repository.history).toHaveLength(historyCount);
+    expect(repository.enqueuedProgressUnlockNotificationJobs).toHaveLength(
+      historyCount
+    );
   });
 
   it("stores finished mode explicitly through progress updates", async () => {
@@ -584,6 +601,9 @@ class InMemoryProgressRepository
   readonly milestones: Array<ProgressMilestoneRecord & { clubId: string }> = [];
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
+  readonly enqueuedProgressUnlockNotificationJobs: Array<{
+    progressHistoryId: string;
+  }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -740,7 +760,7 @@ class InMemoryProgressRepository
       this.progressRows.push(progress);
     }
 
-    this.history.unshift({
+    const progressHistory = {
       id: crypto.randomUUID(),
       userId,
       clubId,
@@ -749,6 +769,11 @@ class InMemoryProgressRepository
       fromMilestone: this.findMilestone(fromMilestoneId),
       toMilestone: this.findMilestone(nextMilestone.id),
       createdAt: now
+    };
+
+    this.history.unshift(progressHistory);
+    this.enqueuedProgressUnlockNotificationJobs.push({
+      progressHistoryId: progressHistory.id
     });
 
     return this.toClubProgressRecord(userId, clubId, progress);
@@ -797,7 +822,7 @@ class InMemoryProgressRepository
     }
 
     if (hasChanged) {
-      this.history.unshift({
+      const progressHistory = {
         id: crypto.randomUUID(),
         userId,
         clubId,
@@ -806,6 +831,11 @@ class InMemoryProgressRepository
         fromMilestone: this.findMilestone(fromMilestoneId),
         toMilestone: this.findMilestone(input.currentMilestoneId),
         createdAt: now
+      };
+
+      this.history.unshift(progressHistory);
+      this.enqueuedProgressUnlockNotificationJobs.push({
+        progressHistoryId: progressHistory.id
       });
     }
 

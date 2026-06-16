@@ -36,6 +36,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 30: Prediction post metadata — Added the Prediction model with a committed migration, normal post-flow prediction creation/read support, same-club reveal milestone validation, visible prediction metadata, locked prediction sanitization, and focused backend regression tests.
 - Feature 31: Recently unlocked discussions — Added a member-only progress-history unlocked posts API, a `/app/clubs/:slug/recently-unlocked` page, progress-panel entry point, cache invalidation, and focused spoiler-safe backend regression tests.
 - Feature 32: Notifications foundation — Added the Notification model with a committed migration, authenticated list/read APIs, comment/reply notification creation with generic spoiler-safe text, `/app/notifications`, live unread badges, mark-as-read cache updates, and focused backend leak/ownership tests.
+- Feature 33: pg-boss notification jobs — Added pg-boss-backed comment/reply and progress-unlock notification jobs with a committed idempotency migration, API-process workers, retry-safe event keys, failure logging, notification refresh UI, and focused backend regression tests.
 
 ## Entry Format
 
