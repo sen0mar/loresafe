@@ -1,7 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 
-export type FileAssetPurpose = "AVATAR" | "CLUB_COVER";
-export type FileAssetVisibility = "PUBLIC";
+export type FileAssetPurpose = "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
+export type FileAssetVisibility = "PUBLIC" | "PRIVATE";
 export type FileAssetStatus = "PENDING" | "READY" | "FAILED";
 export type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
@@ -9,8 +9,11 @@ export type FileAssetRecord = {
   id: string;
   ownerId: string;
   clubId: string | null;
+  postId: string | null;
+  commentId: string | null;
   purpose: FileAssetPurpose;
   visibility: FileAssetVisibility;
+  safePreview: boolean;
   objectKey: string;
   contentType: string;
   sizeBytes: number;
@@ -24,12 +27,15 @@ export type UploadClubRecord = {
   id: string;
   slug: string;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
 };
 
 export type CreateFileAssetInput = {
   ownerId: string;
   clubId: string | null;
   purpose: FileAssetPurpose;
+  visibility?: FileAssetVisibility;
+  safePreview?: boolean;
   objectKey: string;
   contentType: string;
   sizeBytes: number;
@@ -53,8 +59,11 @@ const fileAssetSelect = {
   id: true,
   ownerId: true,
   clubId: true,
+  postId: true,
+  commentId: true,
   purpose: true,
   visibility: true,
+  safePreview: true,
   objectKey: true,
   contentType: true,
   sizeBytes: true,
@@ -64,10 +73,32 @@ const fileAssetSelect = {
   updatedAt: true
 } as const;
 
-const clubUploadSelect = (userId: string) =>
-  ({
+const clubUploadSelect = (userId: string) => {
+  const now = new Date();
+
+  return {
     id: true,
     slug: true,
+    bans: {
+      where: {
+        userId,
+        revokedAt: null,
+        OR: [
+          {
+            expiresAt: null
+          },
+          {
+            expiresAt: {
+              gt: now
+            }
+          }
+        ]
+      },
+      select: {
+        id: true
+      },
+      take: 1
+    },
     memberships: {
       where: {
         userId
@@ -77,7 +108,8 @@ const clubUploadSelect = (userId: string) =>
       },
       take: 1
     }
-  }) as const;
+  };
+};
 
 export const uploadsRepository: UploadsRepository = {
   createPendingFileAsset: (input) =>
@@ -85,8 +117,11 @@ export const uploadsRepository: UploadsRepository = {
       data: {
         ownerId: input.ownerId,
         clubId: input.clubId,
+        postId: null,
+        commentId: null,
         purpose: input.purpose,
-        visibility: "PUBLIC",
+        visibility: input.visibility ?? "PUBLIC",
+        safePreview: input.safePreview ?? false,
         objectKey: input.objectKey,
         contentType: input.contentType,
         sizeBytes: input.sizeBytes,
@@ -118,7 +153,8 @@ export const uploadsRepository: UploadsRepository = {
     return {
       id: club.id,
       slug: club.slug,
-      currentUserRole: club.memberships[0]?.role ?? null
+      currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0
     };
   },
 
@@ -171,7 +207,7 @@ export const uploadsRepository: UploadsRepository = {
             id: true
           }
         });
-      } else if (asset.clubId) {
+      } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
         await transaction.club.update({
           where: {
             id: asset.clubId

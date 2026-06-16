@@ -15,6 +15,10 @@ export const publicAssetMaxSizeBytes = {
   CLUB_COVER: 5 * 1024 * 1024
 } as const;
 
+export const allowedPostImageContentTypes = allowedPublicAssetContentTypes;
+
+export const postImageMaxSizeBytes = 8 * 1024 * 1024;
+
 export const createPublicAssetUploadRequestSchema = z
   .object({
     purpose: publicAssetPurposeSchema,
@@ -49,6 +53,17 @@ export const createPublicAssetUploadRequestSchema = z
     }
   });
 
+export const createPostImageUploadRequestSchema = z
+  .object({
+    clubSlug: clubSlugSchema,
+    contentType: z.enum(allowedPostImageContentTypes),
+    sizeBytes: z.number().int().positive().max(postImageMaxSizeBytes, {
+      message: "File is too large."
+    }),
+    safePreview: z.boolean().default(false)
+  })
+  .strict();
+
 export const assetIdParamsSchema = z
   .object({
     assetId: z.string().uuid()
@@ -57,6 +72,10 @@ export const assetIdParamsSchema = z
 
 export type CreatePublicAssetUploadRequest = z.infer<
   typeof createPublicAssetUploadRequestSchema
+>;
+
+export type CreatePostImageUploadRequest = z.infer<
+  typeof createPostImageUploadRequestSchema
 >;
 
 export type AssetIdParams = z.infer<typeof assetIdParamsSchema>;

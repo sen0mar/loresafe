@@ -3,11 +3,12 @@ import type { FileAssetRecord } from "./uploads.repository.js";
 
 export type FileAssetDto = {
   id: string;
-  purpose: "AVATAR" | "CLUB_COVER";
-  visibility: "PUBLIC";
+  purpose: "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
+  visibility: "PUBLIC" | "PRIVATE";
   status: "PENDING" | "READY" | "FAILED";
   contentType: string;
   sizeBytes: number;
+  safePreview: boolean;
   url: string | null;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +24,8 @@ export type CreatePublicAssetUploadResponse = {
   };
 };
 
+export type CreatePostImageUploadResponse = CreatePublicAssetUploadResponse;
+
 export type CompletePublicAssetUploadResponse = {
   asset: FileAssetDto;
 };
@@ -37,7 +40,11 @@ export const toFileAssetDto = (
   status: asset.status,
   contentType: asset.contentType,
   sizeBytes: asset.sizeBytes,
-  url: asset.status === "READY" ? storage.getPublicUrl(asset.objectKey) : null,
+  safePreview: asset.safePreview,
+  url:
+    asset.status === "READY" && asset.visibility === "PUBLIC"
+      ? storage.getPublicUrl(asset.objectKey)
+      : null,
   createdAt: asset.createdAt.toISOString(),
   updatedAt: asset.updatedAt.toISOString()
 });

@@ -169,6 +169,15 @@ export type ClubPostPrediction = {
   revealMilestone: ClubPostRequiredMilestone;
 };
 
+export type ClubPostMedia = {
+  id: string;
+  contentType: string;
+  sizeBytes: number;
+  safePreview: boolean;
+  url: string;
+  urlExpiresAt: string;
+};
+
 export type VisibleClubPostCard = {
   id: string;
   visibility: "VISIBLE";
@@ -183,6 +192,7 @@ export type VisibleClubPostCard = {
   };
   requiredMilestone: ClubPostRequiredMilestone;
   prediction?: ClubPostPrediction;
+  media?: ClubPostMedia;
   counts: ClubPostCounts;
   createdAt: string;
   updatedAt: string;
@@ -195,6 +205,7 @@ export type LockedClubPostCard = {
   status: PostStatus;
   requiredMilestone: ClubPostRequiredMilestone;
   counts: ClubPostCounts;
+  media?: ClubPostMedia;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -297,6 +308,7 @@ export type CreateClubPostInput = {
   body: string;
   type: PostType;
   requiredMilestoneId: string;
+  mediaAssetId?: string;
   prediction?: {
     revealMilestoneId: string;
   };

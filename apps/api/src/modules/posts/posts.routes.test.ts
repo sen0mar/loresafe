@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
 import { createSessionToken } from "../../core/security/session-token.js";
+import type { ObjectStorage } from "../../core/storage/r2-storage.js";
 import { createAuthMiddleware } from "../auth/auth.middleware.js";
 import {
   type AuthUserCredentialsRecord,
@@ -770,6 +771,199 @@ describe("posts routes", () => {
     expect(JSON.stringify(response.body)).not.toContain(
       "DIRECT_LOCKED_SECRET_BODY_SHOULD_NOT_LEAK"
     );
+  });
+
+  it("does not sign protected media for users behind the required milestone", async () => {
+    const storage = new FakeReadStorage();
+    app = createPostsTestApp(repository, storage);
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("protected-media-story-circle");
+    const opening = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const future = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, opening.id, "STRICT");
+    repository.createPost(club.id, user.id, future.id, {
+      title: "Unsafe image post",
+      body: "Unsafe image body.",
+      media: postImageMedia("private/post-images/club/spoiler.jpg", false)
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/protected-media-story-circle/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.posts[0]).toMatchObject({
+      visibility: "LOCKED"
+    });
+    expect(response.body.posts[0]).not.toHaveProperty("media");
+    expect(JSON.stringify(response.body)).not.toContain("spoiler.jpg");
+    expect(storage.signedKeys).toEqual([]);
+  });
+
+  it("signs locked post media only when the image is marked safe to preview", async () => {
+    const storage = new FakeReadStorage();
+    app = createPostsTestApp(repository, storage);
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("safe-preview-story-circle");
+    const opening = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const future = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, opening.id, "STRICT");
+    const media = postImageMedia("private/post-images/club/safe.jpg", true);
+    repository.createPost(club.id, user.id, future.id, {
+      title: "Unsafe title",
+      body: "Unsafe body.",
+      media
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/safe-preview-story-circle/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.posts[0]).toMatchObject({
+      visibility: "LOCKED",
+      media: {
+        id: media.id,
+        contentType: "image/jpeg",
+        sizeBytes: 1024,
+        safePreview: true,
+        url: "https://reads.example/private/post-images/club/safe.jpg",
+        urlExpiresAt: "2026-06-16T12:05:00.000Z"
+      }
+    });
+    expect(response.body.posts[0].media).not.toHaveProperty("objectKey");
+    expect(storage.signedKeys).toEqual(["private/post-images/club/safe.jpg"]);
+  });
+
+  it("signs visible and Brave-revealed post media with expirations", async () => {
+    const storage = new FakeReadStorage();
+    app = createPostsTestApp(repository, storage);
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("revealed-media-story-circle");
+    const opening = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const future = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, future.id, "STRICT");
+    const visibleMedia = postImageMedia(
+      "private/post-images/club/visible.jpg",
+      false
+    );
+    repository.createPost(club.id, user.id, future.id, {
+      title: "Visible media",
+      body: "Visible media body.",
+      media: visibleMedia
+    });
+
+    const visibleResponse = await request(app)
+      .get("/api/clubs/revealed-media-story-circle/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(visibleResponse.body.posts[0]).toMatchObject({
+      visibility: "VISIBLE",
+      media: {
+        id: visibleMedia.id,
+        urlExpiresAt: "2026-06-16T12:05:00.000Z"
+      }
+    });
+
+    const braveUser = repository.createStoredUser({
+      email: "brave-reader@example.com",
+      displayName: "Brave Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    repository.createMembership(braveUser.id, club.id);
+    repository.setProgress(braveUser.id, club.id, opening.id, "BRAVE");
+    const revealMedia = postImageMedia(
+      "private/post-images/club/revealed.jpg",
+      false
+    );
+    const revealedPost = repository.createPost(club.id, user.id, future.id, {
+      title: "Reveal media",
+      body: "Reveal media body.",
+      media: revealMedia
+    });
+
+    const normalDetailResponse = await request(app)
+      .get(`/api/posts/${revealedPost.id}`)
+      .set("Cookie", await createSessionCookie(braveUser))
+      .expect(200);
+    const revealResponse = await request(app)
+      .post(`/api/posts/${revealedPost.id}/reveal`)
+      .set("Cookie", await createSessionCookie(braveUser))
+      .expect(200);
+
+    expect(normalDetailResponse.body.post).not.toHaveProperty("media");
+    expect(revealResponse.body.post).toMatchObject({
+      visibility: "REVEALED",
+      media: {
+        id: revealMedia.id,
+        url: "https://reads.example/private/post-images/club/revealed.jpg",
+        urlExpiresAt: "2026-06-16T12:05:00.000Z"
+      }
+    });
+  });
+
+  it("does not sign media for hidden or deleted posts", async () => {
+    const storage = new FakeReadStorage();
+    app = createPostsTestApp(repository, storage);
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("hidden-media-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const hiddenPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Hidden media",
+      body: "Hidden media body.",
+      status: "HIDDEN",
+      media: postImageMedia("private/post-images/club/hidden.jpg", true)
+    });
+    const deletedPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Deleted media",
+      body: "Deleted media body.",
+      deletedAt: new Date(),
+      media: postImageMedia("private/post-images/club/deleted.jpg", true)
+    });
+
+    await request(app)
+      .get("/api/clubs/hidden-media-story-circle/posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.posts).toEqual([]);
+      });
+
+    for (const postId of [hiddenPost.id, deletedPost.id]) {
+      await request(app)
+        .get(`/api/posts/${postId}`)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(404);
+    }
+
+    expect(storage.signedKeys).toEqual([]);
   });
 
   it("rejects post reaction toggles without an authenticated session", async () => {
@@ -1978,14 +2172,15 @@ describe("posts routes", () => {
 });
 
 const createPostsTestApp = (
-  repository: AuthUsersRepository & PostsRepository & ProgressRepository
+  repository: AuthUsersRepository & PostsRepository & ProgressRepository,
+  storage: Pick<ObjectStorage, "createPresignedRead"> = new FakeReadStorage()
 ) => {
   const app = express();
   const authService = createAuthService(repository);
   const authMiddleware = createAuthMiddleware(authService);
-  const postsService = createPostsService(repository);
+  const postsService = createPostsService(repository, storage);
   const postsController = createPostsController(postsService);
-  const progressService = createProgressService(repository);
+  const progressService = createProgressService(repository, storage);
   const progressController = createProgressController(progressService);
 
   app.use(requestIdMiddleware);
@@ -2004,6 +2199,19 @@ const createPostsTestApp = (
 
   return app;
 };
+
+class FakeReadStorage implements Pick<ObjectStorage, "createPresignedRead"> {
+  readonly signedKeys: string[] = [];
+
+  createPresignedRead = async (objectKey: string) => {
+    this.signedKeys.push(objectKey);
+
+    return {
+      readUrl: `https://reads.example/${objectKey}`,
+      expiresAt: new Date("2026-06-16T12:05:00.000Z")
+    };
+  };
+}
 
 type StoredClub = {
   id: string;
@@ -2192,10 +2400,11 @@ class InMemoryPostsRepository
       type?: ClubPostRecord["type"];
       status?: ClubPostRecord["status"];
       deletedAt?: Date | null;
-      createdAt?: Date;
-      commentCount?: number;
-      prediction?: StoredPrediction | null;
-    }
+	      createdAt?: Date;
+	      commentCount?: number;
+	      prediction?: StoredPrediction | null;
+	      media?: ClubPostRecord["media"];
+	    }
   ) => {
     const author = this.findStoredUser(authorId);
     const requiredMilestone = this.findMilestone(milestoneId);
@@ -2219,9 +2428,10 @@ class InMemoryPostsRepository
         displayName: author.displayName,
         username: author.username
       },
-      requiredMilestone,
-      prediction: input.prediction ?? null,
-      commentCount: input.commentCount ?? 0,
+	      requiredMilestone,
+	      prediction: input.prediction ?? null,
+	      media: input.media ?? null,
+	      commentCount: input.commentCount ?? 0,
       reactionCount: 0,
       reactions: this.emptyReactions(),
       createdAt: now,
@@ -2972,7 +3182,18 @@ const validPostInput = (
   body: "This is a spoiler-safe post body.",
   type: "DISCUSSION" as const,
   requiredMilestoneId,
-  ...overrides
+	  ...overrides
+	});
+
+const postImageMedia = (
+  objectKey: string,
+  safePreview: boolean
+): NonNullable<ClubPostRecord["media"]> => ({
+  id: crypto.randomUUID(),
+  contentType: "image/jpeg",
+  sizeBytes: 1024,
+  safePreview,
+  objectKey
 });
 
 const expectedEmptyReactions = () =>

@@ -12,6 +12,7 @@ export const publicAssetMaxSizeBytes: Record<PublicAssetPurpose, number> = {
 };
 
 const allowedContentTypeSet = new Set<string>(allowedPublicAssetContentTypes);
+export const postImageMaxSizeBytes = 8 * 1024 * 1024;
 
 export const validatePublicAssetFile = (
   file: File,
@@ -25,6 +26,18 @@ export const validatePublicAssetFile = (
     return purpose === "AVATAR"
       ? "Avatar images must be 2 MB or smaller."
       : "Club cover images must be 5 MB or smaller.";
+  }
+
+  return null;
+};
+
+export const validatePostImageFile = (file: File) => {
+  if (!allowedContentTypeSet.has(file.type)) {
+    return "Choose a JPEG, PNG, or WebP image.";
+  }
+
+  if (file.size > postImageMaxSizeBytes) {
+    return "Post images must be 8 MB or smaller.";
   }
 
   return null;

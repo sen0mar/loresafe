@@ -19,6 +19,12 @@ export const createUploadsRouter = (
     controller.createPublicAssetUpload
   );
   router.post(
+    "/post-images",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.createPostImageUpload
+  );
+  router.post(
     "/:assetId/complete",
     middleware.loadCurrentUser,
     middleware.requireUser,

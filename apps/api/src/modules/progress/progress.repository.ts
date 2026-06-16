@@ -143,6 +143,21 @@ const recentlyUnlockedPostSelect = {
       }
     }
   },
+  mediaAssets: {
+    where: {
+      purpose: "POST_IMAGE",
+      visibility: "PRIVATE",
+      status: "READY"
+    },
+    select: {
+      id: true,
+      contentType: true,
+      sizeBytes: true,
+      safePreview: true,
+      objectKey: true
+    },
+    take: 1
+  },
   _count: {
     select: {
       comments: {
@@ -777,6 +792,7 @@ const toRecentlyUnlockedPostRecord = (
           revealMilestone: post.prediction.revealMilestone
         }
       : null,
+    media: post.mediaAssets[0] ?? null,
     commentCount: post._count.comments,
     reactionCount: reactions.reduce(
       (total, reaction) => total + reaction.count,

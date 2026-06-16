@@ -66,10 +66,12 @@ enum NotificationType {
 enum FileAssetPurpose {
   AVATAR
   CLUB_COVER
+  POST_IMAGE
 }
 
 enum FileAssetVisibility {
   PUBLIC
+  PRIVATE
 }
 
 enum FileAssetStatus {
@@ -282,6 +284,7 @@ model Post {
   reactions         PostReaction[]
   prediction        Prediction?
   notifications     Notification[]
+  mediaAssets       FileAsset[] @relation("PostMediaAssets")
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -345,6 +348,7 @@ model Comment {
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   reactions         CommentReaction[]
   notifications     Notification[]
+  mediaAssets       FileAsset[] @relation("CommentMediaAssets")
 
   @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
   @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
@@ -405,8 +409,11 @@ model FileAsset {
   id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ownerId     String              @map("owner_id") @db.Uuid
   clubId      String?             @map("club_id") @db.Uuid
+  postId      String?             @map("post_id") @db.Uuid
+  commentId   String?             @map("comment_id") @db.Uuid
   purpose     FileAssetPurpose
   visibility  FileAssetVisibility @default(PUBLIC)
+  safePreview Boolean             @default(false) @map("safe_preview")
   objectKey   String              @unique(map: "file_assets_object_key_unique") @map("object_key") @db.VarChar(512)
   contentType String              @map("content_type") @db.VarChar(120)
   sizeBytes   Int                 @map("size_bytes")
@@ -417,11 +424,15 @@ model FileAsset {
 
   owner         User   @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   club          Club?  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post          Post?  @relation("PostMediaAssets", fields: [postId], references: [id], onDelete: Cascade)
+  comment       Comment? @relation("CommentMediaAssets", fields: [commentId], references: [id], onDelete: Cascade)
   avatarForUser User?  @relation("UserAvatarAsset")
   coverForClub  Club?  @relation("ClubCoverAsset")
 
   @@index([ownerId, purpose, status, createdAt], map: "file_assets_owner_purpose_status_created_at_idx")
   @@index([clubId, purpose, status, createdAt], map: "file_assets_club_purpose_status_created_at_idx")
+  @@index([postId, purpose, status], map: "file_assets_post_purpose_status_idx")
+  @@index([commentId, purpose, status], map: "file_assets_comment_purpose_status_idx")
   @@index([status, createdAt], map: "file_assets_status_created_at_idx")
   @@map("file_assets")
 }

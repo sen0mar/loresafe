@@ -4,11 +4,12 @@ import type { PublicAssetPurpose } from "../lib/public-asset-validation.js";
 
 export type FileAsset = {
   id: string;
-  purpose: PublicAssetPurpose;
-  visibility: "PUBLIC";
+  purpose: PublicAssetPurpose | "POST_IMAGE";
+  visibility: "PUBLIC" | "PRIVATE";
   status: "PENDING" | "READY" | "FAILED";
   contentType: string;
   sizeBytes: number;
+  safePreview: boolean;
   url: string | null;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +32,15 @@ export type CreatePublicAssetUploadResponse = {
   };
 };
 
+export type CreatePostImageUploadInput = {
+  clubSlug: string;
+  contentType: string;
+  sizeBytes: number;
+  safePreview: boolean;
+};
+
+export type CreatePostImageUploadResponse = CreatePublicAssetUploadResponse;
+
 export type CompletePublicAssetUploadResponse = {
   asset: FileAsset;
 };
@@ -46,6 +56,12 @@ export const createPublicAssetUpload = (
 export const completePublicAssetUpload = (assetId: string) =>
   apiPost<CompletePublicAssetUploadResponse>(
     `/api/uploads/${assetId}/complete`
+  );
+
+export const createPostImageUpload = (input: CreatePostImageUploadInput) =>
+  apiPost<CreatePostImageUploadResponse, CreatePostImageUploadInput>(
+    "/api/uploads/post-images",
+    input
   );
 
 export const uploadFileToPresignedUrl = ({

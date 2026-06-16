@@ -37,6 +37,7 @@ export const createClubPostRequestSchema = z
     body: z.string().trim().min(1).max(8000),
     type: postTypeSchema,
     requiredMilestoneId: z.uuid(),
+    mediaAssetId: z.uuid().optional(),
     prediction: z
       .object({
         revealMilestoneId: z.uuid()
