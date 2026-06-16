@@ -27,7 +27,12 @@ export type PostType =
 
 export type PostStatus = "VISIBLE" | "HIDDEN";
 
-export type ClubFeedTab = "safe" | "locked" | "all" | "my-posts";
+export type ClubFeedTab =
+  | "safe"
+  | "unanswered"
+  | "locked"
+  | "all"
+  | "my-posts";
 
 export type ClubDiscoveryClub = {
   id: string;

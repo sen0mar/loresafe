@@ -987,6 +987,137 @@ describe("posts routes", () => {
     );
   });
 
+  it("returns unanswered posts using real visible non-deleted comment counts", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("unanswered-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const unansweredPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Needs a reply",
+      body: "Nobody has answered this yet."
+    });
+    const answeredPost = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Already answered",
+      body: "This one has a real answer."
+    });
+    repository.createComment(answeredPost.id, user.id, milestone.id, {
+      body: "This is a visible answer."
+    });
+
+    const cookie = await createSessionCookie(user);
+    const beforeCommentResponse = await request(app)
+      .get("/api/clubs/unanswered-story-circle/posts?tab=unanswered")
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(beforeCommentResponse.body.posts).toHaveLength(1);
+    expect(beforeCommentResponse.body.posts[0]).toMatchObject({
+      visibility: "VISIBLE",
+      title: "Needs a reply",
+      counts: {
+        commentCount: 0
+      }
+    });
+    expect(JSON.stringify(beforeCommentResponse.body)).not.toContain(
+      "Already answered"
+    );
+
+    repository.createComment(unansweredPost.id, user.id, milestone.id, {
+      body: "Now this post has an answer."
+    });
+
+    const afterCommentResponse = await request(app)
+      .get("/api/clubs/unanswered-story-circle/posts?tab=unanswered")
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(afterCommentResponse.body.posts).toHaveLength(0);
+  });
+
+  it("ignores hidden and deleted comments when filtering unanswered posts", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("hidden-comment-unanswered-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Still unanswered",
+      body: "Hidden and deleted comments should not count."
+    });
+    repository.createComment(post.id, user.id, milestone.id, {
+      body: "Hidden answer.",
+      status: "HIDDEN"
+    });
+    repository.createComment(post.id, user.id, milestone.id, {
+      body: "Deleted answer.",
+      deletedAt: new Date()
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/hidden-comment-unanswered-circle/posts?tab=unanswered")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.posts).toHaveLength(1);
+    expect(response.body.posts[0]).toMatchObject({
+      title: "Still unanswered",
+      counts: {
+        commentCount: 0
+      }
+    });
+  });
+
+  it("keeps locked unanswered posts sanitized", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("locked-unanswered-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "LOCKED_UNANSWERED_TITLE_SHOULD_NOT_LEAK",
+      body: "LOCKED_UNANSWERED_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/locked-unanswered-story-circle/posts?tab=unanswered")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.posts).toHaveLength(1);
+    expect(response.body.posts[0]).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        position: 2,
+        label: "Midpoint"
+      },
+      counts: {
+        commentCount: 0
+      }
+    });
+    expect(response.body.posts[0]).not.toHaveProperty("title");
+    expect(response.body.posts[0]).not.toHaveProperty("author");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_UNANSWERED_TITLE_SHOULD_NOT_LEAK"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_UNANSWERED_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
   it("paginates cursor results without duplicates or skipped same-timestamp posts", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("cursor-story-circle");
@@ -1096,6 +1227,15 @@ type StoredProgressHistory = ProgressHistoryRecord & {
   clubId: string;
 };
 
+type StoredComment = {
+  id: string;
+  postId: string;
+  authorId: string;
+  requiredMilestoneId: string;
+  status: "VISIBLE" | "HIDDEN";
+  deletedAt: Date | null;
+};
+
 class InMemoryPostsRepository
   implements AuthUsersRepository, PostsRepository, ProgressRepository
 {
@@ -1118,6 +1258,7 @@ class InMemoryPostsRepository
   readonly milestones: Array<ProgressMilestoneRecord & { clubId: string }> = [];
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
+  readonly comments: StoredComment[] = [];
   readonly posts: Array<
     ClubPostRecord & {
       clubId: string;
@@ -1277,6 +1418,39 @@ class InMemoryPostsRepository
     this.posts.push(post);
 
     return post;
+  };
+
+  createComment = (
+    postId: string,
+    authorId: string,
+    requiredMilestoneId: string,
+    input: {
+      body: string;
+      status?: "VISIBLE" | "HIDDEN";
+      deletedAt?: Date | null;
+    }
+  ) => {
+    const post = this.posts.find((storedPost) => storedPost.id === postId);
+    const author = this.findStoredUser(authorId);
+    const requiredMilestone = this.findMilestone(requiredMilestoneId);
+
+    if (!post || !author || !requiredMilestone) {
+      throw new Error("Comment fixture requires existing post, author, and milestone.");
+    }
+
+    const comment = {
+      id: crypto.randomUUID(),
+      postId,
+      authorId,
+      requiredMilestoneId,
+      status: input.status ?? "VISIBLE",
+      deletedAt: input.deletedAt ?? null
+    };
+
+    this.comments.push(comment);
+    post.commentCount = this.visibleCommentCountForPost(post.id);
+
+    return comment;
   };
 
   setProgress = (
@@ -1659,8 +1833,20 @@ class InMemoryPostsRepository
       return post.author.id === authorId;
     }
 
+    if (tab === "unanswered") {
+      return this.visibleCommentCountForPost(post.id) === 0;
+    }
+
     return true;
   };
+
+  private visibleCommentCountForPost = (postId: string) =>
+    this.comments.filter(
+      (comment) =>
+        comment.postId === postId &&
+        comment.status === "VISIBLE" &&
+        comment.deletedAt === null
+    ).length;
 
   private isAfterCursor = (
     post: ClubPostRecord,

@@ -30,6 +30,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 24: Comments foundation — Added the Comment model with a committed migration, authenticated comment list/create APIs, independent locked-comment sanitization, real post comment counts, post-detail comment UI, and focused backend authorization/leak regression tests.
 - Feature 25: Comment replies and later locks — Added one-level comment replies, optional same-club later milestone requirements, backend progress enforcement/redaction tests, and post-detail reply controls with advanced milestone selection.
 - Feature 26: Brave reveal for locked content — Added explicit one-time post/comment reveal endpoints for Brave mode, Finished-mode normal visibility, local-only reveal UI, and focused backend leak regression tests.
+- Feature 27: Unanswered feed tab — Added an `unanswered` club feed filter backed by visible non-deleted comment counts, a frontend Unanswered tab with real empty states, and focused sanitizer/count regression tests.
 
 ## Entry Format
 

@@ -95,6 +95,10 @@ const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
     label: "Safe"
   },
   {
+    value: "unanswered",
+    label: "Unanswered"
+  },
+  {
     value: "locked",
     label: "Locked"
   },
@@ -148,7 +152,7 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
       />
 
       {posts.length === 0 ? (
-        <FeedEmpty />
+        <FeedEmpty activeTab={activeTab} />
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
@@ -598,17 +602,49 @@ const FeedLoading = () => (
   </div>
 );
 
-const FeedEmpty = () => (
-  <Card>
-    <CardContent className="flex min-h-48 flex-col justify-center gap-2">
-      <MessageSquareText className="size-8 text-faint" />
-      <h2 className="text-base font-semibold text-primary">No posts yet</h2>
-      <p className="max-w-lg text-sm leading-6 text-muted">
-        Club discussions will appear here after posts are added.
-      </p>
-    </CardContent>
-  </Card>
-);
+const emptyStateByTab: Record<
+  ClubFeedTabValue,
+  { title: string; body: string }
+> = {
+  safe: {
+    title: "No safe posts yet",
+    body: "Discussions at your current progress will appear here."
+  },
+  unanswered: {
+    title: "No unanswered posts",
+    body: "Every discussion has a reply right now."
+  },
+  locked: {
+    title: "No locked posts",
+    body: "Future discussions will appear here when they are beyond your current progress."
+  },
+  all: {
+    title: "No posts yet",
+    body: "Club discussions will appear here after posts are added."
+  },
+  "my-posts": {
+    title: "No posts from you yet",
+    body: "Posts you create in this club will appear here."
+  }
+};
+
+const FeedEmpty = ({ activeTab }: { activeTab: ClubFeedTabValue }) => {
+  const emptyState = emptyStateByTab[activeTab];
+
+  return (
+    <Card>
+      <CardContent className="flex min-h-48 flex-col justify-center gap-2">
+        <MessageSquareText className="size-8 text-faint" />
+        <h2 className="text-base font-semibold text-primary">
+          {emptyState.title}
+        </h2>
+        <p className="max-w-lg text-sm leading-6 text-muted">
+          {emptyState.body}
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
 
 const FeedError = ({
   error,

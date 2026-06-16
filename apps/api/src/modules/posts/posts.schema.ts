@@ -16,7 +16,7 @@ export const postTypeSchema = z.enum([
 ]);
 
 export const clubFeedTabSchema = z
-  .enum(["safe", "locked", "all", "my-posts"])
+  .enum(["safe", "unanswered", "locked", "all", "my-posts"])
   .default("all");
 
 export const listClubPostsQuerySchema = z
