@@ -6,7 +6,8 @@ import {
   clubPostsParamsSchema,
   createClubPostRequestSchema,
   listClubPostsQuerySchema,
-  postDetailParamsSchema
+  postDetailParamsSchema,
+  togglePostReactionRequestSchema
 } from "./posts.schema.js";
 import { postsService, type PostsService } from "./posts.service.js";
 
@@ -15,6 +16,7 @@ export type PostsController = {
   listClubPostsBySlug: RequestHandler;
   getPostById: RequestHandler;
   revealPostById: RequestHandler;
+  togglePostReactionById: RequestHandler;
 };
 
 export const createPostsController = (
@@ -124,6 +126,35 @@ export const createPostsController = (
       const response = await service.revealPostById(
         paramsResult.data.postId,
         req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  togglePostReactionById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = postDetailParamsSchema.safeParse(req.params);
+      const bodyResult = togglePostReactionRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the reaction request and try again."
+        );
+      }
+
+      const response = await service.togglePostReactionById(
+        paramsResult.data.postId,
+        req.currentUser.id,
+        bodyResult.data
       );
 
       res.status(200).json(response);

@@ -4,7 +4,10 @@ import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   ClubFeedTab,
   CreateClubPostRequest,
+  PostReactionEmoji,
+  TogglePostReactionRequest
 } from "./posts.schema.js";
+import { postReactionEmojis } from "./posts.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -50,6 +53,12 @@ export type ClubPostRecord = {
     safeTitle: string;
   };
   commentCount: number;
+  reactionCount: number;
+  reactions: Array<{
+    emoji: PostReactionEmoji;
+    count: number;
+    reactedByMe: boolean;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -102,6 +111,11 @@ export type PostsRepository = {
   findPostForDetail: (
     postId: string,
     userId: string
+  ) => Promise<PostDetailRecord | null>;
+  togglePostReaction: (
+    postId: string,
+    userId: string,
+    input: TogglePostReactionRequest
   ) => Promise<PostDetailRecord | null>;
 };
 
@@ -295,12 +309,10 @@ export const postsRepository: PostsRepository = {
         select: postSelect
       });
 
-      return {
-        ...post,
-        type: post.type as ClubPostRecord["type"],
-        status: post.status as ClubPostRecord["status"],
-        commentCount: 0
-      };
+      return toClubPostRecord(
+        post,
+        await userReactionMapForPostIds([], authorId)
+      );
     }),
 
   listClubPosts: async (
@@ -386,13 +398,13 @@ export const postsRepository: PostsRepository = {
     const pagePosts = posts.slice(0, limit);
     const lastPost = pagePosts[pagePosts.length - 1];
 
+    const reactionMap = await userReactionMapForPostIds(
+      pagePosts.map((post) => post.id),
+      authorId
+    );
+
     return {
-      posts: pagePosts.map((post) => ({
-        ...post,
-        type: post.type as ClubPostRecord["type"],
-        status: post.status as ClubPostRecord["status"],
-        commentCount: post._count.comments
-      })),
+      posts: pagePosts.map((post) => toClubPostRecord(post, reactionMap)),
       nextCursor:
         posts.length > limit && lastPost
           ? {
@@ -453,18 +465,10 @@ export const postsRepository: PostsRepository = {
     const progress = post.club.progress[0];
 
     return {
-      post: {
-        id: post.id,
-        type: post.type as ClubPostRecord["type"],
-        status: post.status as ClubPostRecord["status"],
-        title: post.title,
-        body: post.body,
-        author: post.author,
-        requiredMilestone: post.requiredMilestone,
-        commentCount: post._count.comments,
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt
-      },
+      post: toClubPostRecord(
+        post,
+        await userReactionMapForPostIds([post.id], userId)
+      ),
       club: {
         id: post.club.id,
         slug: post.club.slug,
@@ -477,5 +481,159 @@ export const postsRepository: PostsRepository = {
         }
       }
     };
+  },
+
+  togglePostReaction: async (postId, userId, input) => {
+    await prisma.$transaction(async (transaction) => {
+      const existingReaction = await transaction.postReaction.findUnique({
+        where: {
+          userId_postId_emoji: {
+            userId,
+            postId,
+            emoji: input.emoji
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (existingReaction) {
+        await transaction.postReaction.delete({
+          where: {
+            id: existingReaction.id
+          }
+        });
+        return;
+      }
+
+      await transaction.postReaction.create({
+        data: {
+          postId,
+          userId,
+          emoji: input.emoji
+        }
+      });
+    });
+
+    return postsRepository.findPostForDetail(postId, userId);
   }
 };
+
+type SelectedPost = Prisma.PostGetPayload<{
+  select: typeof postSelect;
+}>;
+
+type ReactionMap = Map<
+  string,
+  Map<PostReactionEmoji, { count: number; reactedByMe: boolean }>
+>;
+
+const toClubPostRecord = (
+  post: SelectedPost,
+  reactionMap: ReactionMap
+): ClubPostRecord => {
+  const postReactions = reactionMap.get(post.id) ?? new Map();
+  const reactions = postReactionEmojis.map((emoji) => ({
+    emoji,
+    count: postReactions.get(emoji)?.count ?? 0,
+    reactedByMe: postReactions.get(emoji)?.reactedByMe ?? false
+  }));
+
+  return {
+    id: post.id,
+    type: post.type as ClubPostRecord["type"],
+    status: post.status as ClubPostRecord["status"],
+    title: post.title,
+    body: post.body,
+    author: post.author,
+    requiredMilestone: post.requiredMilestone,
+    commentCount: post._count.comments,
+    reactionCount: reactions.reduce(
+      (total, reaction) => total + reaction.count,
+      0
+    ),
+    reactions,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt
+  };
+};
+
+const userReactionMapForPostIds = async (
+  postIds: string[],
+  userId: string
+): Promise<ReactionMap> => {
+  const reactionMap: ReactionMap = new Map();
+
+  for (const postId of postIds) {
+    reactionMap.set(postId, new Map());
+  }
+
+  if (postIds.length === 0) {
+    return reactionMap;
+  }
+
+  const [reactionCounts, currentUserReactions] = await Promise.all([
+    prisma.postReaction.groupBy({
+      by: ["postId", "emoji"],
+      where: {
+        postId: {
+          in: postIds
+        }
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    prisma.postReaction.findMany({
+      where: {
+        postId: {
+          in: postIds
+        },
+        userId
+      },
+      select: {
+        postId: true,
+        emoji: true
+      }
+    })
+  ]);
+
+  for (const reactionCount of reactionCounts) {
+    if (!isPostReactionEmoji(reactionCount.emoji)) {
+      continue;
+    }
+
+    const reactionsForPost =
+      reactionMap.get(reactionCount.postId) ?? new Map();
+
+    reactionsForPost.set(reactionCount.emoji, {
+      count: reactionCount._count._all,
+      reactedByMe: false
+    });
+    reactionMap.set(reactionCount.postId, reactionsForPost);
+  }
+
+  for (const reaction of currentUserReactions) {
+    if (!isPostReactionEmoji(reaction.emoji)) {
+      continue;
+    }
+
+    const reactionsForPost = reactionMap.get(reaction.postId) ?? new Map();
+    const aggregate = reactionsForPost.get(reaction.emoji) ?? {
+      count: 0,
+      reactedByMe: false
+    };
+
+    reactionsForPost.set(reaction.emoji, {
+      ...aggregate,
+      reactedByMe: true
+    });
+    reactionMap.set(reaction.postId, reactionsForPost);
+  }
+
+  return reactionMap;
+};
+
+const isPostReactionEmoji = (emoji: string): emoji is PostReactionEmoji =>
+  postReactionEmojis.some((allowedEmoji) => allowedEmoji === emoji);

@@ -16,6 +16,7 @@ import {
   loginRateLimiter,
   logoutRateLimiter,
   postCommentCreateRateLimiter,
+  postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
@@ -66,6 +67,10 @@ export const createApp = () => {
   );
   app.post("/api/clubs/:slug/posts", clubPostCreateRateLimiter);
   app.post("/api/posts/:postId/comments", postCommentCreateRateLimiter);
+  app.post(
+    "/api/posts/:postId/reactions/toggle",
+    postReactionToggleRateLimiter
+  );
   app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);

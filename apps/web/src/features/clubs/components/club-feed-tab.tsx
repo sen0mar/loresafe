@@ -40,11 +40,14 @@ import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
   type ClubMilestone,
+  type ClubPostCounts,
   type ClubPostCard,
   type PostType,
+  postReactionEmojis,
   useClubMilestonesQuery,
   useClubPostsInfiniteQuery,
-  useCreateClubPostMutation
+  useCreateClubPostMutation,
+  useTogglePostReactionMutation
 } from "../api/clubs.js";
 import {
   createPostSchema,
@@ -478,35 +481,41 @@ const PostFormField = ({
 
 export const PostCard = ({
   linked = false,
+  onOptimisticReaction,
+  onReactionReconciled,
+  onReactionRollback,
   post
 }: {
   linked?: boolean;
+  onOptimisticReaction?: (post: ClubPostCard) => void;
+  onReactionReconciled?: (post: ClubPostCard) => void;
+  onReactionRollback?: (post: ClubPostCard | null) => void;
   post: ClubPostCard;
 }) => {
-  const card =
-    post.visibility === "VISIBLE" ? (
-      <VisiblePostCard post={post} />
-    ) : (
-      <LockedPostCard post={post} />
-    );
-
-  if (!linked) {
-    return card;
-  }
-
-  return (
-    <Link
-      className="block rounded-xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-base"
-      to={`/app/posts/${post.id}`}
-    >
-      {card}
-    </Link>
+  return post.visibility === "VISIBLE" ? (
+    <VisiblePostCard
+      linked={linked}
+      onOptimisticReaction={onOptimisticReaction}
+      onReactionReconciled={onReactionReconciled}
+      onReactionRollback={onReactionRollback}
+      post={post}
+    />
+  ) : (
+    <LockedPostCard linked={linked} post={post} />
   );
 };
 
 const VisiblePostCard = ({
+  linked,
+  onOptimisticReaction,
+  onReactionReconciled,
+  onReactionRollback,
   post
 }: {
+  linked: boolean;
+  onOptimisticReaction?: (post: ClubPostCard) => void;
+  onReactionReconciled?: (post: ClubPostCard) => void;
+  onReactionRollback?: (post: ClubPostCard | null) => void;
   post: Extract<ClubPostCard, { visibility: "VISIBLE" }>;
 }) => (
   <Card>
@@ -514,25 +523,45 @@ const VisiblePostCard = ({
       <PostMetaRow post={post} />
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-normal text-primary">
-          {post.title}
+          {linked ? (
+            <Link
+              className="rounded-md transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              to={`/app/posts/${post.id}`}
+            >
+              {post.title}
+            </Link>
+          ) : (
+            post.title
+          )}
         </h2>
         <p className="text-sm leading-6 text-muted">{post.bodyPreview}</p>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3 text-xs text-faint">
-        <span className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
+        <span className="flex items-center gap-2 text-xs text-faint">
           <UserCircle className="size-4" />
           {post.author.displayName}
           {post.author.username ? ` / ${post.author.username}` : ""}
         </span>
-        <PostCounts post={post} />
+        <div className="flex flex-wrap items-center gap-3">
+          <PostCounts post={post} />
+          <PostReactionButtons
+            counts={post.counts}
+            onOptimisticReaction={onOptimisticReaction}
+            onReactionReconciled={onReactionReconciled}
+            onReactionRollback={onReactionRollback}
+            postId={post.id}
+          />
+        </div>
       </div>
     </CardContent>
   </Card>
 );
 
 const LockedPostCard = ({
+  linked,
   post
 }: {
+  linked: boolean;
   post: Extract<ClubPostCard, { visibility: "LOCKED" }>;
 }) => (
   <Card>
@@ -547,12 +576,19 @@ const LockedPostCard = ({
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3 text-xs text-faint">
-        <span className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
+        <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />
           {formatDateTime(post.createdAt)}
         </span>
-        <PostCounts post={post} />
+        <div className="flex flex-wrap items-center gap-3">
+          <PostCounts post={post} />
+          {linked ? (
+            <Button asChild size="sm" variant="secondary">
+              <Link to={`/app/posts/${post.id}`}>Open</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
     </CardContent>
   </Card>
@@ -578,11 +614,69 @@ const PostMetaRow = ({ post }: { post: ClubPostCard }) => (
 );
 
 const PostCounts = ({ post }: { post: ClubPostCard }) => (
-  <span>
+  <span className="text-xs text-faint">
     {countFormatter.format(post.counts.commentCount)} comments /{" "}
     {countFormatter.format(post.counts.reactionCount)} reactions
   </span>
 );
+
+export const PostReactionButtons = ({
+  counts,
+  onOptimisticReaction,
+  onReactionReconciled,
+  onReactionRollback,
+  postId
+}: {
+  counts: ClubPostCounts;
+  onOptimisticReaction?: (post: ClubPostCard) => void;
+  onReactionReconciled?: (post: ClubPostCard) => void;
+  onReactionRollback?: (post: ClubPostCard | null) => void;
+  postId: string;
+}) => {
+  const reactionMutation = useTogglePostReactionMutation(postId, {
+    onOptimisticPost: onOptimisticReaction,
+    onReconciledPost: onReactionReconciled,
+    onRollbackPost: onReactionRollback
+  });
+
+  const handleReactionToggle =
+    (emoji: (typeof postReactionEmojis)[number]) => () => {
+      reactionMutation.mutate(
+        {
+          emoji
+        },
+        {
+          onError: (error) => {
+            toast.error(
+              error instanceof ApiError
+                ? error.message
+                : "Could not update reaction. Try again."
+            );
+          }
+        }
+      );
+    };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1" aria-label="Reactions">
+      {counts.reactions.map((reaction) => (
+        <button
+          key={reaction.emoji}
+          type="button"
+          className="flex h-8 items-center gap-1 rounded-md border border-default bg-inset px-2 text-sm text-secondary transition hover:border-strong hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 data-[active=true]:border-brand data-[active=true]:bg-active data-[active=true]:text-brand"
+          data-active={reaction.reactedByMe}
+          disabled={reactionMutation.isPending}
+          aria-pressed={reaction.reactedByMe}
+          aria-label={`${reaction.reactedByMe ? "Remove" : "Add"} ${reaction.emoji} reaction`}
+          onClick={handleReactionToggle(reaction.emoji)}
+        >
+          <span aria-hidden="true">{reaction.emoji}</span>
+          <span className="text-xs">{countFormatter.format(reaction.count)}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const FeedLoading = () => (
   <div className="space-y-3">

@@ -46,6 +46,11 @@ import {
 } from "./posts.routes.js";
 import { createPostsService } from "./posts.service.js";
 import type { CreateClubPostRequest } from "./posts.schema.js";
+import {
+  postReactionEmojis,
+  type PostReactionEmoji,
+  type TogglePostReactionRequest
+} from "./posts.schema.js";
 
 describe("posts routes", () => {
   let repository: InMemoryPostsRepository;
@@ -335,7 +340,8 @@ describe("posts routes", () => {
       counts: {
         commentCount: 0,
         reactionCount: 0,
-        unreadCommentCount: 0
+        unreadCommentCount: 0,
+        reactions: expectedEmptyReactions()
       },
       lockReason: "Reach milestone 3: Finale to unlock this discussion.",
       createdAt: expect.any(String),
@@ -458,7 +464,8 @@ describe("posts routes", () => {
       counts: {
         commentCount: 0,
         reactionCount: 0,
-        unreadCommentCount: 0
+        unreadCommentCount: 0,
+        reactions: expectedEmptyReactions()
       },
       lockReason:
         "Reach milestone 2: Spoiler-safe midpoint to unlock this discussion.",
@@ -513,7 +520,8 @@ describe("posts routes", () => {
       counts: {
         commentCount: 0,
         reactionCount: 0,
-        unreadCommentCount: 0
+        unreadCommentCount: 0,
+        reactions: expectedEmptyReactions()
       },
       lockReason:
         "Reach milestone 2: Spoiler-safe midpoint to unlock this discussion.",
@@ -530,6 +538,259 @@ describe("posts routes", () => {
     );
     expect(JSON.stringify(response.body)).not.toContain(
       "DIRECT_LOCKED_SECRET_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
+  it("rejects post reaction toggles without an authenticated session", async () => {
+    const response = await request(app)
+      .post(`/api/posts/${crypto.randomUUID()}/reactions/toggle`)
+      .set("x-request-id", "post-reaction-missing-session")
+      .send({ emoji: "👍" })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "post-reaction-missing-session"
+      }
+    });
+  });
+
+  it("validates post reaction toggle input", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .post("/api/posts/not-a-uuid/reactions/toggle")
+      .set("Cookie", await createSessionCookie(user))
+      .send({ emoji: "👍" })
+      .expect(400);
+
+    await request(app)
+      .post(`/api/posts/${crypto.randomUUID()}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({ emoji: "🔥" })
+      .expect(400);
+  });
+
+  it("hides private post text from non-members on reaction toggle", async () => {
+    const owner = repository.createStoredUser(validUserInput());
+    const reader = repository.createStoredUser({
+      ...validUserInput(),
+      email: "private-reaction-reader@example.com"
+    });
+    const club = repository.createClub("private-reaction-room", "PRIVATE");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Private opening"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const post = repository.createPost(club.id, owner.id, milestone.id, {
+      title: "PRIVATE_REACTION_TITLE",
+      body: "PRIVATE_REACTION_BODY"
+    });
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(reader))
+      .send({ emoji: "👍" })
+      .expect(404);
+
+    expect(response.body.error).toMatchObject({
+      code: "NOT_FOUND",
+      message: "Post not found"
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "PRIVATE_REACTION_TITLE"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "PRIVATE_REACTION_BODY"
+    );
+    expect(repository.postReactions).toHaveLength(0);
+  });
+
+  it("rejects reactions on locked posts without leaking post text", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("locked-reaction-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "LOCKED_REACTION_TITLE",
+      body: "LOCKED_REACTION_BODY"
+    });
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({ emoji: "👍" })
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Reach the required milestone before reacting to this discussion."
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_REACTION_TITLE"
+    );
+    expect(JSON.stringify(response.body)).not.toContain("LOCKED_REACTION_BODY");
+    expect(repository.postReactions).toHaveLength(0);
+  });
+
+  it("toggles reactions once per user, emoji, and post", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("reaction-toggle-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Reaction title",
+      body: "Reaction body"
+    });
+    const cookie = await createSessionCookie(user);
+
+    const addedResponse = await request(app)
+      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .set("Cookie", cookie)
+      .send({ emoji: "👍" })
+      .expect(200);
+    const duplicateAttemptResponse = await request(app)
+      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .set("Cookie", cookie)
+      .send({ emoji: "👍" })
+      .expect(200);
+
+    expect(repository.postReactions).toHaveLength(0);
+    expect(addedResponse.body.post.counts).toMatchObject({
+      reactionCount: 1,
+      reactions: expect.arrayContaining([
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByMe: true
+        }
+      ])
+    });
+    expect(duplicateAttemptResponse.body.post.counts).toMatchObject({
+      reactionCount: 0,
+      reactions: expect.arrayContaining([
+        {
+          emoji: "👍",
+          count: 0,
+          reactedByMe: false
+        }
+      ])
+    });
+  });
+
+  it("aggregates different users and emojis without exposing identities", async () => {
+    const firstUser = repository.createStoredUser(validUserInput());
+    const secondUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "second-reaction-user@example.com"
+    });
+    const club = repository.createClub("reaction-aggregate-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(firstUser.id, club.id);
+    repository.createMembership(secondUser.id, club.id);
+    repository.setProgress(firstUser.id, club.id, milestone.id, "STRICT");
+    repository.setProgress(secondUser.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, firstUser.id, milestone.id, {
+      title: "Aggregate title",
+      body: "Aggregate body"
+    });
+    repository.createPostReaction(post.id, firstUser.id, "👍");
+    repository.createPostReaction(post.id, secondUser.id, "👍");
+    repository.createPostReaction(post.id, secondUser.id, "❤️");
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(firstUser))
+      .expect(200);
+
+    expect(response.body.post.counts).toEqual({
+      commentCount: 0,
+      reactionCount: 3,
+      unreadCommentCount: 0,
+      reactions: [
+        { emoji: "👍", count: 2, reactedByMe: true },
+        { emoji: "❤️", count: 1, reactedByMe: false },
+        { emoji: "😂", count: 0, reactedByMe: false },
+        { emoji: "😮", count: 0, reactedByMe: false },
+        { emoji: "👀", count: 0, reactedByMe: false }
+      ]
+    });
+    expect(JSON.stringify(response.body.post.counts)).not.toContain(
+      secondUser.id
+    );
+  });
+
+  it("returns locked reaction aggregates without locked content", async () => {
+    const reader = repository.createStoredUser(validUserInput());
+    const reactor = repository.createStoredUser({
+      ...validUserInput(),
+      email: "locked-aggregate-reactor@example.com"
+    });
+    const club = repository.createClub("locked-aggregate-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(reader.id, club.id);
+    repository.createMembership(reactor.id, club.id);
+    repository.setProgress(reader.id, club.id, firstMilestone.id, "STRICT");
+    repository.setProgress(reactor.id, club.id, secondMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, reactor.id, secondMilestone.id, {
+      title: "LOCKED_AGGREGATE_TITLE",
+      body: "LOCKED_AGGREGATE_BODY"
+    });
+    repository.createPostReaction(post.id, reactor.id, "👀");
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(response.body.post).toMatchObject({
+      id: post.id,
+      visibility: "LOCKED",
+      counts: {
+        commentCount: 0,
+        reactionCount: 1,
+        unreadCommentCount: 0,
+        reactions: [
+          { emoji: "👍", count: 0, reactedByMe: false },
+          { emoji: "❤️", count: 0, reactedByMe: false },
+          { emoji: "😂", count: 0, reactedByMe: false },
+          { emoji: "😮", count: 0, reactedByMe: false },
+          { emoji: "👀", count: 1, reactedByMe: false }
+        ]
+      }
+    });
+    expect(response.body.post).not.toHaveProperty("title");
+    expect(response.body.post).not.toHaveProperty("author");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_AGGREGATE_TITLE"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_AGGREGATE_BODY"
     );
   });
 
@@ -1236,6 +1497,13 @@ type StoredComment = {
   deletedAt: Date | null;
 };
 
+type StoredPostReaction = {
+  id: string;
+  postId: string;
+  userId: string;
+  emoji: PostReactionEmoji;
+};
+
 class InMemoryPostsRepository
   implements AuthUsersRepository, PostsRepository, ProgressRepository
 {
@@ -1259,6 +1527,7 @@ class InMemoryPostsRepository
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
   readonly comments: StoredComment[] = [];
+  readonly postReactions: StoredPostReaction[] = [];
   readonly posts: Array<
     ClubPostRecord & {
       clubId: string;
@@ -1410,6 +1679,8 @@ class InMemoryPostsRepository
       },
       requiredMilestone,
       commentCount: input.commentCount ?? 0,
+      reactionCount: 0,
+      reactions: this.emptyReactions(),
       createdAt: now,
       updatedAt: now,
       deletedAt: input.deletedAt ?? null
@@ -1451,6 +1722,34 @@ class InMemoryPostsRepository
     post.commentCount = this.visibleCommentCountForPost(post.id);
 
     return comment;
+  };
+
+  createPostReaction = (
+    postId: string,
+    userId: string,
+    emoji: PostReactionEmoji
+  ) => {
+    if (
+      this.postReactions.some(
+        (reaction) =>
+          reaction.postId === postId &&
+          reaction.userId === userId &&
+          reaction.emoji === emoji
+      )
+    ) {
+      return null;
+    }
+
+    const reaction = {
+      id: crypto.randomUUID(),
+      postId,
+      userId,
+      emoji
+    };
+
+    this.postReactions.push(reaction);
+
+    return reaction;
   };
 
   setProgress = (
@@ -1573,7 +1872,7 @@ class InMemoryPostsRepository
     const lastPost = pagePosts[pagePosts.length - 1];
 
     return {
-      posts: pagePosts,
+      posts: pagePosts.map((post) => this.withReactions(post, authorId)),
       nextCursor:
         visiblePosts.length > limit && lastPost
           ? {
@@ -1609,7 +1908,7 @@ class InMemoryPostsRepository
     const progress = this.findProgress(userId, club.id);
 
     return {
-      post,
+      post: this.withReactions(post, userId),
       club: {
         id: club.id,
         slug: club.slug,
@@ -1623,6 +1922,27 @@ class InMemoryPostsRepository
         }
       }
     };
+  };
+
+  togglePostReaction = async (
+    postId: string,
+    userId: string,
+    input: TogglePostReactionRequest
+  ): Promise<PostDetailRecord | null> => {
+    const existingReactionIndex = this.postReactions.findIndex(
+      (reaction) =>
+        reaction.postId === postId &&
+        reaction.userId === userId &&
+        reaction.emoji === input.emoji
+    );
+
+    if (existingReactionIndex >= 0) {
+      this.postReactions.splice(existingReactionIndex, 1);
+    } else {
+      this.createPostReaction(postId, userId, input.emoji);
+    }
+
+    return this.findPostForDetail(postId, userId);
   };
 
   findClubForProgress = async (
@@ -1848,6 +2168,49 @@ class InMemoryPostsRepository
         comment.deletedAt === null
     ).length;
 
+  private emptyReactions = () =>
+    postReactionEmojis.map((emoji) => ({
+      emoji,
+      count: 0,
+      reactedByMe: false
+    }));
+
+  private withReactions = (
+    post: ClubPostRecord & {
+      clubId: string;
+      milestoneId: string;
+      deletedAt: Date | null;
+    },
+    userId: string
+  ): ClubPostRecord & {
+    clubId: string;
+    milestoneId: string;
+    deletedAt: Date | null;
+  } => {
+    const reactions = postReactionEmojis.map((emoji) => {
+      const matchingReactions = this.postReactions.filter(
+        (reaction) => reaction.postId === post.id && reaction.emoji === emoji
+      );
+
+      return {
+        emoji,
+        count: matchingReactions.length,
+        reactedByMe: matchingReactions.some(
+          (reaction) => reaction.userId === userId
+        )
+      };
+    });
+
+    return {
+      ...post,
+      reactionCount: reactions.reduce(
+        (total, reaction) => total + reaction.count,
+        0
+      ),
+      reactions
+    };
+  };
+
   private isAfterCursor = (
     post: ClubPostRecord,
     cursor: ClubPostsCursor | null
@@ -1924,3 +2287,10 @@ const validPostInput = (
   requiredMilestoneId,
   ...overrides
 });
+
+const expectedEmptyReactions = () =>
+  postReactionEmojis.map((emoji) => ({
+    emoji,
+    count: 0,
+    reactedByMe: false
+  }));

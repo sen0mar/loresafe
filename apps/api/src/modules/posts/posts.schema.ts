@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { clubSlugSchema } from "../clubs/clubs.schema.js";
 
+export const postReactionEmojis = ["👍", "❤️", "😂", "😮", "👀"] as const;
+
+export const postReactionEmojiSchema = z.enum(postReactionEmojis);
+
 export const postTypeSchema = z.enum([
   "DISCUSSION",
   "QUESTION",
@@ -36,6 +40,12 @@ export const createClubPostRequestSchema = z
   })
   .strict();
 
+export const togglePostReactionRequestSchema = z
+  .object({
+    emoji: postReactionEmojiSchema
+  })
+  .strict();
+
 export const clubPostsParamsSchema = z
   .object({
     slug: clubSlugSchema
@@ -52,6 +62,10 @@ export type ClubPostsParams = z.infer<typeof clubPostsParamsSchema>;
 export type PostDetailParams = z.infer<typeof postDetailParamsSchema>;
 export type CreateClubPostRequest = z.infer<
   typeof createClubPostRequestSchema
+>;
+export type PostReactionEmoji = z.infer<typeof postReactionEmojiSchema>;
+export type TogglePostReactionRequest = z.infer<
+  typeof togglePostReactionRequestSchema
 >;
 export type ClubFeedTab = z.infer<typeof clubFeedTabSchema>;
 export type ListClubPostsQuery = z.infer<typeof listClubPostsQuerySchema>;

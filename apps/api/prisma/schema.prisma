@@ -69,6 +69,7 @@ model User {
   progressHistory    ProgressHistory[]
   posts              Post[]
   comments           Comment[]
+  postReactions      PostReaction[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -239,6 +240,7 @@ model Post {
   author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   comments          Comment[]
+  reactions         PostReaction[]
 
   @@index([clubId, status, deletedAt, createdAt], map: "posts_club_id_status_deleted_at_created_at_idx")
   @@index([clubId, status, deletedAt, createdAt, id], map: "posts_club_status_deleted_created_id_idx")
@@ -247,6 +249,24 @@ model Post {
   @@index([authorId], map: "posts_author_id_idx")
   @@index([requiredMilestoneId], map: "posts_required_milestone_id_idx")
   @@map("posts")
+}
+
+model PostReaction {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String   @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, emoji], map: "post_reactions_user_id_post_id_emoji_unique")
+  @@index([postId], map: "post_reactions_post_id_idx")
+  @@index([postId, emoji], map: "post_reactions_post_id_emoji_idx")
+  @@index([userId], map: "post_reactions_user_id_idx")
+  @@map("post_reactions")
 }
 
 model Comment {

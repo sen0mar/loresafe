@@ -31,6 +31,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 25: Comment replies and later locks — Added one-level comment replies, optional same-club later milestone requirements, backend progress enforcement/redaction tests, and post-detail reply controls with advanced milestone selection.
 - Feature 26: Brave reveal for locked content — Added explicit one-time post/comment reveal endpoints for Brave mode, Finished-mode normal visibility, local-only reveal UI, and focused backend leak regression tests.
 - Feature 27: Unanswered feed tab — Added an `unanswered` club feed filter backed by visible non-deleted comment counts, a frontend Unanswered tab with real empty states, and focused sanitizer/count regression tests.
+- Feature 28: Post reactions — Added the PostReaction model with a committed migration, authenticated fixed-emoji toggle API, safe aggregate counts on visible and locked post cards, optimistic frontend toggles with rollback, and focused authorization/spoiler regression tests.
 
 ## Entry Format
 

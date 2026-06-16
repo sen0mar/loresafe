@@ -4,6 +4,7 @@ import {
   type CreateClubPostResponse,
   type PostDetailResponse,
   type RevealPostResponse,
+  type TogglePostReactionResponse,
   toClubPostCardDto,
   toRevealedClubPostDto
 } from "./posts.dto.js";
@@ -14,8 +15,14 @@ import {
   type PostsRepository
 } from "./posts.repository.js";
 import type { ListClubPostsQuery } from "./posts.schema.js";
-import type { CreateClubPostRequest } from "./posts.schema.js";
-import { canRevealRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import type {
+  CreateClubPostRequest,
+  TogglePostReactionRequest
+} from "./posts.schema.js";
+import {
+  canRevealRequiredMilestone,
+  canViewRequiredMilestone
+} from "../spoilers/spoiler.policy.js";
 
 export type PostsService = {
   createClubPostForSlug: (
@@ -33,6 +40,11 @@ export type PostsService = {
     postId: string,
     userId: string
   ) => Promise<RevealPostResponse>;
+  togglePostReactionById: (
+    postId: string,
+    userId: string,
+    input: TogglePostReactionRequest
+  ) => Promise<TogglePostReactionResponse>;
 };
 
 export const createPostsService = (
@@ -145,6 +157,43 @@ export const createPostsService = (
         id: detail.club.id,
         slug: detail.club.slug
       }
+    };
+  },
+
+  togglePostReactionById: async (postId, userId, input) => {
+    const detail = await repository.findPostForDetail(postId, userId);
+
+    if (!detail || !canViewClubFeed(detail.club)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (
+      !canViewRequiredMilestone({
+        mode: detail.club.progress.mode,
+        currentMilestonePosition:
+          detail.club.progress.currentMilestonePosition,
+        requiredMilestonePosition: detail.post.requiredMilestone.position
+      })
+    ) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Reach the required milestone before reacting to this discussion."
+      );
+    }
+
+    const toggledDetail = await repository.togglePostReaction(
+      postId,
+      userId,
+      input
+    );
+
+    if (!toggledDetail || !canViewClubFeed(toggledDetail.club)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    return {
+      post: toClubPostCardDto(toggledDetail.post, toggledDetail.club.progress)
     };
   }
 });

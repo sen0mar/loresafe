@@ -1,4 +1,5 @@
 import {
+  type InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -26,6 +27,16 @@ export type PostType =
   | "JUST_REACHED";
 
 export type PostStatus = "VISIBLE" | "HIDDEN";
+
+export type PostReactionEmoji = "👍" | "❤️" | "😂" | "😮" | "👀";
+
+export const postReactionEmojis: PostReactionEmoji[] = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "👀"
+];
 
 export type ClubFeedTab =
   | "safe"
@@ -120,6 +131,11 @@ export type ClubPostCounts = {
   commentCount: number;
   reactionCount: number;
   unreadCommentCount: number;
+  reactions: Array<{
+    emoji: PostReactionEmoji;
+    count: number;
+    reactedByMe: boolean;
+  }>;
 };
 
 export type ClubPostRequiredMilestone = {
@@ -275,6 +291,14 @@ export type RevealPostResponse = {
   };
 };
 
+export type TogglePostReactionInput = {
+  emoji: PostReactionEmoji;
+};
+
+export type TogglePostReactionResponse = {
+  post: ClubPostCard;
+};
+
 export type PostCommentsResponse = {
   comments: Comment[];
 };
@@ -406,6 +430,15 @@ export const getPostComments = (postId: string) =>
 
 export const revealPost = (postId: string) =>
   apiPost<RevealPostResponse>(`/api/posts/${postId}/reveal`);
+
+export const togglePostReaction = (
+  postId: string,
+  input: TogglePostReactionInput
+) =>
+  apiPost<TogglePostReactionResponse, TogglePostReactionInput>(
+    `/api/posts/${postId}/reactions/toggle`,
+    input
+  );
 
 export const revealPostComment = (postId: string, commentId: string) =>
   apiPost<RevealCommentResponse>(
@@ -646,6 +679,112 @@ export const useRevealPostMutation = (postId: string) =>
     mutationFn: () => revealPost(postId)
   });
 
+export const useTogglePostReactionMutation = (
+  postId: string,
+  options: {
+    onOptimisticPost?: (post: ClubPostCard) => void;
+    onReconciledPost?: (post: ClubPostCard) => void;
+    onRollbackPost?: (post: ClubPostCard | null) => void;
+  } = {}
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: TogglePostReactionInput) =>
+      togglePostReaction(postId, input),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
+        queryKey: clubsQueryKeys.postDetail(postId)
+      });
+      await queryClient.cancelQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+      });
+
+      const previousPostDetail =
+        queryClient.getQueryData<PostDetailResponse>(
+          clubsQueryKeys.postDetail(postId)
+        ) ?? null;
+      const previousFeeds = queryClient
+        .getQueriesData<InfiniteData<ClubPostsResponse>>({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+        })
+        .map(([queryKey, value]) => [queryKey, value] as const);
+      const optimisticPost = previousPostDetail
+        ? togglePostReactionOnCard(previousPostDetail.post, input.emoji)
+        : null;
+
+      if (previousPostDetail && optimisticPost) {
+        queryClient.setQueryData<PostDetailResponse>(
+          clubsQueryKeys.postDetail(postId),
+          {
+            ...previousPostDetail,
+            post: optimisticPost
+          }
+        );
+        options.onOptimisticPost?.(optimisticPost);
+      }
+
+      queryClient.setQueriesData<InfiniteData<ClubPostsResponse>>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+        },
+        (currentData) =>
+          updatePostInInfiniteData(currentData, (post) =>
+            post.id === postId
+              ? togglePostReactionOnCard(post, input.emoji)
+              : post
+          )
+      );
+
+      return {
+        previousPostDetail,
+        previousFeeds
+      };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousPostDetail) {
+        queryClient.setQueryData(
+          clubsQueryKeys.postDetail(postId),
+          context.previousPostDetail
+        );
+        options.onRollbackPost?.(context.previousPostDetail.post);
+      } else {
+        options.onRollbackPost?.(null);
+      }
+
+      for (const [queryKey, value] of context?.previousFeeds ?? []) {
+        queryClient.setQueryData(queryKey, value);
+      }
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData<PostDetailResponse>(
+        clubsQueryKeys.postDetail(postId),
+        (currentResponse) =>
+          currentResponse
+            ? {
+                ...currentResponse,
+                post: response.post
+              }
+            : currentResponse
+      );
+      queryClient.setQueriesData<InfiniteData<ClubPostsResponse>>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+        },
+        (currentData) =>
+          updatePostInInfiniteData(currentData, (post) =>
+            post.id === postId ? response.post : post
+          )
+      );
+      options.onReconciledPost?.(response.post);
+    }
+  });
+};
+
 export const useRevealPostCommentMutation = (postId: string) =>
   useMutation({
     mutationFn: (commentId: string) => revealPostComment(postId, commentId)
@@ -784,4 +923,59 @@ export const useJoinClubMutation = () => {
       });
     }
   });
+};
+
+const updatePostInInfiniteData = (
+  currentData: InfiniteData<ClubPostsResponse> | undefined,
+  updatePost: (post: ClubPostCard) => ClubPostCard
+) => {
+  if (!currentData) {
+    return currentData;
+  }
+
+  return {
+    ...currentData,
+    pages: currentData.pages.map((page) => ({
+      ...page,
+      posts: page.posts.map(updatePost)
+    }))
+  };
+};
+
+export const togglePostReactionOnCard = (
+  post: ClubPostCard,
+  emoji: PostReactionEmoji
+): ClubPostCard => {
+  if (post.visibility === "LOCKED") {
+    return post;
+  }
+
+  const reactions = post.counts.reactions.map((reaction) => {
+    if (reaction.emoji !== emoji) {
+      return reaction;
+    }
+
+    const reactedByMe = !reaction.reactedByMe;
+    const count = reactedByMe
+      ? reaction.count + 1
+      : Math.max(0, reaction.count - 1);
+
+    return {
+      ...reaction,
+      count,
+      reactedByMe
+    };
+  });
+
+  return {
+    ...post,
+    counts: {
+      ...post.counts,
+      reactionCount: reactions.reduce(
+        (total, reaction) => total + reaction.count,
+        0
+      ),
+      reactions
+    }
+  };
 };

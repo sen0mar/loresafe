@@ -1,6 +1,7 @@
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { ClubPostRecord } from "./posts.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
+import type { PostReactionEmoji } from "./posts.schema.js";
 
 export type PostTypeDto =
   | "DISCUSSION"
@@ -20,6 +21,11 @@ type PostCountsDto = {
   commentCount: number;
   reactionCount: number;
   unreadCommentCount: number;
+  reactions: Array<{
+    emoji: PostReactionEmoji;
+    count: number;
+    reactedByMe: boolean;
+  }>;
 };
 
 type RequiredMilestoneDto = {
@@ -98,6 +104,10 @@ export type RevealPostResponse = {
   club: PostDetailClubDto;
 };
 
+export type TogglePostReactionResponse = {
+  post: ClubPostCardDto;
+};
+
 export type PostVisibilityContext = {
   mode: ProgressMode;
   currentMilestonePosition: number | null;
@@ -119,8 +129,9 @@ export const toClubPostCardDto = (
     requiredMilestone,
     counts: {
       commentCount: post.commentCount,
-      reactionCount: 0,
-      unreadCommentCount: 0
+      reactionCount: post.reactionCount,
+      unreadCommentCount: 0,
+      reactions: post.reactions
     },
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString()
@@ -173,8 +184,9 @@ export const toRevealedClubPostDto = (
   },
   counts: {
     commentCount: post.commentCount,
-    reactionCount: 0,
-    unreadCommentCount: 0
+    reactionCount: post.reactionCount,
+    unreadCommentCount: 0,
+    reactions: post.reactions
   },
   createdAt: post.createdAt.toISOString(),
   updatedAt: post.updatedAt.toISOString()

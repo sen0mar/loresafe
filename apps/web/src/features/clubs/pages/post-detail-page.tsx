@@ -278,7 +278,9 @@ const RevealedPostCard = ({ post }: { post: RevealedClubPost }) => (
           {post.author.displayName}
           {post.author.username ? ` / ${post.author.username}` : ""}
         </span>
-        <span>{post.counts.commentCount} comments</span>
+        <span>
+          {post.counts.commentCount} comments / {post.counts.reactionCount} reactions
+        </span>
       </div>
     </CardContent>
   </Card>

@@ -46,6 +46,13 @@ export const createPostDetailsRouter = (
     controller.revealPostById
   );
 
+  router.post(
+    "/:postId/reactions/toggle",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.togglePostReactionById
+  );
+
   return router;
 };
 
