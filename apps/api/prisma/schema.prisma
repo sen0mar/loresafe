@@ -63,18 +63,35 @@ enum NotificationType {
   PROGRESS_UNLOCK
 }
 
+enum FileAssetPurpose {
+  AVATAR
+  CLUB_COVER
+}
+
+enum FileAssetVisibility {
+  PUBLIC
+}
+
+enum FileAssetStatus {
+  PENDING
+  READY
+  FAILED
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
   displayName    String    @map("display_name") @db.VarChar(80)
   username       String?   @db.VarChar(30)
   bio            String?   @db.VarChar(160)
+  avatarAssetId  String?   @unique(map: "users_avatar_asset_id_unique") @map("avatar_asset_id") @db.Uuid
   passwordHash   String    @map("password_hash")
   sessionVersion Int       @default(1) @map("session_version")
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  avatarAsset       FileAsset? @relation("UserAvatarAsset", fields: [avatarAssetId], references: [id], onDelete: SetNull)
   clubMemberships   ClubMembership[]
   clubBans          ClubBan[]
   createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
@@ -85,6 +102,7 @@ model User {
   postReactions      PostReaction[]
   commentReactions   CommentReaction[]
   notifications      Notification[]
+  fileAssets         FileAsset[] @relation("FileAssetOwner")
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
@@ -100,9 +118,11 @@ model Club {
   category    String?        @db.VarChar(60)
   rules       String?        @db.VarChar(2000)
   visibility  ClubVisibility @default(PUBLIC)
+  coverAssetId String?       @unique(map: "clubs_cover_asset_id_unique") @map("cover_asset_id") @db.Uuid
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  coverAsset  FileAsset? @relation("ClubCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
   memberships ClubMembership[]
   invites     ClubInvite[]
   bans        ClubBan[]
@@ -111,6 +131,7 @@ model Club {
   history     ProgressHistory[]
   posts       Post[]
   notifications Notification[]
+  fileAssets  FileAsset[]
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -378,4 +399,29 @@ model Notification {
   @@index([commentId], map: "notifications_comment_id_idx")
   @@index([requiredMilestoneId], map: "notifications_required_milestone_id_idx")
   @@map("notifications")
+}
+
+model FileAsset {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String              @map("owner_id") @db.Uuid
+  clubId      String?             @map("club_id") @db.Uuid
+  purpose     FileAssetPurpose
+  visibility  FileAssetVisibility @default(PUBLIC)
+  objectKey   String              @unique(map: "file_assets_object_key_unique") @map("object_key") @db.VarChar(512)
+  contentType String              @map("content_type") @db.VarChar(120)
+  sizeBytes   Int                 @map("size_bytes")
+  status      FileAssetStatus     @default(PENDING)
+  readyAt     DateTime?           @map("ready_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner         User   @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  club          Club?  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  avatarForUser User?  @relation("UserAvatarAsset")
+  coverForClub  Club?  @relation("ClubCoverAsset")
+
+  @@index([ownerId, purpose, status, createdAt], map: "file_assets_owner_purpose_status_created_at_idx")
+  @@index([clubId, purpose, status, createdAt], map: "file_assets_club_purpose_status_created_at_idx")
+  @@index([status, createdAt], map: "file_assets_status_created_at_idx")
+  @@map("file_assets")
 }

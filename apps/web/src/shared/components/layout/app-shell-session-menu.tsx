@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { ChevronDown, LogIn, LogOut, UserPlus, UserRound } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +20,7 @@ import { getUserInitials } from "@/shared/lib/user-display";
 export type AppShellUser = {
   email: string;
   displayName: string;
+  avatarUrl?: string | null;
 };
 
 type SessionMenuProps = {
@@ -77,6 +82,12 @@ export const SessionMenu = ({
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="gap-3">
           <Avatar className="size-8">
+            {currentUser.avatarUrl ? (
+              <AvatarImage
+                src={currentUser.avatarUrl}
+                alt={`${currentUser.displayName} avatar`}
+              />
+            ) : null}
             <AvatarFallback>{getUserInitials(currentUser.displayName)}</AvatarFallback>
           </Avatar>
           <span className="hidden text-left sm:grid">

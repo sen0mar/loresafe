@@ -1,9 +1,11 @@
 import type { JoinedClubRecord } from "./users.repository.js";
+import { r2Storage } from "../../core/storage/r2-storage.js";
 
 export type JoinedClubDto = {
   id: string;
   title: string;
   slug: string;
+  coverUrl: string | null;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   role: "OWNER" | "MODERATOR" | "MEMBER";
   memberCount: number;
@@ -24,6 +26,10 @@ export const toJoinedClubDto = (club: JoinedClubRecord): JoinedClubDto => ({
   id: club.id,
   title: club.title,
   slug: club.slug,
+  coverUrl:
+    club.coverAsset?.status === "READY"
+      ? r2Storage.getPublicUrl(club.coverAsset.objectKey)
+      : null,
   visibility: club.visibility,
   role: club.role,
   memberCount: club.memberCount,

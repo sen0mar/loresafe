@@ -58,6 +58,7 @@ describe("auth routes", () => {
         displayName: "New Reader",
         username: null,
         bio: null,
+        avatarUrl: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -149,6 +150,7 @@ describe("auth routes", () => {
         displayName: "Existing Reader",
         username: null,
         bio: null,
+        avatarUrl: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }
@@ -363,6 +365,7 @@ describe("auth routes", () => {
         displayName: "New Reader",
         username: null,
         bio: null,
+        avatarUrl: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }

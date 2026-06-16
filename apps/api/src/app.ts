@@ -19,6 +19,7 @@ import {
   postCommentCreateRateLimiter,
   postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
+  publicAssetUploadRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -40,6 +41,7 @@ import {
   postsRouter
 } from "./modules/posts/posts.routes.js";
 import { progressRouter } from "./modules/progress/progress.routes.js";
+import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
 const localDevOrigins = [env.CLIENT_ORIGIN, "http://localhost:5174"];
@@ -85,12 +87,15 @@ export const createApp = () => {
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
   app.patch("/api/users/me", profileUpdateRateLimiter);
+  app.post("/api/uploads/public-assets", publicAssetUploadRateLimiter);
+  app.post("/api/uploads/:assetId/complete", publicAssetUploadRateLimiter);
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);

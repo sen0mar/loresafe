@@ -108,6 +108,7 @@ describe("users routes", () => {
           id: privateClub.id,
           title: "Private Plot Room",
           slug: "private-plot-room",
+          coverUrl: null,
           visibility: "PRIVATE",
           role: "OWNER",
           memberCount: 1,
@@ -117,6 +118,7 @@ describe("users routes", () => {
           id: inviteOnlyClub.id,
           title: "Invite Arc Watch",
           slug: "invite-arc-watch",
+          coverUrl: null,
           visibility: "INVITE_ONLY",
           role: "MODERATOR",
           memberCount: 1,
@@ -126,6 +128,7 @@ describe("users routes", () => {
           id: publicClub.id,
           title: "Public Story Circle",
           slug: "public-story-circle",
+          coverUrl: null,
           visibility: "PUBLIC",
           role: "MEMBER",
           memberCount: 2,
@@ -147,7 +150,8 @@ describe("users routes", () => {
         "role",
         "slug",
         "title",
-        "visibility"
+        "visibility",
+        "coverUrl"
       ].sort()
     );
     expect(JSON.stringify(response.body)).not.toContain("Unjoined Spoiler Room");
@@ -235,6 +239,7 @@ describe("users routes", () => {
         displayName: "Updated Reader",
         username: "story_fan",
         bio: "Safe discussions only.",
+        avatarUrl: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       }

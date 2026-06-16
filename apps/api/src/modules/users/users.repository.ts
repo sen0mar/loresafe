@@ -15,6 +15,10 @@ export type JoinedClubRecord = {
   id: string;
   title: string;
   slug: string;
+  coverAsset?: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined;
   visibility: ClubVisibility;
   role: ClubMembershipRole;
   memberCount: number;
@@ -44,6 +48,12 @@ const userSelect = {
   displayName: true,
   username: true,
   bio: true,
+  avatarAsset: {
+    select: {
+      objectKey: true,
+      status: true
+    }
+  },
   sessionVersion: true,
   createdAt: true,
   updatedAt: true
@@ -85,6 +95,12 @@ export const usersRepository: UsersRepository = {
               id: true,
               title: true,
               slug: true,
+              coverAsset: {
+                select: {
+                  objectKey: true,
+                  status: true
+                }
+              },
               visibility: true,
               _count: {
                 select: {
@@ -107,6 +123,7 @@ export const usersRepository: UsersRepository = {
         id: membership.club.id,
         title: membership.club.title,
         slug: membership.club.slug,
+        coverAsset: membership.club.coverAsset,
         visibility: membership.club.visibility,
         role: membership.role,
         memberCount: membership.club._count.memberships,

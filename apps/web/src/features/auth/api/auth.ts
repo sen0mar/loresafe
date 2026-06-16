@@ -11,6 +11,7 @@ export type AuthUser = {
   displayName: string;
   username: string | null;
   bio: string | null;
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

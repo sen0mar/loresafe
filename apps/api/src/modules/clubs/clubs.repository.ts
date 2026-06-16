@@ -13,6 +13,10 @@ export type ClubDiscoveryRecord = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverAsset?: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined;
   visibility: "PUBLIC";
   memberCount: number;
   createdAt: Date;
@@ -25,6 +29,10 @@ export type ClubDetailRecord = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverAsset?: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined;
   rules: string | null;
   visibility: ClubVisibility;
   memberCount: number;
@@ -63,6 +71,12 @@ const publicClubSelect = {
   slug: true,
   description: true,
   category: true,
+  coverAsset: {
+    select: {
+      objectKey: true,
+      status: true
+    }
+  },
   visibility: true,
   createdAt: true,
   updatedAt: true,
@@ -80,6 +94,12 @@ const clubDetailSelect = (userId: string) =>
     slug: true,
     description: true,
     category: true,
+    coverAsset: {
+      select: {
+        objectKey: true,
+        status: true
+      }
+    },
     rules: true,
     visibility: true,
     createdAt: true,
@@ -262,6 +282,10 @@ const toClubDetailRecord = (club: {
   slug: string;
   description: string | null;
   category: string | null;
+  coverAsset: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined;
   rules: string | null;
   visibility: ClubVisibility;
   createdAt: Date;
@@ -276,6 +300,7 @@ const toClubDetailRecord = (club: {
   slug: club.slug,
   description: club.description,
   category: club.category,
+  coverAsset: club.coverAsset,
   rules: club.rules,
   visibility: club.visibility,
   memberCount: club._count.memberships,

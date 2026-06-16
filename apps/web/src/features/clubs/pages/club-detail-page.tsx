@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
+import { ClubCoverUploadPanel } from "@/features/clubs/components/club-cover-upload-panel";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
@@ -131,17 +132,26 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
   return (
     <>
       <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
-        <div className="min-w-0 space-y-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/app/explore">
-              <ArrowLeft />
-              Explore
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
-            {club.title}
-          </h1>
-          <p className="text-sm text-faint">/{club.slug}</p>
+        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
+          {club.coverUrl ? (
+            <img
+              className="h-28 w-full rounded-xl border border-default object-cover sm:w-44"
+              src={club.coverUrl}
+              alt={`${club.title} cover`}
+            />
+          ) : null}
+          <div className="min-w-0 space-y-2">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/app/explore">
+                <ArrowLeft />
+                Explore
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
+              {club.title}
+            </h1>
+            <p className="text-sm text-faint">/{club.slug}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge>
@@ -225,6 +235,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                   label="Visibility"
                   value={visibilityMeta[club.settings.visibility].label}
                 />
+                <ClubCoverUploadPanel club={club} />
                 <div className="rounded-lg border border-default bg-inset p-4">
                   <h2 className="text-sm font-medium text-primary">Rules</h2>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">

@@ -77,6 +77,7 @@ describe("clubs routes", () => {
         slug: "new-story-circle",
         description: "Spoiler-safe theories.",
         category: "Books",
+        coverUrl: null,
         rules: "Keep future chapters out of early discussions.",
         visibility: "PUBLIC",
         memberCount: 1,
@@ -522,6 +523,7 @@ describe("clubs routes", () => {
           slug: "public-story-circle",
           description: "Safe public discussion.",
           category: "Books",
+          coverUrl: null,
           visibility: "PUBLIC",
           memberCount: 1,
           createdAt: publicClub.createdAt.toISOString(),
@@ -562,6 +564,7 @@ describe("clubs routes", () => {
     expect(Object.keys(response.body.clubs[0]).sort()).toEqual(
       [
         "category",
+        "coverUrl",
         "createdAt",
         "description",
         "id",
@@ -598,6 +601,7 @@ describe("clubs routes", () => {
     expect(Object.keys(response.body.club).sort()).toEqual(
       [
         "category",
+        "coverUrl",
         "createdAt",
         "currentUserRole",
         "description",

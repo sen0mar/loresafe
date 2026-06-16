@@ -57,7 +57,18 @@ const envSchema = z
     DEMO_USER_DISPLAY_NAME: z.string().trim().min(1).max(80),
     DEMO_USER_PASSWORD: z.string().min(12).max(128),
     UPSTASH_REDIS_REST_URL: optionalUrlSchema,
-    UPSTASH_REDIS_REST_TOKEN: optionalStringSchema
+    UPSTASH_REDIS_REST_TOKEN: optionalStringSchema,
+    R2_ACCOUNT_ID: optionalStringSchema,
+    R2_ACCESS_KEY_ID: optionalStringSchema,
+    R2_SECRET_ACCESS_KEY: optionalStringSchema,
+    R2_BUCKET_NAME: optionalStringSchema,
+    R2_PUBLIC_BASE_URL: optionalUrlSchema,
+    R2_PRESIGNED_URL_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(3600)
+      .default(300)
   })
   .superRefine((value, context) => {
     // Tests inject local stores; real app runs should fail fast without Redis limits.
@@ -79,6 +90,24 @@ const envSchema = z
         path: ["UPSTASH_REDIS_REST_TOKEN"],
         message: "Required"
       });
+    }
+
+    const r2Fields = [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET_NAME",
+      "R2_PUBLIC_BASE_URL"
+    ] as const;
+
+    for (const field of r2Fields) {
+      if (!value[field]) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: "Required"
+        });
+      }
     }
   });
 

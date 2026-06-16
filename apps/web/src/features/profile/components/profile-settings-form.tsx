@@ -1,11 +1,18 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { AtSign, FileText, Save, UserRound } from "lucide-react";
+import { AtSign, FileText, ImageUp, Save, UserRound } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { authQueryKeys } from "@/features/auth/api/auth";
 import type { AuthUser } from "@/features/auth/api/auth";
+import { usePublicAssetUpload } from "@/features/uploads/hooks/use-public-asset-upload";
 import { ApiError } from "@/shared/api/api-client";
-import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -32,7 +39,17 @@ type ProfileSettingsFormProps = {
 export const ProfileSettingsForm = ({
   currentUser
 }: ProfileSettingsFormProps) => {
+  const queryClient = useQueryClient();
   const updateProfileMutation = useUpdateCurrentUserProfile();
+  const avatarUpload = usePublicAssetUpload({
+    purpose: "AVATAR",
+    onCompleted: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: authQueryKeys.me
+      });
+      toast.success("Avatar updated");
+    }
+  });
   const [values, setValues] = useState<ProfileFormValues>(
     getInitialValues(currentUser)
   );
@@ -47,6 +64,7 @@ export const ProfileSettingsForm = ({
     currentUser.bio,
     currentUser.displayName,
     currentUser.username,
+    currentUser.avatarUrl,
     currentUser.id
   ]);
 
@@ -105,10 +123,27 @@ export const ProfileSettingsForm = ({
     });
   };
 
+  const uploadAvatar = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    void avatarUpload.uploadFile(file);
+  };
+
   return (
     <Card>
       <CardHeader className="flex-row items-center gap-4">
         <Avatar className="size-14">
+          {currentUser.avatarUrl ? (
+            <AvatarImage
+              src={currentUser.avatarUrl}
+              alt={`${currentUser.displayName} avatar`}
+            />
+          ) : null}
           <AvatarFallback className="text-base">
             {getUserInitials(values.displayName)}
           </AvatarFallback>
@@ -119,6 +154,45 @@ export const ProfileSettingsForm = ({
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 rounded-lg border border-default bg-inset p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+                <ImageUp className="size-4 text-brand" />
+                Avatar
+              </h2>
+              <p className="mt-1 text-sm text-muted">JPEG, PNG, or WebP up to 2 MB.</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={avatarUpload.isUploading}
+              asChild
+            >
+              <label htmlFor="avatar-upload">
+                <ImageUp />
+                {avatarUpload.isUploading ? "Uploading..." : "Choose image"}
+              </label>
+            </Button>
+            <input
+              id="avatar-upload"
+              className="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={avatarUpload.isUploading}
+              onChange={uploadAvatar}
+            />
+          </div>
+          {avatarUpload.isUploading ? (
+            <UploadProgress progress={avatarUpload.progress} />
+          ) : null}
+          {avatarUpload.error ? (
+            <p className="mt-3 text-sm text-error" role="alert">
+              {avatarUpload.error}
+            </p>
+          ) : null}
+        </div>
+
         <form className="grid gap-4" onSubmit={submitProfile} noValidate>
           {formError ? (
             <div className="rounded-lg border border-default bg-inset p-3" role="alert">
@@ -222,6 +296,18 @@ const ProfileFormField = ({
         {error}
       </p>
     ) : null}
+  </div>
+);
+
+const UploadProgress = ({ progress }: { progress: number }) => (
+  <div className="mt-3 grid gap-2" aria-live="polite">
+    <div className="h-2 overflow-hidden rounded-full bg-surface">
+      <div
+        className="h-full rounded-full bg-brand transition-all"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+    <p className="text-xs text-faint">{progress}% uploaded</p>
   </div>
 );
 

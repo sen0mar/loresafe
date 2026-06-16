@@ -59,6 +59,7 @@ export type ClubDiscoveryClub = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverUrl: string | null;
   visibility: "PUBLIC";
   memberCount: number;
   createdAt: string;
@@ -71,6 +72,7 @@ export type Club = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverUrl: string | null;
   rules: string | null;
   visibility: ClubVisibility;
   memberCount: number;
@@ -91,6 +93,7 @@ export type JoinedClub = {
   id: string;
   title: string;
   slug: string;
+  coverUrl: string | null;
   visibility: ClubVisibility;
   role: ClubMembershipRole;
   memberCount: number;
@@ -423,6 +426,21 @@ export type CreateClubInput = {
 export type UpdateClubProgressInput = {
   currentMilestoneId: string | null;
   mode: ProgressMode;
+};
+
+export const refreshClubAssetQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  slug: string
+) => {
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.detail(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.discovery
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.joined
+  });
 };
 
 export const clubsQueryKeys = {

@@ -122,6 +122,18 @@ export const profileUpdateRateLimiter = rateLimit({
   }
 });
 
+export const publicAssetUploadRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:uploads:public-assets:"),
+  identifier: "uploads-public-assets",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const clubCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 15,

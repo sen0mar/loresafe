@@ -6,6 +6,10 @@ export type AuthUserRecord = {
   displayName: string;
   username: string | null;
   bio: string | null;
+  avatarAsset?: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined;
   sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +40,12 @@ const userSelect = {
   displayName: true,
   username: true,
   bio: true,
+  avatarAsset: {
+    select: {
+      objectKey: true,
+      status: true
+    }
+  },
   sessionVersion: true,
   createdAt: true,
   updatedAt: true

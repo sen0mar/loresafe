@@ -2,6 +2,7 @@ import type {
   ClubDetailRecord,
   ClubDiscoveryRecord
 } from "./clubs.repository.js";
+import { r2Storage } from "../../core/storage/r2-storage.js";
 
 export type ClubVisibilityDto = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 export type ClubMembershipRoleDto = "OWNER" | "MODERATOR" | "MEMBER";
@@ -12,6 +13,7 @@ export type ClubDiscoveryDto = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverUrl: string | null;
   visibility: "PUBLIC";
   memberCount: number;
   createdAt: string;
@@ -24,6 +26,7 @@ export type ClubDto = {
   slug: string;
   description: string | null;
   category: string | null;
+  coverUrl: string | null;
   rules: string | null;
   visibility: ClubVisibilityDto;
   memberCount: number;
@@ -62,6 +65,7 @@ export const toClubDiscoveryDto = (
   slug: club.slug,
   description: club.description,
   category: club.category,
+  coverUrl: getReadyAssetUrl(club.coverAsset),
   visibility: club.visibility,
   memberCount: club.memberCount,
   createdAt: club.createdAt.toISOString(),
@@ -74,6 +78,7 @@ export const toClubDto = (club: ClubDetailRecord): ClubDto => ({
   slug: club.slug,
   description: club.description,
   category: club.category,
+  coverUrl: getReadyAssetUrl(club.coverAsset),
   rules: club.rules,
   visibility: club.visibility,
   memberCount: club.memberCount,
@@ -89,3 +94,10 @@ export const toClubDto = (club: ClubDetailRecord): ClubDto => ({
   createdAt: club.createdAt.toISOString(),
   updatedAt: club.updatedAt.toISOString()
 });
+
+const getReadyAssetUrl = (
+  asset: {
+    objectKey: string;
+    status: "PENDING" | "READY" | "FAILED";
+  } | null | undefined
+) => (asset?.status === "READY" ? r2Storage.getPublicUrl(asset.objectKey) : null);
