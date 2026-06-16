@@ -17,10 +17,12 @@ import {
 import { createAuthService } from "../auth/auth.service.js";
 import {
   type ClubProgressRecord,
+  type ListRecentlyUnlockedInput,
   type ProgressClubRecord,
   type ProgressHistoryRecord,
   type ProgressMilestoneRecord,
-  type ProgressRepository
+  type ProgressRepository,
+  type RecentlyUnlockedRecord
 } from "../progress/progress.repository.js";
 import { createProgressController } from "../progress/progress.controller.js";
 import { createProgressRouter } from "../progress/progress.routes.js";
@@ -1371,6 +1373,264 @@ describe("posts routes", () => {
     });
   });
 
+  it("returns posts newly safe after the latest forward progress update", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("recently-unlocked-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Midpoint"
+    });
+    const thirdMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "Midpoint unlocked title",
+      body: "Midpoint body is newly safe."
+    });
+    repository.createPost(club.id, user.id, thirdMilestone.id, {
+      title: "Finale unlocked title",
+      body: "Finale body is newly safe too."
+    });
+
+    await request(app)
+      .patch("/api/clubs/recently-unlocked-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: thirdMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200);
+
+    const response = await request(app)
+      .get("/api/clubs/recently-unlocked-story-circle/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.unlock).toMatchObject({
+      historyId: expect.any(String),
+      fromPosition: 1,
+      toPosition: 3,
+      unlockedAt: expect.any(String)
+    });
+    expect(response.body.posts).toHaveLength(2);
+    expect(response.body.posts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          visibility: "VISIBLE",
+          title: "Midpoint unlocked title",
+          bodyPreview: "Midpoint body is newly safe.",
+          requiredMilestone: {
+            id: secondMilestone.id,
+            position: 2,
+            label: "Midpoint"
+          }
+        }),
+        expect.objectContaining({
+          visibility: "VISIBLE",
+          title: "Finale unlocked title",
+          bodyPreview: "Finale body is newly safe too.",
+          requiredMilestone: {
+            id: thirdMilestone.id,
+            position: 3,
+            label: "Finale"
+          }
+        })
+      ])
+    );
+  });
+
+  it("returns no recently unlocked posts when progress moves backward without leaking future content", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("backward-unlocked-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const thirdMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, thirdMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, thirdMilestone.id, {
+      title: "FUTURE_TITLE_SHOULD_NOT_LEAK",
+      body: "FUTURE_BODY_SHOULD_NOT_LEAK"
+    });
+
+    await request(app)
+      .patch("/api/clubs/backward-unlocked-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200);
+
+    const response = await request(app)
+      .get("/api/clubs/backward-unlocked-story-circle/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      unlock: {
+        historyId: expect.any(String),
+        fromPosition: 3,
+        toPosition: 1,
+        unlockedAt: expect.any(String)
+      },
+      posts: [],
+      pagination: {
+        limit: 20,
+        nextCursor: null,
+        hasMore: false
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "FUTURE_TITLE_SHOULD_NOT_LEAK"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "FUTURE_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
+  it("returns an empty recently unlocked page when no progress history exists", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("no-history-unlocked-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    repository.createPost(club.id, user.id, milestone.id, {
+      title: "Existing safe title",
+      body: "Existing safe body."
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/no-history-unlocked-story-circle/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      unlock: {
+        historyId: null,
+        fromPosition: 0,
+        toPosition: 0,
+        unlockedAt: null
+      },
+      posts: [],
+      pagination: {
+        limit: 20,
+        nextCursor: null,
+        hasMore: false
+      }
+    });
+  });
+
+  it("rejects recently unlocked reads from club non-members", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("nonmember-unlocked-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createPost(club.id, user.id, milestone.id, {
+      title: "PRIVATE_UNLOCK_TITLE_SHOULD_NOT_LEAK",
+      body: "PRIVATE_UNLOCK_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/nonmember-unlocked-story-circle/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .set("x-request-id", "recently-unlocked-nonmember")
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Join this club to view progress.",
+        requestId: "recently-unlocked-nonmember"
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "PRIVATE_UNLOCK_TITLE_SHOULD_NOT_LEAK"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "PRIVATE_UNLOCK_BODY_SHOULD_NOT_LEAK"
+    );
+  });
+
+  it("returns posts unlocked by switching to Finished mode", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("finished-unlocked-story-circle");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Middle"
+    });
+    const thirdMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "End"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "Finished middle title",
+      body: "Finished middle body."
+    });
+    repository.createPost(club.id, user.id, thirdMilestone.id, {
+      title: "Finished end title",
+      body: "Finished end body."
+    });
+
+    await request(app)
+      .patch("/api/clubs/finished-unlocked-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "FINISHED"
+      })
+      .expect(200);
+
+    const response = await request(app)
+      .get("/api/clubs/finished-unlocked-story-circle/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.unlock).toMatchObject({
+      fromPosition: 1,
+      toPosition: 3
+    });
+    expect(response.body.posts.map((post: { title: string }) => post.title)).toEqual(
+      expect.arrayContaining(["Finished middle title", "Finished end title"])
+    );
+  });
+
+  it("validates recently unlocked slugs and query params", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .get("/api/clubs/Invalid Slug/recently-unlocked")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    await request(app)
+      .get("/api/clubs/public-story-circle/recently-unlocked?limit=100")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+  });
+
   it("validates feed tab, cursor, and limit query params", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("pagination-story-circle");
@@ -2368,6 +2628,93 @@ class InMemoryPostsRepository
     return this.toClubProgressRecord(userId, clubId, progress);
   };
 
+  listRecentlyUnlockedPostsForUserClub = async (
+    userId: string,
+    clubId: string,
+    { cursor, limit }: ListRecentlyUnlockedInput
+  ): Promise<RecentlyUnlockedRecord> => {
+    const progress = this.findProgress(userId, clubId);
+    const currentProgress = {
+      mode: progress?.mode ?? "STRICT",
+      currentMilestonePosition:
+        this.findMilestone(progress?.currentMilestoneId ?? null)?.position ??
+        null
+    };
+    const latestHistory = this.history.find(
+      (historyRow) =>
+        historyRow.userId === userId && historyRow.clubId === clubId
+    );
+
+    if (!latestHistory) {
+      return this.emptyRecentlyUnlockedResult(currentProgress);
+    }
+
+    const totalMilestones = this.milestones.filter(
+      (milestone) => milestone.clubId === clubId
+    ).length;
+    const fromPosition = this.safeProgressPosition({
+      mode: latestHistory.fromMode,
+      milestonePosition: latestHistory.fromMilestone?.position ?? null,
+      totalMilestones
+    });
+    const toPosition = this.safeProgressPosition({
+      mode: latestHistory.toMode,
+      milestonePosition: latestHistory.toMilestone?.position ?? null,
+      totalMilestones
+    });
+    const unlock = {
+      historyId: latestHistory.id,
+      fromPosition,
+      toPosition,
+      unlockedAt: latestHistory.createdAt
+    };
+    const currentSafePosition = this.safeProgressPosition({
+      mode: currentProgress.mode,
+      milestonePosition: currentProgress.currentMilestonePosition,
+      totalMilestones
+    });
+    const effectiveToPosition = Math.min(toPosition, currentSafePosition);
+
+    if (effectiveToPosition <= fromPosition) {
+      return {
+        ...this.emptyRecentlyUnlockedResult(currentProgress),
+        unlock
+      };
+    }
+
+    const visiblePosts = this.posts
+      .filter(
+        (post) =>
+          post.clubId === clubId &&
+          post.status === "VISIBLE" &&
+          post.deletedAt === null &&
+          post.requiredMilestone.position > fromPosition &&
+          post.requiredMilestone.position <= effectiveToPosition &&
+          this.isAfterCursor(post, cursor)
+      )
+      .sort(
+        (firstPost, secondPost) =>
+          secondPost.createdAt.getTime() - firstPost.createdAt.getTime() ||
+          firstPost.id.localeCompare(secondPost.id)
+      );
+    const pagePosts = visiblePosts.slice(0, limit);
+    const lastPost = pagePosts[pagePosts.length - 1];
+
+    return {
+      unlock,
+      posts: pagePosts.map((post) => this.withReactions(post, userId)),
+      nextCursor:
+        visiblePosts.length > limit && lastPost
+          ? {
+              createdAt: lastPost.createdAt,
+              id: lastPost.id
+            }
+          : null,
+      hasMore: visiblePosts.length > limit,
+      currentProgress
+    };
+  };
+
   private toClubProgressRecord = (
     userId: string,
     clubId: string,
@@ -2536,6 +2883,37 @@ class InMemoryPostsRepository
       (createdAtTime === cursorTime && post.id > cursor.id)
     );
   };
+
+  private safeProgressPosition = ({
+    milestonePosition,
+    mode,
+    totalMilestones
+  }: {
+    mode: ProgressMode;
+    milestonePosition: number | null;
+    totalMilestones: number;
+  }) => {
+    if (mode === "FINISHED") {
+      return totalMilestones;
+    }
+
+    return milestonePosition ?? 0;
+  };
+
+  private emptyRecentlyUnlockedResult = (
+    currentProgress: RecentlyUnlockedRecord["currentProgress"]
+  ): RecentlyUnlockedRecord => ({
+    unlock: {
+      historyId: null,
+      fromPosition: 0,
+      toPosition: 0,
+      unlockedAt: null
+    },
+    posts: [],
+    nextCursor: null,
+    hasMore: false,
+    currentProgress
+  });
 
   private findMilestoneForClub = (milestoneId: string, clubId: string) => {
     const milestone = this.milestones.find(

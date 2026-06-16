@@ -1,10 +1,15 @@
 import type {
   ClubProgressRecord,
   ProgressHistoryRecord,
-  ProgressMilestoneRecord
+  ProgressMilestoneRecord,
+  RecentlyUnlockedRecord
 } from "./progress.repository.js";
 import type { ProgressMode } from "./progress.schema.js";
 import { getCompletedMilestoneCount } from "../spoilers/spoiler.policy.js";
+import {
+  type ClubPostCardDto,
+  toClubPostCardDto
+} from "../posts/posts.dto.js";
 
 export type ProgressMilestoneDto = {
   id: string;
@@ -38,6 +43,21 @@ export type ClubProgressResponse = {
   progress: ClubProgressDto;
 };
 
+export type RecentlyUnlockedResponse = {
+  unlock: {
+    historyId: string | null;
+    fromPosition: number;
+    toPosition: number;
+    unlockedAt: string | null;
+  };
+  posts: ClubPostCardDto[];
+  pagination: {
+    limit: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
+};
+
 export const toClubProgressDto = (
   progress: ClubProgressRecord
 ): ClubProgressDto => {
@@ -67,6 +87,27 @@ export const toClubProgressDto = (
     history: progress.history.map(toProgressHistoryDto)
   };
 };
+
+export const toRecentlyUnlockedResponse = (
+  record: RecentlyUnlockedRecord,
+  limit: number,
+  nextCursor: string | null
+): RecentlyUnlockedResponse => ({
+  unlock: {
+    historyId: record.unlock.historyId,
+    fromPosition: record.unlock.fromPosition,
+    toPosition: record.unlock.toPosition,
+    unlockedAt: record.unlock.unlockedAt?.toISOString() ?? null
+  },
+  posts: record.posts.map((post) =>
+    toClubPostCardDto(post, record.currentProgress)
+  ),
+  pagination: {
+    limit,
+    nextCursor,
+    hasMore: record.hasMore
+  }
+});
 
 const toProgressHistoryDto = (
   history: ProgressHistoryRecord

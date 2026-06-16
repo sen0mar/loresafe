@@ -19,6 +19,13 @@ export const createProgressRouter = (
     controller.getProgressForClubSlug
   );
 
+  router.get(
+    "/:slug/recently-unlocked",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.listRecentlyUnlockedForClubSlug
+  );
+
   router.patch(
     "/:slug/progress",
     middleware.loadCurrentUser,

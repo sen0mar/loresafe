@@ -299,6 +299,21 @@ export type CreateClubPostInput = {
   };
 };
 
+export type RecentlyUnlockedResponse = {
+  unlock: {
+    historyId: string | null;
+    fromPosition: number;
+    toPosition: number;
+    unlockedAt: string | null;
+  };
+  posts: ClubPostCard[];
+  pagination: {
+    limit: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
+};
+
 export type CreateClubPostResponse = {
   post: ClubPostCard;
 };
@@ -422,6 +437,8 @@ export const clubsQueryKeys = {
   feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
   feed: (slug: string, tab: ClubFeedTab) =>
     ["clubs", "detail", slug, "feed", tab] as const,
+  recentlyUnlocked: (slug: string) =>
+    ["clubs", "detail", slug, "recently-unlocked"] as const,
   postDetail: (postId: string) => ["posts", "detail", postId] as const,
   postComments: (postId: string) =>
     ["posts", "detail", postId, "comments"] as const
@@ -456,6 +473,23 @@ export const getClubPosts = (
   }
 
   return apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?${params}`);
+};
+
+export const getRecentlyUnlockedPosts = (
+  slug: string,
+  cursor: string | null = null
+) => {
+  const params = new URLSearchParams({
+    limit: "20"
+  });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  return apiGet<RecentlyUnlockedResponse>(
+    `/api/clubs/${slug}/recently-unlocked?${params}`
+  );
 };
 
 export const getPostById = (postId: string) =>
@@ -609,6 +643,15 @@ export const useClubPostsInfiniteQuery = (
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
     enabled: slug.length > 0
+  });
+
+export const useRecentlyUnlockedQuery = (slug: string, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: clubsQueryKeys.recentlyUnlocked(slug),
+    queryFn: ({ pageParam }) => getRecentlyUnlockedPosts(slug, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
+    enabled: enabled && slug.length > 0
   });
 
 export const usePostQuery = (postId: string) =>
@@ -1000,6 +1043,9 @@ const invalidateClubProgressDependencies = (
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.feedRoot(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.recentlyUnlocked(slug)
   });
 };
 
