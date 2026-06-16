@@ -8,6 +8,7 @@ import {
 import { LoginPage } from "../features/auth/pages/login-page.js";
 import { SignupPage } from "../features/auth/pages/signup-page.js";
 import { ClubDetailPage } from "../features/clubs/pages/club-detail-page.js";
+import { ClubModerationReportsPage } from "../features/clubs/pages/club-moderation-reports-page.js";
 import { CreateClubPage } from "../features/clubs/pages/create-club-page.js";
 import { ExplorePage } from "../features/clubs/pages/explore-page.js";
 import { PostDetailPage } from "../features/clubs/pages/post-detail-page.js";
@@ -77,6 +78,14 @@ export const App = () => (
           element={
             <ProtectedRoute>
               <RecentlyUnlockedPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/clubs/:slug/settings/moderation"
+          element={
+            <ProtectedRoute>
+              <ClubModerationReportsPage />
             </ProtectedRoute>
           }
         />

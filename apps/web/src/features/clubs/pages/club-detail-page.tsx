@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   CalendarDays,
+  FileWarning,
   Globe2,
   KeyRound,
   ListChecks,
@@ -110,6 +111,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
   const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
   const joinClubMutation = useJoinClubMutation();
   const role = club.membership.role;
+  const canModerate = role === "OWNER" || role === "MODERATOR";
   const canJoin =
     club.settings.visibility === "PUBLIC" && !club.membership.isMember;
 
@@ -236,6 +238,24 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                   value={visibilityMeta[club.settings.visibility].label}
                 />
                 <ClubCoverUploadPanel club={club} />
+                {canModerate ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
+                    <div className="min-w-0">
+                      <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+                        <FileWarning className="size-4 text-warning" />
+                        Moderation reports
+                      </h2>
+                      <p className="mt-1 text-sm leading-6 text-muted">
+                        Review open reports without revealing unsafe content by default.
+                      </p>
+                    </div>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link to={`/app/clubs/${club.slug}/settings/moderation`}>
+                        Open queue
+                      </Link>
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="rounded-lg border border-default bg-inset p-4">
                   <h2 className="text-sm font-medium text-primary">Rules</h2>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">

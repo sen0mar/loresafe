@@ -42,7 +42,10 @@ import {
   postsRouter
 } from "./modules/posts/posts.routes.js";
 import { progressRouter } from "./modules/progress/progress.routes.js";
-import { reportsRouter } from "./modules/reports/reports.routes.js";
+import {
+  clubReportsRouter,
+  reportsRouter
+} from "./modules/reports/reports.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -101,6 +104,7 @@ export const createApp = () => {
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/reports", reportsRouter);
+  app.use("/api/clubs", clubReportsRouter);
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);
   app.use("/api/posts", postDetailsRouter);
