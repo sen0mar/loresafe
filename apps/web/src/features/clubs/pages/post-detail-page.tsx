@@ -42,8 +42,10 @@ import {
   usePostCommentsQuery,
   usePostQuery,
   useRevealPostCommentMutation,
-  useRevealPostMutation
+  useRevealPostMutation,
+  useToggleCommentReactionMutation
 } from "../api/clubs.js";
+import { ReactionButtonGroup } from "../components/reaction-button-group.js";
 import {
   createCommentSchema,
   type CreateCommentFormValues
@@ -654,6 +656,7 @@ const CommentThreadBlock = ({
       canReply={thread.parent.visibility === "VISIBLE"}
       onReply={() => onReply(thread.parent.id)}
       onReveal={onRevealComment}
+      postId={postId}
       revealedComment={revealedComments[thread.parent.id]}
       revealingCommentId={revealingCommentId}
     />
@@ -680,6 +683,7 @@ const CommentThreadBlock = ({
             comment={reply}
             canReply={false}
             onReveal={onRevealComment}
+            postId={postId}
             revealedComment={revealedComments[reply.id]}
             revealingCommentId={revealingCommentId}
           />
@@ -694,6 +698,7 @@ const CommentBlock = ({
   comment,
   onReply,
   onReveal,
+  postId,
   revealedComment,
   revealingCommentId
 }: {
@@ -701,6 +706,7 @@ const CommentBlock = ({
   comment: Comment;
   onReply?: () => void;
   onReveal: (commentId: string) => void;
+  postId: string;
   revealedComment?: RevealedComment;
   revealingCommentId: string | null;
 }) => {
@@ -709,7 +715,12 @@ const CommentBlock = ({
   }
 
   return comment.visibility === "VISIBLE" ? (
-    <VisibleCommentBlock canReply={canReply} comment={comment} onReply={onReply} />
+    <VisibleCommentBlock
+      canReply={canReply}
+      comment={comment}
+      onReply={onReply}
+      postId={postId}
+    />
   ) : (
     <LockedCommentBlock
       comment={comment}
@@ -722,11 +733,13 @@ const CommentBlock = ({
 const VisibleCommentBlock = ({
   canReply,
   comment,
-  onReply
+  onReply,
+  postId
 }: {
   canReply: boolean;
   comment: Extract<Comment, { visibility: "VISIBLE" }>;
   onReply?: () => void;
+  postId: string;
 }) => (
   <div className="rounded-xl border border-default bg-subtle p-4">
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-faint">
@@ -743,14 +756,15 @@ const VisibleCommentBlock = ({
     <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">
       {comment.body}
     </p>
-    {canReply ? (
-      <div className="mt-3 flex justify-end">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      <CommentReactionButtons comment={comment} postId={postId} />
+      {canReply ? (
         <Button type="button" size="sm" variant="secondary" onClick={onReply}>
           <MessageCircleReply />
           Reply
         </Button>
-      </div>
-    ) : null}
+      ) : null}
+    </div>
   </div>
 );
 
@@ -778,8 +792,52 @@ const RevealedCommentBlock = ({
       <Clock3 className="size-4" />
       {formatDateTime(comment.createdAt)}
     </p>
+    <div className="mt-3">
+      <ReactionButtonGroup
+        ariaLabel="Comment reactions"
+        disabled
+        reactions={comment.counts.reactions}
+        onToggle={() => undefined}
+      />
+    </div>
   </div>
 );
+
+const CommentReactionButtons = ({
+  comment,
+  postId
+}: {
+  comment: Extract<Comment, { visibility: "VISIBLE" }>;
+  postId: string;
+}) => {
+  const reactionMutation = useToggleCommentReactionMutation(postId, comment.id);
+
+  const handleReactionToggle = (emoji: (typeof comment.counts.reactions)[number]["emoji"]) => {
+    reactionMutation.mutate(
+      {
+        emoji
+      },
+      {
+        onError: (error) => {
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : "Could not update reaction. Try again."
+          );
+        }
+      }
+    );
+  };
+
+  return (
+    <ReactionButtonGroup
+      ariaLabel="Comment reactions"
+      disabled={reactionMutation.isPending}
+      reactions={comment.counts.reactions}
+      onToggle={handleReactionToggle}
+    />
+  );
+};
 
 const LockedCommentBlock = ({
   comment,

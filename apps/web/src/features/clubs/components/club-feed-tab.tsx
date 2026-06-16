@@ -53,6 +53,7 @@ import {
   createPostSchema,
   type CreatePostFormValues
 } from "../schemas/create-post.schema.js";
+import { ReactionButtonGroup } from "./reaction-button-group.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 type ClubFeedTabProps = {
@@ -658,23 +659,12 @@ export const PostReactionButtons = ({
     };
 
   return (
-    <div className="flex flex-wrap items-center gap-1" aria-label="Reactions">
-      {counts.reactions.map((reaction) => (
-        <button
-          key={reaction.emoji}
-          type="button"
-          className="flex h-8 items-center gap-1 rounded-md border border-default bg-inset px-2 text-sm text-secondary transition hover:border-strong hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 data-[active=true]:border-brand data-[active=true]:bg-active data-[active=true]:text-brand"
-          data-active={reaction.reactedByMe}
-          disabled={reactionMutation.isPending}
-          aria-pressed={reaction.reactedByMe}
-          aria-label={`${reaction.reactedByMe ? "Remove" : "Add"} ${reaction.emoji} reaction`}
-          onClick={handleReactionToggle(reaction.emoji)}
-        >
-          <span aria-hidden="true">{reaction.emoji}</span>
-          <span className="text-xs">{countFormatter.format(reaction.count)}</span>
-        </button>
-      ))}
-    </div>
+    <ReactionButtonGroup
+      ariaLabel="Reactions"
+      disabled={reactionMutation.isPending}
+      reactions={counts.reactions}
+      onToggle={(emoji) => handleReactionToggle(emoji)()}
+    />
   );
 };
 
