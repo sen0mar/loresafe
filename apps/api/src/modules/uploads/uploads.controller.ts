@@ -4,12 +4,14 @@ import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
   assetIdParamsSchema,
+  createPostImageUploadRequestSchema,
   createPublicAssetUploadRequestSchema
 } from "./uploads.schema.js";
 import { uploadsService, type UploadsService } from "./uploads.service.js";
 
 export type UploadsController = {
   completePublicAssetUpload: RequestHandler;
+  createPostImageUpload: RequestHandler;
   createPublicAssetUpload: RequestHandler;
 };
 
@@ -35,6 +37,35 @@ export const createUploadsController = (
       }
 
       const response = await service.createPublicAssetUpload(
+        req.currentUser.id,
+        parseResult.data
+      );
+
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  createPostImageUpload: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const parseResult = createPostImageUploadRequestSchema.safeParse(
+        req.body
+      );
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the upload fields and try again."
+        );
+      }
+
+      const response = await service.createPostImageUpload(
         req.currentUser.id,
         parseResult.data
       );

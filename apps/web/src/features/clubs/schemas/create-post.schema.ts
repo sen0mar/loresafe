@@ -19,6 +19,7 @@ export const createPostSchema = z
     body: z.string().trim().min(1).max(8000),
     type: createPostTypeSchema,
     requiredMilestoneId: z.uuid(),
+    mediaAssetId: z.uuid().optional(),
     prediction: z
       .object({
         revealMilestoneId: z.uuid()

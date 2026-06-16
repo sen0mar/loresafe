@@ -1,4 +1,9 @@
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env } from "../../config/env.js";
@@ -9,12 +14,18 @@ export type PresignedUpload = {
   expiresAt: Date;
 };
 
+export type PresignedRead = {
+  readUrl: string;
+  expiresAt: Date;
+};
+
 export type StoredObjectMetadata = {
   contentLength: number | null;
   contentType: string | null;
 };
 
 export type ObjectStorage = {
+  createPresignedRead: (objectKey: string) => Promise<PresignedRead>;
   createPresignedUpload: (input: {
     contentType: string;
     objectKey: string;
@@ -33,6 +44,20 @@ const r2Client = new S3Client({
 });
 
 export const r2Storage: ObjectStorage = {
+  createPresignedRead: async (objectKey) => {
+    const command = new GetObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: objectKey
+    });
+    const expiresIn = env.R2_PRESIGNED_URL_TTL_SECONDS;
+    const readUrl = await getSignedUrl(r2Client, command, { expiresIn });
+
+    return {
+      readUrl,
+      expiresAt: new Date(Date.now() + expiresIn * 1000)
+    };
+  },
+
   createPresignedUpload: async ({ contentType, objectKey }) => {
     const command = new PutObjectCommand({
       Bucket: env.R2_BUCKET_NAME,

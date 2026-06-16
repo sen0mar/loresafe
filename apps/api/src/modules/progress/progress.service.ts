@@ -15,6 +15,7 @@ import type {
   UpdateProgressRequest
 } from "./progress.schema.js";
 import { canReadClubProgress, canUpdateClubProgress } from "./progress.policy.js";
+import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 
 const membershipRequiredMessage =
   "Join this club before updating your progress.";
@@ -41,7 +42,8 @@ export type ProgressService = {
 };
 
 export const createProgressService = (
-  repository: ProgressRepository = progressRepository
+  repository: ProgressRepository = progressRepository,
+  storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): ProgressService => ({
   advanceProgressToNextMilestoneForClubSlug: async (slug, userId) => {
     const club = await repository.findClubForProgress(slug, userId);
@@ -108,7 +110,8 @@ export const createProgressService = (
       query.limit,
       result.nextCursor
         ? encodeRecentlyUnlockedCursor(result.nextCursor)
-        : null
+        : null,
+      storage
     );
   },
 

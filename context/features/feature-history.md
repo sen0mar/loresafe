@@ -40,6 +40,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 34: Authenticated SSE notifications — Added authenticated `/api/events` Server-Sent Events with safe notification created/read metadata, cross-tab notification and club cache refreshes, reconnect handling, logout cleanup, and focused auth/payload/idempotency tests.
 - Feature 35: Public asset uploads — Added FileAsset metadata with a committed migration, Cloudflare R2 presigned public avatar and club cover uploads, completion metadata verification, refreshed profile/club asset URLs, upload progress UI, and focused backend regression tests.
 - Feature 36: Home dashboard preview cleanup — Removed hardcoded demo club progress and timeline API fetches from the authenticated home dashboard while keeping real club progress and milestone reads on club detail pages.
+- Feature 37: Protected post media uploads — Added private post image FileAsset metadata with a committed migration, R2 presigned upload/read support, spoiler-safe signed media DTOs, create-post image upload UI, and focused leak regression tests.
 
 ## Entry Format
 

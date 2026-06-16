@@ -23,6 +23,7 @@ import {
   canRevealRequiredMilestone,
   canViewRequiredMilestone
 } from "../spoilers/spoiler.policy.js";
+import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type PostsService = {
   createClubPostForSlug: (
@@ -48,7 +49,8 @@ export type PostsService = {
 };
 
 export const createPostsService = (
-  repository: PostsRepository = postsRepository
+  repository: PostsRepository = postsRepository,
+  storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): PostsService => ({
   createClubPostForSlug: async (slug, userId, input) => {
     const club = await repository.findClubForPostCreation(slug, userId);
@@ -78,7 +80,7 @@ export const createPostsService = (
     }
 
     return {
-      post: toClubPostCardDto(post, club.progress)
+      post: await toClubPostCardDto(post, club.progress, storage)
     };
   },
 
@@ -100,8 +102,10 @@ export const createPostsService = (
     });
 
     return {
-      posts: result.posts.map((post) =>
-        toClubPostCardDto(post, club.progress)
+      posts: await Promise.all(
+        result.posts.map((post) =>
+          toClubPostCardDto(post, club.progress, storage)
+        )
       ),
       pagination: {
         limit: query.limit,
@@ -121,7 +125,7 @@ export const createPostsService = (
     }
 
     return {
-      post: toClubPostCardDto(detail.post, detail.club.progress),
+      post: await toClubPostCardDto(detail.post, detail.club.progress, storage),
       club: {
         id: detail.club.id,
         slug: detail.club.slug
@@ -152,7 +156,7 @@ export const createPostsService = (
     }
 
     return {
-      post: toRevealedClubPostDto(detail.post),
+      post: await toRevealedClubPostDto(detail.post, storage),
       club: {
         id: detail.club.id,
         slug: detail.club.slug
@@ -193,7 +197,11 @@ export const createPostsService = (
     }
 
     return {
-      post: toClubPostCardDto(toggledDetail.post, toggledDetail.club.progress)
+      post: await toClubPostCardDto(
+        toggledDetail.post,
+        toggledDetail.club.progress,
+        storage
+      )
     };
   }
 });

@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import {
   ChevronDown,
   Clock3,
+  Image,
   LockKeyhole,
   MessageSquareText,
   PlusCircle,
@@ -55,6 +56,7 @@ import {
   type CreatePostFormValues
 } from "../schemas/create-post.schema.js";
 import { ReactionButtonGroup } from "./reaction-button-group.js";
+import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 type ClubFeedTabProps = {
@@ -95,7 +97,8 @@ const getDefaultPostValues = (): CreatePostFormValues => ({
   title: "",
   body: "",
   type: "DISCUSSION",
-  requiredMilestoneId: ""
+  requiredMilestoneId: "",
+  mediaAssetId: undefined
 });
 
 const formatMilestoneOption = (milestone: ClubMilestone) =>
@@ -232,12 +235,16 @@ const CreatePostDialog = ({
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreatePostFormValues, string>>
   >({});
+  const [hasPendingImage, setHasPendingImage] = useState(false);
   const milestonesQuery = useClubMilestonesQuery(club.slug, 1, open);
   const createPostMutation = useCreateClubPostMutation(club.slug);
   const milestones = milestonesQuery.data?.milestones ?? [];
   const isSaving = createPostMutation.isPending;
   const canSubmit =
-    !isSaving && !milestonesQuery.isPending && milestones.length > 0;
+    !isSaving &&
+    !hasPendingImage &&
+    !milestonesQuery.isPending &&
+    milestones.length > 0;
   const selectedRequiredMilestone = milestones.find(
     (milestone) => milestone.id === values.requiredMilestoneId
   );
@@ -380,12 +387,24 @@ const CreatePostDialog = ({
     }));
   };
 
+  const updateMediaAsset = (mediaAssetId: string | undefined) => {
+    setValues((currentValues) => ({
+      ...currentValues,
+      mediaAssetId
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      mediaAssetId: undefined
+    }));
+  };
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
 
     if (!nextOpen && !isSaving) {
       setValues(getDefaultPostValues());
       setErrors({});
+      setHasPendingImage(false);
     }
   };
 
@@ -402,6 +421,7 @@ const CreatePostDialog = ({
         body: fieldErrors.body?.[0],
         type: fieldErrors.type?.[0],
         requiredMilestoneId: fieldErrors.requiredMilestoneId?.[0],
+        mediaAssetId: fieldErrors.mediaAssetId?.[0],
         prediction: fieldErrors.prediction?.[0]
       });
       return;
@@ -413,6 +433,7 @@ const CreatePostDialog = ({
         setOpen(false);
         setValues(getDefaultPostValues());
         setErrors({});
+        setHasPendingImage(false);
       },
       onError: (error) => {
         toast.error(
@@ -557,6 +578,13 @@ const CreatePostDialog = ({
             </div>
           ) : null}
 
+          <PostImageUploadField
+            clubSlug={club.slug}
+            disabled={isSaving}
+            onAssetChange={updateMediaAsset}
+            onPendingImageChange={setHasPendingImage}
+          />
+
           {milestonesQuery.isError ? (
             <p className="text-sm text-warning">
               Could not load milestones. Close this dialog and try again.
@@ -576,7 +604,11 @@ const CreatePostDialog = ({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={!canSubmit}>
-              {isSaving ? "Creating..." : "Create post"}
+              {isSaving
+                ? "Creating..."
+                : hasPendingImage
+                  ? "Upload image first"
+                  : "Create post"}
             </Button>
           </DialogFooter>
         </form>
@@ -690,6 +722,7 @@ const VisiblePostCard = ({
           )}
         </h2>
         <p className="text-sm leading-6 text-muted">{post.bodyPreview}</p>
+        {post.media ? <PostMediaPreview media={post.media} /> : null}
         {post.prediction ? (
           <PredictionStateBadges prediction={post.prediction} />
         ) : null}
@@ -713,6 +746,27 @@ const VisiblePostCard = ({
       </div>
     </CardContent>
   </Card>
+);
+
+const PostMediaPreview = ({
+  locked = false,
+  media
+}: {
+  locked?: boolean;
+  media: NonNullable<ClubPostCard["media"]>;
+}) => (
+  <figure className="overflow-hidden rounded-lg border border-subtle bg-inset">
+    <img
+      src={media.url}
+      alt=""
+      className="max-h-96 w-full object-cover"
+      loading="lazy"
+    />
+    <figcaption className="flex items-center gap-2 px-3 py-2 text-xs text-faint">
+      <Image className="size-3.5" />
+      {locked ? "Safe preview" : "Post image"}
+    </figcaption>
+  </figure>
 );
 
 export const PredictionStateBadges = ({
@@ -750,6 +804,7 @@ const LockedPostCard = ({
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
+      {post.media ? <PostMediaPreview media={post.media} locked /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
         <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />

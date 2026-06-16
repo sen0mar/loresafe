@@ -2,6 +2,7 @@ import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { ClubPostRecord } from "./posts.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type { PostReactionEmoji } from "./posts.schema.js";
+import type { ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type PostTypeDto =
   | "DISCUSSION"
@@ -45,6 +46,15 @@ type PredictionDto = {
   revealMilestone: RequiredMilestoneDto;
 };
 
+export type PostMediaDto = {
+  id: string;
+  contentType: string;
+  sizeBytes: number;
+  safePreview: boolean;
+  url: string;
+  urlExpiresAt: string;
+};
+
 export type VisibleClubPostCardDto = {
   id: string;
   visibility: "VISIBLE";
@@ -59,6 +69,7 @@ export type VisibleClubPostCardDto = {
   };
   requiredMilestone: RequiredMilestoneDto;
   prediction?: PredictionDto;
+  media?: PostMediaDto;
   counts: PostCountsDto;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +82,7 @@ export type LockedClubPostCardDto = {
   status: PostStatusDto;
   requiredMilestone: RequiredMilestoneDto;
   counts: PostCountsDto;
+  media?: PostMediaDto;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -127,8 +139,9 @@ export type PostVisibilityContext = {
 
 export const toClubPostCardDto = (
   post: ClubPostRecord,
-  context: PostVisibilityContext
-): ClubPostCardDto => {
+  context: PostVisibilityContext,
+  storage: Pick<ObjectStorage, "createPresignedRead">
+): Promise<ClubPostCardDto> => {
   const requiredMilestone = {
     id: post.requiredMilestone.id,
     position: post.requiredMilestone.position,
@@ -156,31 +169,28 @@ export const toClubPostCardDto = (
   });
 
   if (!isVisible) {
-    return {
-      ...base,
-      visibility: "LOCKED",
-      lockReason: `Reach milestone ${requiredMilestone.position}: ${requiredMilestone.label} to unlock this discussion.`
-    };
+    return toLockedPostDto({
+      base,
+      post,
+      requiredMilestone,
+      storage
+    });
   }
 
-  return {
-    ...base,
-    visibility: "VISIBLE",
-    title: post.title,
-    bodyPreview: toBodyPreview(post.body),
-    author: {
-      id: post.author.id,
-      displayName: post.author.displayName,
-      username: post.author.username
-    },
-    ...(prediction ? { prediction } : {})
-  };
+  return toVisiblePostDto({
+    base,
+    post,
+    prediction,
+    storage
+  });
 };
 
-export const toRevealedClubPostDto = (
-  post: ClubPostRecord
-): RevealedClubPostDto => {
+export const toRevealedClubPostDto = async (
+  post: ClubPostRecord,
+  storage: Pick<ObjectStorage, "createPresignedRead">
+): Promise<RevealedClubPostDto> => {
   const prediction = toPredictionDto(post);
+  const media = await toPostMediaDto(post.media, storage);
 
   return {
     id: post.id,
@@ -200,6 +210,7 @@ export const toRevealedClubPostDto = (
       label: post.requiredMilestone.safeTitle
     },
     ...(prediction ? { prediction } : {}),
+    ...(media ? { media } : {}),
     counts: {
       commentCount: post.commentCount,
       reactionCount: post.reactionCount,
@@ -208,6 +219,80 @@ export const toRevealedClubPostDto = (
     },
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString()
+  };
+};
+
+const toLockedPostDto = async ({
+  base,
+  post,
+  requiredMilestone,
+  storage
+}: {
+  base: Omit<LockedClubPostCardDto, "visibility" | "lockReason">;
+  post: ClubPostRecord;
+  requiredMilestone: RequiredMilestoneDto;
+  storage: Pick<ObjectStorage, "createPresignedRead">;
+}): Promise<LockedClubPostCardDto> => {
+  const media = post.media?.safePreview
+    ? await toPostMediaDto(post.media, storage)
+    : null;
+
+  return {
+    ...base,
+    ...(media ? { media } : {}),
+    visibility: "LOCKED",
+    lockReason: `Reach milestone ${requiredMilestone.position}: ${requiredMilestone.label} to unlock this discussion.`
+  };
+};
+
+const toVisiblePostDto = async ({
+  base,
+  post,
+  prediction,
+  storage
+}: {
+  base: Omit<
+    VisibleClubPostCardDto,
+    "visibility" | "title" | "bodyPreview" | "author" | "prediction" | "media"
+  >;
+  post: ClubPostRecord;
+  prediction: PredictionDto | null;
+  storage: Pick<ObjectStorage, "createPresignedRead">;
+}): Promise<VisibleClubPostCardDto> => {
+  const media = await toPostMediaDto(post.media, storage);
+
+  return {
+    ...base,
+    visibility: "VISIBLE",
+    title: post.title,
+    bodyPreview: toBodyPreview(post.body),
+    author: {
+      id: post.author.id,
+      displayName: post.author.displayName,
+      username: post.author.username
+    },
+    ...(prediction ? { prediction } : {}),
+    ...(media ? { media } : {})
+  };
+};
+
+const toPostMediaDto = async (
+  media: ClubPostRecord["media"],
+  storage: Pick<ObjectStorage, "createPresignedRead">
+): Promise<PostMediaDto | null> => {
+  if (!media) {
+    return null;
+  }
+
+  const signedRead = await storage.createPresignedRead(media.objectKey);
+
+  return {
+    id: media.id,
+    contentType: media.contentType,
+    sizeBytes: media.sizeBytes,
+    safePreview: media.safePreview,
+    url: signedRead.readUrl,
+    urlExpiresAt: signedRead.expiresAt.toISOString()
   };
 };
 

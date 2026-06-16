@@ -118,6 +118,7 @@ describe("uploads routes", () => {
         status: "PENDING",
         contentType: "image/png",
         sizeBytes: 128,
+        safePreview: false,
         url: null,
         createdAt: createdAsset.createdAt.toISOString(),
         updatedAt: createdAsset.updatedAt.toISOString()
@@ -169,6 +170,60 @@ describe("uploads routes", () => {
     expect(createdAsset.objectKey).toMatch(
       new RegExp(`^public/club-covers/${club.id}/[a-f0-9-]+\\.webp$`)
     );
+  });
+
+  it("allows club members to create private post image uploads", async () => {
+    const member = await repository.createUser({
+      email: "member@example.com",
+      displayName: "Member",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const outsider = await repository.createUser({
+      email: "outsider@example.com",
+      displayName: "Outsider",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub("story-room");
+    repository.createMembership(member.id, club.id, "MEMBER");
+
+    await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", await createSessionCookie(outsider))
+      .send(validPostImageIntent("story-room"))
+      .expect(403);
+
+    await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        ...validPostImageIntent("story-room"),
+        objectKey: "private/not-allowed.png"
+      })
+      .expect(400);
+
+    const response = await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", await createSessionCookie(member))
+      .send(validPostImageIntent("story-room", true))
+      .expect(201);
+    const createdAsset = repository.getOnlyAsset();
+
+    expect(response.body.asset).toEqual({
+      id: createdAsset.id,
+      purpose: "POST_IMAGE",
+      visibility: "PRIVATE",
+      status: "PENDING",
+      contentType: "image/jpeg",
+      sizeBytes: 512,
+      safePreview: true,
+      url: null,
+      createdAt: createdAsset.createdAt.toISOString(),
+      updatedAt: createdAsset.updatedAt.toISOString()
+    });
+    expect(createdAsset.objectKey).toMatch(
+      new RegExp(`^private/post-images/${club.id}/[a-f0-9-]+\\.jpg$`)
+    );
+    expect(response.body.asset).not.toHaveProperty("objectKey");
   });
 
   it("verifies uploaded object metadata before marking an avatar ready", async () => {
@@ -255,6 +310,40 @@ describe("uploads routes", () => {
     expect(repository.users.get(owner.id)?.avatarAssetId).toBe(avatar?.id);
     expect(repository.clubs.get(club.id)?.coverAssetId).toBe(cover?.id);
   });
+
+  it("marks matching post image uploads ready without returning a public URL", async () => {
+    const member = await repository.createUser({
+      email: "member@example.com",
+      displayName: "Member",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub("story-room");
+    repository.createMembership(member.id, club.id, "MEMBER");
+    const createResponse = await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", await createSessionCookie(member))
+      .send(validPostImageIntent("story-room"))
+      .expect(201);
+    const postImage = repository.fileAssets.get(createResponse.body.asset.id);
+
+    storage.metadata.set(postImage?.objectKey ?? "", {
+      contentLength: 512,
+      contentType: "image/jpeg"
+    });
+
+    const completedPostImage = await request(app)
+      .post(`/api/uploads/${createResponse.body.asset.id}/complete`)
+      .set("Cookie", await createSessionCookie(member))
+      .expect(200);
+
+    expect(completedPostImage.body.asset).toMatchObject({
+      purpose: "POST_IMAGE",
+      visibility: "PRIVATE",
+      status: "READY",
+      url: null
+    });
+    expect(repository.clubs.get(club.id)?.coverAssetId).toBeNull();
+  });
 });
 
 const validAvatarIntent = () => ({
@@ -268,6 +357,13 @@ const validClubCoverIntent = (clubSlug: string) => ({
   clubSlug,
   contentType: "image/webp",
   sizeBytes: 256
+});
+
+const validPostImageIntent = (clubSlug: string, safePreview = false) => ({
+  clubSlug,
+  contentType: "image/jpeg",
+  sizeBytes: 512,
+  safePreview
 });
 
 const createUploadsTestApp = (
@@ -377,12 +473,15 @@ class InMemoryUploadsRepository
   createPendingFileAsset = async (input: CreateFileAssetInput) => {
     const now = new Date();
     const asset: FileAssetRecord = {
-      id: randomUUID(),
-      ownerId: input.ownerId,
-      clubId: input.clubId,
-      purpose: input.purpose,
-      visibility: "PUBLIC",
-      objectKey: input.objectKey,
+	      id: randomUUID(),
+	      ownerId: input.ownerId,
+	      clubId: input.clubId,
+	      postId: null,
+	      commentId: null,
+	      purpose: input.purpose,
+	      visibility: input.visibility ?? "PUBLIC",
+	      safePreview: input.safePreview ?? false,
+	      objectKey: input.objectKey,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
       status: "PENDING",
@@ -411,15 +510,16 @@ class InMemoryUploadsRepository
     }
 
     return {
-      id: club.id,
-      slug: club.slug,
-      currentUserRole:
-        this.memberships.find(
-          (membership) =>
-            membership.clubId === club.id && membership.userId === userId
-        )?.role ?? null
-    };
-  };
+	      id: club.id,
+	      slug: club.slug,
+	      currentUserRole:
+	        this.memberships.find(
+	          (membership) =>
+	            membership.clubId === club.id && membership.userId === userId
+	        )?.role ?? null,
+	      isCurrentUserBanned: false
+	    };
+	  };
 
   markAssetFailed = async (assetId: string) => {
     const asset = this.fileAssets.get(assetId);
@@ -453,7 +553,7 @@ class InMemoryUploadsRepository
       if (user) {
         user.avatarAssetId = asset.id;
       }
-    } else if (asset.clubId) {
+	    } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
       const club = this.clubs.get(asset.clubId);
 
       if (club) {
@@ -480,10 +580,15 @@ class FakeObjectStorage implements ObjectStorage {
       contentType: string | null;
     }
   >();
-  readonly presignedUploads: Array<{
-    contentType: string;
-    objectKey: string;
-  }> = [];
+	  readonly presignedUploads: Array<{
+	    contentType: string;
+	    objectKey: string;
+	  }> = [];
+
+	  createPresignedRead = async (objectKey: string) => ({
+	    readUrl: `https://reads.example/${objectKey}`,
+	    expiresAt: new Date("2026-06-16T12:05:00.000Z")
+	  });
 
   createPresignedUpload = async ({
     contentType,

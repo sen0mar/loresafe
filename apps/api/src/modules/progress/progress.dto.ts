@@ -10,6 +10,7 @@ import {
   type ClubPostCardDto,
   toClubPostCardDto
 } from "../posts/posts.dto.js";
+import type { ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type ProgressMilestoneDto = {
   id: string;
@@ -88,19 +89,22 @@ export const toClubProgressDto = (
   };
 };
 
-export const toRecentlyUnlockedResponse = (
+export const toRecentlyUnlockedResponse = async (
   record: RecentlyUnlockedRecord,
   limit: number,
-  nextCursor: string | null
-): RecentlyUnlockedResponse => ({
+  nextCursor: string | null,
+  storage: Pick<ObjectStorage, "createPresignedRead">
+): Promise<RecentlyUnlockedResponse> => ({
   unlock: {
     historyId: record.unlock.historyId,
     fromPosition: record.unlock.fromPosition,
     toPosition: record.unlock.toPosition,
     unlockedAt: record.unlock.unlockedAt?.toISOString() ?? null
   },
-  posts: record.posts.map((post) =>
-    toClubPostCardDto(post, record.currentProgress)
+  posts: await Promise.all(
+    record.posts.map((post) =>
+      toClubPostCardDto(post, record.currentProgress, storage)
+    )
   ),
   pagination: {
     limit,

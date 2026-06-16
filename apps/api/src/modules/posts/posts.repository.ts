@@ -61,6 +61,13 @@ export type ClubPostRecord = {
       safeTitle: string;
     };
   } | null;
+  media: {
+    id: string;
+    contentType: string;
+    sizeBytes: number;
+    safePreview: boolean;
+    objectKey: string;
+  } | null;
   commentCount: number;
   reactionCount: number;
   reactions: Array<{
@@ -159,6 +166,21 @@ const postSelect = {
         }
       }
     }
+  },
+  mediaAssets: {
+    where: {
+      purpose: "POST_IMAGE",
+      visibility: "PRIVATE",
+      status: "READY"
+    },
+    select: {
+      id: true,
+      contentType: true,
+      sizeBytes: true,
+      safePreview: true,
+      objectKey: true
+    },
+    take: 1
   },
   _count: {
     select: {
@@ -339,6 +361,28 @@ export const postsRepository: PostsRepository = {
         return null;
       }
 
+      const mediaAsset = input.mediaAssetId
+        ? await transaction.fileAsset.findFirst({
+            where: {
+              id: input.mediaAssetId,
+              ownerId: authorId,
+              clubId,
+              postId: null,
+              commentId: null,
+              purpose: "POST_IMAGE",
+              visibility: "PRIVATE",
+              status: "READY"
+            },
+            select: {
+              id: true
+            }
+          })
+        : null;
+
+      if (input.mediaAssetId && !mediaAsset) {
+        return null;
+      }
+
       const post = await transaction.post.create({
         data: {
           clubId,
@@ -361,9 +405,30 @@ export const postsRepository: PostsRepository = {
         select: postSelect
       });
 
+      if (mediaAsset) {
+        await transaction.fileAsset.update({
+          where: {
+            id: mediaAsset.id
+          },
+          data: {
+            postId: post.id
+          },
+          select: {
+            id: true
+          }
+        });
+      }
+
+      const postWithMedia = await transaction.post.findUniqueOrThrow({
+        where: {
+          id: post.id
+        },
+        select: postSelect
+      });
+
       return toClubPostRecord(
-        post,
-        await userReactionMapForPostIds([post.id], authorId)
+        postWithMedia,
+        await userReactionMapForPostIds([postWithMedia.id], authorId)
       );
     }),
 
@@ -606,6 +671,7 @@ const toClubPostRecord = (
           revealMilestone: post.prediction.revealMilestone
         }
       : null,
+    media: post.mediaAssets[0] ?? null,
     commentCount: post._count.comments,
     reactionCount: reactions.reduce(
       (total, reaction) => total + reaction.count,
