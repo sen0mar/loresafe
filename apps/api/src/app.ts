@@ -15,11 +15,13 @@ import {
   inviteAcceptRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
+  postCommentCreateRateLimiter,
   profileUpdateRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { clubsRouter } from "./modules/clubs/clubs.routes.js";
+import { commentsRouter } from "./modules/comments/comments.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import {
   clubInvitesRouter,
@@ -63,6 +65,7 @@ export const createApp = () => {
     clubMilestoneCreateRateLimiter
   );
   app.post("/api/clubs/:slug/posts", clubPostCreateRateLimiter);
+  app.post("/api/posts/:postId/comments", postCommentCreateRateLimiter);
   app.patch("/api/clubs/:slug/progress", clubProgressUpdateRateLimiter);
   app.post("/api/clubs/:slug/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
@@ -72,6 +75,7 @@ export const createApp = () => {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/posts", commentsRouter);
   app.use("/api/posts", postDetailsRouter);
   app.use("/api/clubs", progressRouter);
   app.use("/api/clubs", postsRouter);

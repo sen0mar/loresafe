@@ -544,7 +544,8 @@ describe("posts routes", () => {
     repository.setProgress(user.id, club.id, milestone.id, "STRICT");
     repository.createPost(club.id, user.id, milestone.id, {
       title: "Opening thoughts",
-      body: "This opening chapter sets the tone without future context."
+      body: "This opening chapter sets the tone without future context.",
+      commentCount: 3
     });
 
     const response = await request(app)
@@ -560,6 +561,9 @@ describe("posts routes", () => {
         id: user.id,
         displayName: "Reader",
         username: null
+      },
+      counts: {
+        commentCount: 3
       }
     });
   });
@@ -1093,6 +1097,7 @@ class InMemoryPostsRepository
       status?: ClubPostRecord["status"];
       deletedAt?: Date | null;
       createdAt?: Date;
+      commentCount?: number;
     }
   ) => {
     const author = this.findStoredUser(authorId);
@@ -1118,6 +1123,7 @@ class InMemoryPostsRepository
         username: author.username
       },
       requiredMilestone,
+      commentCount: input.commentCount ?? 0,
       createdAt: now,
       updatedAt: now,
       deletedAt: input.deletedAt ?? null
