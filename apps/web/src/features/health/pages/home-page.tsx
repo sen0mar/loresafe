@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { ListChecks } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
+import { Badge } from "@/shared/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -35,7 +36,7 @@ export const HomePage = () => {
             <FeedPreview />
           </>
         ) : activeTab === "timeline" ? (
-          <ClubTimelineTab slug="the-first-law-book-club" />
+          <HomeTimelinePreview />
         ) : (
           <HomePlaceholderPanel activeTab={activeTab} />
         )}
@@ -74,6 +75,67 @@ const HomePlaceholderPanel = ({
       <p className="text-sm leading-6 text-muted">
         {placeholderCopy[activeTab].body}
       </p>
+    </CardContent>
+  </Card>
+);
+
+const homeTimelineMilestones = [
+  {
+    position: 1,
+    title: "Opening chapters",
+    description: "First impressions and early character setup.",
+    state: "Safe"
+  },
+  {
+    position: 2,
+    title: "First turning point",
+    description: "A spoiler-safe checkpoint for the first major shift.",
+    state: "Locked"
+  },
+  {
+    position: 3,
+    title: "Midpoint discussion",
+    description: "A later milestone preview without revealing the scene.",
+    state: "Locked"
+  }
+];
+
+const HomeTimelinePreview = () => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <ListChecks className="size-5 text-brand" />
+        Timeline preview
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ol className="space-y-3">
+        {homeTimelineMilestones.map((milestone) => (
+          <li
+            className="grid gap-3 rounded-xl border border-default bg-elevated p-4 sm:grid-cols-[3rem_minmax(0,1fr)]"
+            key={milestone.position}
+          >
+            <div className="flex size-11 items-center justify-center rounded-lg border border-strong bg-active font-mono text-sm font-medium text-brand">
+              {milestone.position}
+            </div>
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h2 className="text-base font-semibold tracking-normal text-primary">
+                  {milestone.title}
+                </h2>
+                <Badge
+                  variant={milestone.state === "Safe" ? "default" : "outline"}
+                >
+                  {milestone.state}
+                </Badge>
+              </div>
+              <p className="text-sm leading-6 text-muted">
+                {milestone.description}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </CardContent>
   </Card>
 );
