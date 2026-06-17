@@ -52,6 +52,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 46: Regression test coverage pass — Added frontend Vitest smoke coverage for core auth, club, progress, feed, post, comment, report, discovery, and search flows, plus strengthened backend sentinel assertions for locked content and private club leak protection.
 - Feature 47: Performance and pagination hardening — Added cursor-paginated post comments with frontend load-more UX, supporting list-query indexes in a committed migration, a repeatable seeded-volume performance check script, and focused pagination/sanitization regression tests.
 - Feature 48: Accessibility and responsive QA pass — Hardened frontend focus, dialog, tab, disabled/loading, and mobile layout behavior across core flows, added focused accessibility regression tests, and verified key pages across mobile, tablet, and desktop viewports.
+- Feature 49: Production configuration hardening — Added production fail-fast env validation for backend services and secure cookies, comma-separated CORS origin allowlists, production frontend API URL enforcement, env examples, and focused config/bundle-safety tests.
 
 ## Entry Format
 

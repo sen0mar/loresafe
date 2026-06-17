@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 
+import { getAllowedCorsOrigins } from "./config/cors.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
 import { requestLoggingMiddleware } from "./core/http/request-logging.js";
@@ -56,20 +57,17 @@ import { searchRouter } from "./modules/search/search.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
-const localDevOrigins = [env.CLIENT_ORIGIN, "http://localhost:5174"];
-
-export const createApp = () => {
+export const createApp = (appEnv = env) => {
   const app = express();
 
   app.disable("x-powered-by");
-  app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  app.set("trust proxy", appEnv.TRUST_PROXY_HOPS);
 
   app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);
   app.use(
     cors({
-      origin:
-        env.NODE_ENV === "production" ? env.CLIENT_ORIGIN : localDevOrigins,
+      origin: getAllowedCorsOrigins(appEnv),
       credentials: true
     })
   );

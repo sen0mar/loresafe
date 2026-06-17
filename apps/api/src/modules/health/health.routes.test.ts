@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "../../app.js";
+import { parseEnv } from "../../config/env.js";
 
 describe("health routes", () => {
   const app = createApp();
@@ -29,6 +30,50 @@ describe("health routes", () => {
       "http://localhost:5174"
     );
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+
+  it("allows only configured production CORS origins", async () => {
+    const productionApp = createApp(
+      parseEnv({
+        CLIENT_ORIGIN: "https://legacy.threadsync.example",
+        CLIENT_ORIGINS: "https://app.threadsync.example,https://admin.threadsync.example",
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/threadsync",
+        DEMO_USER_DISPLAY_NAME: "Demo Reader",
+        DEMO_USER_EMAIL: "demo@example.com",
+        DEMO_USER_PASSWORD: "correct horse battery",
+        JWT_SECRET: "a".repeat(32),
+        NODE_ENV: "production",
+        R2_ACCESS_KEY_ID: "r2-access-key",
+        R2_ACCOUNT_ID: "r2-account",
+        R2_BUCKET_NAME: "threadsync-assets",
+        R2_PUBLIC_BASE_URL: "https://cdn.threadsync.example",
+        R2_SECRET_ACCESS_KEY: "r2-secret-key",
+        SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+        UPSTASH_REDIS_REST_TOKEN: "redis-token",
+        UPSTASH_REDIS_REST_URL: "https://redis.example"
+      })
+    );
+
+    const allowedResponse = await request(productionApp)
+      .get("/api/health")
+      .set("Origin", "https://app.threadsync.example")
+      .expect(200);
+
+    expect(allowedResponse.headers["access-control-allow-origin"]).toBe(
+      "https://app.threadsync.example"
+    );
+    expect(allowedResponse.headers["access-control-allow-credentials"]).toBe(
+      "true"
+    );
+
+    const rejectedResponse = await request(productionApp)
+      .get("/api/health")
+      .set("Origin", "https://evil.example")
+      .expect(200);
+
+    expect(rejectedResponse.headers).not.toHaveProperty(
+      "access-control-allow-origin"
+    );
   });
 
   it("returns the shared error shape for unknown API routes", async () => {
