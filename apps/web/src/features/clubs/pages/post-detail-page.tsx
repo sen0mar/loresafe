@@ -8,6 +8,7 @@ import {
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ChevronDown,
   Clock3,
   Eye,
   LockKeyhole,
@@ -74,6 +75,8 @@ export const PostDetailPage = () => {
   const postQuery = usePostQuery(postId);
   const commentsEnabled = postQuery.isSuccess;
   const commentsQuery = usePostCommentsQuery(postId, commentsEnabled);
+  const comments =
+    commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [];
   const revealPostMutation = useRevealPostMutation(postId);
   const revealCommentMutation = useRevealPostCommentMutation(postId);
 
@@ -151,10 +154,13 @@ export const PostDetailPage = () => {
             )}
             <CommentsPanel
               clubSlug={postQuery.data.club.slug}
-              comments={commentsQuery.data?.comments ?? []}
+              comments={comments}
               error={commentsQuery.error}
+              hasNextPage={commentsQuery.hasNextPage}
               isError={commentsQuery.isError}
+              isFetchingNextPage={commentsQuery.isFetchingNextPage}
               isLoading={commentsQuery.isPending}
+              onLoadMore={() => void commentsQuery.fetchNextPage()}
               onRetry={() => void commentsQuery.refetch()}
               onRevealComment={handleRevealComment}
               post={postQuery.data.post}
@@ -299,8 +305,11 @@ const CommentsPanel = ({
   clubSlug,
   comments,
   error,
+  hasNextPage,
   isError,
+  isFetchingNextPage,
   isLoading,
+  onLoadMore,
   onRevealComment,
   onRetry,
   post,
@@ -311,8 +320,11 @@ const CommentsPanel = ({
   clubSlug: string;
   comments: Comment[];
   error: Error | null;
+  hasNextPage: boolean;
   isError: boolean;
+  isFetchingNextPage: boolean;
   isLoading: boolean;
+  onLoadMore: () => void;
   onRevealComment: (commentId: string) => void;
   onRetry: () => void;
   post: ClubPostCard;
@@ -369,22 +381,41 @@ const CommentsPanel = ({
         ) : comments.length === 0 ? (
           <CommentsEmpty />
         ) : (
-          <div className="space-y-3">
-            {threads.map((thread) => (
-              <CommentThreadBlock
-                key={thread.parent.id}
-                milestones={milestones}
-                onReply={(commentId) => setReplyParentId(commentId)}
-                onReplyCancel={() => setReplyParentId(null)}
-                onRevealComment={onRevealComment}
-                postId={postId}
-                revealedComments={revealedComments}
-                revealingCommentId={revealingCommentId}
-                replyParentId={replyParentId}
-                thread={thread}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-3">
+              {threads.map((thread) => (
+                <CommentThreadBlock
+                  key={thread.parent.id}
+                  milestones={milestones}
+                  onReply={(commentId) => setReplyParentId(commentId)}
+                  onReplyCancel={() => setReplyParentId(null)}
+                  onRevealComment={onRevealComment}
+                  postId={postId}
+                  revealedComments={revealedComments}
+                  revealingCommentId={revealingCommentId}
+                  replyParentId={replyParentId}
+                  thread={thread}
+                />
+              ))}
+            </div>
+            {hasNextPage ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted">
+                  {comments.length} comments loaded
+                </p>
+                <Button
+                  className="w-full sm:w-fit"
+                  type="button"
+                  variant="secondary"
+                  disabled={isFetchingNextPage}
+                  onClick={onLoadMore}
+                >
+                  <ChevronDown />
+                  {isFetchingNextPage ? "Loading..." : "Load more"}
+                </Button>
+              </div>
+            ) : null}
+          </>
         )}
       </CardContent>
     </Card>

@@ -178,6 +178,7 @@ model Club {
 
   @@unique([slug], map: "clubs_slug_unique")
   @@index([visibility], map: "clubs_visibility_idx")
+  @@index([visibility, createdAt, id], map: "clubs_visibility_created_at_id_idx")
   @@map("clubs")
 }
 
@@ -194,7 +195,9 @@ model ClubMembership {
 
   @@unique([userId, clubId], map: "club_memberships_user_id_club_id_unique")
   @@index([userId], map: "club_memberships_user_id_idx")
+  @@index([userId, createdAt, id], map: "club_memberships_user_created_id_idx")
   @@index([clubId], map: "club_memberships_club_id_idx")
+  @@index([clubId, role, createdAt, id], map: "club_memberships_club_role_created_id_idx")
   @@map("club_memberships")
 }
 
@@ -396,6 +399,7 @@ model Comment {
   auditLogs         AuditLog[]
 
   @@index([postId, status, deletedAt, createdAt], map: "comments_post_id_status_deleted_at_created_at_idx")
+  @@index([postId, status, deletedAt, createdAt, id], map: "comments_post_status_deleted_created_id_idx")
   @@index([postId, requiredMilestoneId], map: "comments_post_id_required_milestone_id_idx")
   @@index([authorId], map: "comments_author_id_idx")
   @@index([parentId], map: "comments_parent_id_idx")
@@ -443,6 +447,7 @@ model Notification {
   @@unique([eventKey], map: "notifications_event_key_unique")
   @@index([userId, readAt, createdAt], map: "notifications_user_id_read_at_created_at_idx")
   @@index([userId, createdAt], map: "notifications_user_id_created_at_idx")
+  @@index([userId, createdAt, id], map: "notifications_user_id_created_at_id_idx")
   @@index([clubId], map: "notifications_club_id_idx")
   @@index([postId], map: "notifications_post_id_idx")
   @@index([commentId], map: "notifications_comment_id_idx")
@@ -472,6 +477,7 @@ model Report {
   @@unique([reporterId, postId], map: "reports_reporter_id_post_id_open_unique", where: raw("\"status\" = 'OPEN' AND \"post_id\" IS NOT NULL"))
   @@unique([reporterId, commentId], map: "reports_reporter_id_comment_id_open_unique", where: raw("\"status\" = 'OPEN' AND \"comment_id\" IS NOT NULL"))
   @@index([clubId, status, createdAt], map: "reports_club_id_status_created_at_idx")
+  @@index([clubId, status, createdAt, id], map: "reports_club_status_created_id_idx")
   @@index([reporterId, createdAt], map: "reports_reporter_id_created_at_idx")
   @@index([postId], map: "reports_post_id_idx")
   @@index([commentId], map: "reports_comment_id_idx")

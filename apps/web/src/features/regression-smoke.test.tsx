@@ -256,9 +256,30 @@ describe("frontend regression smoke", () => {
           slug: club.slug
         }
       }),
-      shellRoute("/api/posts/00000000-0000-4000-8000-000000000020/comments", {
-        comments: [visibleComment, lockedComment]
-      }),
+      shellRoute(
+        "/api/posts/00000000-0000-4000-8000-000000000020/comments",
+        ({ searchParams }: { searchParams: URLSearchParams }) => {
+          if (searchParams.has("cursor")) {
+            return {
+              comments: [secondVisibleComment],
+              pagination: {
+                limit: 20,
+                nextCursor: null,
+                hasMore: false
+              }
+            };
+          }
+
+          return {
+            comments: [visibleComment, lockedComment],
+            pagination: {
+              limit: 20,
+              nextCursor: "next-comments-page",
+              hasMore: true
+            }
+          };
+        }
+      ),
       shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
       {
         method: "POST",
@@ -286,6 +307,10 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Visible comment body")).toBeInTheDocument();
     expect(await screen.findByText("Locked comment")).toBeInTheDocument();
     expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /load more/i }));
+
+    expect(await screen.findByText("Second visible comment body")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Add a comment"), "New comment body");
     await user.click(screen.getByRole("button", { name: /post comment/i }));
@@ -557,6 +582,12 @@ const visibleComment: Comment = {
   counts: emptyCounts,
   createdAt: now,
   updatedAt: now
+};
+
+const secondVisibleComment: Comment = {
+  ...visibleComment,
+  id: "00000000-0000-4000-8000-000000000033",
+  body: "Second visible comment body"
 };
 
 const lockedComment: Comment = {

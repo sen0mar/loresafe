@@ -14,6 +14,7 @@ import {
 } from "./comments.dto.js";
 import {
   commentsRepository,
+  type CommentsCursor,
   type CommentMilestoneRecord,
   type CommentPostRecord,
   type CommentsRepository
@@ -25,13 +26,15 @@ import {
 } from "./comments.policy.js";
 import type {
   CreatePostCommentRequest,
+  ListPostCommentsQuery,
   ToggleCommentReactionRequest
 } from "./comments.schema.js";
 
 export type CommentsService = {
   listPostComments: (
     postId: string,
-    userId: string
+    userId: string,
+    query: ListPostCommentsQuery
   ) => Promise<PostCommentsResponse>;
   createPostComment: (
     postId: string,
@@ -53,22 +56,33 @@ export type CommentsService = {
 export const createCommentsService = (
   repository: CommentsRepository = commentsRepository
 ): CommentsService => ({
-  listPostComments: async (postId, userId) => {
+  listPostComments: async (postId, userId, query) => {
     const post = await repository.findPostForComments(postId, userId);
 
     if (!post || !canViewPostComments(post)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
-    const comments = await repository.listVisibleCommentsForPost(
+    const result = await repository.listVisibleCommentsForPost(
       post.id,
-      userId
+      userId,
+      {
+        cursor: decodeCommentsCursor(query.cursor),
+        limit: query.limit
+      }
     );
 
     return {
-      comments: comments.map((comment) =>
+      comments: result.comments.map((comment) =>
         toCommentDto(comment, post.club.progress)
-      )
+      ),
+      pagination: {
+        limit: query.limit,
+        nextCursor: result.nextCursor
+          ? encodeCommentsCursor(result.nextCursor)
+          : null,
+        hasMore: result.hasMore
+      }
     };
   },
 
@@ -222,6 +236,56 @@ export const createCommentsService = (
 });
 
 export const commentsService = createCommentsService();
+
+const encodeCommentsCursor = ({ createdAt, id }: CommentsCursor) =>
+  Buffer.from(
+    JSON.stringify({
+      createdAt: createdAt.toISOString(),
+      id
+    })
+  ).toString("base64url");
+
+const decodeCommentsCursor = (
+  cursor: string | undefined
+): CommentsCursor | null => {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf8")
+    ) as unknown;
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !("createdAt" in parsed) ||
+      !("id" in parsed) ||
+      typeof parsed.createdAt !== "string" ||
+      typeof parsed.id !== "string"
+    ) {
+      throw new Error("Malformed cursor");
+    }
+
+    const createdAt = new Date(parsed.createdAt);
+
+    if (Number.isNaN(createdAt.getTime())) {
+      throw new Error("Malformed cursor");
+    }
+
+    return {
+      createdAt,
+      id: parsed.id
+    };
+  } catch {
+    throw new HttpError(
+      400,
+      "BAD_REQUEST",
+      "Check the comments request and try again."
+    );
+  }
+};
 
 const resolveRequiredMilestone = async (
   repository: CommentsRepository,

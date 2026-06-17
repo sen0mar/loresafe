@@ -456,6 +456,11 @@ export type ToggleCommentReactionResponse = {
 
 export type PostCommentsResponse = {
   comments: Comment[];
+  pagination: {
+    limit: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
 };
 
 export type CreatePostCommentInput = {
@@ -839,8 +844,19 @@ export const getRecentlyUnlockedSummary = (slug: string) =>
 export const getPostById = (postId: string) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`);
 
-export const getPostComments = (postId: string) =>
-  apiGet<PostCommentsResponse>(`/api/posts/${postId}/comments`);
+export const getPostComments = (postId: string, cursor?: string) => {
+  const params = new URLSearchParams({
+    limit: "20"
+  });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  return apiGet<PostCommentsResponse>(
+    `/api/posts/${postId}/comments?${params.toString()}`
+  );
+};
 
 export const revealPost = (postId: string) =>
   apiPost<RevealPostResponse>(`/api/posts/${postId}/reveal`);
@@ -1159,9 +1175,11 @@ export const usePostQuery = (postId: string) =>
   });
 
 export const usePostCommentsQuery = (postId: string, enabled = true) =>
-  useQuery({
+  useInfiniteQuery({
     queryKey: clubsQueryKeys.postComments(postId),
-    queryFn: () => getPostComments(postId),
+    queryFn: ({ pageParam }) => getPostComments(postId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor ?? undefined,
     enabled: enabled && postId.length > 0
   });
 
@@ -1568,14 +1586,14 @@ export const useToggleCommentReactionMutation = (
       });
 
       const previousComments =
-        queryClient.getQueryData<PostCommentsResponse>(
+        queryClient.getQueryData<InfiniteData<PostCommentsResponse>>(
           clubsQueryKeys.postComments(postId)
         ) ?? null;
 
-      queryClient.setQueryData<PostCommentsResponse>(
+      queryClient.setQueryData<InfiniteData<PostCommentsResponse>>(
         clubsQueryKeys.postComments(postId),
-        (currentResponse) =>
-          updateCommentInResponse(currentResponse, (comment) =>
+        (currentData) =>
+          updateCommentInInfiniteData(currentData, (comment) =>
             comment.id === commentId
               ? toggleCommentReactionOnComment(comment, input.emoji)
               : comment
@@ -1595,10 +1613,10 @@ export const useToggleCommentReactionMutation = (
       }
     },
     onSuccess: (response) => {
-      queryClient.setQueryData<PostCommentsResponse>(
+      queryClient.setQueryData<InfiniteData<PostCommentsResponse>>(
         clubsQueryKeys.postComments(postId),
-        (currentResponse) =>
-          updateCommentInResponse(currentResponse, (comment) =>
+        (currentData) =>
+          updateCommentInInfiniteData(currentData, (comment) =>
             comment.id === response.comment.id ? response.comment : comment
           )
       );
@@ -1785,17 +1803,20 @@ const updatePostInInfiniteData = (
   };
 };
 
-const updateCommentInResponse = (
-  currentResponse: PostCommentsResponse | undefined,
+const updateCommentInInfiniteData = (
+  currentData: InfiniteData<PostCommentsResponse> | undefined,
   updateComment: (comment: Comment) => Comment
 ) => {
-  if (!currentResponse) {
-    return currentResponse;
+  if (!currentData) {
+    return currentData;
   }
 
   return {
-    ...currentResponse,
-    comments: currentResponse.comments.map(updateComment)
+    ...currentData,
+    pages: currentData.pages.map((page) => ({
+      ...page,
+      comments: page.comments.map(updateComment)
+    }))
   };
 };
 

@@ -5,6 +5,7 @@ import {
   commentReactionEmojis,
   type CommentReactionEmoji,
   type CreatePostCommentRequest,
+  type ListPostCommentsQuery,
   type ToggleCommentReactionRequest
 } from "./comments.schema.js";
 
@@ -60,6 +61,22 @@ export type CreatePostCommentInput = CreatePostCommentRequest & {
   requiredMilestoneId: string;
 };
 
+export type CommentsCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+export type ListVisibleCommentsInput = {
+  cursor: CommentsCursor | null;
+  limit: ListPostCommentsQuery["limit"];
+};
+
+export type ListVisibleCommentsResult = {
+  comments: CommentRecord[];
+  nextCursor: CommentsCursor | null;
+  hasMore: boolean;
+};
+
 export type CommentReactionTargetRecord = {
   comment: CommentRecord;
   post: CommentPostRecord;
@@ -80,8 +97,9 @@ export type CommentsRepository = {
   ) => Promise<CommentMilestoneRecord | null>;
   listVisibleCommentsForPost: (
     postId: string,
-    userId: string
-  ) => Promise<CommentRecord[]>;
+    userId: string,
+    input: ListVisibleCommentsInput
+  ) => Promise<ListVisibleCommentsResult>;
   findVisibleCommentForReaction: (
     commentId: string,
     userId: string
@@ -306,12 +324,30 @@ export const commentsRepository: CommentsRepository = {
       }
     }),
 
-  listVisibleCommentsForPost: async (postId, userId) => {
+  listVisibleCommentsForPost: async (postId, userId, { cursor, limit }) => {
+    const cursorWhere = cursor
+      ? {
+          OR: [
+            {
+              createdAt: {
+                gt: cursor.createdAt
+              }
+            },
+            {
+              createdAt: cursor.createdAt,
+              id: {
+                gt: cursor.id
+              }
+            }
+          ]
+        }
+      : {};
     const comments = await prisma.comment.findMany({
       where: {
         postId,
         status: "VISIBLE",
-        deletedAt: null
+        deletedAt: null,
+        ...cursorWhere
       },
       orderBy: [
         {
@@ -321,16 +357,30 @@ export const commentsRepository: CommentsRepository = {
           id: "asc"
         }
       ],
-      take: 100,
+      take: limit + 1,
       select: commentSelect
     });
+    const pageComments = comments.slice(0, limit);
+    const lastComment = pageComments[pageComments.length - 1];
 
     const reactionMap = await userReactionMapForCommentIds(
-      comments.map((comment) => comment.id),
+      pageComments.map((comment) => comment.id),
       userId
     );
 
-    return comments.map((comment) => toCommentRecord(comment, reactionMap));
+    return {
+      comments: pageComments.map((comment) =>
+        toCommentRecord(comment, reactionMap)
+      ),
+      nextCursor:
+        comments.length > limit && lastComment
+          ? {
+              createdAt: lastComment.createdAt,
+              id: lastComment.id
+            }
+          : null,
+      hasMore: comments.length > limit
+    };
   },
 
   findVisibleCommentForReaction: async (commentId, userId) => {

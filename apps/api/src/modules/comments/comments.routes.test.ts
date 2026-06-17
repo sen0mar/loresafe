@@ -21,6 +21,8 @@ import type {
   CreatePostCommentInput,
   CommentPostRecord,
   CommentRecord,
+  ListVisibleCommentsInput,
+  ListVisibleCommentsResult,
   CommentsRepository
 } from "./comments.repository.js";
 import {
@@ -79,6 +81,30 @@ describe("comments routes", () => {
       code: "BAD_REQUEST",
       message: "Check the comment details and try again."
     });
+  });
+
+  it("validates comment pagination query params", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+
+    for (const path of [
+      `/api/posts/${post.id}/comments?cursor=not-a-cursor`,
+      `/api/posts/${post.id}/comments?limit=51`
+    ]) {
+      const response = await request(app)
+        .get(path)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(400);
+
+      expect(response.body.error).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "Check the comments request and try again."
+      });
+    }
   });
 
   it("rejects comment reaction toggles without an authenticated session", async () => {
@@ -559,6 +585,11 @@ describe("comments routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
+    expect(response.body.pagination).toEqual({
+      limit: 20,
+      nextCursor: null,
+      hasMore: false
+    });
     expect(response.body.comments).toHaveLength(2);
     expect(response.body.comments[0]).toMatchObject({
       visibility: "VISIBLE",
@@ -574,6 +605,49 @@ describe("comments routes", () => {
     expect(response.body.comments[1]).not.toHaveProperty("body");
     expect(response.body.comments[1]).not.toHaveProperty("author");
     expect(JSON.stringify(response.body)).not.toContain("LOCKED_COMMENT_BODY");
+  });
+
+  it("paginates comments without duplicates or skipped same-timestamp rows", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const createdAt = new Date("2026-06-17T12:00:00.000Z");
+    const comments = ["First", "Second", "Third"].map((body) =>
+      repository.createComment(post.id, user.id, post.requiredMilestone, {
+        body,
+        createdAt
+      })
+    );
+
+    let cursor: string | null = null;
+    const seenCommentIds: string[] = [];
+
+    for (let page = 0; page < comments.length; page += 1) {
+      const cursorQuery: string = cursor
+        ? `&cursor=${encodeURIComponent(cursor)}`
+        : "";
+      const response: request.Response = await request(app)
+        .get(`/api/posts/${post.id}/comments?limit=1${cursorQuery}`)
+        .set("Cookie", await createSessionCookie(user))
+        .expect(200);
+
+      expect(response.body.pagination.limit).toBe(1);
+      expect(response.body.comments).toHaveLength(1);
+      seenCommentIds.push(response.body.comments[0].id);
+      cursor = response.body.pagination.nextCursor;
+    }
+
+    expect(cursor).toBeNull();
+    expect(seenCommentIds).toEqual(
+      [...comments]
+        .sort((firstComment, secondComment) =>
+          firstComment.id.localeCompare(secondComment.id)
+        )
+        .map((comment) => comment.id)
+    );
   });
 
   it("keeps Brave normal comment responses locked until an explicit comment reveal", async () => {
@@ -1209,6 +1283,7 @@ class InMemoryCommentsRepository
     requiredMilestone: CommentRecord["requiredMilestone"],
     input: {
       body: string;
+      createdAt?: Date;
       deletedAt?: Date | null;
       parentId?: string | null;
       status?: CommentRecord["status"];
@@ -1220,7 +1295,9 @@ class InMemoryCommentsRepository
       throw new Error("Comment fixture requires an existing author.");
     }
 
-    const now = new Date(Date.UTC(2026, 0, 1, 12, this.comments.length));
+    const now =
+      input.createdAt ??
+      new Date(Date.UTC(2026, 0, 1, 12, this.comments.length));
     const comment = {
       id: crypto.randomUUID(),
       postId,
@@ -1331,20 +1408,41 @@ class InMemoryCommentsRepository
       (milestone) => milestone.id === milestoneId && milestone.clubId === clubId
     ) ?? null;
 
-  listVisibleCommentsForPost = async (postId: string, userId: string) =>
-    this.comments
+  listVisibleCommentsForPost = async (
+    postId: string,
+    userId: string,
+    { cursor, limit }: ListVisibleCommentsInput
+  ): Promise<ListVisibleCommentsResult> => {
+    const visibleComments = this.comments
       .filter(
         (comment) =>
           comment.postId === postId &&
           comment.status === "VISIBLE" &&
-          comment.deletedAt === null
+          comment.deletedAt === null &&
+          this.isAfterCursor(comment, cursor)
       )
       .sort(
         (firstComment, secondComment) =>
           firstComment.createdAt.getTime() - secondComment.createdAt.getTime() ||
           firstComment.id.localeCompare(secondComment.id)
-      )
-      .map((comment) => this.withCommentReactions(comment, userId));
+      );
+    const pageComments = visibleComments.slice(0, limit);
+    const lastComment = pageComments[pageComments.length - 1];
+
+    return {
+      comments: pageComments.map((comment) =>
+        this.withCommentReactions(comment, userId)
+      ),
+      nextCursor:
+        visibleComments.length > limit && lastComment
+          ? {
+              createdAt: lastComment.createdAt,
+              id: lastComment.id
+            }
+          : null,
+      hasMore: visibleComments.length > limit
+    };
+  };
 
   findVisibleCommentForReaction = async (
     commentId: string,
@@ -1460,6 +1558,23 @@ class InMemoryCommentsRepository
       (ban) =>
         ban.userId === userId && ban.clubId === clubId && ban.revokedAt === null
     );
+
+  private isAfterCursor = (
+    comment: CommentRecord,
+    cursor: ListVisibleCommentsInput["cursor"]
+  ) => {
+    if (!cursor) {
+      return true;
+    }
+
+    const createdAtTime = comment.createdAt.getTime();
+    const cursorTime = cursor.createdAt.getTime();
+
+    return (
+      createdAtTime > cursorTime ||
+      (createdAtTime === cursorTime && comment.id > cursor.id)
+    );
+  };
 
   private withCommentReactions = (
     comment: CommentRecord & { deletedAt: Date | null },

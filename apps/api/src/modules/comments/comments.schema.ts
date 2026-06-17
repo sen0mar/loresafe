@@ -14,6 +14,13 @@ export const postCommentsParamsSchema = z
   })
   .strict();
 
+export const listPostCommentsQuerySchema = z
+  .object({
+    cursor: z.string().trim().min(1).max(512).optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(20)
+  })
+  .strict();
+
 export const revealPostCommentParamsSchema = z
   .object({
     postId: z.uuid(),
@@ -42,6 +49,9 @@ export const toggleCommentReactionRequestSchema = z
   .strict();
 
 export type PostCommentsParams = z.infer<typeof postCommentsParamsSchema>;
+export type ListPostCommentsQuery = z.infer<
+  typeof listPostCommentsQuerySchema
+>;
 export type RevealPostCommentParams = z.infer<
   typeof revealPostCommentParamsSchema
 >;

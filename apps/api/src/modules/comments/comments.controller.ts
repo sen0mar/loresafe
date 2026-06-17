@@ -5,6 +5,7 @@ import "../auth/auth.request.js";
 import {
   commentReactionParamsSchema,
   createPostCommentRequestSchema,
+  listPostCommentsQuerySchema,
   postCommentsParamsSchema,
   revealPostCommentParamsSchema,
   toggleCommentReactionRequestSchema
@@ -31,8 +32,9 @@ export const createCommentsController = (
       }
 
       const paramsResult = postCommentsParamsSchema.safeParse(req.params);
+      const queryResult = listPostCommentsQuerySchema.safeParse(req.query);
 
-      if (!paramsResult.success) {
+      if (!paramsResult.success || !queryResult.success) {
         throw new HttpError(
           400,
           "BAD_REQUEST",
@@ -42,7 +44,8 @@ export const createCommentsController = (
 
       const response = await service.listPostComments(
         paramsResult.data.postId,
-        req.currentUser.id
+        req.currentUser.id,
+        queryResult.data
       );
 
       res.status(200).json(response);

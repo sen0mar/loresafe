@@ -57,6 +57,11 @@ export type RevealedCommentDto = Omit<VisibleCommentDto, "visibility"> & {
 
 export type PostCommentsResponse = {
   comments: CommentDto[];
+  pagination: {
+    limit: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
 };
 
 export type CreatePostCommentResponse = {

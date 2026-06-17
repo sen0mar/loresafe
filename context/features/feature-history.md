@@ -50,6 +50,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 44: Club dashboard metrics and panels — Added bounded authenticated club stats, popular discussions, progress summary, and recently unlocked summary APIs, real club detail dashboard panels, spoiler-safe locked-card shaping, and focused backend regression tests.
 - Feature 45: Sentry and structured error logging — Added backend/frontend Sentry setup, sanitized structured server logs with request IDs, route-level safe error UI, guarded development/staging test-error routes, and focused logging/error regression tests.
 - Feature 46: Regression test coverage pass — Added frontend Vitest smoke coverage for core auth, club, progress, feed, post, comment, report, discovery, and search flows, plus strengthened backend sentinel assertions for locked content and private club leak protection.
+- Feature 47: Performance and pagination hardening — Added cursor-paginated post comments with frontend load-more UX, supporting list-query indexes in a committed migration, a repeatable seeded-volume performance check script, and focused pagination/sanitization regression tests.
 
 ## Entry Format
 

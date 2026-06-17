@@ -12,7 +12,8 @@
     "prisma:generate": "node -e \"require('node:fs').rmSync('src/generated/prisma', { recursive: true, force: true })\" && prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "node scripts/migrate-deploy-with-retry.mjs",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "perf:seed-check": "tsx scripts/perf-seed-check.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
