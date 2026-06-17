@@ -10,14 +10,11 @@ import {
   CardTitle
 } from "@/shared/components/ui/card";
 
-import { useHealthQuery } from "../api/health.js";
 import { ClubHeader, type ClubHomeTab } from "../components/club-header.js";
 import { FeedPreview } from "../components/feed-preview.js";
-import { HealthStatusPanel } from "../components/health-status-panel.js";
 import { HomeRightRail } from "../components/home-right-rail.js";
 
 export const HomePage = () => {
-  const healthQuery = useHealthQuery();
   const [activeTab, setActiveTab] = useState<ClubHomeTab>("feed");
 
   return (
@@ -25,16 +22,7 @@ export const HomePage = () => {
       <div className="space-y-4">
         <ClubHeader activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === "feed" ? (
-          <>
-            <HealthStatusPanel
-              data={healthQuery.data}
-              error={healthQuery.error}
-              isPending={healthQuery.isPending}
-              isRefreshing={healthQuery.isFetching}
-              onRefresh={() => void healthQuery.refetch()}
-            />
-            <FeedPreview />
-          </>
+          <FeedPreview />
         ) : activeTab === "timeline" ? (
           <HomeTimelinePreview />
         ) : (
