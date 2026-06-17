@@ -46,6 +46,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 40: Render migration retry — Added an API startup migration wrapper that retries transient Prisma advisory-lock timeouts during deploy while preserving fail-fast behavior for other migration errors.
 - Feature 41: Moderation actions and audit logs — Added audit logs with a committed migration, owner/moderator report action endpoints for milestone changes, hide, soft delete, warn, ban, resolve, and dismiss, safe warning notifications, queue action controls, and focused transaction/audit regression tests.
 - Feature 42: Club members management — Added paginated member roster APIs, owner role updates, owner/moderator ban and unban controls, last-owner protections, invite/join ban enforcement, a committed audit-action migration, a Members tab UI, and focused backend regression tests.
+- Feature 43: Search foundation — Added PostgreSQL full-text search indexes, authenticated `GET /api/search` for clubs and discussions with membership and spoiler-safe post sanitization, a protected search results UI, global search bar wiring, and focused backend leak regression tests.
 
 ## Entry Format
 

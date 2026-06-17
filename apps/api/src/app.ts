@@ -23,6 +23,7 @@ import {
   profileUpdateRateLimiter,
   publicAssetUploadRateLimiter,
   reportCreateRateLimiter,
+  searchRateLimiter,
   signupRateLimiter
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -48,6 +49,7 @@ import {
   clubReportsRouter,
   reportsRouter
 } from "./modules/reports/reports.routes.js";
+import { searchRouter } from "./modules/search/search.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -103,6 +105,7 @@ export const createApp = () => {
     postReactionToggleRateLimiter
   );
   app.post("/api/reports", reportCreateRateLimiter);
+  app.get("/api/search", searchRateLimiter);
   app.patch(
     "/api/clubs/:slug/moderation/reports/:reportId/required-milestone",
     moderationActionRateLimiter
@@ -141,6 +144,7 @@ export const createApp = () => {
   app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/search", searchRouter);
   app.use("/api/reports", reportsRouter);
   app.use("/api/clubs", clubReportsRouter);
   app.use("/api/posts", commentsRouter);

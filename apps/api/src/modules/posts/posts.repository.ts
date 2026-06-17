@@ -135,7 +135,7 @@ export type PostsRepository = {
   ) => Promise<PostDetailRecord | null>;
 };
 
-const postSelect = {
+export const postSelect = {
   id: true,
   type: true,
   status: true,
@@ -637,16 +637,16 @@ export const postsRepository: PostsRepository = {
   }
 };
 
-type SelectedPost = Prisma.PostGetPayload<{
+export type SelectedPost = Prisma.PostGetPayload<{
   select: typeof postSelect;
 }>;
 
-type ReactionMap = Map<
+export type ReactionMap = Map<
   string,
   Map<PostReactionEmoji, { count: number; reactedByMe: boolean }>
 >;
 
-const toClubPostRecord = (
+export const toClubPostRecord = (
   post: SelectedPost,
   reactionMap: ReactionMap
 ): ClubPostRecord => {
@@ -683,7 +683,7 @@ const toClubPostRecord = (
   };
 };
 
-const userReactionMapForPostIds = async (
+export const userReactionMapForPostIds = async (
   postIds: string[],
   userId: string
 ): Promise<ReactionMap> => {

@@ -17,6 +17,7 @@ import { HomePage } from "../features/health/pages/home-page.js";
 import { InviteAcceptPage } from "../features/invites/pages/invite-accept-page.js";
 import { NotificationsPage } from "../features/notifications/pages/notifications-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
+import { SearchResultsPage } from "../features/search/pages/search-results-page.js";
 import { Toaster } from "../shared/components/ui/sonner.js";
 import { AUTHENTICATED_HOME_PATH } from "./routes.js";
 
@@ -102,6 +103,14 @@ export const App = () => (
           element={
             <ProtectedRoute>
               <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/search"
+          element={
+            <ProtectedRoute>
+              <SearchResultsPage />
             </ProtectedRoute>
           }
         />

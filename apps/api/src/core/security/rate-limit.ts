@@ -242,6 +242,18 @@ export const reportCreateRateLimiter = rateLimit({
   }
 });
 
+export const searchRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("threadsync:rl:search:"),
+  identifier: "search",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const moderationActionRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 60,
