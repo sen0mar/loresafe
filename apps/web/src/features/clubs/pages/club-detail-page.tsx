@@ -21,6 +21,7 @@ import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubCoverUploadPanel } from "@/features/clubs/components/club-cover-upload-panel";
+import { ClubDashboardPanels } from "@/features/clubs/components/club-dashboard-panels";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
@@ -182,29 +183,30 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Tabs defaultValue="overview" className="min-w-0">
-          <TabsList className="w-full overflow-x-auto sm:w-fit">
-            <TabsTrigger value="overview">
-              <BookOpen className="mr-2 size-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <ShieldCheck className="mr-2 size-4" />
-              Settings
-            </TabsTrigger>
-            <TabsTrigger value="timeline">
-              <ListChecks className="mr-2 size-4" />
-              Timeline
-            </TabsTrigger>
-            <TabsTrigger value="members">
-              <Users className="mr-2 size-4" />
-              Members
-            </TabsTrigger>
-            <TabsTrigger value="feed">
-              <MessageSquareText className="mr-2 size-4" />
-              Feed
-            </TabsTrigger>
-          </TabsList>
+        <div className="min-w-0 space-y-4">
+          <Tabs defaultValue="overview" className="min-w-0">
+            <TabsList className="w-full overflow-x-auto sm:w-fit">
+              <TabsTrigger value="overview">
+                <BookOpen className="mr-2 size-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <ShieldCheck className="mr-2 size-4" />
+                Settings
+              </TabsTrigger>
+              <TabsTrigger value="timeline">
+                <ListChecks className="mr-2 size-4" />
+                Timeline
+              </TabsTrigger>
+              <TabsTrigger value="members">
+                <Users className="mr-2 size-4" />
+                Members
+              </TabsTrigger>
+              <TabsTrigger value="feed">
+                <MessageSquareText className="mr-2 size-4" />
+                Feed
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="overview">
             <Card>
@@ -284,7 +286,10 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
           <TabsContent value="feed">
             <ClubFeedTab club={club} />
           </TabsContent>
-        </Tabs>
+          </Tabs>
+
+          <ClubDashboardPanels club={club} />
+        </div>
 
         <ClubProgressPanel
           slug={club.slug}

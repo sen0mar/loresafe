@@ -372,6 +372,52 @@ export type RecentlyUnlockedResponse = {
   };
 };
 
+export type ClubDashboardStatsResponse = {
+  stats: {
+    memberCount: number;
+    milestoneCount: number;
+    visiblePostCount: number;
+    visibleCommentCount: number;
+    postReactionCount: number;
+    safePostCount: number;
+    lockedPostCount: number;
+  };
+};
+
+export type ProgressSummaryResponse = {
+  progress: {
+    mode: ProgressMode;
+    currentMilestone: ClubPostRequiredMilestone | null;
+    totalMilestones: number;
+    completedMilestones: number;
+    percentage: number;
+    updatedAt: string | null;
+  };
+};
+
+export type PopularDiscussionsResponse = {
+  discussions: Array<{
+    post: ClubPostCard;
+    engagementScore: number;
+  }>;
+  pagination: {
+    limit: number;
+  };
+};
+
+export type RecentlyUnlockedSummaryResponse = {
+  unlock: {
+    historyId: string | null;
+    fromPosition: number;
+    toPosition: number;
+    unlockedAt: string | null;
+  };
+  posts: ClubPostCard[];
+  pagination: {
+    limit: number;
+  };
+};
+
 export type CreateClubPostResponse = {
   post: ClubPostCard;
 };
@@ -702,6 +748,16 @@ export const clubsQueryKeys = {
   feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
   feed: (slug: string, tab: ClubFeedTab) =>
     ["clubs", "detail", slug, "feed", tab] as const,
+  dashboardRoot: (slug: string) =>
+    ["clubs", "detail", slug, "dashboard"] as const,
+  dashboardStats: (slug: string) =>
+    ["clubs", "detail", slug, "dashboard", "stats"] as const,
+  dashboardProgressSummary: (slug: string) =>
+    ["clubs", "detail", slug, "dashboard", "progress-summary"] as const,
+  dashboardPopularDiscussions: (slug: string) =>
+    ["clubs", "detail", slug, "dashboard", "popular-discussions"] as const,
+  dashboardRecentlyUnlockedSummary: (slug: string) =>
+    ["clubs", "detail", slug, "dashboard", "recently-unlocked-summary"] as const,
   recentlyUnlocked: (slug: string) =>
     ["clubs", "detail", slug, "recently-unlocked"] as const,
   moderationReports: (slug: string) =>
@@ -763,6 +819,22 @@ export const getRecentlyUnlockedPosts = (
     `/api/clubs/${slug}/recently-unlocked?${params}`
   );
 };
+
+export const getClubDashboardStats = (slug: string) =>
+  apiGet<ClubDashboardStatsResponse>(`/api/clubs/${slug}/stats`);
+
+export const getClubProgressSummary = (slug: string) =>
+  apiGet<ProgressSummaryResponse>(`/api/clubs/${slug}/progress/summary`);
+
+export const getPopularDiscussions = (slug: string) =>
+  apiGet<PopularDiscussionsResponse>(
+    `/api/clubs/${slug}/popular-discussions?limit=5`
+  );
+
+export const getRecentlyUnlockedSummary = (slug: string) =>
+  apiGet<RecentlyUnlockedSummaryResponse>(
+    `/api/clubs/${slug}/recently-unlocked/summary?limit=3`
+  );
 
 export const getPostById = (postId: string) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`);
@@ -1048,6 +1120,37 @@ export const useRecentlyUnlockedQuery = (slug: string, enabled = true) =>
     enabled: enabled && slug.length > 0
   });
 
+export const useClubDashboardStatsQuery = (slug: string, enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.dashboardStats(slug),
+    queryFn: () => getClubDashboardStats(slug),
+    enabled: enabled && slug.length > 0
+  });
+
+export const useClubProgressSummaryQuery = (slug: string, enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.dashboardProgressSummary(slug),
+    queryFn: () => getClubProgressSummary(slug),
+    enabled: enabled && slug.length > 0
+  });
+
+export const usePopularDiscussionsQuery = (slug: string, enabled = true) =>
+  useQuery({
+    queryKey: clubsQueryKeys.dashboardPopularDiscussions(slug),
+    queryFn: () => getPopularDiscussions(slug),
+    enabled: enabled && slug.length > 0
+  });
+
+export const useRecentlyUnlockedSummaryQuery = (
+  slug: string,
+  enabled = true
+) =>
+  useQuery({
+    queryKey: clubsQueryKeys.dashboardRecentlyUnlockedSummary(slug),
+    queryFn: () => getRecentlyUnlockedSummary(slug),
+    enabled: enabled && slug.length > 0
+  });
+
 export const usePostQuery = (postId: string) =>
   useQuery({
     queryKey: clubsQueryKeys.postDetail(postId),
@@ -1118,6 +1221,9 @@ export const useCreateClubMilestoneMutation = (slug: string) => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
       });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(slug)
+      });
     }
   });
 };
@@ -1130,6 +1236,9 @@ export const useCreateClubPostMutation = (slug: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.feedRoot(slug)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(slug)
       });
     }
   });
@@ -1151,6 +1260,10 @@ export const useCreatePostCommentMutation = (postId: string) => {
       void queryClient.invalidateQueries({
         predicate: (query) =>
           Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("dashboard")
       });
     }
   });
@@ -1431,6 +1544,10 @@ export const useTogglePostReactionMutation = (
             post.id === postId ? response.post : post
           )
       );
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("dashboard")
+      });
       options.onReconciledPost?.(response.post);
     }
   });
@@ -1485,6 +1602,10 @@ export const useToggleCommentReactionMutation = (
             comment.id === response.comment.id ? response.comment : comment
           )
       );
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("dashboard")
+      });
     }
   });
 };
@@ -1526,6 +1647,9 @@ export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
       });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(slug)
+      });
     }
   });
 };
@@ -1545,6 +1669,9 @@ export const useUpdateClubMilestoneMutation = (slug: string) => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
       });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(slug)
+      });
     }
   });
 };
@@ -1558,6 +1685,9 @@ export const useMoveClubMilestoneMutation = (slug: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.milestonesRoot(slug)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(slug)
       });
     }
   });
@@ -1610,6 +1740,9 @@ export const invalidateClubProgressDependencies = (
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.recentlyUnlocked(slug)
   });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.dashboardRoot(slug)
+  });
 };
 
 export const useJoinClubMutation = () => {
@@ -1627,6 +1760,9 @@ export const useJoinClubMutation = () => {
       });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(response.club.slug)
       });
     }
   });

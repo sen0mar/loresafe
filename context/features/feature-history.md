@@ -47,6 +47,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 41: Moderation actions and audit logs — Added audit logs with a committed migration, owner/moderator report action endpoints for milestone changes, hide, soft delete, warn, ban, resolve, and dismiss, safe warning notifications, queue action controls, and focused transaction/audit regression tests.
 - Feature 42: Club members management — Added paginated member roster APIs, owner role updates, owner/moderator ban and unban controls, last-owner protections, invite/join ban enforcement, a committed audit-action migration, a Members tab UI, and focused backend regression tests.
 - Feature 43: Search foundation — Added PostgreSQL full-text search indexes, authenticated `GET /api/search` for clubs and discussions with membership and spoiler-safe post sanitization, a protected search results UI, global search bar wiring, and focused backend leak regression tests.
+- Feature 44: Club dashboard metrics and panels — Added bounded authenticated club stats, popular discussions, progress summary, and recently unlocked summary APIs, real club detail dashboard panels, spoiler-safe locked-card shaping, and focused backend regression tests.
 
 ## Entry Format
 

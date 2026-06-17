@@ -28,6 +28,7 @@ import {
 } from "./core/security/rate-limit.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { clubsRouter } from "./modules/clubs/clubs.routes.js";
+import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import {
   commentReactionsRouter,
   commentsRouter
@@ -150,6 +151,7 @@ export const createApp = () => {
   app.use("/api/posts", commentsRouter);
   app.use("/api/comments", commentReactionsRouter);
   app.use("/api/posts", postDetailsRouter);
+  app.use("/api/clubs", dashboardRouter);
   app.use("/api/clubs", progressRouter);
   app.use("/api/clubs", postsRouter);
   app.use("/api/clubs", milestonesRouter);
