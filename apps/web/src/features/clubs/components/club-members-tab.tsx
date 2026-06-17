@@ -100,12 +100,13 @@ export const ClubMembersTab = ({ club }: { club: Club }) => {
               ))}
             </div>
             {pagination && pagination.pageCount > 1 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-3">
+              <div className="flex flex-col gap-3 rounded-lg border border-default bg-inset p-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted">
                   Page {pagination.page} of {pagination.pageCount}
                 </p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex">
                   <Button
+                    className="w-full sm:w-fit"
                     type="button"
                     variant="secondary"
                     size="sm"
@@ -115,6 +116,7 @@ export const ClubMembersTab = ({ club }: { club: Club }) => {
                     Previous
                   </Button>
                   <Button
+                    className="w-full sm:w-fit"
                     type="button"
                     variant="secondary"
                     size="sm"
@@ -243,11 +245,12 @@ const MemberControls = ({
   };
 
   return (
-    <div className="flex flex-wrap gap-2 sm:justify-end">
+    <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
       {canUpdateRole ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              className="w-full sm:w-fit"
               type="button"
               variant="secondary"
               size="sm"
@@ -277,6 +280,7 @@ const MemberControls = ({
       {canBan ? (
         member.activeBan ? (
           <Button
+            className="w-full sm:w-fit"
             type="button"
             variant="secondary"
             size="sm"
@@ -288,6 +292,7 @@ const MemberControls = ({
           </Button>
         ) : (
           <Button
+            className="w-full sm:w-fit"
             type="button"
             variant="destructive"
             size="sm"

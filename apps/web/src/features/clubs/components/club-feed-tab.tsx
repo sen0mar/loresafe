@@ -178,11 +178,12 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
       )}
 
       {postsQuery.hasNextPage ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-surface p-3">
+        <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted">
             {countFormatter.format(posts.length)} loaded
           </p>
           <Button
+            className="w-full sm:w-fit"
             type="button"
             variant="secondary"
             size="sm"
@@ -207,12 +208,13 @@ const FeedToolbar = ({
   activeTab: ClubFeedTabValue;
   onTabChange: (tab: ClubFeedTabValue) => void;
 }) => (
-  <div className="flex min-h-10 flex-wrap items-center justify-between gap-3">
+  <div className="flex min-h-10 min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <Tabs
+      className="min-w-0 max-w-full"
       value={activeTab}
       onValueChange={(value) => onTabChange(value as ClubFeedTabValue)}
     >
-      <TabsList className="max-w-full overflow-x-auto">
+      <TabsList className="w-full sm:w-fit">
         {feedTabs.map((tab) => (
           <TabsTrigger key={tab.value} value={tab.value}>
             {tab.label}
@@ -220,7 +222,7 @@ const FeedToolbar = ({
         ))}
       </TabsList>
     </Tabs>
-    {action}
+    <div className="flex shrink-0">{action}</div>
   </div>
 );
 
@@ -501,7 +503,7 @@ const CreatePostDialog = ({
                 value={values.type}
                 onChange={updatePostType}
                 disabled={isSaving}
-                className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
                 aria-invalid={!!errors.type}
                 aria-describedby={errors.type ? "post-type-error" : undefined}
               >
@@ -523,7 +525,7 @@ const CreatePostDialog = ({
                 value={values.requiredMilestoneId}
                 onChange={updateMilestone}
                 disabled={isSaving || milestonesQuery.isPending}
-                className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
                 aria-invalid={!!errors.requiredMilestoneId}
                 aria-describedby={
                   errors.requiredMilestoneId
@@ -557,7 +559,7 @@ const CreatePostDialog = ({
                   value={values.prediction?.revealMilestoneId ?? ""}
                   onChange={updatePredictionRevealMilestone}
                   disabled={isSaving || milestonesQuery.isPending}
-                  className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
                   aria-invalid={!!errors.prediction}
                   aria-describedby={
                     errors.prediction

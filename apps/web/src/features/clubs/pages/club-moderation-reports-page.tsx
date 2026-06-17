@@ -132,9 +132,10 @@ export const ClubModerationReportsPage = () => {
         )}
 
         {reportsQuery.hasNextPage ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-surface p-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted">{reports.length} loaded</p>
             <Button
+              className="w-full sm:w-fit"
               type="button"
               variant="secondary"
               size="sm"
@@ -392,7 +393,7 @@ const ModerationActionControls = ({
           </label>
           <select
             id={`report-${report.id}-milestone`}
-            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
             value={requiredMilestoneId}
             disabled={isWorking || milestones.length === 0}
             onChange={(event) => setRequiredMilestoneId(event.target.value)}
@@ -418,7 +419,7 @@ const ModerationActionControls = ({
           </label>
           <input
             id={`report-${report.id}-ban-expiry`}
-            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
             type="datetime-local"
             value={banExpiresAt}
             disabled={isWorking}
@@ -444,8 +445,9 @@ const ModerationActionControls = ({
         />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:flex sm:flex-wrap">
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="secondary"
@@ -456,6 +458,7 @@ const ModerationActionControls = ({
           Adjust
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="secondary"
@@ -466,6 +469,7 @@ const ModerationActionControls = ({
           Hide
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="destructive"
@@ -476,6 +480,7 @@ const ModerationActionControls = ({
           Delete
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="secondary"
@@ -486,6 +491,7 @@ const ModerationActionControls = ({
           Warn
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="destructive"
@@ -496,6 +502,7 @@ const ModerationActionControls = ({
           Ban
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="outline"
@@ -506,6 +513,7 @@ const ModerationActionControls = ({
           Resolve
         </Button>
         <Button
+          className="w-full sm:w-fit"
           type="button"
           size="sm"
           variant="ghost"
@@ -582,6 +590,7 @@ const HiddenReportWarning = ({
       </div>
     </div>
     <Button
+      className="w-full sm:w-fit"
       type="button"
       variant="secondary"
       size="sm"

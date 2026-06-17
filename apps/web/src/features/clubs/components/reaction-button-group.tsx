@@ -19,7 +19,11 @@ export const ReactionButtonGroup = ({
   onToggle,
   reactions
 }: ReactionButtonGroupProps) => (
-  <div className="flex flex-wrap items-center gap-1" aria-label={ariaLabel}>
+  <div
+    className="flex flex-wrap items-center gap-1"
+    role="group"
+    aria-label={ariaLabel}
+  >
     {reactions.map((reaction) => (
       <button
         key={reaction.emoji}

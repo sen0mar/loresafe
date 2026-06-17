@@ -206,8 +206,8 @@ const NotificationRow = ({
               {notification.requiredMilestone.label}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <Button asChild variant="ghost" size="sm" className="w-full sm:w-fit">
               <Link to={targetPath}>
                 Open
                 <ChevronRight className="size-4" />
@@ -215,6 +215,7 @@ const NotificationRow = ({
             </Button>
             {isUnread ? (
               <Button
+                className="w-full sm:w-fit"
                 type="button"
                 variant="outline"
                 size="sm"

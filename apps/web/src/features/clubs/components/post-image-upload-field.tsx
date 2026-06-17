@@ -121,10 +121,14 @@ export const PostImageUploadField = ({
       />
 
       {selectedFile ? (
-        <label className="flex items-start gap-2 text-xs leading-5 text-muted">
+        <label
+          className="flex items-start gap-2 text-xs leading-5 text-muted"
+          htmlFor="post-image-safe-preview"
+        >
           <input
+            id="post-image-safe-preview"
             type="checkbox"
-            className="mt-1 size-4 rounded border-subtle bg-surface accent-primary"
+            className="mt-1 size-4 rounded border-subtle bg-surface accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
             checked={safePreview}
             disabled={disabled || upload.isUploading}
             onChange={handleSafePreviewChange}

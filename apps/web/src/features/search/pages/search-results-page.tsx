@@ -69,8 +69,12 @@ export const SearchResultsPage = () => {
               Results respect club access and your current spoiler progress.
             </p>
           </div>
-          <Tabs value={scope} onValueChange={updateScope}>
-            <TabsList>
+          <Tabs
+            className="min-w-0 max-w-full"
+            value={scope}
+            onValueChange={updateScope}
+          >
+            <TabsList className="w-full sm:w-fit">
               {searchScopes.map((searchScope) => (
                 <TabsTrigger key={searchScope.value} value={searchScope.value}>
                   {searchScope.label}
@@ -96,11 +100,12 @@ export const SearchResultsPage = () => {
             {scope !== "posts" ? <ClubResults clubs={clubs} /> : null}
             {scope !== "clubs" ? <PostResults posts={posts} /> : null}
             {searchQuery.hasNextPage ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-surface p-3">
+              <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted">
                   {countFormatter.format(clubs.length + posts.length)} results loaded
                 </p>
                 <Button
+                  className="w-full sm:w-fit"
                   type="button"
                   variant="secondary"
                   size="sm"

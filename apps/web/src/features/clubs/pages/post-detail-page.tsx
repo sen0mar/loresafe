@@ -486,6 +486,9 @@ const CommentForm = ({
   const milestoneId = parentId
     ? `reply-${parentId}-required-milestone`
     : "comment-required-milestone";
+  const advancedOptionsId = parentId
+    ? `reply-${parentId}-advanced-options`
+    : "comment-advanced-options";
   const eligibleMilestones = milestones.filter(
     (milestone) => milestone.position >= baseMilestone.position
   );
@@ -588,27 +591,30 @@ const CommentForm = ({
       </label>
       <div className="space-y-3 rounded-lg border border-default bg-inset p-3">
         <button
-          className="flex w-full items-center justify-between gap-3 text-left text-xs font-medium text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="flex w-full items-center justify-between gap-3 rounded-md text-left text-xs font-medium text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           type="button"
+          aria-controls={advancedOptionsId}
+          aria-expanded={isAdvancedOpen}
           onClick={() => setIsAdvancedOpen((isOpen) => !isOpen)}
         >
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
             <SlidersHorizontal className="size-4 text-brand" />
             Advanced comment options
           </span>
-          <span className="text-faint">
+          <span className="shrink-0 text-faint">
             Milestone {getSelectedMilestoneLabel(requiredMilestoneId, milestoneOptions)}
           </span>
         </button>
         {isAdvancedOpen ? (
           <label
+            id={advancedOptionsId}
             className="grid gap-2 text-xs font-medium text-secondary"
             htmlFor={milestoneId}
           >
             Requires later milestone
             <select
               id={milestoneId}
-              className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition focus-visible:ring-2 focus-visible:ring-brand"
+              className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
               value={requiredMilestoneId}
               onChange={updateMilestone}
               disabled={isSaving}
@@ -639,9 +645,10 @@ const CommentForm = ({
           </label>
         ) : null}
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {onCancel ? (
           <Button
+            className="w-full sm:w-fit"
             type="button"
             variant="secondary"
             onClick={onCancel}
@@ -651,7 +658,7 @@ const CommentForm = ({
             Cancel
           </Button>
         ) : null}
-        <Button type="submit" disabled={isSaving}>
+        <Button className="w-full sm:w-fit" type="submit" disabled={isSaving}>
           <Send />
           {isSaving ? "Posting..." : submitLabel}
         </Button>

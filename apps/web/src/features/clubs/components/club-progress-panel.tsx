@@ -286,7 +286,9 @@ export const ClubProgressPanel = ({
             <StepForward />
             {advanceProgressMutation.isPending
               ? "Marking next"
-              : isFinalMilestoneComplete
+              : milestones.length === 0
+                ? "No milestones to advance"
+                : isFinalMilestoneComplete
                 ? "Final milestone complete"
                 : "Next milestone complete"}
           </Button>

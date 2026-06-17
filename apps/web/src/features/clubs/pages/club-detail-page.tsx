@@ -182,9 +182,9 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
-          <Tabs defaultValue="overview" className="min-w-0">
+          <Tabs defaultValue="overview" className="min-w-0 max-w-full">
             <TabsList className="w-full overflow-x-auto sm:w-fit">
               <TabsTrigger value="overview">
                 <BookOpen className="mr-2 size-4" />
