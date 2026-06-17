@@ -1258,7 +1258,13 @@ describe("posts routes", () => {
       visibility: "LOCKED"
     });
     expect(JSON.stringify(feedResponse.body)).not.toContain(
+      "BRAVE_REVEALED_TITLE"
+    );
+    expect(JSON.stringify(feedResponse.body)).not.toContain(
       "BRAVE_REVEALED_BODY"
+    );
+    expect(JSON.stringify(detailResponse.body)).not.toContain(
+      "BRAVE_REVEALED_TITLE"
     );
     expect(JSON.stringify(detailResponse.body)).not.toContain(
       "BRAVE_REVEALED_BODY"
@@ -1361,6 +1367,9 @@ describe("posts routes", () => {
         code: "FORBIDDEN",
         message: "Switch to Brave mode before revealing this discussion."
       });
+      expect(JSON.stringify(response.body)).not.toContain(
+        `${mode}_TITLE_SHOULD_NOT_REVEAL`
+      );
       expect(JSON.stringify(response.body)).not.toContain(
         `${mode}_BODY_SHOULD_NOT_REVEAL`
       );

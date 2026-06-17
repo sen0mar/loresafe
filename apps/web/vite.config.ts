@@ -2,7 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig(({ mode }) => {
   const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
@@ -31,6 +31,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "localhost",
       port: 5173
+    },
+    test: {
+      environment: "jsdom",
+      setupFiles: ["./src/test/setup.ts"],
+      globals: true
     }
   };
 });
