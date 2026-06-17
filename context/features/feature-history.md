@@ -48,6 +48,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 42: Club members management — Added paginated member roster APIs, owner role updates, owner/moderator ban and unban controls, last-owner protections, invite/join ban enforcement, a committed audit-action migration, a Members tab UI, and focused backend regression tests.
 - Feature 43: Search foundation — Added PostgreSQL full-text search indexes, authenticated `GET /api/search` for clubs and discussions with membership and spoiler-safe post sanitization, a protected search results UI, global search bar wiring, and focused backend leak regression tests.
 - Feature 44: Club dashboard metrics and panels — Added bounded authenticated club stats, popular discussions, progress summary, and recently unlocked summary APIs, real club detail dashboard panels, spoiler-safe locked-card shaping, and focused backend regression tests.
+- Feature 45: Sentry and structured error logging — Added backend/frontend Sentry setup, sanitized structured server logs with request IDs, route-level safe error UI, guarded development/staging test-error routes, and focused logging/error regression tests.
 
 ## Entry Format
 

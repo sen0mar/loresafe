@@ -1,5 +1,8 @@
+import "./core/monitoring/sentry.js";
+
 import { app } from "./app.js";
 import { env } from "./config/env.js";
+import { logger, sanitizeError } from "./core/logging/logger.js";
 import {
   startNotificationJobs,
   stopNotificationJobs
@@ -8,12 +11,14 @@ import {
 let server: ReturnType<typeof app.listen> | null = null;
 
 const shutdown = async (signal: NodeJS.Signals) => {
-  console.log(`${signal} received, closing API server`);
+  logger.info("Shutdown signal received", { signal });
 
   try {
     await stopNotificationJobs();
   } catch (error) {
-    console.error("Notification jobs failed to stop cleanly");
+    logger.error("Notification jobs failed to stop cleanly", {
+      error: sanitizeError(error)
+    });
     process.exit(1);
   }
 
@@ -23,7 +28,9 @@ const shutdown = async (signal: NodeJS.Signals) => {
 
   server.close((error) => {
     if (error) {
-      console.error("API server failed to close cleanly");
+      logger.error("API server failed to close cleanly", {
+        error: sanitizeError(error)
+      });
       process.exit(1);
     }
 
@@ -34,14 +41,17 @@ const shutdown = async (signal: NodeJS.Signals) => {
 const startServer = async () => {
   await startNotificationJobs();
   server = app.listen(env.PORT, () => {
-    console.log(
-      `${env.APP_NAME} API listening on http://localhost:${env.PORT}`
-    );
+    logger.info("API server listening", {
+      appName: env.APP_NAME,
+      port: env.PORT
+    });
   });
 };
 
 startServer().catch((error) => {
-  console.error("API server failed to start", error);
+  logger.error("API server failed to start", {
+    error: sanitizeError(error)
+  });
   process.exit(1);
 });
 

@@ -1,6 +1,7 @@
 import { fromPrisma, PgBoss, type PrismaTransactionLike } from "pg-boss";
 
 import { env } from "../config/env.js";
+import { logger, sanitizeError } from "../core/logging/logger.js";
 
 export const notificationJobNames = {
   commentCreated: "notifications.comment-created",
@@ -27,11 +28,13 @@ export const notificationBoss = new PgBoss({
 });
 
 notificationBoss.on("error", (error) => {
-  console.error("[pg-boss] error", sanitizeErrorMessage(error));
+  logger.error("pg-boss error", {
+    error: sanitizeError(error)
+  });
 });
 
 notificationBoss.on("warning", ({ message, data }) => {
-  console.error("[pg-boss] warning", {
+  logger.warn("pg-boss warning", {
     message,
     data
   });
@@ -89,7 +92,3 @@ const sendNotificationJob = (
         }
       : {})
   });
-
-const sanitizeErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
-

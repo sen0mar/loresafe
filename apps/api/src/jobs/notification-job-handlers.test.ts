@@ -165,13 +165,18 @@ describe("notification job handlers", () => {
       )
     ).rejects.toThrow("database unavailable");
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "[pg-boss] notification job failed",
+    expect(consoleErrorSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(consoleErrorSpy.mock.calls[0]?.[0]))).toMatchObject(
       {
+        level: "error",
+        message: "Notification job failed",
         jobName: "notifications.comment-created",
         jobId: job.id,
         sourceId: job.data.commentId,
-        error: "database unavailable"
+        error: {
+          name: "Error",
+          message: "database unavailable"
+        }
       }
     );
   });
