@@ -239,6 +239,9 @@ describe("clubs routes", () => {
     expect(JSON.stringify(discoveryResponse.body)).not.toContain(
       "Private Plot Room"
     );
+    expect(JSON.stringify(discoveryResponse.body)).not.toContain(
+      "private-plot-room"
+    );
   });
 
   it("hides invite-only club details from signed-in non-members", async () => {

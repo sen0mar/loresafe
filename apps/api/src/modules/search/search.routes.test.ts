@@ -129,6 +129,8 @@ describe("search routes", () => {
         visibility: "PUBLIC"
       })
     ]);
+    expect(JSON.stringify(outsiderResponse.body)).not.toContain("Nebula Private");
+    expect(JSON.stringify(outsiderResponse.body)).not.toContain("nebula-private");
 
     const memberResponse = await request(app)
       .get("/api/search?q=nebula&scope=clubs")
