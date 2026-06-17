@@ -18,6 +18,8 @@ import { createAuthService } from "../auth/auth.service.js";
 import type {
   ClubDetailRecord,
   ClubDiscoveryRecord,
+  ClubMemberMutationResult,
+  ClubMemberRecord,
   ClubsRepository
 } from "./clubs.repository.js";
 import { createClubsController } from "./clubs.controller.js";
@@ -427,6 +429,240 @@ describe("clubs routes", () => {
     ]);
   });
 
+  it("lists club members with safe public user fields for members only", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const outsider = await repository.createUser({
+      email: "outsider@example.com",
+      displayName: "Outsider",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Member List Club",
+      slug: "member-list-club",
+      visibility: "PUBLIC"
+    });
+    const ownerMembershipId = repository.createMembership(
+      owner.id,
+      club.id,
+      "OWNER"
+    );
+    repository.createMembership(reader.id, club.id, "MEMBER");
+    repository.createBan(reader.id, club.id, { reason: "Cooldown" });
+
+    const response = await request(app)
+      .get("/api/clubs/member-list-club/members?page=1&limit=1")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      members: [
+        {
+          id: ownerMembershipId,
+          role: "OWNER",
+          user: {
+            id: owner.id,
+            displayName: "Owner",
+            username: null,
+            avatarUrl: null
+          },
+          activeBan: null,
+          joinedAt: expect.any(String),
+          updatedAt: expect.any(String)
+        }
+      ],
+      pagination: {
+        page: 1,
+        limit: 1,
+        total: 2,
+        pageCount: 2
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("owner@example.com");
+    expect(JSON.stringify(response.body)).not.toContain("$argon2id");
+
+    await request(app)
+      .get("/api/clubs/member-list-club/members")
+      .set("Cookie", await createSessionCookie(outsider))
+      .expect(404);
+  });
+
+  it("lets owners update roles but prevents demoting the last owner", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Role Club",
+      slug: "role-club",
+      visibility: "PUBLIC"
+    });
+    const ownerMembershipId = repository.createMembership(
+      owner.id,
+      club.id,
+      "OWNER"
+    );
+    const readerMembershipId = repository.createMembership(
+      reader.id,
+      club.id,
+      "MEMBER"
+    );
+
+    const promoteResponse = await request(app)
+      .patch(`/api/clubs/role-club/members/${readerMembershipId}/role`)
+      .set("Cookie", await createSessionCookie(owner))
+      .send({ role: "MODERATOR" })
+      .expect(200);
+
+    expect(promoteResponse.body.member).toMatchObject({
+      id: readerMembershipId,
+      role: "MODERATOR"
+    });
+    expect(
+      repository.memberships.find((membership) => membership.id === readerMembershipId)
+        ?.role
+    ).toBe("MODERATOR");
+    expect(repository.auditLogs.map((log) => log.action)).toEqual([
+      "CLUB_MEMBER_ROLE_UPDATED"
+    ]);
+
+    const demoteResponse = await request(app)
+      .patch(`/api/clubs/role-club/members/${ownerMembershipId}/role`)
+      .set("Cookie", await createSessionCookie(owner))
+      .send({ role: "MEMBER" })
+      .expect(409);
+
+    expect(demoteResponse.body.error).toMatchObject({
+      code: "CONFLICT",
+      message: "This club must keep at least one owner."
+    });
+  });
+
+  it("limits moderators to banning and unbanning regular members", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const moderator = await repository.createUser({
+      email: "moderator@example.com",
+      displayName: "Moderator",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Ban Club",
+      slug: "ban-club",
+      visibility: "PUBLIC"
+    });
+    const ownerMembershipId = repository.createMembership(
+      owner.id,
+      club.id,
+      "OWNER"
+    );
+    repository.createMembership(moderator.id, club.id, "MODERATOR");
+    const readerMembershipId = repository.createMembership(
+      reader.id,
+      club.id,
+      "MEMBER"
+    );
+
+    await request(app)
+      .patch(`/api/clubs/ban-club/members/${readerMembershipId}/role`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ role: "MODERATOR" })
+      .expect(403);
+
+    const banResponse = await request(app)
+      .post(`/api/clubs/ban-club/members/${readerMembershipId}/ban`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({ reason: "Repeated spoilers" })
+      .expect(200);
+
+    expect(banResponse.body.member.activeBan).toMatchObject({
+      id: expect.any(String),
+      reason: "Repeated spoilers",
+      expiresAt: null,
+      createdAt: expect.any(String)
+    });
+
+    await request(app)
+      .post(`/api/clubs/ban-club/members/${ownerMembershipId}/ban`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({})
+      .expect(403);
+
+    const unbanResponse = await request(app)
+      .post(`/api/clubs/ban-club/members/${readerMembershipId}/unban`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .expect(200);
+
+    expect(unbanResponse.body.member.activeBan).toBeNull();
+    expect(repository.auditLogs.map((log) => log.action)).toEqual([
+      "USER_BANNED",
+      "USER_UNBANNED"
+    ]);
+  });
+
+  it("prevents banning the last owner and blocks banned users from joining", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Protected Club",
+      slug: "protected-club",
+      visibility: "PUBLIC"
+    });
+    const ownerMembershipId = repository.createMembership(
+      owner.id,
+      club.id,
+      "OWNER"
+    );
+    repository.createBan(reader.id, club.id);
+
+    await request(app)
+      .post(`/api/clubs/protected-club/members/${ownerMembershipId}/ban`)
+      .set("Cookie", await createSessionCookie(owner))
+      .send({})
+      .expect(409);
+
+    const response = await request(app)
+      .post("/api/clubs/protected-club/join")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot join this club."
+    });
+    expect(repository.memberships).toHaveLength(1);
+  });
+
   it.each([
     ["private", "PRIVATE"],
     ["invite-only", "INVITE_ONLY"]
@@ -730,9 +966,25 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   >();
   readonly clubs = new Map<string, StoredClub>();
   readonly memberships: Array<{
+    id: string;
     userId: string;
     clubId: string;
     role: "OWNER" | "MODERATOR" | "MEMBER";
+  }> = [];
+  readonly bans: Array<{
+    id: string;
+    userId: string;
+    clubId: string;
+    reason: string | null;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+  }> = [];
+  readonly auditLogs: Array<{
+    action: "CLUB_MEMBER_ROLE_UPDATED" | "USER_BANNED" | "USER_UNBANNED";
+    actorId: string;
+    clubId: string;
+    targetUserId: string;
   }> = [];
 
   findActiveUserByEmail = async (email: string) =>
@@ -807,11 +1059,44 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     clubId: string,
     role: "OWNER" | "MODERATOR" | "MEMBER" = "MEMBER"
   ) => {
-    this.memberships.push({
+    const membership = {
+      id: crypto.randomUUID(),
       userId,
       clubId,
       role
+    };
+
+    Object.defineProperty(membership, "id", {
+      value: membership.id,
+      enumerable: false
     });
+    this.memberships.push(membership);
+
+    return membership.id;
+  };
+
+  createBan = (
+    userId: string,
+    clubId: string,
+    input: {
+      reason?: string | null;
+      expiresAt?: Date | null;
+      revokedAt?: Date | null;
+    } = {}
+  ) => {
+    const ban = {
+      id: crypto.randomUUID(),
+      userId,
+      clubId,
+      reason: input.reason ?? null,
+      expiresAt: input.expiresAt ?? null,
+      revokedAt: input.revokedAt ?? null,
+      createdAt: new Date()
+    };
+
+    this.bans.push(ban);
+
+    return ban.id;
   };
 
   createClubWithOwnerMembership = async (
@@ -864,7 +1149,15 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     const club = this.findStoredClubBySlug(slug);
 
     if (!club || club.visibility !== "PUBLIC") {
-      return null;
+      return {
+        status: "NOT_FOUND" as const
+      };
+    }
+
+    if (this.hasActiveBan(userId, club.id)) {
+      return {
+        status: "BANNED" as const
+      };
     }
 
     const existingMembership = this.memberships.find(
@@ -876,7 +1169,205 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       this.createMembership(userId, club.id, "MEMBER");
     }
 
-    return this.toClubDetailRecord(club, userId);
+    return {
+      status: "SUCCESS" as const,
+      club: this.toClubDetailRecord(club, userId)
+    };
+  };
+
+  listClubMembersBySlug = async (
+    slug: string,
+    userId: string,
+    { page, limit }: { page: number; limit: number }
+  ) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club) {
+      return {
+        club: null,
+        members: [],
+        total: 0
+      };
+    }
+
+    const currentUserRole =
+      this.findMembership(userId, club.id)?.role ?? null;
+
+    if (!currentUserRole) {
+      return {
+        club: {
+          id: club.id,
+          currentUserRole
+        },
+        members: [],
+        total: 0
+      };
+    }
+
+    const members = this.memberships
+      .filter((membership) => membership.clubId === club.id)
+      .sort(
+        (left, right) =>
+          roleSortValue(left.role) - roleSortValue(right.role) ||
+          left.userId.localeCompare(right.userId)
+      );
+    const start = (page - 1) * limit;
+
+    return {
+      club: {
+        id: club.id,
+        currentUserRole
+      },
+      members: members
+        .slice(start, start + limit)
+        .map((membership) => this.toClubMemberRecord(membership)),
+      total: members.length
+    };
+  };
+
+  updateClubMemberRole = async (
+    slug: string,
+    membershipId: string,
+    actorId: string,
+    role: "OWNER" | "MODERATOR" | "MEMBER"
+  ): Promise<ClubMemberMutationResult> => {
+    const context = this.findMemberContext(slug, actorId, membershipId);
+
+    if (!context.club) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.actorRole) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.member) {
+      return { status: "MEMBER_NOT_FOUND" };
+    }
+
+    if (context.actorRole !== "OWNER") {
+      return { status: "ACTOR_NOT_ALLOWED" };
+    }
+
+    if (
+      context.member.role === "OWNER" &&
+      role !== "OWNER" &&
+      context.ownerCount <= 1
+    ) {
+      return { status: "LAST_OWNER" };
+    }
+
+    context.member.role = role;
+    this.createAuditLog(
+      "CLUB_MEMBER_ROLE_UPDATED",
+      actorId,
+      context.club.id,
+      context.member.userId
+    );
+
+    return {
+      status: "SUCCESS",
+      member: this.toClubMemberRecord(context.member)
+    };
+  };
+
+  banClubMember = async (
+    slug: string,
+    membershipId: string,
+    actorId: string,
+    input: { reason?: string | null; expiresAt?: string }
+  ): Promise<ClubMemberMutationResult> => {
+    const context = this.findMemberContext(slug, actorId, membershipId);
+
+    if (!context.club) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.actorRole) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.member) {
+      return { status: "MEMBER_NOT_FOUND" };
+    }
+
+    if (!canTestActorBanTarget(context.actorRole, context.member.role)) {
+      return { status: "ACTOR_NOT_ALLOWED" };
+    }
+
+    if (context.member.role === "OWNER" && context.ownerCount <= 1) {
+      return { status: "LAST_OWNER" };
+    }
+
+    const activeBan = this.findActiveBan(context.member.userId, context.club.id);
+
+    if (activeBan) {
+      activeBan.reason = input.reason ?? null;
+      activeBan.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+    } else {
+      this.createBan(context.member.userId, context.club.id, {
+        reason: input.reason ?? null,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null
+      });
+    }
+
+    this.createAuditLog(
+      "USER_BANNED",
+      actorId,
+      context.club.id,
+      context.member.userId
+    );
+
+    return {
+      status: "SUCCESS",
+      member: this.toClubMemberRecord(context.member)
+    };
+  };
+
+  unbanClubMember = async (
+    slug: string,
+    membershipId: string,
+    actorId: string
+  ): Promise<ClubMemberMutationResult> => {
+    const context = this.findMemberContext(slug, actorId, membershipId);
+
+    if (!context.club) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.actorRole) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!context.member) {
+      return { status: "MEMBER_NOT_FOUND" };
+    }
+
+    if (!canTestActorBanTarget(context.actorRole, context.member.role)) {
+      return { status: "ACTOR_NOT_ALLOWED" };
+    }
+
+    for (const ban of this.bans) {
+      if (
+        ban.userId === context.member.userId &&
+        ban.clubId === context.club.id &&
+        this.isActiveBan(ban)
+      ) {
+        ban.revokedAt = new Date();
+      }
+    }
+
+    this.createAuditLog(
+      "USER_UNBANNED",
+      actorId,
+      context.club.id,
+      context.member.userId
+    );
+
+    return {
+      status: "SUCCESS",
+      member: this.toClubMemberRecord(context.member)
+    };
   };
 
   listPublicClubs = async ({ page, limit }: { page: number; limit: number }) => {
@@ -912,6 +1403,83 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return null;
   };
 
+  private findMembership = (userId: string, clubId: string) =>
+    this.memberships.find(
+      (membership) =>
+        membership.clubId === clubId && membership.userId === userId
+    ) ?? null;
+
+  private findMemberContext = (
+    slug: string,
+    actorId: string,
+    membershipId: string
+  ) => {
+    const club = this.findStoredClubBySlug(slug);
+
+    if (!club) {
+      return {
+        club: null,
+        actorRole: null,
+        member: null,
+        ownerCount: 0
+      };
+    }
+
+    return {
+      club,
+      actorRole: this.findMembership(actorId, club.id)?.role ?? null,
+      member:
+        this.memberships.find(
+          (membership) =>
+            membership.id === membershipId && membership.clubId === club.id
+        ) ?? null,
+      ownerCount: this.memberships.filter(
+        (membership) =>
+          membership.clubId === club.id && membership.role === "OWNER"
+      ).length
+    };
+  };
+
+  private findUserById = (id: string) => {
+    for (const user of this.usersByEmail.values()) {
+      if (user.id === id) {
+        return user;
+      }
+    }
+
+    throw new Error(`Missing test user ${id}`);
+  };
+
+  private findActiveBan = (userId: string, clubId: string) =>
+    this.bans.find(
+      (ban) =>
+        ban.userId === userId && ban.clubId === clubId && this.isActiveBan(ban)
+    ) ?? null;
+
+  private hasActiveBan = (userId: string, clubId: string) =>
+    Boolean(this.findActiveBan(userId, clubId));
+
+  private isActiveBan = (ban: {
+    revokedAt: Date | null;
+    expiresAt: Date | null;
+  }) =>
+    !ban.revokedAt &&
+    (!ban.expiresAt || ban.expiresAt.getTime() > Date.now());
+
+  private createAuditLog = (
+    action: "CLUB_MEMBER_ROLE_UPDATED" | "USER_BANNED" | "USER_UNBANNED",
+    actorId: string,
+    clubId: string,
+    targetUserId: string
+  ) => {
+    this.auditLogs.push({
+      action,
+      actorId,
+      clubId,
+      targetUserId
+    });
+  };
+
   private toClubDetailRecord = (
     club: StoredClub,
     userId: string
@@ -926,7 +1494,46 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
           membership.clubId === club.id && membership.userId === userId
       )?.role ?? null
   });
+
+  private toClubMemberRecord = (membership: {
+    id: string;
+    userId: string;
+    clubId: string;
+    role: "OWNER" | "MODERATOR" | "MEMBER";
+  }): ClubMemberRecord => {
+    const user = this.findUserById(membership.userId);
+    const activeBan = this.findActiveBan(membership.userId, membership.clubId);
+
+    return {
+      id: membership.id,
+      role: membership.role,
+      user: {
+        id: user.id,
+        displayName: user.displayName,
+        username: user.username,
+        avatarAsset: user.avatarAsset
+      },
+      activeBan: activeBan
+        ? {
+            id: activeBan.id,
+            reason: activeBan.reason,
+            expiresAt: activeBan.expiresAt,
+            createdAt: activeBan.createdAt
+          }
+        : null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  };
 }
+
+const roleSortValue = (role: "OWNER" | "MODERATOR" | "MEMBER") =>
+  role === "OWNER" ? 0 : role === "MODERATOR" ? 1 : 2;
+
+const canTestActorBanTarget = (
+  actorRole: "OWNER" | "MODERATOR" | "MEMBER",
+  targetRole: "OWNER" | "MODERATOR" | "MEMBER"
+) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
 
 const createSessionCookie = async (user: AuthUserRecord) => {
   const token = await createSessionToken({

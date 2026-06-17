@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
+import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubCoverUploadPanel } from "@/features/clubs/components/club-cover-upload-panel";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
@@ -195,6 +196,10 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               <ListChecks className="mr-2 size-4" />
               Timeline
             </TabsTrigger>
+            <TabsTrigger value="members">
+              <Users className="mr-2 size-4" />
+              Members
+            </TabsTrigger>
             <TabsTrigger value="feed">
               <MessageSquareText className="mr-2 size-4" />
               Feed
@@ -270,6 +275,10 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
           <TabsContent value="timeline">
             <ClubTimelineTab club={club} />
+          </TabsContent>
+
+          <TabsContent value="members">
+            <ClubMembersTab club={club} />
           </TabsContent>
 
           <TabsContent value="feed">

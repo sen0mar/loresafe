@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const clubVisibilitySchema = z.enum(["PUBLIC", "PRIVATE", "INVITE_ONLY"]);
+const clubMembershipRoleSchema = z.enum(["OWNER", "MODERATOR", "MEMBER"]);
 
 const optionalTrimmedText = (maxLength: number) =>
   z
@@ -25,6 +26,13 @@ export const listClubsQuerySchema = z
   })
   .strict();
 
+export const listClubMembersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20)
+  })
+  .strict();
+
 export const createClubRequestSchema = z
   .object({
     title: z.string().trim().min(2).max(120),
@@ -42,6 +50,43 @@ export const clubSlugParamsSchema = z
   })
   .strict();
 
+export const clubMemberParamsSchema = z
+  .object({
+    slug: clubSlugSchema,
+    membershipId: z.uuid()
+  })
+  .strict();
+
+export const updateClubMemberRoleRequestSchema = z
+  .object({
+    role: clubMembershipRoleSchema
+  })
+  .strict();
+
+export const banClubMemberRequestSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .transform((value) => (value.length > 0 ? value : null))
+      .optional(),
+    expiresAt: z
+      .string()
+      .datetime({ offset: true })
+      .refine((value) => new Date(value).getTime() > Date.now(), {
+        message: "Ban expiration must be in the future."
+      })
+      .optional()
+  })
+  .strict();
+
 export type ListClubsQuery = z.infer<typeof listClubsQuerySchema>;
+export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
 export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
 export type ClubSlugParams = z.infer<typeof clubSlugParamsSchema>;
+export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;
+export type UpdateClubMemberRoleRequest = z.infer<
+  typeof updateClubMemberRoleRequestSchema
+>;
+export type BanClubMemberRequest = z.infer<typeof banClubMemberRequestSchema>;

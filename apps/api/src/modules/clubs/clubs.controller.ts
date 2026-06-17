@@ -3,17 +3,25 @@ import type { RequestHandler } from "express";
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
+  banClubMemberRequestSchema,
+  clubMemberParamsSchema,
   clubSlugParamsSchema,
   createClubRequestSchema,
-  listClubsQuerySchema
+  listClubMembersQuerySchema,
+  listClubsQuerySchema,
+  updateClubMemberRoleRequestSchema
 } from "./clubs.schema.js";
 import { clubsService, type ClubsService } from "./clubs.service.js";
 
 export type ClubsController = {
+  banClubMember: RequestHandler;
   createClub: RequestHandler;
   getClubBySlug: RequestHandler;
   joinPublicClubBySlug: RequestHandler;
+  listClubMembers: RequestHandler;
   listClubs: RequestHandler;
+  unbanClubMember: RequestHandler;
+  updateClubMemberRole: RequestHandler;
 };
 
 export const createClubsController = (
@@ -99,6 +107,123 @@ export const createClubsController = (
 
       const response = await service.joinPublicClubBySlug(
         parseResult.data.slug,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  listClubMembers: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const queryResult = listClubMembersQuerySchema.safeParse(req.query);
+
+      if (!paramsResult.success || !queryResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club members request and try again."
+        );
+      }
+
+      const response = await service.listClubMembersBySlug(
+        paramsResult.data.slug,
+        req.currentUser.id,
+        queryResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateClubMemberRole: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubMemberParamsSchema.safeParse(req.params);
+      const bodyResult = updateClubMemberRoleRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club member role request and try again."
+        );
+      }
+
+      const response = await service.updateClubMemberRole(
+        paramsResult.data.slug,
+        paramsResult.data.membershipId,
+        req.currentUser.id,
+        bodyResult.data.role
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  banClubMember: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubMemberParamsSchema.safeParse(req.params);
+      const bodyResult = banClubMemberRequestSchema.safeParse(req.body ?? {});
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club member ban request and try again."
+        );
+      }
+
+      const response = await service.banClubMember(
+        paramsResult.data.slug,
+        paramsResult.data.membershipId,
+        req.currentUser.id,
+        bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  unbanClubMember: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubMemberParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success || (req.body && Object.keys(req.body).length > 0)) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club member unban request and try again."
+        );
+      }
+
+      const response = await service.unbanClubMember(
+        paramsResult.data.slug,
+        paramsResult.data.membershipId,
         req.currentUser.id
       );
 

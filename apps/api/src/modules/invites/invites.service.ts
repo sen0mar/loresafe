@@ -45,6 +45,8 @@ export const createInvitesService = (
         return toAcceptInviteResponse(result);
       case "not_found":
         throw new HttpError(404, "NOT_FOUND", "Invite not found");
+      case "banned":
+        throw new HttpError(403, "FORBIDDEN", "You cannot join this club.");
       case "expired":
         throw new HttpError(409, "INVITE_EXPIRED", "This invite has expired.");
       case "revoked":

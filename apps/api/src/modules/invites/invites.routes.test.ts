@@ -356,6 +356,40 @@ describe("invite routes", () => {
     });
   });
 
+  it("rejects invite acceptance for actively banned users", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Banned Invite Club",
+      slug: "banned-invite-club",
+      visibility: "INVITE_ONLY"
+    });
+    const token = createTestToken("b");
+
+    repository.createStoredInvite({
+      clubId: club.id,
+      tokenHash: hashInviteToken(token),
+      expiresAt: new Date(Date.now() + 60_000),
+      maxUses: 1
+    });
+    repository.createBan(reader.id, club.id);
+
+    const response = await request(app)
+      .post(`/api/invites/${token}/accept`)
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot join this club."
+    });
+    expect(repository.memberships).toHaveLength(0);
+    expect(repository.invites[0].usedCount).toBe(0);
+  });
+
   it("rejects invalid invite create bodies and accept bodies", async () => {
     const owner = await repository.createUser({
       email: "owner@example.com",
@@ -495,6 +529,12 @@ class InMemoryInvitesRepository
     clubId: string;
     role: "OWNER" | "MODERATOR" | "MEMBER";
   }> = [];
+  readonly bans: Array<{
+    userId: string;
+    clubId: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+  }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -575,6 +615,22 @@ class InMemoryInvitesRepository
     });
   };
 
+  createBan = (
+    userId: string,
+    clubId: string,
+    input: {
+      expiresAt?: Date | null;
+      revokedAt?: Date | null;
+    } = {}
+  ) => {
+    this.bans.push({
+      userId,
+      clubId,
+      expiresAt: input.expiresAt ?? null,
+      revokedAt: input.revokedAt ?? null
+    });
+  };
+
   createStoredInvite = ({
     clubId,
     createdById = crypto.randomUUID(),
@@ -621,6 +677,12 @@ class InMemoryInvitesRepository
     if (!invite) {
       return {
         status: "not_found"
+      };
+    }
+
+    if (this.hasActiveBan(userId, invite.clubId)) {
+      return {
+        status: "banned"
       };
     }
 
@@ -709,6 +771,15 @@ class InMemoryInvitesRepository
 
     return null;
   };
+
+  private hasActiveBan = (userId: string, clubId: string) =>
+    this.bans.some(
+      (ban) =>
+        ban.userId === userId &&
+        ban.clubId === clubId &&
+        !ban.revokedAt &&
+        (!ban.expiresAt || ban.expiresAt.getTime() > Date.now())
+    );
 
   private toClubInviteRecord = (invite: StoredInvite): ClubInviteRecord => {
     const club = this.clubs.get(invite.clubId);

@@ -34,6 +34,7 @@ export type ClubInviteRecord = {
 };
 
 export type AcceptInviteFailureStatus =
+  | "banned"
   | "expired"
   | "maxed"
   | "not_found"
@@ -114,6 +115,21 @@ const inviteStateSelect = {
   revokedAt: true
 } as const;
 
+const activeBanWhere = (now: Date) =>
+  ({
+    revokedAt: null,
+    OR: [
+      {
+        expiresAt: null
+      },
+      {
+        expiresAt: {
+          gt: now
+        }
+      }
+    ]
+  });
+
 class InviteAcceptFailure extends Error {
   readonly status: AcceptInviteFailureStatus;
 
@@ -138,6 +154,23 @@ export const invitesRepository: InvitesRepository = {
         if (!invite) {
           return {
             status: "not_found"
+          };
+        }
+
+        const activeBan = await transaction.clubBan.findFirst({
+          where: {
+            clubId: invite.clubId,
+            userId,
+            ...activeBanWhere(now)
+          },
+          select: {
+            id: true
+          }
+        });
+
+        if (activeBan) {
+          return {
+            status: "banned"
           };
         }
 

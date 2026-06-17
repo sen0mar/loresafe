@@ -9,6 +9,7 @@ import {
   clubCreateRateLimiter,
   clubInviteCreateRateLimiter,
   clubJoinRateLimiter,
+  clubMemberManagementRateLimiter,
   clubMilestoneCreateRateLimiter,
   clubPostCreateRateLimiter,
   clubProgressUpdateRateLimiter,
@@ -74,6 +75,18 @@ export const createApp = () => {
   app.post("/api/clubs", clubCreateRateLimiter);
   app.post("/api/clubs/:slug/invites", clubInviteCreateRateLimiter);
   app.post("/api/clubs/:slug/join", clubJoinRateLimiter);
+  app.patch(
+    "/api/clubs/:slug/members/:membershipId/role",
+    clubMemberManagementRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/members/:membershipId/ban",
+    clubMemberManagementRateLimiter
+  );
+  app.post(
+    "/api/clubs/:slug/members/:membershipId/unban",
+    clubMemberManagementRateLimiter
+  );
   app.post("/api/clubs/:slug/milestones", clubMilestoneCreateRateLimiter);
   app.post(
     "/api/clubs/:slug/milestones/templates",

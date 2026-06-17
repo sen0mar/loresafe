@@ -45,6 +45,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 39: Moderation report queue — Added owner/moderator-only club report queue reads, safe-by-default report metadata, explicit reveal behavior for reported content/details, a club settings moderation route, and focused backend leak/authorization tests.
 - Feature 40: Render migration retry — Added an API startup migration wrapper that retries transient Prisma advisory-lock timeouts during deploy while preserving fail-fast behavior for other migration errors.
 - Feature 41: Moderation actions and audit logs — Added audit logs with a committed migration, owner/moderator report action endpoints for milestone changes, hide, soft delete, warn, ban, resolve, and dismiss, safe warning notifications, queue action controls, and focused transaction/audit regression tests.
+- Feature 42: Club members management — Added paginated member roster APIs, owner role updates, owner/moderator ban and unban controls, last-owner protections, invite/join ban enforcement, a committed audit-action migration, a Members tab UI, and focused backend regression tests.
 
 ## Entry Format
 

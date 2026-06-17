@@ -1,6 +1,7 @@
 import type {
   ClubDetailRecord,
-  ClubDiscoveryRecord
+  ClubDiscoveryRecord,
+  ClubMemberRecord
 } from "./clubs.repository.js";
 import { r2Storage } from "../../core/storage/r2-storage.js";
 
@@ -53,8 +54,41 @@ export type ClubsDiscoveryResponse = {
   };
 };
 
+export type ClubMemberDto = {
+  id: string;
+  role: ClubMembershipRoleDto;
+  user: {
+    id: string;
+    displayName: string;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+  activeBan: {
+    id: string;
+    reason: string | null;
+    expiresAt: string | null;
+    createdAt: string;
+  } | null;
+  joinedAt: string;
+  updatedAt: string;
+};
+
+export type ClubMembersResponse = {
+  members: ClubMemberDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
 export type ClubResponse = {
   club: ClubDto;
+};
+
+export type ClubMemberResponse = {
+  member: ClubMemberDto;
 };
 
 export const toClubDiscoveryDto = (
@@ -93,6 +127,27 @@ export const toClubDto = (club: ClubDetailRecord): ClubDto => ({
   },
   createdAt: club.createdAt.toISOString(),
   updatedAt: club.updatedAt.toISOString()
+});
+
+export const toClubMemberDto = (member: ClubMemberRecord): ClubMemberDto => ({
+  id: member.id,
+  role: member.role,
+  user: {
+    id: member.user.id,
+    displayName: member.user.displayName,
+    username: member.user.username,
+    avatarUrl: getReadyAssetUrl(member.user.avatarAsset)
+  },
+  activeBan: member.activeBan
+    ? {
+        id: member.activeBan.id,
+        reason: member.activeBan.reason,
+        expiresAt: member.activeBan.expiresAt?.toISOString() ?? null,
+        createdAt: member.activeBan.createdAt.toISOString()
+      }
+    : null,
+  joinedAt: member.createdAt.toISOString(),
+  updatedAt: member.updatedAt.toISOString()
 });
 
 const getReadyAssetUrl = (
