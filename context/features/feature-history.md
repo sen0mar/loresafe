@@ -54,6 +54,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 48: Accessibility and responsive QA pass — Hardened frontend focus, dialog, tab, disabled/loading, and mobile layout behavior across core flows, added focused accessibility regression tests, and verified key pages across mobile, tablet, and desktop viewports.
 - Feature 49: Production configuration hardening — Added production fail-fast env validation for backend services and secure cookies, comma-separated CORS origin allowlists, production frontend API URL enforcement, env examples, and focused config/bundle-safety tests.
 - Feature 50: App rate limiter registration cleanup — Extracted app-level rate limiter registration into a focused security helper, preserved method-specific limiter coverage with regression tests, and removed the user-facing backend health panel while keeping `/api/health` for operational checks.
+- Feature 51: Spoiler-safe home dashboard — Replaced the seeded static homepage with a real authenticated dashboard using joined-club, safe-feed, progress, stats, popular discussion, and recently-unlocked data, plus polished empty onboarding states and focused frontend regression tests.
 
 ## Entry Format
 

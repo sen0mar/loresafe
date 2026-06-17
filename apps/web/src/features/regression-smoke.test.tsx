@@ -11,6 +11,7 @@ import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
 import { ExplorePage } from "@/features/clubs/pages/explore-page";
 import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
+import { HomePage } from "@/features/home/pages/home-page";
 import { SearchResultsPage } from "@/features/search/pages/search-results-page";
 import {
   getJsonRequestBody,
@@ -242,6 +243,134 @@ describe("frontend regression smoke", () => {
       body: "This is safe to discuss.",
       requiredMilestoneId: firstMilestoneId
     });
+  });
+
+  it("shows spoiler-safe onboarding on an empty homepage without seeded club content", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", emptyJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<HomePage />);
+
+    expect(await screen.findByText("Start with a spoiler-safe space")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /create club/i })[0]).toHaveAttribute(
+      "href",
+      "/app/clubs/new"
+    );
+    expect(screen.getByText("Anime/Manga")).toBeInTheDocument();
+    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Glokta/i)).not.toBeInTheDocument();
+  });
+
+  it("features the most recently joined club on the homepage", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", twoJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      homeDashboardRoute("/api/clubs/newest-club/posts", {
+        posts: [visiblePost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      homeDashboardRoute("/api/clubs/newest-club/progress/summary", {
+        progress: progressSummary
+      }),
+      homeDashboardRoute("/api/clubs/newest-club/stats", {
+        stats: dashboardStats
+      }),
+      homeDashboardRoute("/api/clubs/newest-club/popular-discussions", {
+        discussions: [],
+        pagination: {
+          limit: 5
+        }
+      }),
+      homeDashboardRoute("/api/clubs/newest-club/recently-unlocked/summary", {
+        unlock: emptyUnlockSummary,
+        posts: [],
+        pagination: {
+          limit: 3
+        }
+      })
+    ]);
+
+    renderWithProviders(<HomePage />);
+
+    expect(await screen.findByRole("heading", { name: "Newest Club" })).toBeInTheDocument();
+    expect(screen.getByText("Featured from your joined clubs")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open club" })).toHaveAttribute(
+      "href",
+      "/app/clubs/newest-club"
+    );
+  });
+
+  it("renders homepage safe previews without leaking locked post bodies", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      homeDashboardRoute("/api/clubs/safe-club/posts", {
+        posts: [visiblePost, lockedPost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      homeDashboardRoute("/api/clubs/safe-club/progress/summary", {
+        progress: progressSummary
+      }),
+      homeDashboardRoute("/api/clubs/safe-club/stats", {
+        stats: dashboardStats
+      }),
+      homeDashboardRoute("/api/clubs/safe-club/popular-discussions", {
+        discussions: [],
+        pagination: {
+          limit: 5
+        }
+      }),
+      homeDashboardRoute("/api/clubs/safe-club/recently-unlocked/summary", {
+        unlock: emptyUnlockSummary,
+        posts: [],
+        pagination: {
+          limit: 3
+        }
+      })
+    ]);
+
+    renderWithProviders(<HomePage />);
+
+    expect(await screen.findByText("Visible post body.")).toBeInTheDocument();
+    expect(screen.getByText("Locked discussion")).toBeInTheDocument();
+    expect(screen.queryByText("LOCKED_POST_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
+  });
+
+  it("shows a homepage load error without falling back to seeded content", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      {
+        method: "GET",
+        path: "/api/users/me/clubs",
+        status: 500,
+        response: {
+          error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not load joined clubs"
+          }
+        }
+      },
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<HomePage />);
+
+    expect(await screen.findByText("Could not load your home dashboard")).toBeInTheDocument();
+    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
   });
 
   it("creates comments while locked comment bodies remain absent", async () => {
@@ -637,6 +766,77 @@ const joinedClubsResponse = {
   }
 };
 
+const emptyJoinedClubsResponse = {
+  clubs: [],
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    pageCount: 0
+  }
+};
+
+const twoJoinedClubsResponse = {
+  clubs: [
+    {
+      id: "00000000-0000-4000-8000-000000000101",
+      title: "Newest Club",
+      slug: "newest-club",
+      coverUrl: null,
+      visibility: "PRIVATE",
+      role: "OWNER",
+      memberCount: 8,
+      joinedAt: "2026-01-03T12:00:00.000Z"
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000102",
+      title: "Older Club",
+      slug: "older-club",
+      coverUrl: null,
+      visibility: "PUBLIC",
+      role: "MEMBER",
+      memberCount: 4,
+      joinedAt: "2026-01-02T12:00:00.000Z"
+    }
+  ],
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 2,
+    pageCount: 1
+  }
+};
+
+const progressSummary = {
+  mode: "STRICT",
+  currentMilestone: {
+    id: firstMilestoneId,
+    position: 1,
+    label: "Opening"
+  },
+  totalMilestones: 2,
+  completedMilestones: 1,
+  percentage: 50,
+  updatedAt: now
+};
+
+const dashboardStats = {
+  memberCount: 3,
+  milestoneCount: 2,
+  visiblePostCount: 2,
+  visibleCommentCount: 1,
+  postReactionCount: 0,
+  safePostCount: 1,
+  lockedPostCount: 1
+};
+
+const emptyUnlockSummary = {
+  historyId: null,
+  fromPosition: 0,
+  toPosition: 0,
+  unlockedAt: null
+};
+
 const notificationsResponse = {
   notifications: [],
   unreadCount: 0,
@@ -652,6 +852,8 @@ const shellRoute = (path: string, response: unknown) => ({
   path,
   response
 });
+
+const homeDashboardRoute = shellRoute;
 
 const findFetchCall = (
   fetchMock: ReturnType<typeof mockFetchRoutes>,
