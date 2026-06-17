@@ -15,6 +15,7 @@ import {
   eventsService,
   type EventsService
 } from "../modules/events/events.service.js";
+import { logger, sanitizeError } from "../core/logging/logger.js";
 
 const commentCreatedJobSchema = z
   .object({
@@ -178,15 +179,12 @@ export const runLoggedNotificationJob = async (
   try {
     await handler();
   } catch (error) {
-    console.error("[pg-boss] notification job failed", {
+    logger.error("Notification job failed", {
       jobName,
       jobId: job.id,
       sourceId,
-      error: sanitizeErrorMessage(error)
+      error: sanitizeError(error)
     });
     throw error;
   }
 };
-
-const sanitizeErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);

@@ -45,4 +45,19 @@ describe("health routes", () => {
       }
     });
   });
+
+  it("keeps the debug Sentry route unavailable in tests", async () => {
+    const response = await request(app)
+      .get("/api/debug/sentry-error")
+      .set("x-request-id", "test-unexpected-error")
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Route not found",
+        requestId: "test-unexpected-error"
+      }
+    });
+  });
 });

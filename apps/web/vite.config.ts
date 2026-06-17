@@ -6,14 +6,22 @@ import { defineConfig } from "vite";
 
 export default defineConfig(({ mode }) => {
   const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
-  const apiBaseUrl = readRootEnvValue(rootDirectory, mode, "VITE_API_BASE_URL");
+  const envValues = readRootEnvValues(rootDirectory, mode, [
+    "VITE_API_BASE_URL",
+    "VITE_SENTRY_DSN",
+    "VITE_SENTRY_ENVIRONMENT",
+    "VITE_SENTRY_TRACES_SAMPLE_RATE",
+    "VITE_SENTRY_ENABLE_DEBUG_ROUTE"
+  ]);
+  const defineValues = Object.fromEntries(
+    Object.entries(envValues).map(([key, value]) => [
+      `import.meta.env.${key}`,
+      JSON.stringify(value)
+    ])
+  );
 
   return {
-    define: apiBaseUrl
-      ? {
-          "import.meta.env.VITE_API_BASE_URL": JSON.stringify(apiBaseUrl)
-        }
-      : undefined,
+    define: Object.keys(defineValues).length > 0 ? defineValues : undefined,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -26,6 +34,19 @@ export default defineConfig(({ mode }) => {
     }
   };
 });
+
+const readRootEnvValues = (
+  rootDirectory: string,
+  mode: string,
+  keys: string[]
+) =>
+  Object.fromEntries(
+    keys.flatMap((key) => {
+      const value = readRootEnvValue(rootDirectory, mode, key);
+
+      return value ? [[key, value]] : [];
+    })
+  );
 
 const readRootEnvValue = (
   rootDirectory: string,

@@ -68,7 +68,11 @@ const envSchema = z
       .int()
       .positive()
       .max(3600)
-      .default(300)
+      .default(300),
+    SENTRY_DSN: optionalUrlSchema,
+    SENTRY_ENVIRONMENT: optionalStringSchema,
+    SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+    SENTRY_ENABLE_DEBUG_ROUTE: booleanStringSchema.default(false)
   })
   .superRefine((value, context) => {
     // Tests inject local stores; real app runs should fail fast without Redis limits.

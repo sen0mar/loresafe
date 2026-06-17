@@ -4,6 +4,7 @@ import express from "express";
 
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
+import { requestLoggingMiddleware } from "./core/http/request-logging.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import {
   clubCreateRateLimiter,
@@ -33,6 +34,7 @@ import {
   commentReactionsRouter,
   commentsRouter
 } from "./modules/comments/comments.routes.js";
+import { debugRouter } from "./modules/debug/debug.routes.js";
 import { eventsRouter } from "./modules/events/events.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import {
@@ -63,6 +65,7 @@ export const createApp = () => {
   app.set("trust proxy", env.TRUST_PROXY_HOPS);
 
   app.use(requestIdMiddleware);
+  app.use(requestLoggingMiddleware);
   app.use(
     cors({
       origin:
@@ -141,6 +144,7 @@ export const createApp = () => {
   app.use(cookieParser());
 
   app.use("/api/health", healthRouter);
+  app.use("/api/debug", debugRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);
