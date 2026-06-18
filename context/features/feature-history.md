@@ -57,6 +57,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 51: Spoiler-safe home dashboard — Replaced the seeded static homepage with a real authenticated dashboard using joined-club, safe-feed, progress, stats, popular discussion, and recently-unlocked data, plus polished empty onboarding states and focused frontend regression tests.
 - Feature 52: Explore club navigation — Made public club discovery cards link to their club detail pages with accessible focus states and focused frontend regression coverage.
 - Feature 53: Dark theme color refresh — Updated global UI tokens with a flatter near-black background, vivid steel-blue accents, simplified app background, and removed shared panel shadows.
+- Feature 54: Full-width app page layout — Made the authenticated shell reserve the right-rail column only when a page provides right-rail content, preserving Home while letting Explore, Settings, club detail, and Notifications fill the available width with focused layout regression coverage.
 
 ## Entry Format
 

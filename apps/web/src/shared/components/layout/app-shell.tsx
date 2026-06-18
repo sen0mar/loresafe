@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { cn } from "@/shared/lib/utils";
 
 import {
   DesktopSidebar,
@@ -133,7 +134,12 @@ export const AppShell = ({
             />
           </header>
 
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 px-2 py-4 lg:px-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div
+            className={cn(
+              "grid min-w-0 flex-1 grid-cols-1 gap-4 px-2 py-4 lg:px-6",
+              rightRail && "xl:grid-cols-[minmax(0,1fr)_320px]"
+            )}
+          >
             <main className="min-w-0">{children}</main>
             {rightRail ? (
               <aside
