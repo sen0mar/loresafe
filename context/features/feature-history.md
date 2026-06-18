@@ -56,6 +56,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 50: App rate limiter registration cleanup — Extracted app-level rate limiter registration into a focused security helper, preserved method-specific limiter coverage with regression tests, and removed the user-facing backend health panel while keeping `/api/health` for operational checks.
 - Feature 51: Spoiler-safe home dashboard — Replaced the seeded static homepage with a real authenticated dashboard using joined-club, safe-feed, progress, stats, popular discussion, and recently-unlocked data, plus polished empty onboarding states and focused frontend regression tests.
 - Feature 52: Explore club navigation — Made public club discovery cards link to their club detail pages with accessible focus states and focused frontend regression coverage.
+- Feature 53: Dark theme color refresh — Updated global UI tokens with a flatter near-black background, vivid steel-blue accents, simplified app background, and removed shared panel shadows.
 
 ## Entry Format
 
