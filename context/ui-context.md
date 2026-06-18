@@ -8,7 +8,7 @@ Primary reference image:
 
 Use it for visual direction only. The app name in the UI should be **ThreadSync**, not the older reference name.
 
-Visual language: dark, compact, glassy panels with thin borders, cyan brand accents, progress-aware cards, calm metadata, and clear locked/safe states.
+Visual language: dark, compact, flat panels with thin borders, steel-blue brand accents, progress-aware cards, calm metadata, and clear locked/safe states.
 
 ## Theme Rules
 
@@ -20,77 +20,77 @@ Visual language: dark, compact, glassy panels with thin borders, cyan brand acce
 
 ## Dark Tokens
 
-Colors below were sampled from the uploaded dashboard reference.
+Colors below define the current app palette in `apps/web/src/styles.css`.
 
 | Role | CSS variable | HEX / value |
 | --- | --- | --- |
-| Page background | `--bg-base` | `#0c141b` |
-| Deep background | `--bg-base-deep` | `#040e16` |
-| Surface | `--bg-surface` | `#111920` |
-| Elevated surface | `--bg-elevated` | `#121a21` |
-| Subtle surface/card | `--bg-subtle` | `#131b22` |
-| Input/inset surface | `--bg-inset` | `#10181f` |
-| Active nav/selected surface | `--bg-active` | `#0f2129` |
-| Overlay | `--bg-overlay` | `rgba(4, 14, 22, 0.72)` |
-| Background pattern | `--bg-pattern` | `rgba(33, 54, 60, 0.32)` |
-| Default border | `--border-default` | `#1e252c` |
-| Subtle border/divider | `--border-subtle` | `#20292f` |
-| Strong/accent border | `--border-strong` | `#2e4c54` |
-| Brand border | `--border-brand` | `#138997` |
-| Primary text | `--text-primary` | `#f9fbfb` |
-| Secondary text | `--text-secondary` | `#e4e7e9` |
-| Muted text | `--text-muted` | `#bfc0c0` |
-| Faint text | `--text-faint` | `#878d92` |
-| Disabled text | `--text-disabled` | `#51595d` |
-| Brand accent | `--accent-primary` | `#138997` |
-| Brand hover | `--accent-primary-hover` | `#17afb7` |
-| Brand active | `--accent-primary-active` | `#0c818c` |
-| Brand bright | `--accent-primary-bright` | `#45c5d3` |
-| Brand text on dark | `--accent-primary-text` | `#8fd2d6` |
-| Text on brand button | `--accent-on-primary` | `#e9fbfb` |
-| Brand soft background | `--accent-primary-soft` | `#0f2129` |
-| Brand dim background | `--accent-primary-dim` | `#14575c` |
-| Brand glow | `--accent-primary-glow` | `rgba(69, 197, 211, 0.35)` |
-| Secondary blue | `--accent-secondary` | `#4489f4` |
-| Success/read | `--state-success` | `#4be05a` |
-| Warning/brave | `--state-warning` | `#f49322` |
-| Error/destructive | `--state-error` | `#ef4444` |
-| Info/locked | `--state-info` | `#4489f4` |
-| Purple/stat accent | `--state-purple` | `#c396d9` |
-| Hot/popular accent | `--state-hot` | `#fd760d` |
-| Chart read | `--chart-read` | `#4be05a` |
-| Chart locked | `--chart-locked` | `#4489f4` |
-| Chart available | `--chart-available` | `#bfc0c0` |
-| Chart future | `--chart-future` | `#676a6e` |
-| Card shadow | `--shadow-card` | `0 18px 50px rgba(0, 0, 0, 0.28)` |
-| Soft shadow | `--shadow-soft` | `0 10px 30px rgba(0, 0, 0, 0.22)` |
-| Brand glow shadow | `--shadow-glow` | `0 0 24px rgba(69, 197, 211, 0.24)` |
-| Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #17afb7 0%, #138997 100%)` |
-| App background gradient | `--gradient-app` | `radial-gradient(circle at 70% 0%, rgba(19, 137, 151, 0.12), transparent 34%), #0c141b` |
+| Page background | `--bg-base` | `#07090c` |
+| Deep background | `--bg-base-deep` | `#000000` |
+| Surface | `--bg-surface` | `#090b0e` |
+| Elevated surface | `--bg-elevated` | `#0e1116` |
+| Subtle surface/card | `--bg-subtle` | `#12161c` |
+| Input/inset surface | `--bg-inset` | `#06080b` |
+| Active nav/selected surface | `--bg-active` | `#101a27` |
+| Overlay | `--bg-overlay` | `rgba(0, 0, 0, 0.78)` |
+| Background pattern | `--bg-pattern` | `rgba(96, 145, 214, 0.09)` |
+| Default border | `--border-default` | `#1a2028` |
+| Subtle border/divider | `--border-subtle` | `#131820` |
+| Strong/accent border | `--border-strong` | `#334055` |
+| Brand border | `--border-brand` | `#6091d6` |
+| Primary text | `--text-primary` | `#f6f7f4` |
+| Secondary text | `--text-secondary` | `#d9ded8` |
+| Muted text | `--text-muted` | `#a8b0aa` |
+| Faint text | `--text-faint` | `#717a78` |
+| Disabled text | `--text-disabled` | `#424947` |
+| Brand accent | `--accent-primary` | `#6091d6` |
+| Brand hover | `--accent-primary-hover` | `#7ba9e7` |
+| Brand active | `--accent-primary-active` | `#4f7fc0` |
+| Brand bright | `--accent-primary-bright` | `#aacbfa` |
+| Brand text on dark | `--accent-primary-text` | `#b9d5fb` |
+| Text on brand button | `--accent-on-primary` | `#07101d` |
+| Brand soft background | `--accent-primary-soft` | `#101a27` |
+| Brand dim background | `--accent-primary-dim` | `#2d4a72` |
+| Brand glow | `--accent-primary-glow` | `rgba(96, 145, 214, 0.18)` |
+| Secondary accent | `--accent-secondary` | `#b88eea` |
+| Success/read | `--state-success` | `#91add4` |
+| Warning/brave | `--state-warning` | `#f4bd61` |
+| Error/destructive | `--state-error` | `#ff6b73` |
+| Info/locked | `--state-info` | `#82a9e7` |
+| Purple/stat accent | `--state-purple` | `#caa8ff` |
+| Hot/popular accent | `--state-hot` | `#ff9364` |
+| Chart read | `--chart-read` | `#91add4` |
+| Chart locked | `--chart-locked` | `#82a9e7` |
+| Chart available | `--chart-available` | `#a8b0aa` |
+| Chart future | `--chart-future` | `#535b5a` |
+| Card shadow | `--shadow-card` | `none` |
+| Soft shadow | `--shadow-soft` | `none` |
+| Brand glow shadow | `--shadow-glow` | `none` |
+| Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
+| App background | `--gradient-app` | `#07090c` |
 
 Recommended CSS starting point:
 
 ```css
 :root {
   color-scheme: dark;
-  --bg-base: #0c141b;
-  --bg-base-deep: #040e16;
-  --bg-surface: #111920;
-  --bg-elevated: #121a21;
-  --bg-subtle: #131b22;
-  --bg-inset: #10181f;
-  --bg-active: #0f2129;
-  --border-default: #1e252c;
-  --border-subtle: #20292f;
-  --border-strong: #2e4c54;
-  --accent-primary: #138997;
-  --accent-primary-hover: #17afb7;
-  --accent-primary-active: #0c818c;
-  --accent-primary-bright: #45c5d3;
-  --text-primary: #f9fbfb;
-  --text-secondary: #e4e7e9;
-  --text-muted: #bfc0c0;
-  --text-faint: #878d92;
+  --bg-base: #07090c;
+  --bg-base-deep: #000000;
+  --bg-surface: #090b0e;
+  --bg-elevated: #0e1116;
+  --bg-subtle: #12161c;
+  --bg-inset: #06080b;
+  --bg-active: #101a27;
+  --border-default: #1a2028;
+  --border-subtle: #131820;
+  --border-strong: #334055;
+  --accent-primary: #6091d6;
+  --accent-primary-hover: #7ba9e7;
+  --accent-primary-active: #4f7fc0;
+  --accent-primary-bright: #aacbfa;
+  --text-primary: #f6f7f4;
+  --text-secondary: #d9ded8;
+  --text-muted: #a8b0aa;
+  --text-faint: #717a78;
 }
 ```
 
@@ -157,16 +157,16 @@ Use 1px borders for most panels. Use brand borders sparingly for active/selected
 
 ### Cards and Panels
 
-- Use thin borders, subtle shadows, and consistent padding.
+- Use thin borders, flat surfaces, and consistent padding.
 - Feed cards should have metadata row, title/content preview, reactions/actions, and optional mode badge.
 - Locked cards should center the lock state and show only safe unlock requirements.
 - Avoid cramming unrelated actions into a single card.
 
 ### Progress UI
 
-- Progress bars use the brand cyan token.
-- Read/completed dots use success green.
-- Locked/future dots use blue/gray tokens.
+- Progress bars use the brand steel-blue token.
+- Read/completed dots use the success/read token.
+- Locked/future dots use info/gray tokens.
 - Never reveal future milestone names when the milestone name itself is unsafe.
 
 ## Spacing and Density
@@ -180,10 +180,10 @@ Use 1px borders for most panels. Use brand borders sparingly for active/selected
 
 ## Buttons and Interactions
 
-- Primary button: cyan gradient, white/cyan-tinted text, subtle glow on hover.
+- Primary button: steel-blue gradient, dark text, and restrained hover contrast.
 - Secondary button: dark surface, thin border, muted text, brighter border/text on hover.
 - Ghost button: transparent with hover surface.
-- Active nav item: `--bg-active`, brand icon/text, subtle border/glow.
+- Active nav item: `--bg-active`, brand icon/text, and subtle brand border.
 - Focus ring: 2px brand bright ring with offset against dark surfaces.
 - Transitions: `150ms ease-out` for hover/focus; avoid heavy motion.
 
@@ -205,5 +205,5 @@ Use stroke icons consistently. Avoid mixing emoji, 3D icons, and filled icon set
 - Every interactive element needs hover, focus-visible, disabled, and loading states.
 - Badges must include text, not only color.
 - Modals and drawers need keyboard focus management.
-- Maintain contrast for cyan text on dark backgrounds.
+- Maintain contrast for steel-blue text on dark backgrounds.
 - Do not rely on color alone to communicate Strict/Soft/Brave/Finished or locked/unlocked states.
