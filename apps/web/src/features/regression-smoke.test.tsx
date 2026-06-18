@@ -532,6 +532,9 @@ describe("frontend regression smoke", () => {
     });
 
     expect(await screen.findByText("Public Story Club")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /public story club/i })
+    ).toHaveAttribute("href", "/app/clubs/public-story-club");
     expect(screen.queryByText("PRIVATE_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
     discovery.unmount();
 
