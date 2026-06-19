@@ -65,9 +65,12 @@ describe("LandingPage", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Pick up where the conversation is safe."
+        name: "Welcome back"
       })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /back to home/i })
+    ).toHaveAttribute("href", "/");
     await waitFor(() => expect(window.location.pathname).toBe("/login"));
     expect(window.location.search).toBe("?redirectTo=%2Fapp");
   });

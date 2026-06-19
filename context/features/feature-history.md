@@ -60,6 +60,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 54: Full-width app page layout — Made the authenticated shell reserve the right-rail column only when a page provides right-rail content, preserving Home while letting Explore, Settings, club detail, and Notifications fill the available width with focused layout regression coverage.
 - Feature 55: Public landing page hero — Added a public ThreadSync landing page with generated hero artwork, cursor-following demo tilt, signup/login entry points, `/app` authenticated home routing, and focused frontend regression coverage.
 - Feature 56: Login page copy refresh — Replaced the technical login page intro with warmer welcome copy and allowed auth pages to omit the eyebrow label when it would be redundant.
+- Feature 57: Login home navigation — Added a visible top-left login page button that returns visitors to the public home page, with focused route coverage.
 
 ## Entry Format
 

@@ -6,15 +6,23 @@ export const AuthPageShell = ({
   title,
   body,
   formLabel,
+  topLeftAction,
   children
 }: {
   eyebrow?: string;
   title: string;
   body: string;
   formLabel: string;
+  topLeftAction?: ReactNode;
   children: ReactNode;
 }) => (
-  <div className="min-h-screen bg-gradient-app text-primary">
+  <div className="relative min-h-screen bg-gradient-app text-primary">
+    {topLeftAction ? (
+      <div className="absolute left-4 top-4 z-10 sm:left-6 sm:top-6">
+        {topLeftAction}
+      </div>
+    ) : null}
+
     <main className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_minmax(320px,448px)] md:px-6">
       <section className="min-w-0 space-y-6">
         <div className="flex items-center gap-3">
