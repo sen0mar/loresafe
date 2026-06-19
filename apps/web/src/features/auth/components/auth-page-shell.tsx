@@ -8,7 +8,7 @@ export const AuthPageShell = ({
   formLabel,
   children
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   body: string;
   formLabel: string;
@@ -27,7 +27,7 @@ export const AuthPageShell = ({
         </div>
 
         <div className="max-w-2xl space-y-4">
-          <p className="text-sm font-medium text-brand">{eyebrow}</p>
+          {eyebrow ? <p className="text-sm font-medium text-brand">{eyebrow}</p> : null}
           <h1 className="text-3xl font-semibold tracking-normal text-primary sm:text-5xl">
             {title}
           </h1>
