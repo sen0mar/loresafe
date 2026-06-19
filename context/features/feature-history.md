@@ -62,6 +62,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 56: Login page copy refresh — Replaced the technical login page intro with warmer welcome copy and allowed auth pages to omit the eyebrow label when it would be redundant.
 - Feature 57: Login home navigation — Added a visible top-left login page button that returns visitors to the public home page, with focused route coverage.
 - Feature 58: Auth password form polish — Added signup password confirmation, animated password reveal controls for login and signup, request payload shaping to exclude confirmation, and focused frontend regression coverage.
+- Feature 59: Unique display names — Added active-user display name uniqueness with a committed migration, duplicate-display-name signup/profile safeguards, production duplicate cleanup, and focused backend regression tests.
 
 ## Entry Format
 

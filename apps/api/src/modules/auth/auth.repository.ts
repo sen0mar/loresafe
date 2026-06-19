@@ -27,6 +27,9 @@ export type AuthUserCredentialsRecord = AuthUserRecord & {
 
 export type AuthUsersRepository = {
   findActiveUserByEmail: (email: string) => Promise<AuthUserRecord | null>;
+  findActiveUserByDisplayName?: (
+    displayName: string
+  ) => Promise<AuthUserRecord | null>;
   findActiveUserById: (id: string) => Promise<AuthUserRecord | null>;
   findActiveUserCredentialsByEmail: (
     email: string
@@ -63,6 +66,15 @@ export const authUsersRepository: AuthUsersRepository = {
       where: {
         email,
         // Soft-deleted users do not reserve their email for future active accounts.
+        deletedAt: null
+      },
+      select: userSelect
+    }),
+
+  findActiveUserByDisplayName: (displayName) =>
+    prisma.user.findFirst({
+      where: {
+        displayName,
         deletedAt: null
       },
       select: userSelect

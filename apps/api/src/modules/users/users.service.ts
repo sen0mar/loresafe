@@ -43,6 +43,16 @@ export const createUsersService = (
   },
 
   updateCurrentUserProfile: async (userId, input) => {
+    if (input.displayName !== undefined) {
+      const existingUser = await repository.findActiveUserByDisplayName(
+        input.displayName
+      );
+
+      if (existingUser && existingUser.id !== userId) {
+        throw duplicateDisplayNameError();
+      }
+    }
+
     if (input.username !== undefined) {
       const existingUser = await repository.findActiveUserByUsername(input.username);
 
@@ -61,7 +71,7 @@ export const createUsersService = (
       return toAuthUserDto(updatedUser);
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        throw duplicateUsernameError();
+        throw duplicateProfileFieldError(error);
       }
 
       throw error;
@@ -73,3 +83,26 @@ export const usersService = createUsersService();
 
 const duplicateUsernameError = () =>
   new HttpError(409, "CONFLICT", "That username is already taken.");
+
+const duplicateDisplayNameError = () =>
+  new HttpError(409, "CONFLICT", "That display name is already taken.");
+
+const duplicateProfileFieldError = (error: unknown) => {
+  if (uniqueConstraintTargets(error).includes("display_name")) {
+    return duplicateDisplayNameError();
+  }
+
+  return duplicateUsernameError();
+};
+
+const uniqueConstraintTargets = (error: unknown) => {
+  if (!error || typeof error !== "object" || !("meta" in error)) {
+    return [];
+  }
+
+  const meta = (error as { meta?: { target?: unknown } }).meta;
+
+  return Array.isArray(meta?.target)
+    ? meta.target.filter((target): target is string => typeof target === "string")
+    : [];
+};

@@ -59,11 +59,15 @@ export const createAuthService = (
       const existingUser = await usersRepository.findActiveUserByEmail(email);
 
       if (existingUser) {
-        throw new HttpError(
-          409,
-          "CONFLICT",
-          "An account with that email already exists."
-        );
+        throw duplicateEmailError();
+      }
+
+      const existingDisplayName = usersRepository.findActiveUserByDisplayName
+        ? await usersRepository.findActiveUserByDisplayName(displayName)
+        : null;
+
+      if (existingDisplayName) {
+        throw duplicateDisplayNameError();
       }
 
       // Plaintext passwords should not cross into repositories or Prisma calls.
@@ -87,11 +91,7 @@ export const createAuthService = (
       } catch (error) {
         // The database constraint closes the race where two signups pass the pre-check together.
         if (isUniqueConstraintError(error)) {
-          throw new HttpError(
-            409,
-            "CONFLICT",
-            "An account with that email already exists."
-          );
+          throw duplicateSignupError(error);
         }
 
         throw error;
@@ -144,3 +144,29 @@ const invalidCredentialsError = () =>
 
 const authenticationRequiredError = () =>
   new HttpError(401, "UNAUTHORIZED", "Authentication required");
+
+const duplicateEmailError = () =>
+  new HttpError(409, "CONFLICT", "An account with that email already exists.");
+
+const duplicateDisplayNameError = () =>
+  new HttpError(409, "CONFLICT", "That display name is already taken.");
+
+const duplicateSignupError = (error: unknown) => {
+  if (uniqueConstraintTargets(error).includes("display_name")) {
+    return duplicateDisplayNameError();
+  }
+
+  return duplicateEmailError();
+};
+
+const uniqueConstraintTargets = (error: unknown) => {
+  if (!error || typeof error !== "object" || !("meta" in error)) {
+    return [];
+  }
+
+  const meta = (error as { meta?: { target?: unknown } }).meta;
+
+  return Array.isArray(meta?.target)
+    ? meta.target.filter((target): target is string => typeof target === "string")
+    : [];
+};

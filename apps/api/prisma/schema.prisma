@@ -146,6 +146,7 @@ model User {
   auditLogsTargeting AuditLog[] @relation("AuditLogTargetUser")
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
+  @@unique([displayName], map: "users_display_name_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
   @@index([deletedAt], map: "users_deleted_at_idx")
   @@map("users")
