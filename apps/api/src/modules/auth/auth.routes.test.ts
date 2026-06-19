@@ -127,6 +127,32 @@ describe("auth routes", () => {
     });
   });
 
+  it("rejects duplicate active display names", async () => {
+    await repository.createUser({
+      email: "existing@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .post("/api/auth/signup")
+      .set("x-request-id", "signup-duplicate-display-name")
+      .send({
+        email: "new@example.com",
+        displayName: "Existing Reader",
+        password: "correct horse battery staple"
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message: "That display name is already taken.",
+        requestId: "signup-duplicate-display-name"
+      }
+    });
+  });
+
   it("logs in an existing user and sends an HttpOnly session cookie", async () => {
     await repository.createUser({
       email: "reader@example.com",
@@ -500,6 +526,16 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
+
+  findActiveUserByDisplayName = async (displayName: string) => {
+    for (const user of this.usersByEmail.values()) {
+      if (user.displayName === displayName) {
+        return user;
+      }
+    }
+
+    return null;
+  };
 
   findActiveUserById = async (id: string) => {
     for (const user of this.usersByEmail.values()) {

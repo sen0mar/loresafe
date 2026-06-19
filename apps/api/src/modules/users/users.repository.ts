@@ -31,6 +31,9 @@ export type ListJoinedClubsResult = {
 };
 
 export type UsersRepository = {
+  findActiveUserByDisplayName: (
+    displayName: string
+  ) => Promise<AuthUserRecord | null>;
   findActiveUserByUsername: (username: string) => Promise<AuthUserRecord | null>;
   listJoinedClubsForUser: (
     userId: string,
@@ -60,6 +63,15 @@ const userSelect = {
 } as const;
 
 export const usersRepository: UsersRepository = {
+  findActiveUserByDisplayName: (displayName) =>
+    prisma.user.findFirst({
+      where: {
+        displayName,
+        deletedAt: null
+      },
+      select: userSelect
+    }),
+
   findActiveUserByUsername: (username) =>
     prisma.user.findFirst({
       where: {

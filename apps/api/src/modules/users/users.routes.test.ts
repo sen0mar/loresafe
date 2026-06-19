@@ -353,6 +353,36 @@ describe("users routes", () => {
     });
   });
 
+  it("rejects duplicate active display names", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .patch("/api/users/me")
+      .set("x-request-id", "profile-duplicate-display-name")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        displayName: "Other Reader"
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message: "That display name is already taken.",
+        requestId: "profile-duplicate-display-name"
+      }
+    });
+  });
+
   it("stores an empty bio as null", async () => {
     const user = await repository.createUser({
       email: "reader@example.com",
@@ -417,6 +447,16 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     email: string
   ): Promise<AuthUserCredentialsRecord | null> =>
     this.usersByEmail.get(email) ?? null;
+
+  findActiveUserByDisplayName = async (displayName: string) => {
+    for (const user of this.usersByEmail.values()) {
+      if (user.displayName === displayName) {
+        return user;
+      }
+    }
+
+    return null;
+  };
 
   findActiveUserByUsername = async (username: string) => {
     for (const user of this.usersByEmail.values()) {
