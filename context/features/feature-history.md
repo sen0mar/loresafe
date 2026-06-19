@@ -61,6 +61,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 55: Public landing page hero — Added a public ThreadSync landing page with generated hero artwork, cursor-following demo tilt, signup/login entry points, `/app` authenticated home routing, and focused frontend regression coverage.
 - Feature 56: Login page copy refresh — Replaced the technical login page intro with warmer welcome copy and allowed auth pages to omit the eyebrow label when it would be redundant.
 - Feature 57: Login home navigation — Added a visible top-left login page button that returns visitors to the public home page, with focused route coverage.
+- Feature 58: Auth password form polish — Added signup password confirmation, animated password reveal controls for login and signup, request payload shaping to exclude confirmation, and focused frontend regression coverage.
 
 ## Entry Format
 

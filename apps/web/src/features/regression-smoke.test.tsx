@@ -55,7 +55,15 @@ describe("frontend regression smoke", () => {
 
     await user.type(screen.getByLabelText("Email"), "new@example.com");
     await user.type(screen.getByLabelText("Display name"), "New Reader");
-    await user.type(screen.getByLabelText("Password"), "supersecret12");
+    const signupPasswordInput = screen.getByLabelText("Password");
+
+    await user.type(signupPasswordInput, "supersecret12");
+    expect(signupPasswordInput).toHaveAttribute("type", "password");
+
+    await user.click(screen.getAllByRole("button", { name: "Show password" })[0]);
+    expect(signupPasswordInput).toHaveAttribute("type", "text");
+
+    await user.type(screen.getByLabelText("Confirm password"), "supersecret12");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => expect(signupPathChanges.at(-1)).toBe("/app/explore"));
@@ -66,9 +74,10 @@ describe("frontend regression smoke", () => {
         method: "POST"
       })
     );
-    expect(getJsonRequestBody(signupFetch.mock.calls[0])).toMatchObject({
+    expect(getJsonRequestBody(signupFetch.mock.calls[0])).toEqual({
       email: "new@example.com",
-      displayName: "New Reader"
+      displayName: "New Reader",
+      password: "supersecret12"
     });
     signupRender.unmount();
 
@@ -88,7 +97,11 @@ describe("frontend regression smoke", () => {
     });
 
     await user.type(screen.getByLabelText("Email"), "reader@example.com");
-    await user.type(screen.getByLabelText("Password"), "supersecret12");
+    const loginPasswordInput = screen.getByLabelText("Password");
+
+    await user.type(loginPasswordInput, "supersecret12");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(loginPasswordInput).toHaveAttribute("type", "text");
     await user.click(screen.getByRole("button", { name: /^log in/i }));
 
     await waitFor(() =>
@@ -101,6 +114,23 @@ describe("frontend regression smoke", () => {
         method: "POST"
       })
     );
+  });
+
+  it("blocks signup when password confirmation does not match", async () => {
+    const signupFetch = mockFetchRoutes([]);
+    renderWithProviders(<SignupForm />, {
+      initialEntries: ["/signup"]
+    });
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Display name"), "New Reader");
+    await user.type(screen.getByLabelText("Password"), "supersecret12");
+    await user.type(screen.getByLabelText("Confirm password"), "supersecret13");
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(await screen.findByText("Passwords do not match.")).toBeVisible();
+    expect(signupFetch).not.toHaveBeenCalled();
   });
 
   it("submits club creation and navigates to the new club", async () => {

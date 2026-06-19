@@ -19,7 +19,11 @@ import {
 import { Input } from "@/shared/components/ui/input";
 
 import { useLogin } from "../api/auth.js";
-import { AuthFormError, AuthFormField } from "./auth-form-elements.js";
+import {
+  AuthFormError,
+  AuthFormField,
+  PasswordInput
+} from "./auth-form-elements.js";
 import { loginFormSchema, type LoginFormValues } from "../schemas/login.schema.js";
 
 type LoginFieldErrors = Partial<Record<keyof LoginFormValues, string>>;
@@ -121,9 +125,8 @@ export const LoginForm = () => {
             icon={<LockKeyhole className="size-4" />}
             error={fieldErrors.password}
           >
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               value={values.password}
               onChange={updateField("password")}

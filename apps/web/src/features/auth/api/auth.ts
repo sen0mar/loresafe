@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiPost } from "@/shared/api/api-client";
 
 import type { LoginFormValues } from "../schemas/login.schema.js";
-import type { SignupFormValues } from "../schemas/signup.schema.js";
+import type { SignupRequestValues } from "../schemas/signup.schema.js";
 
 export type AuthUser = {
   id: string;
@@ -44,8 +44,8 @@ export const login = (input: LoginFormValues) =>
 
 export const logout = () => apiPost<null>("/api/auth/logout");
 
-export const signup = (input: SignupFormValues) =>
-  apiPost<AuthResponse, SignupFormValues>("/api/auth/signup", input);
+export const signup = (input: SignupRequestValues) =>
+  apiPost<AuthResponse, SignupRequestValues>("/api/auth/signup", input);
 
 export const useMe = () =>
   useQuery({
