@@ -19,9 +19,14 @@ import {
 import { Input } from "@/shared/components/ui/input";
 
 import { useSignup } from "../api/auth.js";
-import { AuthFormError, AuthFormField } from "./auth-form-elements.js";
+import {
+  AuthFormError,
+  AuthFormField,
+  PasswordInput
+} from "./auth-form-elements.js";
 import {
   signupFormSchema,
+  toSignupRequest,
   type SignupFormValues
 } from "../schemas/signup.schema.js";
 
@@ -30,7 +35,8 @@ type SignupFieldErrors = Partial<Record<keyof SignupFormValues, string>>;
 const initialValues: SignupFormValues = {
   email: "",
   displayName: "",
-  password: ""
+  password: "",
+  confirmPassword: ""
 };
 
 export const SignupForm = () => {
@@ -72,13 +78,14 @@ export const SignupForm = () => {
       setFieldErrors({
         email: flattenedErrors.email?.[0],
         displayName: flattenedErrors.displayName?.[0],
-        password: flattenedErrors.password?.[0]
+        password: flattenedErrors.password?.[0],
+        confirmPassword: flattenedErrors.confirmPassword?.[0]
       });
       return;
     }
 
     setFieldErrors({});
-    signupMutation.mutate(parseResult.data, {
+    signupMutation.mutate(toSignupRequest(parseResult.data), {
       onSuccess: () => {
         // By this point the browser has processed Set-Cookie from the signup response.
         toast.success("Account created");
@@ -149,9 +156,8 @@ export const SignupForm = () => {
             icon={<LockKeyhole className="size-4" />}
             error={fieldErrors.password}
           >
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               value={values.password}
               onChange={updateField("password")}
@@ -159,6 +165,25 @@ export const SignupForm = () => {
               aria-invalid={!!fieldErrors.password}
               aria-describedby={
                 fieldErrors.password ? "password-error" : undefined
+              }
+            />
+          </AuthFormField>
+
+          <AuthFormField
+            id="confirmPassword"
+            label="Confirm password"
+            icon={<LockKeyhole className="size-4" />}
+            error={fieldErrors.confirmPassword}
+          >
+            <PasswordInput
+              id="confirmPassword"
+              autoComplete="new-password"
+              value={values.confirmPassword}
+              onChange={updateField("confirmPassword")}
+              disabled={signupMutation.isPending}
+              aria-invalid={!!fieldErrors.confirmPassword}
+              aria-describedby={
+                fieldErrors.confirmPassword ? "confirmPassword-error" : undefined
               }
             />
           </AuthFormField>
