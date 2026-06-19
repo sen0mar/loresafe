@@ -18,6 +18,7 @@ import { RecentlyUnlockedPage } from "../features/clubs/pages/recently-unlocked-
 import { DebugSentryErrorPage } from "../features/debug/pages/debug-sentry-error-page.js";
 import { HomePage } from "../features/home/pages/home-page.js";
 import { InviteAcceptPage } from "../features/invites/pages/invite-accept-page.js";
+import { LandingPage } from "../features/landing/pages/landing-page.js";
 import { NotificationsPage } from "../features/notifications/pages/notifications-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
 import { SearchResultsPage } from "../features/search/pages/search-results-page.js";
@@ -45,17 +46,13 @@ export const App = () => (
         <SentryRoutes>
           <Route
             path="/"
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            }
+            element={<LandingPage />}
           />
           <Route
             path="/app"
             element={
               <ProtectedRoute>
-                <Navigate to={AUTHENTICATED_HOME_PATH} replace />
+                <HomePage />
               </ProtectedRoute>
             }
           />

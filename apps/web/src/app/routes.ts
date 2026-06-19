@@ -1,4 +1,4 @@
-export const AUTHENTICATED_HOME_PATH = "/";
+export const AUTHENTICATED_HOME_PATH = "/app";
 
 export const getSafeInternalRedirectPath = (
   redirectTo: string | null | undefined

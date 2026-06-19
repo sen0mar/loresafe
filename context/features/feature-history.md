@@ -58,6 +58,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 52: Explore club navigation — Made public club discovery cards link to their club detail pages with accessible focus states and focused frontend regression coverage.
 - Feature 53: Dark theme color refresh — Updated global UI tokens with a flatter near-black background, vivid steel-blue accents, simplified app background, and removed shared panel shadows.
 - Feature 54: Full-width app page layout — Made the authenticated shell reserve the right-rail column only when a page provides right-rail content, preserving Home while letting Explore, Settings, club detail, and Notifications fill the available width with focused layout regression coverage.
+- Feature 55: Public landing page hero — Added a public ThreadSync landing page with generated hero artwork, cursor-following demo tilt, signup/login entry points, `/app` authenticated home routing, and focused frontend regression coverage.
 
 ## Entry Format
 
