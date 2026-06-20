@@ -236,6 +236,10 @@ Production targets are not finalized. Until chosen:
 - Treat the backend as a long-running Node/Express service, not an edge-only function.
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
 - Verify cookie domain, SameSite, Secure, CORS, proxy, and HTTPS behavior before production.
+- R2 buckets that receive browser presigned uploads must allow the deployed frontend
+  origin, `PUT`, `GET`, `HEAD`, the `Content-Type` request header, and `ETag`
+  exposure. The production policy template lives at
+  `infra/cloudflare/r2-cors-production.json`.
 
 Environment variables must be validated at startup. Required groups:
 
