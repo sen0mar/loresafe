@@ -1,9 +1,17 @@
 import { z } from "zod";
 
+import { USERNAME_PATTERN } from "../../core/identity/user-names.js";
+
 export const signupRequestSchema = z
   .object({
     email: z.string().trim().toLowerCase().email().max(320),
-    displayName: z.string().trim().min(2).max(80),
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(3)
+      .max(30)
+      .regex(USERNAME_PATTERN),
     password: z.string().min(12).max(128)
   })
   .strict();

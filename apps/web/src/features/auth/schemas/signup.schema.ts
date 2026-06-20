@@ -2,11 +2,16 @@ import { z } from "zod";
 
 const signupRequestSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
-  displayName: z
+  username: z
     .string()
     .trim()
-    .min(2, "Display name must be at least 2 characters.")
-    .max(80, "Display name must be 80 characters or fewer."),
+    .toLowerCase()
+    .min(3, "Username must be at least 3 characters.")
+    .max(30, "Username must be 30 characters or fewer.")
+    .regex(
+      /^[a-z0-9_]+$/,
+      "Username can only use lowercase letters, numbers, and underscores."
+    ),
   password: z
     .string()
     .min(12, "Password must be at least 12 characters.")
@@ -27,10 +32,10 @@ export type SignupRequestValues = z.infer<typeof signupRequestSchema>;
 
 export const toSignupRequest = ({
   email,
-  displayName,
+  username,
   password
 }: SignupFormValues): SignupRequestValues => ({
   email,
-  displayName,
+  username,
   password
 });

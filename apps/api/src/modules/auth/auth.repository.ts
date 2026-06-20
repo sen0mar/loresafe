@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 
 export type AuthUserRecord = {
   id: string;
@@ -18,6 +19,7 @@ export type AuthUserRecord = {
 export type CreateAuthUserInput = {
   email: string;
   displayName: string;
+  username?: string;
   passwordHash: string;
 };
 
@@ -27,8 +29,8 @@ export type AuthUserCredentialsRecord = AuthUserRecord & {
 
 export type AuthUsersRepository = {
   findActiveUserByEmail: (email: string) => Promise<AuthUserRecord | null>;
-  findActiveUserByDisplayName?: (
-    displayName: string
+  findActiveUserByReservedName?: (
+    normalizedName: string
   ) => Promise<AuthUserRecord | null>;
   findActiveUserById: (id: string) => Promise<AuthUserRecord | null>;
   findActiveUserCredentialsByEmail: (
@@ -71,14 +73,23 @@ export const authUsersRepository: AuthUsersRepository = {
       select: userSelect
     }),
 
-  findActiveUserByDisplayName: (displayName) =>
-    prisma.user.findFirst({
+  findActiveUserByReservedName: async (normalizedName) => {
+    const reservation = await prisma.userNameReservation.findFirst({
       where: {
-        displayName,
-        deletedAt: null
+        normalizedName,
+        user: {
+          deletedAt: null
+        }
       },
-      select: userSelect
-    }),
+      select: {
+        user: {
+          select: userSelect
+        }
+      }
+    });
+
+    return reservation?.user ?? null;
+  },
 
   findActiveUserById: (id) =>
     prisma.user.findFirst({
@@ -99,14 +110,34 @@ export const authUsersRepository: AuthUsersRepository = {
     }),
 
   // The repository accepts the hash for writes but never selects it back into auth DTOs.
-  createUser: ({ email, displayName, passwordHash }) =>
-    prisma.user.create({
-      data: {
-        email,
-        displayName,
-        passwordHash
-      },
-      select: userSelect
+  createUser: ({ email, displayName, username, passwordHash }) =>
+    prisma.$transaction(async (transaction) => {
+      const lockedUsername = username ?? toFallbackUsername(displayName);
+      const user = await transaction.user.create({
+        data: {
+          email,
+          displayName,
+          username: lockedUsername,
+          passwordHash
+        },
+        select: userSelect
+      });
+
+      const reservationKeys = new Set([
+        normalizeNameReservationKey(lockedUsername),
+        normalizeNameReservationKey(displayName)
+      ]);
+
+      for (const normalizedName of reservationKeys) {
+        await transaction.userNameReservation.create({
+          data: {
+            normalizedName,
+            userId: user.id
+          }
+        });
+      }
+
+      return user;
     })
 };
 
@@ -115,3 +146,13 @@ export const isUniqueConstraintError = (error: unknown) =>
   typeof error === "object" &&
   "code" in error &&
   (error as { code: unknown }).code === "P2002";
+
+const toFallbackUsername = (displayName: string) => {
+  const username = displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return username.length >= 3 ? username.slice(0, 30) : "user";
+};

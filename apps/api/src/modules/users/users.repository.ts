@@ -1,10 +1,10 @@
 import { prisma } from "../../core/prisma/client.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 export type UpdateCurrentUserProfileInput = {
   displayName?: string;
-  username?: string;
   bio?: string | null;
 };
 
@@ -31,10 +31,9 @@ export type ListJoinedClubsResult = {
 };
 
 export type UsersRepository = {
-  findActiveUserByDisplayName: (
-    displayName: string
+  findActiveUserByReservedName: (
+    normalizedName: string
   ) => Promise<AuthUserRecord | null>;
-  findActiveUserByUsername: (username: string) => Promise<AuthUserRecord | null>;
   listJoinedClubsForUser: (
     userId: string,
     query: ListCurrentUserClubsQuery
@@ -63,23 +62,23 @@ const userSelect = {
 } as const;
 
 export const usersRepository: UsersRepository = {
-  findActiveUserByDisplayName: (displayName) =>
-    prisma.user.findFirst({
+  findActiveUserByReservedName: async (normalizedName) => {
+    const reservation = await prisma.userNameReservation.findFirst({
       where: {
-        displayName,
-        deletedAt: null
+        normalizedName,
+        user: {
+          deletedAt: null
+        }
       },
-      select: userSelect
-    }),
+      select: {
+        user: {
+          select: userSelect
+        }
+      }
+    });
 
-  findActiveUserByUsername: (username) =>
-    prisma.user.findFirst({
-      where: {
-        username,
-        deletedAt: null
-      },
-      select: userSelect
-    }),
+    return reservation?.user ?? null;
+  },
 
   listJoinedClubsForUser: async (userId, { page, limit }) => {
     const skip = (page - 1) * limit;
@@ -145,27 +144,82 @@ export const usersRepository: UsersRepository = {
     };
   },
 
-  updateActiveUserProfile: async (userId, input) => {
-    const updateResult = await prisma.user.updateMany({
-      where: {
-        id: userId,
-        deletedAt: null
-      },
-      data: input
-    });
+  updateActiveUserProfile: async (userId, input) =>
+    prisma.$transaction(async (transaction) => {
+      const currentUser = await transaction.user.findFirst({
+        where: {
+          id: userId,
+          deletedAt: null
+        },
+        select: userSelect
+      });
 
-    if (updateResult.count === 0) {
-      return null;
-    }
+      if (!currentUser) {
+        return null;
+      }
 
-    return prisma.user.findFirst({
-      where: {
-        id: userId,
-        deletedAt: null
-      },
-      select: userSelect
-    });
-  }
+      if (input.displayName !== undefined) {
+        const ensureReservation = async (normalizedName: string) => {
+          const existingReservation =
+            await transaction.userNameReservation.findUnique({
+              where: {
+                normalizedName
+              },
+              select: {
+                userId: true
+              }
+            });
+
+          if (!existingReservation || existingReservation.userId !== userId) {
+            await transaction.userNameReservation.create({
+              data: {
+                normalizedName,
+                userId
+              }
+            });
+          }
+        };
+
+        const nextDisplayNameKey = normalizeNameReservationKey(input.displayName);
+        const currentDisplayNameKey = normalizeNameReservationKey(
+          currentUser.displayName
+        );
+        const currentUsernameKey = normalizeNameReservationKey(
+          currentUser.username ?? ""
+        );
+
+        await ensureReservation(nextDisplayNameKey);
+
+        if (nextDisplayNameKey !== currentDisplayNameKey) {
+          if (
+            currentDisplayNameKey !== currentUsernameKey &&
+            currentDisplayNameKey !== nextDisplayNameKey
+          ) {
+            await transaction.userNameReservation.deleteMany({
+              where: {
+                normalizedName: currentDisplayNameKey,
+                userId
+              }
+            });
+          }
+        }
+      }
+
+      await transaction.user.update({
+        where: {
+          id: userId
+        },
+        data: input
+      });
+
+      return transaction.user.findFirst({
+        where: {
+          id: userId,
+          deletedAt: null
+        },
+        select: userSelect
+      });
+    })
 };
 
 export const isUniqueConstraintError = (error: unknown) =>

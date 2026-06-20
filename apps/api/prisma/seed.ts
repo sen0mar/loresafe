@@ -1,4 +1,8 @@
 import { env } from "../src/config/env.js";
+import {
+  normalizeNameReservationKey,
+  normalizeUsername
+} from "../src/core/identity/user-names.js";
 import { prisma } from "../src/core/prisma/client.js";
 import { hashPassword } from "../src/core/security/password.js";
 
@@ -20,12 +24,25 @@ const seedDemoUser = async () => {
   }
 
   const passwordHash = await hashPassword(env.DEMO_USER_PASSWORD);
+  const username = toDemoUsername(env.DEMO_USER_DISPLAY_NAME);
+  const reservationKeys = Array.from(
+    new Set([
+      normalizeNameReservationKey(username),
+      normalizeNameReservationKey(env.DEMO_USER_DISPLAY_NAME)
+    ])
+  );
 
   const demoUser = await prisma.user.create({
     data: {
       email,
       displayName: env.DEMO_USER_DISPLAY_NAME,
-      passwordHash
+      username,
+      passwordHash,
+      nameReservations: {
+        create: reservationKeys.map((normalizedName) => ({
+          normalizedName
+        }))
+      }
     },
     select: {
       id: true
@@ -34,6 +51,14 @@ const seedDemoUser = async () => {
 
   console.log("Demo user seed completed.");
   return demoUser;
+};
+
+const toDemoUsername = (displayName: string) => {
+  const username = normalizeUsername(displayName)
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return username.length >= 3 ? username.slice(0, 30) : "demo_user";
 };
 
 const seedDemoClub = async (ownerId: string) => {

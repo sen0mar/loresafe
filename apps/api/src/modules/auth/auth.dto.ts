@@ -5,7 +5,7 @@ export type AuthUserDto = {
   id: string;
   email: string;
   displayName: string;
-  username: string | null;
+  username: string;
   bio: string | null;
   avatarUrl: string | null;
   createdAt: string;
@@ -17,7 +17,7 @@ export const toAuthUserDto = (user: AuthUserRecord): AuthUserDto => ({
   id: user.id,
   email: user.email,
   displayName: user.displayName,
-  username: user.username,
+  username: user.username ?? user.displayName,
   bio: user.bio,
   avatarUrl:
     user.avatarAsset?.status === "READY"

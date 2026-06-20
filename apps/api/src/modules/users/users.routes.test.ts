@@ -4,6 +4,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { env } from "../../config/env.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
 import { createSessionToken } from "../../core/security/session-token.js";
@@ -55,6 +56,7 @@ describe("users routes", () => {
     const user = await repository.createUser({
       email: "reader@example.com",
       displayName: "Existing Reader",
+      username: "story_fan",
       passwordHash: "$argon2id$v=19$hash"
     });
     const otherUser = await repository.createUser({
@@ -227,7 +229,6 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         displayName: "  Updated Reader  ",
-        username: " Story_Fan ",
         bio: "  Safe discussions only.  "
       })
       .expect(200);
@@ -237,7 +238,7 @@ describe("users routes", () => {
         id: user.id,
         email: "reader@example.com",
         displayName: "Updated Reader",
-        username: "story_fan",
+        username: "existing_reader",
         bio: "Safe discussions only.",
         avatarUrl: null,
         createdAt: expect.any(String),
@@ -253,7 +254,7 @@ describe("users routes", () => {
     expect(meResponse.body.user).toMatchObject({
       id: user.id,
       displayName: "Updated Reader",
-      username: "story_fan",
+      username: "existing_reader",
       bio: "Safe discussions only."
     });
   });
@@ -319,36 +320,27 @@ describe("users routes", () => {
     });
   });
 
-  it("rejects duplicate active usernames", async () => {
+  it("rejects username update attempts", async () => {
     const user = await repository.createUser({
       email: "reader@example.com",
       displayName: "Existing Reader",
       passwordHash: "$argon2id$v=19$hash"
     });
-    const otherUser = await repository.createUser({
-      email: "other@example.com",
-      displayName: "Other Reader",
-      passwordHash: "$argon2id$v=19$hash"
-    });
-
-    await repository.updateActiveUserProfile(otherUser.id, {
-      username: "taken"
-    });
 
     const response = await request(app)
       .patch("/api/users/me")
-      .set("x-request-id", "profile-duplicate")
+      .set("x-request-id", "profile-username-locked")
       .set("Cookie", await createSessionCookie(user))
       .send({
-        username: "TAKEN"
+        username: "new_name"
       })
-      .expect(409);
+      .expect(400);
 
     expect(response.body).toEqual({
       error: {
-        code: "CONFLICT",
-        message: "That username is already taken.",
-        requestId: "profile-duplicate"
+        code: "BAD_REQUEST",
+        message: "Check the profile fields and try again.",
+        requestId: "profile-username-locked"
       }
     });
   });
@@ -370,7 +362,7 @@ describe("users routes", () => {
       .set("x-request-id", "profile-duplicate-display-name")
       .set("Cookie", await createSessionCookie(user))
       .send({
-        displayName: "Other Reader"
+        displayName: "other reader"
       })
       .expect(409);
 
@@ -380,6 +372,94 @@ describe("users routes", () => {
         message: "That display name is already taken.",
         requestId: "profile-duplicate-display-name"
       }
+    });
+  });
+
+  it("allows a user to set their display name to their own username", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      username: "story_fan",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .patch("/api/users/me")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        displayName: "Story_Fan"
+      })
+      .expect(200);
+
+    expect(response.body.user).toMatchObject({
+      id: user.id,
+      displayName: "Story_Fan",
+      username: "story_fan"
+    });
+  });
+
+  it("rejects display names reserved by another user's username", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      username: "taken_name",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .patch("/api/users/me")
+      .set("x-request-id", "profile-display-username-conflict")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        displayName: "Taken_Name"
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message: "That display name is already taken.",
+        requestId: "profile-display-username-conflict"
+      }
+    });
+  });
+
+  it("releases the previous display name after a successful display-name change", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherUser = await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    await request(app)
+      .patch("/api/users/me")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        displayName: "Updated Reader"
+      })
+      .expect(200);
+
+    const response = await request(app)
+      .patch("/api/users/me")
+      .set("Cookie", await createSessionCookie(otherUser))
+      .send({
+        displayName: "Existing Reader"
+      })
+      .expect(200);
+
+    expect(response.body.user).toMatchObject({
+      id: otherUser.id,
+      displayName: "Existing Reader"
     });
   });
 
@@ -427,6 +507,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     string,
     AuthUserRecord & { passwordHash: string }
   >();
+  readonly nameReservations = new Map<string, string>();
   readonly clubs = new Map<string, StoredClub>();
   readonly memberships: StoredMembership[] = [];
 
@@ -448,19 +529,15 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   ): Promise<AuthUserCredentialsRecord | null> =>
     this.usersByEmail.get(email) ?? null;
 
-  findActiveUserByDisplayName = async (displayName: string) => {
-    for (const user of this.usersByEmail.values()) {
-      if (user.displayName === displayName) {
-        return user;
-      }
+  findActiveUserByReservedName = async (normalizedName: string) => {
+    const reservedUserId = this.nameReservations.get(normalizedName);
+
+    if (!reservedUserId) {
+      return null;
     }
 
-    return null;
-  };
-
-  findActiveUserByUsername = async (username: string) => {
     for (const user of this.usersByEmail.values()) {
-      if (user.username === username) {
+      if (user.id === reservedUserId) {
         return user;
       }
     }
@@ -471,14 +548,16 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   createUser = async ({
     email,
     displayName,
+    username,
     passwordHash
   }: CreateAuthUserInput) => {
     const now = new Date();
+    const lockedUsername = username ?? toTestUsername(displayName);
     const user = {
       id: crypto.randomUUID(),
       email,
       displayName,
-      username: null,
+      username: lockedUsername,
       bio: null,
       passwordHash,
       sessionVersion: 1,
@@ -487,6 +566,8 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     };
 
     this.usersByEmail.set(email, user);
+    this.reserveName(lockedUsername, user.id);
+    this.reserveName(displayName, user.id);
 
     return user;
   };
@@ -584,6 +665,26 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
       return null;
     }
 
+    if (input.displayName !== undefined) {
+      const nextDisplayNameKey = normalizeNameReservationKey(input.displayName);
+      const currentDisplayNameKey = normalizeNameReservationKey(user.displayName);
+      const currentUsernameKey = normalizeNameReservationKey(user.username ?? "");
+      const reservedUserId = this.nameReservations.get(nextDisplayNameKey);
+
+      if (reservedUserId && reservedUserId !== userId) {
+        throw createUniqueConstraintError();
+      }
+
+      this.nameReservations.set(nextDisplayNameKey, userId);
+
+      if (
+        nextDisplayNameKey !== currentDisplayNameKey &&
+        currentDisplayNameKey !== currentUsernameKey
+      ) {
+        this.nameReservations.delete(currentDisplayNameKey);
+      }
+    }
+
     const updatedUser = {
       ...user,
       ...input,
@@ -594,7 +695,28 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
 
     return updatedUser;
   };
+
+  private reserveName = (name: string, userId: string) => {
+    this.nameReservations.set(normalizeNameReservationKey(name), userId);
+  };
 }
+
+const toTestUsername = (displayName: string) => {
+  const username = displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return username.length >= 3 ? username.slice(0, 30) : "user";
+};
+
+const createUniqueConstraintError = () => ({
+  code: "P2002",
+  meta: {
+    target: ["normalized_name"]
+  }
+});
 
 type StoredClub = {
   id: string;

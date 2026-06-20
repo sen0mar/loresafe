@@ -12,6 +12,7 @@ import { ReportDialog } from "@/features/clubs/components/report-dialog";
 import { ExplorePage } from "@/features/clubs/pages/explore-page";
 import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
 import { HomePage } from "@/features/home/pages/home-page";
+import { ProfileSettingsForm } from "@/features/profile/components/profile-settings-form";
 import { SearchResultsPage } from "@/features/search/pages/search-results-page";
 import {
   getJsonRequestBody,
@@ -54,7 +55,7 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Email"), "new@example.com");
-    await user.type(screen.getByLabelText("Display name"), "New Reader");
+    await user.type(screen.getByLabelText("Username"), "New_Reader");
     const signupPasswordInput = screen.getByLabelText("Password");
 
     await user.type(signupPasswordInput, "supersecret12");
@@ -76,7 +77,7 @@ describe("frontend regression smoke", () => {
     );
     expect(getJsonRequestBody(signupFetch.mock.calls[0])).toEqual({
       email: "new@example.com",
-      displayName: "New Reader",
+      username: "new_reader",
       password: "supersecret12"
     });
     signupRender.unmount();
@@ -124,13 +125,50 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Email"), "new@example.com");
-    await user.type(screen.getByLabelText("Display name"), "New Reader");
+    await user.type(screen.getByLabelText("Username"), "new_reader");
     await user.type(screen.getByLabelText("Password"), "supersecret12");
     await user.type(screen.getByLabelText("Confirm password"), "supersecret13");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(await screen.findByText("Passwords do not match.")).toBeVisible();
     expect(signupFetch).not.toHaveBeenCalled();
+  });
+
+  it("submits profile settings without changing the locked username", async () => {
+    const fetchMock = mockFetchRoutes([
+      {
+        method: "PATCH",
+        path: "/api/users/me",
+        response: {
+          user: {
+            ...authUser,
+            displayName: "Updated Reader",
+            bio: "No spoilers."
+          }
+        }
+      }
+    ]);
+    renderWithProviders(<ProfileSettingsForm currentUser={authUser} />);
+    const user = userEvent.setup();
+    const usernameInput = screen.getByLabelText("Username");
+    const displayNameInput = screen.getByLabelText("Display name");
+    const bioInput = screen.getByLabelText("Bio");
+
+    expect(usernameInput).toHaveValue("reader");
+    expect(usernameInput).toHaveAttribute("readonly");
+    expect(screen.getByText("Locked after signup.")).toBeVisible();
+
+    await user.clear(displayNameInput);
+    await user.type(displayNameInput, "Updated Reader");
+    await user.clear(bioInput);
+    await user.type(bioInput, "No spoilers.");
+    await user.click(screen.getByRole("button", { name: /save profile/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(getJsonRequestBody(fetchMock.mock.calls[0])).toEqual({
+      displayName: "Updated Reader",
+      bio: "No spoilers."
+    });
   });
 
   it("submits club creation and navigates to the new club", async () => {
@@ -610,7 +648,7 @@ const authUser = {
   id: userId,
   email: "reader@example.com",
   displayName: "Reader",
-  username: null,
+  username: "reader",
   bio: null,
   avatarUrl: null,
   createdAt: now,

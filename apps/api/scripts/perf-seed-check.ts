@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { normalizeNameReservationKey } from "../src/core/identity/user-names.js";
 import { prisma } from "../src/core/prisma/client.js";
 
 const PERF_PREFIX = "threadsync-perf";
@@ -44,7 +45,7 @@ const seedPerfData = async () => {
     id: uuidFor(`${PERF_PREFIX}:user:${index}`),
     email: `${PERF_PREFIX}-${index}@example.com`,
     displayName: `Perf Reader ${index}`,
-    username: `${PERF_PREFIX}-${index}`,
+    username: `threadsync_perf_${index}`,
     passwordHash: PASSWORD_HASH,
     createdAt: now,
     updatedAt: now
@@ -53,7 +54,7 @@ const seedPerfData = async () => {
     id: uuidFor(`${PERF_PREFIX}:outsider`),
     email: `${PERF_PREFIX}-outsider@example.com`,
     displayName: "Perf Outsider",
-    username: `${PERF_PREFIX}-outsider`,
+    username: "threadsync_perf_outsider",
     passwordHash: PASSWORD_HASH,
     createdAt: now,
     updatedAt: now
@@ -72,6 +73,10 @@ const seedPerfData = async () => {
 
   await prisma.user.createMany({
     data: allUsers,
+    skipDuplicates: true
+  });
+  await prisma.userNameReservation.createMany({
+    data: toUserNameReservations(allUsers),
     skipDuplicates: true
   });
   await prisma.club.createMany({
@@ -333,6 +338,24 @@ const seedPerfData = async () => {
     publicClub: clubs[0],
     privateClub: clubs[6]
   };
+};
+
+const toUserNameReservations = (
+  users: Array<{ id: string; displayName: string; username: string }>
+) => {
+  const reservations = new Map<string, { normalizedName: string; userId: string }>();
+
+  for (const user of users) {
+    for (const name of [user.username, user.displayName]) {
+      const normalizedName = normalizeNameReservationKey(name);
+      reservations.set(normalizedName, {
+        normalizedName,
+        userId: user.id
+      });
+    }
+  }
+
+  return [...reservations.values()];
 };
 
 const explain = async (label: string, sql: string) => {

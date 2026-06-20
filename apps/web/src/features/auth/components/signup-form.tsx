@@ -1,7 +1,7 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { ArrowRight, AtSign, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -34,7 +34,7 @@ type SignupFieldErrors = Partial<Record<keyof SignupFormValues, string>>;
 
 const initialValues: SignupFormValues = {
   email: "",
-  displayName: "",
+  username: "",
   password: "",
   confirmPassword: ""
 };
@@ -77,7 +77,7 @@ export const SignupForm = () => {
 
       setFieldErrors({
         email: flattenedErrors.email?.[0],
-        displayName: flattenedErrors.displayName?.[0],
+        username: flattenedErrors.username?.[0],
         password: flattenedErrors.password?.[0],
         confirmPassword: flattenedErrors.confirmPassword?.[0]
       });
@@ -131,21 +131,21 @@ export const SignupForm = () => {
           </AuthFormField>
 
           <AuthFormField
-            id="displayName"
-            label="Display name"
-            icon={<UserRound className="size-4" />}
-            error={fieldErrors.displayName}
+            id="username"
+            label="Username"
+            icon={<AtSign className="size-4" />}
+            error={fieldErrors.username}
           >
             <Input
-              id="displayName"
+              id="username"
               type="text"
-              autoComplete="name"
-              value={values.displayName}
-              onChange={updateField("displayName")}
+              autoComplete="username"
+              value={values.username}
+              onChange={updateField("username")}
               disabled={signupMutation.isPending}
-              aria-invalid={!!fieldErrors.displayName}
+              aria-invalid={!!fieldErrors.username}
               aria-describedby={
-                fieldErrors.displayName ? "displayName-error" : undefined
+                fieldErrors.username ? "username-error" : undefined
               }
             />
           </AuthFormField>

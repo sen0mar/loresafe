@@ -56,7 +56,7 @@ Normal discussion spaces rely on manual spoiler tags. ThreadSync makes spoiler s
 ### Accounts and Profiles
 
 - Sign up, login, logout, authenticated profile.
-- Avatar/display name basics.
+- Locked username at signup, plus avatar/display name basics.
 - Joined clubs and per-club progress.
 
 ### Clubs and Membership

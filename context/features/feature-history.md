@@ -63,6 +63,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 57: Login home navigation — Added a visible top-left login page button that returns visitors to the public home page, with focused route coverage.
 - Feature 58: Auth password form polish — Added signup password confirmation, animated password reveal controls for login and signup, request payload shaping to exclude confirmation, and focused frontend regression coverage.
 - Feature 59: Unique display names — Added active-user display name uniqueness with a committed migration, duplicate-display-name signup/profile safeguards, production duplicate cleanup, and focused backend regression tests.
+- Feature 60: Locked usernames and name reservations — Switched signup to locked handle-style usernames, made username the initial display name, added cross-field case-insensitive name reservations with a committed migration, locked username edits in profile settings, and added focused auth/profile regression tests.
 
 ## Entry Format
 

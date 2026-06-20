@@ -92,7 +92,6 @@ export const ProfileSettingsForm = ({
 
       setFieldErrors({
         displayName: flattenedErrors.displayName?.[0],
-        username: flattenedErrors.username?.[0],
         bio: flattenedErrors.bio?.[0]
       });
       return;
@@ -109,7 +108,7 @@ export const ProfileSettingsForm = ({
         if (error instanceof ApiError && error.statusCode === 409) {
           setFieldErrors((currentErrors) => ({
             ...currentErrors,
-            username: error.message
+            displayName: error.message
           }));
           return;
         }
@@ -224,18 +223,16 @@ export const ProfileSettingsForm = ({
             id="username"
             label="Username"
             icon={<AtSign className="size-4" />}
-            error={fieldErrors.username}
           >
             <Input
               id="username"
               type="text"
               autoComplete="username"
-              value={values.username}
-              onChange={updateField("username")}
-              disabled={updateProfileMutation.isPending}
-              aria-invalid={!!fieldErrors.username}
-              aria-describedby={fieldErrors.username ? "username-error" : undefined}
+              value={currentUser.username}
+              readOnly
+              aria-readonly="true"
             />
+            <p className="text-xs text-faint">Locked after signup.</p>
           </ProfileFormField>
 
           <ProfileFormField
@@ -313,6 +310,5 @@ const UploadProgress = ({ progress }: { progress: number }) => (
 
 const getInitialValues = (user: AuthUser): ProfileFormValues => ({
   displayName: user.displayName,
-  username: user.username ?? "",
   bio: user.bio ?? ""
 });

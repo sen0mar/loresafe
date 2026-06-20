@@ -6,14 +6,6 @@ const displayNameSchema = z
   .min(2)
   .max(80);
 
-const usernameSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .min(3)
-  .max(30)
-  .regex(/^[a-z0-9_]+$/);
-
 const bioSchema = z
   .string()
   .trim()
@@ -23,7 +15,6 @@ const bioSchema = z
 export const updateCurrentUserProfileRequestSchema = z
   .object({
     displayName: displayNameSchema.optional(),
-    username: usernameSchema.optional(),
     bio: bioSchema.optional()
   })
   .strict()

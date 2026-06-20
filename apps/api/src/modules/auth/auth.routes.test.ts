@@ -11,6 +11,7 @@ import type { Response } from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { env } from "../../config/env.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
 import {
@@ -46,7 +47,7 @@ describe("auth routes", () => {
       .set("x-request-id", "signup-success")
       .send({
         email: "Reader@Example.com",
-        displayName: "New Reader",
+        username: "New_Reader",
         password: "correct horse battery staple"
       })
       .expect(201);
@@ -55,8 +56,8 @@ describe("auth routes", () => {
       user: {
         id: expect.any(String),
         email: "reader@example.com",
-        displayName: "New Reader",
-        username: null,
+        displayName: "new_reader",
+        username: "new_reader",
         bio: null,
         avatarUrl: null,
         createdAt: expect.any(String),
@@ -87,7 +88,7 @@ describe("auth routes", () => {
       .set("x-request-id", "signup-invalid")
       .send({
         email: "not-an-email",
-        displayName: "N",
+        username: "not ok",
         password: "short"
       })
       .expect(400);
@@ -113,7 +114,7 @@ describe("auth routes", () => {
       .set("x-request-id", "signup-duplicate")
       .send({
         email: "duplicate@example.com",
-        displayName: "New Reader",
+        username: "new_reader",
         password: "correct horse battery staple"
       })
       .expect(409);
@@ -127,7 +128,7 @@ describe("auth routes", () => {
     });
   });
 
-  it("rejects duplicate active display names", async () => {
+  it("rejects usernames reserved by active display names", async () => {
     await repository.createUser({
       email: "existing@example.com",
       displayName: "Existing Reader",
@@ -136,10 +137,10 @@ describe("auth routes", () => {
 
     const response = await request(app)
       .post("/api/auth/signup")
-      .set("x-request-id", "signup-duplicate-display-name")
+      .set("x-request-id", "signup-reserved-name")
       .send({
         email: "new@example.com",
-        displayName: "Existing Reader",
+        username: "existing_reader",
         password: "correct horse battery staple"
       })
       .expect(409);
@@ -147,8 +148,8 @@ describe("auth routes", () => {
     expect(response.body).toEqual({
       error: {
         code: "CONFLICT",
-        message: "That display name is already taken.",
-        requestId: "signup-duplicate-display-name"
+        message: "That username is already taken.",
+        requestId: "signup-reserved-name"
       }
     });
   });
@@ -174,7 +175,7 @@ describe("auth routes", () => {
         id: expect.any(String),
         email: "reader@example.com",
         displayName: "Existing Reader",
-        username: null,
+        username: "existing_reader",
         bio: null,
         avatarUrl: null,
         createdAt: expect.any(String),
@@ -321,7 +322,7 @@ describe("auth routes", () => {
       .set("x-request-id", "signup-first")
       .send({
         email: "reader@example.com",
-        displayName: "New Reader",
+        username: "new_reader",
         password: "correct horse battery staple"
       })
       .expect(201);
@@ -331,7 +332,7 @@ describe("auth routes", () => {
       .set("x-request-id", "signup-limited")
       .send({
         email: "another@example.com",
-        displayName: "Another Reader",
+        username: "another_reader",
         password: "correct horse battery staple"
       })
       .expect(429);
@@ -374,7 +375,7 @@ describe("auth routes", () => {
       .post("/api/auth/signup")
       .send({
         email: "reader@example.com",
-        displayName: "New Reader",
+        username: "new_reader",
         password: "correct horse battery staple"
       })
       .expect(201);
@@ -388,8 +389,8 @@ describe("auth routes", () => {
       user: {
         id: signupResponse.body.user.id,
         email: "reader@example.com",
-        displayName: "New Reader",
-        username: null,
+        displayName: "new_reader",
+        username: "new_reader",
         bio: null,
         avatarUrl: null,
         createdAt: expect.any(String),
@@ -522,14 +523,21 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     string,
     AuthUserRecord & { passwordHash: string }
   >();
+  readonly nameReservations = new Map<string, string>();
   credentialLookupCount = 0;
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
 
-  findActiveUserByDisplayName = async (displayName: string) => {
+  findActiveUserByReservedName = async (normalizedName: string) => {
+    const userId = this.nameReservations.get(normalizedName);
+
+    if (!userId) {
+      return null;
+    }
+
     for (const user of this.usersByEmail.values()) {
-      if (user.displayName === displayName) {
+      if (user.id === userId) {
         return user;
       }
     }
@@ -555,13 +563,19 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     return this.usersByEmail.get(email) ?? null;
   };
 
-  createUser = async ({ email, displayName, passwordHash }: CreateAuthUserInput) => {
+  createUser = async ({
+    email,
+    displayName,
+    username,
+    passwordHash
+  }: CreateAuthUserInput) => {
     const now = new Date();
+    const lockedUsername = username ?? toTestUsername(displayName);
     const user = {
       id: crypto.randomUUID(),
       email,
       displayName,
-      username: null,
+      username: lockedUsername,
       bio: null,
       passwordHash,
       sessionVersion: 1,
@@ -570,10 +584,26 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     };
 
     this.usersByEmail.set(email, user);
+    this.reserveName(displayName, user.id);
+    this.reserveName(lockedUsername, user.id);
 
     return user;
   };
+
+  private reserveName = (name: string, userId: string) => {
+    this.nameReservations.set(normalizeNameReservationKey(name), userId);
+  };
 }
+
+const toTestUsername = (displayName: string) => {
+  const username = displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return username.length >= 3 ? username.slice(0, 30) : "user";
+};
 
 type InMemoryRateLimitClient = {
   resetTime: Date;

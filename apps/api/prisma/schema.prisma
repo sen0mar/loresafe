@@ -120,7 +120,7 @@ model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
   displayName    String    @map("display_name") @db.VarChar(80)
-  username       String?   @db.VarChar(30)
+  username       String    @db.VarChar(30)
   bio            String?   @db.VarChar(160)
   avatarAssetId  String?   @unique(map: "users_avatar_asset_id_unique") @map("avatar_asset_id") @db.Uuid
   passwordHash   String    @map("password_hash")
@@ -144,12 +144,24 @@ model User {
   fileAssets         FileAsset[] @relation("FileAssetOwner")
   auditLogsAuthored  AuditLog[] @relation("AuditLogActor")
   auditLogsTargeting AuditLog[] @relation("AuditLogTargetUser")
+  nameReservations   UserNameReservation[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
-  @@unique([displayName], map: "users_display_name_active_unique", where: raw("\"deleted_at\" IS NULL"))
-  @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL AND \"username\" IS NOT NULL"))
+  @@unique([username], map: "users_username_active_unique", where: raw("\"deleted_at\" IS NULL"))
   @@index([deletedAt], map: "users_deleted_at_idx")
   @@map("users")
+}
+
+model UserNameReservation {
+  normalizedName String   @id @map("normalized_name") @db.VarChar(80)
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "user_name_reservations_user_id_idx")
+  @@map("user_name_reservations")
 }
 
 model Club {

@@ -4,6 +4,7 @@ import {
   createSessionToken,
   verifySessionToken
 } from "../../core/security/session-token.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { type AuthUserDto, toAuthUserDto } from "./auth.dto.js";
 import type { LoginRequest, SignupRequest } from "./auth.schema.js";
 import {
@@ -55,19 +56,21 @@ export const createAuthService = (
   };
 
   return {
-    signup: async ({ email, displayName, password }) => {
+    signup: async ({ email, username, password }) => {
       const existingUser = await usersRepository.findActiveUserByEmail(email);
 
       if (existingUser) {
         throw duplicateEmailError();
       }
 
-      const existingDisplayName = usersRepository.findActiveUserByDisplayName
-        ? await usersRepository.findActiveUserByDisplayName(displayName)
+      const existingReservedName = usersRepository.findActiveUserByReservedName
+        ? await usersRepository.findActiveUserByReservedName(
+            normalizeNameReservationKey(username)
+          )
         : null;
 
-      if (existingDisplayName) {
-        throw duplicateDisplayNameError();
+      if (existingReservedName) {
+        throw duplicateUsernameError();
       }
 
       // Plaintext passwords should not cross into repositories or Prisma calls.
@@ -76,7 +79,8 @@ export const createAuthService = (
       try {
         const user = await usersRepository.createUser({
           email,
-          displayName,
+          displayName: username,
+          username,
           passwordHash
         });
         const sessionToken = await createSessionToken({
@@ -148,15 +152,17 @@ const authenticationRequiredError = () =>
 const duplicateEmailError = () =>
   new HttpError(409, "CONFLICT", "An account with that email already exists.");
 
-const duplicateDisplayNameError = () =>
-  new HttpError(409, "CONFLICT", "That display name is already taken.");
+const duplicateUsernameError = () =>
+  new HttpError(409, "CONFLICT", "That username is already taken.");
 
 const duplicateSignupError = (error: unknown) => {
-  if (uniqueConstraintTargets(error).includes("display_name")) {
-    return duplicateDisplayNameError();
+  const targets = uniqueConstraintTargets(error);
+
+  if (targets.includes("email")) {
+    return duplicateEmailError();
   }
 
-  return duplicateEmailError();
+  return duplicateUsernameError();
 };
 
 const uniqueConstraintTargets = (error: unknown) => {
@@ -166,7 +172,9 @@ const uniqueConstraintTargets = (error: unknown) => {
 
   const meta = (error as { meta?: { target?: unknown } }).meta;
 
-  return Array.isArray(meta?.target)
-    ? meta.target.filter((target): target is string => typeof target === "string")
-    : [];
+  if (Array.isArray(meta?.target)) {
+    return meta.target.filter((target): target is string => typeof target === "string");
+  }
+
+  return typeof meta?.target === "string" ? [meta.target] : [];
 };

@@ -1,4 +1,5 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { type AuthUserDto, toAuthUserDto } from "../auth/auth.dto.js";
 import {
   type JoinedClubsResponse,
@@ -44,20 +45,12 @@ export const createUsersService = (
 
   updateCurrentUserProfile: async (userId, input) => {
     if (input.displayName !== undefined) {
-      const existingUser = await repository.findActiveUserByDisplayName(
-        input.displayName
+      const existingUser = await repository.findActiveUserByReservedName(
+        normalizeNameReservationKey(input.displayName)
       );
 
       if (existingUser && existingUser.id !== userId) {
         throw duplicateDisplayNameError();
-      }
-    }
-
-    if (input.username !== undefined) {
-      const existingUser = await repository.findActiveUserByUsername(input.username);
-
-      if (existingUser && existingUser.id !== userId) {
-        throw duplicateUsernameError();
       }
     }
 
@@ -81,28 +74,7 @@ export const createUsersService = (
 
 export const usersService = createUsersService();
 
-const duplicateUsernameError = () =>
-  new HttpError(409, "CONFLICT", "That username is already taken.");
-
 const duplicateDisplayNameError = () =>
   new HttpError(409, "CONFLICT", "That display name is already taken.");
 
-const duplicateProfileFieldError = (error: unknown) => {
-  if (uniqueConstraintTargets(error).includes("display_name")) {
-    return duplicateDisplayNameError();
-  }
-
-  return duplicateUsernameError();
-};
-
-const uniqueConstraintTargets = (error: unknown) => {
-  if (!error || typeof error !== "object" || !("meta" in error)) {
-    return [];
-  }
-
-  const meta = (error as { meta?: { target?: unknown } }).meta;
-
-  return Array.isArray(meta?.target)
-    ? meta.target.filter((target): target is string => typeof target === "string")
-    : [];
-};
+const duplicateProfileFieldError = (_error: unknown) => duplicateDisplayNameError();
