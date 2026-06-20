@@ -68,6 +68,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 62: Development database reset script — Added a guarded development-only reset command that truncates public app tables while preserving Prisma migration history, reruns the existing demo seed, documents the dev reset URL, and includes script guardrail tests.
 - Feature 63: Public auth session check optimization — Rendered login/signup immediately, skipped first-time signed-out `/me` probes with a non-sensitive session hint, preserved authenticated redirects, and added focused frontend guard coverage.
 - Feature 64: Authenticated home navigation fix — Pointed authenticated desktop and mobile Home navigation to `/app` instead of the public landing page, preserved intentional `/` landing links, and added focused shell routing regression coverage.
+- Feature 65: Spoiler milestone title unlock fix — Made milestone and progress DTOs reveal hidden full titles only when viewer progress permits, refreshed frontend milestone labels to use unlocked titles, and added focused backend regression coverage.
 
 ## Entry Format
 

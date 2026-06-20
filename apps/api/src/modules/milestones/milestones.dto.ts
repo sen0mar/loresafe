@@ -1,4 +1,8 @@
-import type { MilestoneRecord } from "./milestones.repository.js";
+import type {
+  MilestoneRecord,
+  MilestoneViewerProgress
+} from "./milestones.repository.js";
+import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 
 export type MilestoneDto = {
   id: string;
@@ -36,14 +40,30 @@ export type CreateMilestoneTemplateResponse = {
   milestones: MilestoneDto[];
 };
 
+const defaultViewerProgress: MilestoneViewerProgress = {
+  mode: "STRICT",
+  currentMilestonePosition: null
+};
+
 export const toMilestoneDto = (
-  milestone: MilestoneRecord
-): MilestoneDto => ({
-  id: milestone.id,
-  position: milestone.position,
-  safeTitle: milestone.safeTitle,
-  fullTitle: milestone.spoilerName ? null : milestone.fullTitle,
-  description: milestone.description,
-  spoilerName: milestone.spoilerName,
-  isFullTitleHidden: milestone.spoilerName
-});
+  milestone: MilestoneRecord,
+  viewerProgress: MilestoneViewerProgress = defaultViewerProgress
+): MilestoneDto => {
+  const canSeeSpoilerName =
+    !milestone.spoilerName ||
+    canViewRequiredMilestone({
+      mode: viewerProgress.mode,
+      currentMilestonePosition: viewerProgress.currentMilestonePosition,
+      requiredMilestonePosition: milestone.position
+    });
+
+  return {
+    id: milestone.id,
+    position: milestone.position,
+    safeTitle: milestone.safeTitle,
+    fullTitle: canSeeSpoilerName ? milestone.fullTitle : null,
+    description: milestone.description,
+    spoilerName: milestone.spoilerName,
+    isFullTitleHidden: milestone.spoilerName && !canSeeSpoilerName
+  };
+};

@@ -5,7 +5,10 @@ import type {
   RecentlyUnlockedRecord
 } from "./progress.repository.js";
 import type { ProgressMode } from "./progress.schema.js";
-import { getCompletedMilestoneCount } from "../spoilers/spoiler.policy.js";
+import {
+  canViewRequiredMilestone,
+  getCompletedMilestoneCount
+} from "../spoilers/spoiler.policy.js";
 import {
   type ClubPostCardDto,
   toClubPostCardDto
@@ -62,6 +65,10 @@ export type RecentlyUnlockedResponse = {
 export const toClubProgressDto = (
   progress: ClubProgressRecord
 ): ClubProgressDto => {
+  const viewerProgress = {
+    mode: progress.mode,
+    currentMilestonePosition: progress.currentMilestone?.position ?? null
+  };
   const completedMilestones = getCompletedMilestoneCount({
     mode: progress.mode,
     currentMilestonePosition: progress.currentMilestone?.position ?? null,
@@ -79,13 +86,15 @@ export const toClubProgressDto = (
     id: progress.id,
     mode: progress.mode,
     currentMilestone: progress.currentMilestone
-      ? toProgressMilestoneDto(progress.currentMilestone)
+      ? toProgressMilestoneDto(progress.currentMilestone, viewerProgress)
       : null,
     totalMilestones: progress.totalMilestones,
     completedMilestones,
     percentage,
     updatedAt: progress.updatedAt?.toISOString() ?? null,
-    history: progress.history.map(toProgressHistoryDto)
+    history: progress.history.map((history) =>
+      toProgressHistoryDto(history, viewerProgress)
+    )
   };
 };
 
@@ -114,26 +123,44 @@ export const toRecentlyUnlockedResponse = async (
 });
 
 const toProgressHistoryDto = (
-  history: ProgressHistoryRecord
+  history: ProgressHistoryRecord,
+  viewerProgress: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+  }
 ): ProgressHistoryDto => ({
   id: history.id,
   fromMode: history.fromMode,
   toMode: history.toMode,
   fromMilestone: history.fromMilestone
-    ? toProgressMilestoneDto(history.fromMilestone)
+    ? toProgressMilestoneDto(history.fromMilestone, viewerProgress)
     : null,
   toMilestone: history.toMilestone
-    ? toProgressMilestoneDto(history.toMilestone)
+    ? toProgressMilestoneDto(history.toMilestone, viewerProgress)
     : null,
   createdAt: history.createdAt.toISOString()
 });
 
 const toProgressMilestoneDto = (
-  milestone: ProgressMilestoneRecord
-): ProgressMilestoneDto => ({
-  id: milestone.id,
-  position: milestone.position,
-  safeTitle: milestone.safeTitle,
-  fullTitle: milestone.spoilerName ? null : milestone.fullTitle,
-  isFullTitleHidden: milestone.spoilerName
-});
+  milestone: ProgressMilestoneRecord,
+  viewerProgress: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+  }
+): ProgressMilestoneDto => {
+  const canSeeSpoilerName =
+    !milestone.spoilerName ||
+    canViewRequiredMilestone({
+      mode: viewerProgress.mode,
+      currentMilestonePosition: viewerProgress.currentMilestonePosition,
+      requiredMilestonePosition: milestone.position
+    });
+
+  return {
+    id: milestone.id,
+    position: milestone.position,
+    safeTitle: milestone.safeTitle,
+    fullTitle: canSeeSpoilerName ? milestone.fullTitle : null,
+    isFullTitleHidden: milestone.spoilerName && !canSeeSpoilerName
+  };
+};

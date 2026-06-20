@@ -7,6 +7,7 @@ import type {
   MoveMilestoneRequest,
   UpdateMilestoneRequest
 } from "./milestones.schema.js";
+import type { ProgressMode } from "../progress/progress.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -25,9 +26,15 @@ export type MilestoneRecord = {
   spoilerName: boolean;
 };
 
+export type MilestoneViewerProgress = {
+  mode: ProgressMode;
+  currentMilestonePosition: number | null;
+};
+
 export type ListMilestonesResult = {
   milestones: MilestoneRecord[];
   total: number;
+  viewerProgress: MilestoneViewerProgress;
 };
 
 export type MilestonesRepository = {
@@ -385,7 +392,7 @@ export const milestonesRepository: MilestonesRepository = {
 
     const skip = (page - 1) * limit;
 
-    const [milestones, total] = await prisma.$transaction([
+    const [milestones, total, progress] = await prisma.$transaction([
       prisma.milestone.findMany({
         where: {
           clubId: club.id
@@ -406,12 +413,32 @@ export const milestonesRepository: MilestonesRepository = {
         where: {
           clubId: club.id
         }
+      }),
+      prisma.clubProgress.findUnique({
+        where: {
+          userId_clubId: {
+            userId,
+            clubId: club.id
+          }
+        },
+        select: {
+          mode: true,
+          currentMilestone: {
+            select: {
+              position: true
+            }
+          }
+        }
       })
     ]);
 
     return {
       milestones,
-      total
+      total,
+      viewerProgress: {
+        mode: (progress?.mode ?? "STRICT") as ProgressMode,
+        currentMilestonePosition: progress?.currentMilestone?.position ?? null
+      }
     };
   }
 };

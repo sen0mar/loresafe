@@ -439,11 +439,23 @@ const ProgressLoading = () => (
 );
 
 const getProgressLabel = (
-  milestone: { position: number; safeTitle: string } | null
-) => (milestone ? `Milestone ${milestone.position}: ${milestone.safeTitle}` : "Not started");
+  milestone: {
+    position: number;
+    safeTitle: string;
+    fullTitle?: string | null;
+  } | null
+) =>
+  milestone
+    ? `Milestone ${milestone.position}: ${getMilestoneDisplayTitle(milestone)}`
+    : "Not started";
 
 const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${milestone.safeTitle}`;
+  `${milestone.position}. ${getMilestoneDisplayTitle(milestone)}`;
+
+const getMilestoneDisplayTitle = (milestone: {
+  safeTitle: string;
+  fullTitle?: string | null;
+}) => milestone.fullTitle ?? milestone.safeTitle;
 
 const formatMode = (mode: ProgressMode) =>
   progressModeOptions.find((option) => option.value === mode)?.label ?? mode;

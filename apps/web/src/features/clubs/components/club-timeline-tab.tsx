@@ -224,6 +224,9 @@ const TimelineMilestoneCard = ({
     milestoneToFormValues(milestone)
   );
   const [fieldErrors, setFieldErrors] = useState<MilestoneFieldErrors>({});
+  const displayTitle = getMilestoneDisplayTitle(milestone);
+  const hasUnlockedSpoilerTitle =
+    milestone.fullTitle !== null && milestone.fullTitle !== milestone.safeTitle;
 
   useEffect(() => {
     if (!isEditing) {
@@ -285,10 +288,12 @@ const TimelineMilestoneCard = ({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
             <h3 className="text-base font-semibold tracking-normal text-primary">
-              {milestone.safeTitle}
+              {displayTitle}
             </h3>
-            {milestone.fullTitle ? (
-              <p className="text-sm text-secondary">{milestone.fullTitle}</p>
+            {hasUnlockedSpoilerTitle ? (
+              <p className="text-sm text-secondary">
+                Safe label: {milestone.safeTitle}
+              </p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -486,6 +491,9 @@ const milestoneToFormValues = (
   description: milestone.description ?? "",
   spoilerName: milestone.spoilerName
 });
+
+const getMilestoneDisplayTitle = (milestone: ClubMilestone) =>
+  milestone.fullTitle ?? milestone.safeTitle;
 
 const TimelineLoading = () => (
   <Card>

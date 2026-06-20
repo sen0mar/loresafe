@@ -85,7 +85,7 @@ export const createMilestonesService = (
       });
 
       return {
-        milestones: milestones.map(toMilestoneDto)
+        milestones: milestones.map((milestone) => toMilestoneDto(milestone))
       };
     } catch (error) {
       if (error instanceof MilestoneTemplateConflictError) {
@@ -170,7 +170,7 @@ export const createMilestonesService = (
       }
 
       return {
-        milestones: milestones.map(toMilestoneDto)
+        milestones: milestones.map((milestone) => toMilestoneDto(milestone))
       };
     } catch (error) {
       if (error instanceof MilestoneMoveConflictError) {
@@ -193,7 +193,9 @@ export const createMilestonesService = (
     }
 
     return {
-      milestones: result.milestones.map(toMilestoneDto),
+      milestones: result.milestones.map((milestone) =>
+        toMilestoneDto(milestone, result.viewerProgress)
+      ),
       pagination: {
         page: query.page,
         limit: query.limit,

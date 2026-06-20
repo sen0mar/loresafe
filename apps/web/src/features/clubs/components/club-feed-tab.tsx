@@ -103,7 +103,7 @@ const getDefaultPostValues = (): CreatePostFormValues => ({
 });
 
 const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${milestone.safeTitle}`;
+  `${milestone.position}. ${milestone.fullTitle ?? milestone.safeTitle}`;
 
 const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
   {

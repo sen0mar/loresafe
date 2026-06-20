@@ -22,6 +22,7 @@ import {
   type MilestoneRecord,
   type MilestonesRepository
 } from "./milestones.repository.js";
+import type { ProgressMode } from "../progress/progress.schema.js";
 import { createMilestonesController } from "./milestones.controller.js";
 import { createMilestonesRouter } from "./milestones.routes.js";
 import { createMilestonesService } from "./milestones.service.js";
@@ -1094,6 +1095,53 @@ describe("milestones routes", () => {
     expect(JSON.stringify(response.body)).not.toContain("Forbidden Name");
   });
 
+  it("reveals spoiler milestone full titles after the user reaches them", async () => {
+    const user = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(user.id, club.id);
+    const reachedMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Safe opening",
+      fullTitle: "Real opening title",
+      spoilerName: true
+    });
+    const futureMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Safe midpoint",
+      fullTitle: "Future midpoint title",
+      spoilerName: true
+    });
+    repository.setProgress(user.id, club.id, reachedMilestone.id, "STRICT");
+
+    const response = await request(app)
+      .get("/api/clubs/public-story-circle/milestones")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.milestones).toMatchObject([
+      {
+        id: reachedMilestone.id,
+        position: 1,
+        safeTitle: "Safe opening",
+        fullTitle: "Real opening title",
+        spoilerName: true,
+        isFullTitleHidden: false
+      },
+      {
+        id: futureMilestone.id,
+        position: 2,
+        safeTitle: "Safe midpoint",
+        fullTitle: null,
+        spoilerName: true,
+        isFullTitleHidden: true
+      }
+    ]);
+    expect(JSON.stringify(response.body)).not.toContain("Future midpoint title");
+  });
+
   it("returns narrow milestone DTO fields", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
@@ -1161,6 +1209,13 @@ type CreateStoredClubInput = {
 
 type CreateStoredMilestoneInput = Omit<MilestoneRecord, "id">;
 
+type StoredProgress = {
+  userId: string;
+  clubId: string;
+  currentMilestoneId: string | null;
+  mode: ProgressMode;
+};
+
 class InMemoryMilestonesRepository
   implements AuthUsersRepository, MilestonesRepository
 {
@@ -1175,6 +1230,7 @@ class InMemoryMilestonesRepository
     role: "OWNER" | "MODERATOR" | "MEMBER";
   }> = [];
   readonly milestones: Array<MilestoneRecord & { clubId: string }> = [];
+  readonly progressRows: StoredProgress[] = [];
   templateCreationTransactionCount = 0;
 
   findActiveUserByEmail = async (email: string) =>
@@ -1239,6 +1295,30 @@ class InMemoryMilestonesRepository
       userId,
       clubId,
       role
+    });
+  };
+
+  setProgress = (
+    userId: string,
+    clubId: string,
+    currentMilestoneId: string | null,
+    mode: ProgressMode
+  ) => {
+    const existingProgress = this.progressRows.find(
+      (progress) => progress.userId === userId && progress.clubId === clubId
+    );
+
+    if (existingProgress) {
+      existingProgress.currentMilestoneId = currentMilestoneId;
+      existingProgress.mode = mode;
+      return;
+    }
+
+    this.progressRows.push({
+      userId,
+      clubId,
+      currentMilestoneId,
+      mode
     });
   };
 
@@ -1398,10 +1478,18 @@ class InMemoryMilestonesRepository
           leftMilestone.id.localeCompare(rightMilestone.id)
       );
     const start = (page - 1) * limit;
+    const progress = this.findProgress(userId, club.id);
+    const currentMilestone = this.findMilestone(
+      progress?.currentMilestoneId ?? null
+    );
 
     return {
       milestones: orderedMilestones.slice(start, start + limit),
-      total: orderedMilestones.length
+      total: orderedMilestones.length,
+      viewerProgress: {
+        mode: progress?.mode ?? "STRICT",
+        currentMilestonePosition: currentMilestone?.position ?? null
+      }
     };
   };
 
@@ -1437,6 +1525,21 @@ class InMemoryMilestonesRepository
       (membership) =>
         membership.clubId === clubId && membership.userId === userId
     );
+
+  private findProgress = (userId: string, clubId: string) =>
+    this.progressRows.find(
+      (progress) => progress.userId === userId && progress.clubId === clubId
+    );
+
+  private findMilestone = (milestoneId: string | null) => {
+    if (!milestoneId) {
+      return null;
+    }
+
+    return (
+      this.milestones.find((milestone) => milestone.id === milestoneId) ?? null
+    );
+  };
 }
 
 const createSessionCookie = async (user: AuthUserRecord) => {

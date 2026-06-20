@@ -539,11 +539,58 @@ describe("progress routes", () => {
       "safeTitle"
     ]);
     expect(response.body.progress.currentMilestone).toMatchObject({
-      fullTitle: null,
-      isFullTitleHidden: true,
+      fullTitle: "The unsafe reveal",
+      isFullTitleHidden: false,
       safeTitle: "Safe checkpoint"
     });
-    expect(JSON.stringify(response.body)).not.toContain("The unsafe reveal");
+  });
+
+  it("keeps future spoiler milestone titles hidden in progress history", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("history-spoiler-club");
+    const openingMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Safe opening",
+      fullTitle: "Real opening title",
+      spoilerName: true
+    });
+    const futureMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Safe future",
+      fullTitle: "Future hidden title",
+      spoilerName: true
+    });
+    repository.createMembership(user.id, club.id);
+
+    await request(app)
+      .patch("/api/clubs/history-spoiler-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: futureMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200);
+    const response = await request(app)
+      .patch("/api/clubs/history-spoiler-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: openingMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200);
+
+    expect(response.body.progress.currentMilestone).toMatchObject({
+      fullTitle: "Real opening title",
+      isFullTitleHidden: false,
+      safeTitle: "Safe opening"
+    });
+    expect(response.body.progress.history[0].fromMilestone).toMatchObject({
+      id: futureMilestone.id,
+      fullTitle: null,
+      isFullTitleHidden: true,
+      safeTitle: "Safe future"
+    });
+    expect(JSON.stringify(response.body)).not.toContain("Future hidden title");
   });
 });
 
