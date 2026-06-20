@@ -8,6 +8,7 @@
     "dev:api": "pnpm --filter @threadsync/api dev",
     "dev:web": "pnpm --filter @threadsync/web dev",
     "build": "pnpm -r build",
+    "db:reset:development": "pnpm --filter @threadsync/api db:reset:development",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
   }
