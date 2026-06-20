@@ -17,6 +17,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 
+import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -57,7 +58,7 @@ type NavItem = {
 };
 
 const primaryNavItems: NavItem[] = [
-  { label: "Home", icon: Home, path: "/" },
+  { label: "Home", icon: Home, path: AUTHENTICATED_HOME_PATH },
   { label: "My Progress", icon: TrendingUp },
   { label: "Notifications", icon: Bell, path: "/app/notifications" },
   { label: "Explore", icon: Compass, path: "/app/explore" },
@@ -144,7 +145,10 @@ export const MobileNav = ({
         if (item.path) {
           return (
             <DropdownMenuItem key={item.label} asChild>
-              <NavLink to={item.path} end={item.path === "/"}>
+              <NavLink
+                to={item.path}
+                end={item.path === AUTHENTICATED_HOME_PATH}
+              >
                 <Icon className="size-4" />
                 {item.label}
                 {item.badge ? (
@@ -202,7 +206,7 @@ const NavButton = ({ item }: { item: NavItem }) => {
     return (
       <NavLink
         to={item.path}
-        end={item.path === "/"}
+        end={item.path === AUTHENTICATED_HOME_PATH}
         className={({ isActive }) =>
           cn(
             navButtonClassName,
