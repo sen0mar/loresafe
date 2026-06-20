@@ -29,6 +29,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import {
   type Club,
   type ClubMilestone,
+  useClubProgressQuery,
   useClubMilestonesQuery,
   useMoveClubMilestoneMutation,
   useUpdateClubMilestoneMutation
@@ -51,14 +52,29 @@ export const ClubTimelineTab = ({ club, slug: fallbackSlug }: ClubTimelineTabPro
   const slug = club?.slug ?? fallbackSlug ?? "";
   const [page, setPage] = useState(1);
   const milestonesQuery = useClubMilestonesQuery(slug, page);
+  const progressQuery = useClubProgressQuery(slug, !!club?.membership.isMember);
   const updateMilestoneMutation = useUpdateClubMilestoneMutation(slug);
   const moveMilestoneMutation = useMoveClubMilestoneMutation(slug);
+  const progress = progressQuery.data?.progress;
   const canManageMilestones =
     club?.membership.role === "OWNER" || club?.membership.role === "MODERATOR";
 
   useEffect(() => {
     setPage(1);
   }, [slug]);
+
+  useEffect(() => {
+    if (!progress) {
+      return;
+    }
+
+    void milestonesQuery.refetch();
+  }, [
+    progress?.currentMilestone?.id,
+    progress?.mode,
+    progress?.updatedAt,
+    milestonesQuery.refetch
+  ]);
 
   if (milestonesQuery.isPending) {
     return <TimelineLoading />;

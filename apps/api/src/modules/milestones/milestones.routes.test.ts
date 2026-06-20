@@ -1142,6 +1142,46 @@ describe("milestones routes", () => {
     expect(JSON.stringify(response.body)).not.toContain("Future midpoint title");
   });
 
+  it("reveals all spoiler milestone full titles in Finished mode", async () => {
+    const user = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      slug: "finished-title-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(user.id, club.id);
+    const earlyMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Safe opening",
+      fullTitle: "Real opening title",
+      spoilerName: true
+    });
+    const finalMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Safe finale",
+      fullTitle: "Final full title",
+      spoilerName: true
+    });
+    repository.setProgress(user.id, club.id, earlyMilestone.id, "FINISHED");
+
+    const response = await request(app)
+      .get("/api/clubs/finished-title-story-circle/milestones")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.milestones).toMatchObject([
+      {
+        id: earlyMilestone.id,
+        fullTitle: "Real opening title",
+        isFullTitleHidden: false
+      },
+      {
+        id: finalMilestone.id,
+        fullTitle: "Final full title",
+        isFullTitleHidden: false
+      }
+    ]);
+  });
+
   it("returns narrow milestone DTO fields", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
