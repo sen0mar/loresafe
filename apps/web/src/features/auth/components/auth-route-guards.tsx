@@ -55,6 +55,7 @@ export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
 };
 
 export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
+  // The local hint only decides whether to probe /me; the API still verifies the HttpOnly cookie.
   const meQuery = useMe({ enabled: hasAuthSessionHint() });
   const location = useLocation();
 
