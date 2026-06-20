@@ -16,6 +16,7 @@ import {
 } from "@/shared/components/ui/card";
 
 import { useMe } from "../api/auth.js";
+import { hasAuthSessionHint } from "../api/auth-session-hint.js";
 
 type AuthRouteGuardProps = {
   children: ReactNode;
@@ -54,23 +55,8 @@ export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
 };
 
 export const PublicOnlyRoute = ({ children }: AuthRouteGuardProps) => {
-  const meQuery = useMe();
+  const meQuery = useMe({ enabled: hasAuthSessionHint() });
   const location = useLocation();
-
-  if (meQuery.isPending) {
-    return <AuthRouteStatus title="Checking session" />;
-  }
-
-  if (meQuery.isError) {
-    return (
-      <AuthRouteStatus
-        title="Session check failed"
-        body="ThreadSync could not confirm your session."
-        actionLabel="Try again"
-        onAction={() => void meQuery.refetch()}
-      />
-    );
-  }
 
   if (meQuery.data) {
     const redirectTo =

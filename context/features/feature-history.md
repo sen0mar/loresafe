@@ -66,6 +66,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 60: Locked usernames and name reservations — Switched signup to locked handle-style usernames, made username the initial display name, added cross-field case-insensitive name reservations with a committed migration, locked username edits in profile settings, and added focused auth/profile regression tests.
 - Feature 61: Lighter app rate limits — Raised existing backend rate-limit caps across protected actions, further relaxed login and signup limits, preserved Redis-backed limiter behavior, and added focused default-config regression coverage.
 - Feature 62: Development database reset script — Added a guarded development-only reset command that truncates public app tables while preserving Prisma migration history, reruns the existing demo seed, documents the dev reset URL, and includes script guardrail tests.
+- Feature 63: Public auth session check optimization — Rendered login/signup immediately, skipped first-time signed-out `/me` probes with a non-sensitive session hint, preserved authenticated redirects, and added focused frontend guard coverage.
 
 ## Entry Format
 

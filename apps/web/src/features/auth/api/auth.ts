@@ -4,6 +4,10 @@ import { ApiError, apiGet, apiPost } from "@/shared/api/api-client";
 
 import type { LoginFormValues } from "../schemas/login.schema.js";
 import type { SignupRequestValues } from "../schemas/signup.schema.js";
+import {
+  clearAuthSessionHint,
+  rememberAuthSessionHint
+} from "./auth-session-hint.js";
 
 export type AuthUser = {
   id: string;
@@ -28,10 +32,14 @@ export const getMe = async () => {
   try {
     const response = await apiGet<AuthResponse>("/api/auth/me");
 
+    rememberAuthSessionHint();
+
     return response.user;
   } catch (error) {
     // Signed-out users are normal UI state, not a query error.
     if (error instanceof ApiError && error.statusCode === 401) {
+      clearAuthSessionHint();
+
       return null;
     }
 
@@ -47,10 +55,11 @@ export const logout = () => apiPost<null>("/api/auth/logout");
 export const signup = (input: SignupRequestValues) =>
   apiPost<AuthResponse, SignupRequestValues>("/api/auth/signup", input);
 
-export const useMe = () =>
+export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: authQueryKeys.me,
-    queryFn: getMe
+    queryFn: getMe,
+    enabled
   });
 
 export const useLogin = () => {
@@ -59,6 +68,7 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: login,
     onSuccess: (response) => {
+      rememberAuthSessionHint();
       queryClient.setQueryData(authQueryKeys.me, response.user);
     }
   });
@@ -70,6 +80,7 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => {
+      clearAuthSessionHint();
       queryClient.setQueryData(authQueryKeys.me, null);
     }
   });
@@ -81,6 +92,7 @@ export const useSignup = () => {
   return useMutation({
     mutationFn: signup,
     onSuccess: (response) => {
+      rememberAuthSessionHint();
       queryClient.setQueryData(authQueryKeys.me, response.user);
     }
   });
