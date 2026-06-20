@@ -32,24 +32,24 @@ export type AuthRateLimiterOptions = {
 const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
   login: {
     windowMs: 15 * 60 * 1000,
-    limit: 5,
+    limit: 60,
     prefix: "threadsync:rl:auth:login:",
     // Successful logins are decremented after finish, leaving a failed-attempt bucket.
     skipSuccessfulRequests: true
   },
   logout: {
     windowMs: 60 * 1000,
-    limit: 30,
+    limit: 90,
     prefix: "threadsync:rl:auth:logout:"
   },
   passwordReset: {
     windowMs: 60 * 60 * 1000,
-    limit: 3,
+    limit: 9,
     prefix: "threadsync:rl:auth:password-reset:"
   },
   signup: {
     windowMs: 60 * 60 * 1000,
-    limit: 3,
+    limit: 60,
     prefix: "threadsync:rl:auth:signup:"
   }
 };
@@ -112,7 +112,7 @@ export const {
 
 export const profileUpdateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 20,
+  limit: 60,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:users:profile-update:"),
@@ -124,7 +124,7 @@ export const profileUpdateRateLimiter = rateLimit({
 
 export const publicAssetUploadRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:uploads:public-assets:"),
@@ -136,7 +136,7 @@ export const publicAssetUploadRateLimiter = rateLimit({
 
 export const clubCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 15,
+  limit: 45,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:create:"),
@@ -148,7 +148,7 @@ export const clubCreateRateLimiter = rateLimit({
 
 export const clubJoinRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:join:"),
@@ -160,7 +160,7 @@ export const clubJoinRateLimiter = rateLimit({
 
 export const clubInviteCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 20,
+  limit: 60,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:invites:create:"),
@@ -172,7 +172,7 @@ export const clubInviteCreateRateLimiter = rateLimit({
 
 export const clubMemberManagementRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 60,
+  limit: 180,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:members:manage:"),
@@ -184,7 +184,7 @@ export const clubMemberManagementRateLimiter = rateLimit({
 
 export const clubMilestoneCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:milestones:create:"),
@@ -196,7 +196,7 @@ export const clubMilestoneCreateRateLimiter = rateLimit({
 
 export const clubPostCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:posts:create:"),
@@ -208,7 +208,7 @@ export const clubPostCreateRateLimiter = rateLimit({
 
 export const postCommentCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 40,
+  limit: 120,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:posts:comments:create:"),
@@ -220,7 +220,7 @@ export const postCommentCreateRateLimiter = rateLimit({
 
 export const postReactionToggleRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 80,
+  limit: 240,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:posts:reactions:toggle:"),
@@ -232,7 +232,7 @@ export const postReactionToggleRateLimiter = rateLimit({
 
 export const reportCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 10,
+  limit: 30,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:reports:create:"),
@@ -244,7 +244,7 @@ export const reportCreateRateLimiter = rateLimit({
 
 export const searchRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 120,
+  limit: 360,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:search:"),
@@ -256,7 +256,7 @@ export const searchRateLimiter = rateLimit({
 
 export const moderationActionRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 60,
+  limit: 180,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:moderation:actions:"),
@@ -268,7 +268,7 @@ export const moderationActionRateLimiter = rateLimit({
 
 export const commentReactionToggleRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 80,
+  limit: 240,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore(
@@ -282,7 +282,7 @@ export const commentReactionToggleRateLimiter = rateLimit({
 
 export const clubProgressUpdateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 40,
+  limit: 120,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:clubs:progress:update:"),
@@ -294,7 +294,7 @@ export const clubProgressUpdateRateLimiter = rateLimit({
 
 export const inviteAcceptRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore("threadsync:rl:invites:accept:"),
