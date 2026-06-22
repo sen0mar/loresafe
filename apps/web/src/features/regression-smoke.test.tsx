@@ -69,7 +69,7 @@ describe("frontend regression smoke", () => {
 
     await waitFor(() => expect(signupPathChanges.at(-1)).toBe("/app/explore"));
     expect(signupFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/auth/signup",
+      "/api/auth/signup",
       expect.objectContaining({
         credentials: "include",
         method: "POST"
@@ -109,7 +109,7 @@ describe("frontend regression smoke", () => {
       expect(loginPathChanges.at(-1)).toBe("/app/clubs/safe-club")
     );
     expect(loginFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/auth/login",
+      "/api/auth/login",
       expect.objectContaining({
         credentials: "include",
         method: "POST"
@@ -932,7 +932,7 @@ const findFetchCall = (
   path: string
 ) =>
   fetchMock.mock.calls.find((call) => {
-    const url = new URL(String(call[0]));
+    const url = new URL(String(call[0]), "http://localhost:5173");
     const init = call[1] as RequestInit | undefined;
 
     return init?.method === method && url.pathname === path;

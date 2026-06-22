@@ -6,17 +6,8 @@ type ApiErrorResponse = {
   };
 };
 
-const getLocalApiBaseUrl = () => {
-  if (import.meta.env.PROD) {
-    throw new Error("VITE_API_BASE_URL is required in production.");
-  }
-
-  return "http://localhost:3000";
-};
-
-export const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ??
-  getLocalApiBaseUrl();
+// Cookie auth needs a first-party request path; Vite and Vercel proxy /api to Express.
+export const apiBaseUrl = "";
 
 export class ApiError extends Error {
   readonly statusCode?: number;

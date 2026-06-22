@@ -5,7 +5,6 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export const publicClientEnvKeys = [
-  "VITE_API_BASE_URL",
   "VITE_SENTRY_DSN",
   "VITE_SENTRY_ENVIRONMENT",
   "VITE_SENTRY_TRACES_SAMPLE_RATE",
@@ -15,7 +14,6 @@ export const publicClientEnvKeys = [
 export default defineConfig(({ mode }) => {
   const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
   const envValues = readRootEnvValues(rootDirectory, mode, publicClientEnvKeys);
-  validateClientEnvValues(mode, envValues);
   const defineValues = createClientEnvDefineValues(envValues);
 
   return {
@@ -27,8 +25,14 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      host: "localhost",
-      port: 5173
+      host: "0.0.0.0",
+      port: 5173,
+      proxy: {
+        "/api": {
+          target: "http://localhost:3000",
+          changeOrigin: true
+        }
+      }
     },
     test: {
       environment: "jsdom",
@@ -37,15 +41,6 @@ export default defineConfig(({ mode }) => {
     }
   };
 });
-
-export const validateClientEnvValues = (
-  mode: string,
-  envValues: Partial<Record<(typeof publicClientEnvKeys)[number], string>>
-) => {
-  if (mode === "production" && !envValues.VITE_API_BASE_URL) {
-    throw new Error("VITE_API_BASE_URL is required for production builds.");
-  }
-};
 
 export const createClientEnvDefineValues = (
   envValues: Partial<Record<(typeof publicClientEnvKeys)[number], string>>
