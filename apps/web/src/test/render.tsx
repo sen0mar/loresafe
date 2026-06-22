@@ -106,7 +106,7 @@ const normalizeRequest = (input: RequestInfo | URL, init?: RequestInit) => {
     };
   }
 
-  const url = new URL(input.toString());
+  const url = new URL(input.toString(), "http://localhost:5173");
 
   return {
     body: typeof init?.body === "string" ? JSON.parse(init.body) : null,
