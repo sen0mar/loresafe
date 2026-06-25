@@ -161,10 +161,12 @@ const ModerationReportCard = ({
   slug: string;
   milestones: ClubMilestone[];
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [revealedReport, setRevealedReport] =
     useState<RevealedModerationReport | null>(null);
   const revealMutation = useRevealModerationReportMutation(slug);
   const target = revealedReport?.target ?? report.target;
+  const detailsId = `report-${report.id}-details`;
 
   const revealReport = () => {
     revealMutation.mutate(report.id, {
@@ -202,7 +204,26 @@ const ModerationReportCard = ({
               Reported {report.targetType.toLowerCase()}
             </h2>
           </div>
-          <Badge>{report.status}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{report.status}</Badge>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              aria-expanded={isExpanded}
+              aria-controls={detailsId}
+              onClick={() => setIsExpanded((currentValue) => !currentValue)}
+            >
+              <ChevronDown
+                className={
+                  isExpanded
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
+              />
+              {isExpanded ? "Close report" : "Open report"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -231,21 +252,35 @@ const ModerationReportCard = ({
           </p>
         </div>
 
-        {target.visibility === "REVEALED" && revealedReport ? (
-          <RevealedReportContent report={revealedReport} />
-        ) : (
-          <HiddenReportWarning
-            detailsHidden={report.detailsHidden}
-            isRevealing={revealMutation.isPending}
-            onReveal={revealReport}
-          />
-        )}
+        {isExpanded ? (
+          <div id={detailsId} className="space-y-4">
+            {target.visibility === "REVEALED" && revealedReport ? (
+              <RevealedReportContent report={revealedReport} />
+            ) : (
+              <HiddenReportWarning
+                detailsHidden={report.detailsHidden}
+                isRevealing={revealMutation.isPending}
+                onReveal={revealReport}
+              />
+            )}
 
-        <ModerationActionControls
-          report={report}
-          slug={slug}
-          milestones={milestones}
-        />
+            <ModerationActionControls
+              report={report}
+              slug={slug}
+              milestones={milestones}
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-default bg-inset p-4">
+            <p className="text-sm font-medium text-primary">
+              Full report controls are collapsed
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted">
+              Open this report to inspect hidden details, reveal reported
+              content, or apply moderation actions.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
