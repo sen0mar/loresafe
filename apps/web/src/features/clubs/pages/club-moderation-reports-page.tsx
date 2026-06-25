@@ -11,11 +11,12 @@ import {
   LockKeyhole,
   MessageSquareText,
   RefreshCw,
+  Search,
   Trash2,
   ShieldCheck,
   UserCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
@@ -28,6 +29,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Textarea } from "@/shared/components/ui/textarea";
 
@@ -80,8 +82,13 @@ export const ClubModerationReportsPage = () => {
   const clubQuery = useClubQuery(slug);
   const reportsQuery = useModerationReportsQuery(slug);
   const milestonesQuery = useClubMilestonesQuery(slug, 1);
+  const [typeSearch, setTypeSearch] = useState("");
   const reports =
     reportsQuery.data?.pages.flatMap((page) => page.reports) ?? [];
+  const filteredReports = useMemo(
+    () => filterReportsByType(reports, typeSearch),
+    [reports, typeSearch]
+  );
 
   return (
     <AuthenticatedAppShell>
@@ -109,6 +116,18 @@ export const ClubModerationReportsPage = () => {
           </Badge>
         </section>
 
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
+          <Input
+            className="h-10 pl-9"
+            type="search"
+            aria-label="Search reports by type"
+            placeholder="Search reports by type..."
+            value={typeSearch}
+            onChange={(event) => setTypeSearch(event.target.value)}
+          />
+        </div>
+
         {reportsQuery.isPending ? (
           <ModerationReportsLoading />
         ) : reportsQuery.isError ? (
@@ -118,9 +137,11 @@ export const ClubModerationReportsPage = () => {
           />
         ) : reports.length === 0 ? (
           <ModerationReportsEmpty />
+        ) : filteredReports.length === 0 ? (
+          <ModerationReportsNoMatches typeSearch={typeSearch} />
         ) : (
           <div className="space-y-3">
-            {reports.map((report) => (
+            {filteredReports.map((report) => (
               <ModerationReportCard
                 key={report.id}
                 report={report}
@@ -133,7 +154,9 @@ export const ClubModerationReportsPage = () => {
 
         {reportsQuery.hasNextPage ? (
           <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted">{reports.length} loaded</p>
+            <p className="text-sm text-muted">
+              {filteredReports.length} of {reports.length} loaded
+            </p>
             <Button
               className="w-full sm:w-fit"
               type="button"
@@ -150,6 +173,32 @@ export const ClubModerationReportsPage = () => {
       </div>
     </AuthenticatedAppShell>
   );
+};
+
+const filterReportsByType = (
+  reports: ModerationReport[],
+  searchValue: string
+) => {
+  const normalizedSearch = searchValue.trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return reports;
+  }
+
+  return reports.filter((report) => {
+    const searchableFields = [
+      report.targetType,
+      reasonLabels[report.reason],
+      report.reason,
+      statusLabels[report.target.status],
+      report.target.status,
+      report.status
+    ];
+
+    return searchableFields.some((value) =>
+      value.toLowerCase().includes(normalizedSearch)
+    );
+  });
 };
 
 const ModerationReportCard = ({
@@ -186,23 +235,18 @@ const ModerationReportCard = ({
 
   return (
     <Card>
-      <CardContent className="space-y-4 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
-              <Badge variant="warning">
-                <FileWarning className="size-3" />
-                {reasonLabels[report.reason]}
-              </Badge>
-              <Badge variant="outline">{report.targetType}</Badge>
-              <Badge variant="secondary">
-                {statusLabels[report.target.status]}
-              </Badge>
-              <span>{formatDateTime(report.createdAt)}</span>
-            </div>
-            <h2 className="text-base font-semibold text-primary">
-              Reported {report.targetType.toLowerCase()}
-            </h2>
+      <CardContent className="space-y-4 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-faint">
+            <Badge variant="warning">
+              <FileWarning className="size-3" />
+              {reasonLabels[report.reason]}
+            </Badge>
+            <Badge variant="outline">{report.targetType}</Badge>
+            <Badge variant="secondary">
+              {statusLabels[report.target.status]}
+            </Badge>
+            <span>{formatDateTime(report.createdAt)}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{report.status}</Badge>
@@ -226,34 +270,34 @@ const ModerationReportCard = ({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ReportMetric
-            icon={UserCircle}
-            label="Reporter"
-            value={formatUser(report.reporter)}
-          />
-          <ReportMetric
-            icon={MessageSquareText}
-            label="Target author"
-            value={
-              report.target.author
-                ? formatUser(report.target.author)
-                : "Unavailable"
-            }
-          />
-        </div>
-
-        <div className="rounded-lg border border-default bg-inset p-4">
-          <p className="text-xs text-faint">Required milestone</p>
-          <p className="mt-1 text-sm font-medium text-primary">
-            {report.target.requiredMilestone
-              ? `Milestone ${report.target.requiredMilestone.position}: ${report.target.requiredMilestone.label}`
-              : "Unavailable"}
-          </p>
-        </div>
-
         {isExpanded ? (
           <div id={detailsId} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ReportMetric
+                icon={UserCircle}
+                label="Reporter"
+                value={formatUser(report.reporter)}
+              />
+              <ReportMetric
+                icon={MessageSquareText}
+                label="Target author"
+                value={
+                  report.target.author
+                    ? formatUser(report.target.author)
+                    : "Unavailable"
+                }
+              />
+            </div>
+
+            <div className="rounded-lg border border-default bg-inset p-4">
+              <p className="text-xs text-faint">Required milestone</p>
+              <p className="mt-1 text-sm font-medium text-primary">
+                {report.target.requiredMilestone
+                  ? `Milestone ${report.target.requiredMilestone.position}: ${report.target.requiredMilestone.label}`
+                  : "Unavailable"}
+              </p>
+            </div>
+
             {target.visibility === "REVEALED" && revealedReport ? (
               <RevealedReportContent report={revealedReport} />
             ) : (
@@ -270,17 +314,7 @@ const ModerationReportCard = ({
               milestones={milestones}
             />
           </div>
-        ) : (
-          <div className="rounded-lg border border-default bg-inset p-4">
-            <p className="text-sm font-medium text-primary">
-              Full report controls are collapsed
-            </p>
-            <p className="mt-1 text-sm leading-6 text-muted">
-              Open this report to inspect hidden details, reveal reported
-              content, or apply moderation actions.
-            </p>
-          </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -683,6 +717,26 @@ const ModerationReportsEmpty = () => (
         </h2>
         <p className="mt-1 max-w-lg text-sm leading-6 text-muted">
           New reports from club members will appear here.
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const ModerationReportsNoMatches = ({
+  typeSearch
+}: {
+  typeSearch: string;
+}) => (
+  <Card>
+    <CardContent className="flex min-h-40 flex-col justify-center gap-3">
+      <Search className="size-8 text-faint" />
+      <div>
+        <h2 className="text-base font-semibold text-primary">
+          No matching reports
+        </h2>
+        <p className="mt-1 max-w-lg text-sm leading-6 text-muted">
+          No loaded reports match "{typeSearch.trim()}".
         </p>
       </div>
     </CardContent>
