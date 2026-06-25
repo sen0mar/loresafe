@@ -186,14 +186,16 @@ describe("frontend regression smoke", () => {
       initialEntries: ["/app/settings/profile"]
     });
 
-    const clubSelect = await screen.findByLabelText("Club");
-    const optionLabels = Array.from(
-      (clubSelect as HTMLSelectElement).options
-    ).map((option) => option.textContent);
+    const reportLinks = await screen.findAllByRole("link", {
+      name: /open reports/i
+    });
+    const settingsMain = within(screen.getByRole("main"));
 
-    expect(optionLabels).toEqual(["Safe Club - Owner", "Mod Club - Moderator"]);
-    expect(optionLabels).not.toContain("Member Club - Member");
-    expect(screen.getByRole("link", { name: /open reports/i })).toHaveAttribute(
+    expect(settingsMain.getByText("Safe Club")).toBeVisible();
+    expect(settingsMain.getByText("Mod Club")).toBeVisible();
+    expect(settingsMain.queryByText("Member Club")).not.toBeInTheDocument();
+    expect(settingsMain.queryByLabelText("Club")).not.toBeInTheDocument();
+    expect(reportLinks[0]).toHaveAttribute(
       "href",
       "/app/clubs/safe-club/settings/moderation"
     );
@@ -619,7 +621,7 @@ describe("frontend regression smoke", () => {
         club: moderationClub
       }),
       shellRoute("/api/clubs/safe-club/moderation/reports", {
-        reports: [moderationReport],
+        reports: [moderationReport, commentModerationReport],
         pagination: {
           limit: 20,
           nextCursor: null,
@@ -648,13 +650,22 @@ describe("frontend regression smoke", () => {
     );
     const user = userEvent.setup();
 
-    expect(await screen.findByText("Reported post")).toBeInTheDocument();
-    expect(screen.getByText("Full report controls are collapsed")).toBeVisible();
+    expect(await screen.findByText("POST")).toBeInTheDocument();
+    expect(screen.getByText("COMMENT")).toBeInTheDocument();
+    expect(screen.getByText("Spam")).toBeInTheDocument();
+    expect(screen.queryByText("Reporter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Required milestone")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /reveal content/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /adjust/i })).not.toBeInTheDocument();
     expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /open report/i }));
+    await user.type(screen.getByLabelText("Search reports by type"), "comment");
+
+    expect(screen.queryByText("POST")).not.toBeInTheDocument();
+    expect(screen.getByText("COMMENT")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Search reports by type"));
+    await user.click(screen.getAllByRole("button", { name: /open report/i })[0]);
 
     expect(await screen.findByText("Reported content is hidden")).toBeVisible();
     expect(screen.getByRole("button", { name: /reveal content/i })).toBeVisible();
@@ -941,6 +952,19 @@ const moderationReport: ModerationReport = {
   },
   createdAt: now,
   updatedAt: now
+};
+
+const commentModerationReport: ModerationReport = {
+  ...moderationReport,
+  id: "00000000-0000-4000-8000-000000000043",
+  targetType: "COMMENT",
+  targetId: commentId,
+  reason: "SPAM",
+  target: {
+    ...moderationReport.target,
+    id: commentId,
+    targetType: "COMMENT"
+  }
 };
 
 const revealedModerationReport: RevealedModerationReport = {

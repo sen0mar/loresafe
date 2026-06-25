@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { FileWarning, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowRight, FileWarning, RefreshCw, ShieldCheck } from "lucide-react";
 
 import { useJoinedClubsQuery } from "@/features/clubs/api/clubs";
 import type { JoinedClub } from "@/features/clubs/api/clubs";
@@ -28,24 +28,6 @@ export const ModerationSettingsPanel = () => {
   const moderatableClubs = useMemo(
     () => joinedClubsQuery.data?.clubs.filter(canModerateClub) ?? [],
     [joinedClubsQuery.data?.clubs]
-  );
-  const [selectedSlug, setSelectedSlug] = useState("");
-
-  useEffect(() => {
-    if (moderatableClubs.length === 0) {
-      setSelectedSlug("");
-      return;
-    }
-
-    setSelectedSlug((currentSlug) =>
-      moderatableClubs.some((club) => club.slug === currentSlug)
-        ? currentSlug
-        : moderatableClubs[0].slug
-    );
-  }, [moderatableClubs]);
-
-  const selectedClub = moderatableClubs.find(
-    (club) => club.slug === selectedSlug
   );
 
   return (
@@ -82,51 +64,27 @@ export const ModerationSettingsPanel = () => {
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <div className="space-y-2">
-              <label
-                className="text-xs font-medium text-faint"
-                htmlFor="moderation-club"
+          <div className="grid gap-2">
+            {moderatableClubs.map((club) => (
+              <Link
+                key={club.id}
+                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-default bg-inset px-4 py-3 text-sm transition-colors hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                to={`/app/clubs/${club.slug}/settings/moderation`}
               >
-                Club
-              </label>
-              <select
-                id="moderation-club"
-                className="h-10 w-full rounded-md border border-subtle bg-surface px-3 text-sm text-primary outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
-                value={selectedSlug}
-                onChange={(event) => setSelectedSlug(event.target.value)}
-              >
-                {moderatableClubs.map((club) => (
-                  <option key={club.id} value={club.slug}>
-                    {club.title} - {roleLabels[club.role]}
-                  </option>
-                ))}
-              </select>
-              {selectedClub ? (
-                <p className="text-xs text-faint">
-                  {roleLabels[selectedClub.role]} access for /{selectedClub.slug}
-                </p>
-              ) : null}
-            </div>
-            <Button
-              className="w-full sm:w-fit"
-              type="button"
-              variant="secondary"
-              disabled={!selectedClub}
-              asChild={!!selectedClub}
-            >
-              {selectedClub ? (
-                <Link to={`/app/clubs/${selectedClub.slug}/settings/moderation`}>
-                  <FileWarning />
-                  Open reports
-                </Link>
-              ) : (
-                <span>
-                  <FileWarning />
-                  Open reports
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-primary">
+                    {club.title}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-faint">
+                    {roleLabels[club.role]} / {club.slug}
+                  </span>
                 </span>
-              )}
-            </Button>
+                <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-brand">
+                  Open reports
+                  <ArrowRight className="size-4" />
+                </span>
+              </Link>
+            ))}
           </div>
         )}
       </CardContent>

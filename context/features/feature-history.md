@@ -72,6 +72,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 66: Finished-mode milestone title refresh — Made the Timeline refetch personalized milestone titles after saved progress changes and added regression coverage for Finished mode revealing all spoiler milestone names.
 - Feature 67: Same-origin auth API proxy — Routed browser API calls through same-origin `/api` with Vite and Vercel proxying, removed client direct API URL injection, enabled LAN dev access, and updated frontend regression coverage.
 - Feature 68: Moderation settings access — Added a profile settings moderation panel for owner/moderator club report queues, collapsed report cards behind safe previews until opened, and added focused frontend regression coverage.
+- Feature 69: Minimal moderation report cards — Replaced the settings moderation selector with direct club report links, made collapsed report cards metadata-only, added loaded-report type search, and updated frontend regression coverage.
 
 ## Entry Format
 
