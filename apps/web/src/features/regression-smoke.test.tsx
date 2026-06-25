@@ -9,10 +9,12 @@ import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
+import { ClubModerationReportsPage } from "@/features/clubs/pages/club-moderation-reports-page";
 import { ExplorePage } from "@/features/clubs/pages/explore-page";
 import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
 import { HomePage } from "@/features/home/pages/home-page";
 import { ProfileSettingsForm } from "@/features/profile/components/profile-settings-form";
+import { ProfileSettingsPage } from "@/features/profile/pages/profile-settings-page";
 import { SearchResultsPage } from "@/features/search/pages/search-results-page";
 import {
   getJsonRequestBody,
@@ -25,7 +27,9 @@ import type {
   ClubPostCard,
   ClubProgress,
   ClubMilestone,
-  Comment
+  Comment,
+  ModerationReport,
+  RevealedModerationReport
 } from "./clubs/api/clubs";
 
 const now = "2026-01-01T12:00:00.000Z";
@@ -169,6 +173,45 @@ describe("frontend regression smoke", () => {
       displayName: "Updated Reader",
       bio: "No spoilers."
     });
+  });
+
+  it("links settings directly to report queues for moderated clubs", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<ProfileSettingsPage />, {
+      initialEntries: ["/app/settings/profile"]
+    });
+
+    const clubSelect = await screen.findByLabelText("Club");
+    const optionLabels = Array.from(
+      (clubSelect as HTMLSelectElement).options
+    ).map((option) => option.textContent);
+
+    expect(optionLabels).toEqual(["Safe Club - Owner", "Mod Club - Moderator"]);
+    expect(optionLabels).not.toContain("Member Club - Member");
+    expect(screen.getByRole("link", { name: /open reports/i })).toHaveAttribute(
+      "href",
+      "/app/clubs/safe-club/settings/moderation"
+    );
+  });
+
+  it("shows an empty moderation settings state without moderated clubs", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<ProfileSettingsPage />, {
+      initialEntries: ["/app/settings/profile"]
+    });
+
+    expect(await screen.findByText("No moderation clubs yet")).toBeVisible();
+    expect(screen.queryByLabelText("Club")).not.toBeInTheDocument();
   });
 
   it("submits club creation and navigates to the new club", async () => {
@@ -567,6 +610,58 @@ describe("frontend regression smoke", () => {
     });
   });
 
+  it("collapses moderation report details until a report is opened", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club: moderationClub
+      }),
+      shellRoute("/api/clubs/safe-club/moderation/reports", {
+        reports: [moderationReport],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      {
+        method: "POST",
+        path: `/api/clubs/safe-club/moderation/reports/${moderationReport.id}/reveal`,
+        response: {
+          report: revealedModerationReport
+        }
+      }
+    ]);
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/app/clubs/:slug/settings/moderation"
+          element={<ClubModerationReportsPage />}
+        />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club/settings/moderation"]
+      }
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Reported post")).toBeInTheDocument();
+    expect(screen.getByText("Full report controls are collapsed")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /reveal content/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /adjust/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /open report/i }));
+
+    expect(await screen.findByText("Reported content is hidden")).toBeVisible();
+    expect(screen.getByRole("button", { name: /reveal content/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /adjust/i })).toBeVisible();
+    expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+  });
+
   it("keeps private clubs out of discovery and non-member search results", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -676,6 +771,15 @@ const club: Club = {
   },
   createdAt: now,
   updatedAt: now
+};
+
+const moderationClub: Club = {
+  ...club,
+  currentUserRole: "OWNER",
+  membership: {
+    isMember: true,
+    role: "OWNER"
+  }
 };
 
 const milestoneOne: ClubMilestone = {
@@ -806,6 +910,50 @@ const lockedComment: Comment = {
   updatedAt: now
 };
 
+const moderationReport: ModerationReport = {
+  id: "00000000-0000-4000-8000-000000000041",
+  targetType: "POST",
+  targetId: postId,
+  reason: "SPOILER",
+  status: "OPEN",
+  reporter: {
+    id: userId,
+    displayName: "Reader",
+    username: "reader"
+  },
+  detailsHidden: true,
+  target: {
+    id: postId,
+    targetType: "POST",
+    visibility: "HIDDEN",
+    status: "VISIBLE",
+    author: {
+      id: "00000000-0000-4000-8000-000000000042",
+      displayName: "Post Author",
+      username: "author"
+    },
+    requiredMilestone: {
+      id: firstMilestoneId,
+      position: 1,
+      label: "Opening"
+    },
+    contentHidden: true
+  },
+  createdAt: now,
+  updatedAt: now
+};
+
+const revealedModerationReport: RevealedModerationReport = {
+  ...moderationReport,
+  details: "Reporter details should only appear after reveal.",
+  target: {
+    ...moderationReport.target,
+    visibility: "REVEALED",
+    title: "Unsafe reported post",
+    body: "UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER"
+  }
+};
+
 const milestonesResponse = {
   milestones: [milestoneOne, milestoneTwo],
   pagination: {
@@ -874,6 +1022,47 @@ const twoJoinedClubsResponse = {
     page: 1,
     limit: 20,
     total: 2,
+    pageCount: 1
+  }
+};
+
+const moderatedJoinedClubsResponse = {
+  clubs: [
+    {
+      id: club.id,
+      title: club.title,
+      slug: club.slug,
+      coverUrl: null,
+      visibility: club.visibility,
+      role: "OWNER",
+      memberCount: club.memberCount,
+      joinedAt: now
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000103",
+      title: "Mod Club",
+      slug: "mod-club",
+      coverUrl: null,
+      visibility: "PRIVATE",
+      role: "MODERATOR",
+      memberCount: 5,
+      joinedAt: "2026-01-04T12:00:00.000Z"
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000104",
+      title: "Member Club",
+      slug: "member-club",
+      coverUrl: null,
+      visibility: "PUBLIC",
+      role: "MEMBER",
+      memberCount: 9,
+      joinedAt: "2026-01-05T12:00:00.000Z"
+    }
+  ],
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 3,
     pageCount: 1
   }
 };
