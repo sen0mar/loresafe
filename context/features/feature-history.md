@@ -73,6 +73,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 67: Same-origin auth API proxy — Routed browser API calls through same-origin `/api` with Vite and Vercel proxying, removed client direct API URL injection, enabled LAN dev access, and updated frontend regression coverage.
 - Feature 68: Moderation settings access — Added a profile settings moderation panel for owner/moderator club report queues, collapsed report cards behind safe previews until opened, and added focused frontend regression coverage.
 - Feature 69: Minimal moderation report cards — Replaced the settings moderation selector with direct club report links, made collapsed report cards metadata-only, added loaded-report type search, and updated frontend regression coverage.
+- Feature 70: Club ban enforcement — Made active club bans hard backend denials across club-scoped access, fixed member roster ban shaping, constrained report-queue bans to the reported author with role and last-owner protections, and added focused backend/frontend regression coverage.
 
 ## Entry Format
 

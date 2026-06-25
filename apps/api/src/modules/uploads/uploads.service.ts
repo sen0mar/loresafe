@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import { canUploadClubCover, canUploadPostImage } from "./uploads.policy.js";
 import {
   uploadsRepository,
@@ -47,6 +48,10 @@ export const createUploadsService = (
     if (input.purpose === "CLUB_COVER") {
       if (!club) {
         throw new HttpError(404, "NOT_FOUND", "Club not found");
+      }
+
+      if (club.isCurrentUserBanned) {
+        throw bannedFromClubError();
       }
 
       if (!canUploadClubCover(club.currentUserRole)) {
@@ -95,13 +100,15 @@ export const createUploadsService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     if (!canUploadPostImage(club)) {
       throw new HttpError(
         403,
         "FORBIDDEN",
-        club.isCurrentUserBanned
-          ? "You cannot upload images in this club."
-          : "Join this club before uploading images."
+        "Join this club before uploading images."
       );
     }
 

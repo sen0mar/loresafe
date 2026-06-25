@@ -6,6 +6,11 @@ import type {
   ListClubMembersQuery,
   ListClubsQuery
 } from "./clubs.schema.js";
+import {
+  activeBanWhere,
+  activeUserBanWhere,
+  canActorBanTarget
+} from "./club-bans.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -40,6 +45,7 @@ export type ClubDetailRecord = {
   visibility: ClubVisibility;
   memberCount: number;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -75,6 +81,7 @@ export type ListClubMembersResult = {
   club: {
     id: string;
     currentUserRole: ClubMembershipRole | null;
+    isCurrentUserBanned: boolean;
   } | null;
   members: ClubMemberRecord[];
   total: number;
@@ -87,6 +94,7 @@ export type ClubMemberMutationResult =
     }
   | {
       status:
+        | "ACTOR_BANNED"
         | "ACTOR_NOT_ALLOWED"
         | "CLUB_NOT_FOUND"
         | "LAST_OWNER"
@@ -139,6 +147,7 @@ export type ClubsRepository = {
     actorId: string
   ) => Promise<ClubMemberMutationResult>;
   listPublicClubs: (
+    userId: string,
     input: ListClubsQuery
   ) => Promise<ListPublicClubsResult>;
 };
@@ -165,8 +174,10 @@ const publicClubSelect = {
   }
 } as const;
 
-const clubDetailSelect = (userId: string) =>
-  ({
+const clubDetailSelect = (userId: string) => {
+  const now = new Date();
+
+  return {
     id: true,
     title: true,
     slug: true,
@@ -191,14 +202,22 @@ const clubDetailSelect = (userId: string) =>
       },
       take: 1
     },
+    bans: {
+      where: activeUserBanWhere(userId, now),
+      select: {
+        id: true
+      },
+      take: 1
+    },
     _count: {
       select: {
         memberships: true
       }
     }
-  }) as const;
+  } as const;
+};
 
-const clubMemberSelect = (now: Date) =>
+const clubMemberSelect = (clubId: string, now: Date) =>
   ({
     id: true,
     role: true,
@@ -214,13 +233,12 @@ const clubMemberSelect = (now: Date) =>
             objectKey: true,
             status: true
           }
-        }
-      }
-    },
-    club: {
-      select: {
-        bans: {
-          where: activeBanWhere(now),
+        },
+        clubBans: {
+          where: {
+            clubId,
+            ...activeBanWhere(now)
+          },
           select: {
             id: true,
             reason: true,
@@ -235,21 +253,6 @@ const clubMemberSelect = (now: Date) =>
       }
     }
   }) as const;
-
-const activeBanWhere = (now: Date) =>
-  ({
-    revokedAt: null,
-    OR: [
-      {
-        expiresAt: null
-      },
-      {
-        expiresAt: {
-          gt: now
-        }
-      }
-    ]
-  });
 
 export const clubsRepository: ClubsRepository = {
   createClubWithOwnerMembership: async (userId, input) =>
@@ -313,7 +316,11 @@ export const clubsRepository: ClubsRepository = {
 
     const detail = toClubDetailRecord(club);
 
-    if (detail.visibility !== "PUBLIC" && !detail.currentUserRole) {
+    if (
+      !detail.isCurrentUserBanned &&
+      detail.visibility !== "PUBLIC" &&
+      !detail.currentUserRole
+    ) {
       return null;
     }
 
@@ -402,6 +409,13 @@ export const clubsRepository: ClubsRepository = {
             role: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -415,12 +429,14 @@ export const clubsRepository: ClubsRepository = {
     }
 
     const currentUserRole = club.memberships[0]?.role ?? null;
+    const isCurrentUserBanned = club.bans.length > 0;
 
-    if (!currentUserRole) {
+    if (!currentUserRole || isCurrentUserBanned) {
       return {
         club: {
           id: club.id,
-          currentUserRole
+          currentUserRole,
+          isCurrentUserBanned
         },
         members: [],
         total: 0
@@ -445,7 +461,7 @@ export const clubsRepository: ClubsRepository = {
         ],
         skip,
         take: limit,
-        select: clubMemberSelect(now)
+        select: clubMemberSelect(club.id, now)
       }),
       prisma.clubMembership.count({
         where: {
@@ -457,7 +473,8 @@ export const clubsRepository: ClubsRepository = {
     return {
       club: {
         id: club.id,
-        currentUserRole
+        currentUserRole,
+        isCurrentUserBanned
       },
       members: members.map(toClubMemberRecord),
       total
@@ -482,6 +499,12 @@ export const clubsRepository: ClubsRepository = {
       if (!context.actorRole) {
         return {
           status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (context.isActorBanned) {
+        return {
+          status: "ACTOR_BANNED"
         };
       }
 
@@ -533,7 +556,7 @@ export const clubsRepository: ClubsRepository = {
 
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId)
+        member: await findMemberRecord(transaction, membershipId, context.club.id)
       };
     }),
 
@@ -555,6 +578,12 @@ export const clubsRepository: ClubsRepository = {
       if (!context.actorRole) {
         return {
           status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (context.isActorBanned) {
+        return {
+          status: "ACTOR_BANNED"
         };
       }
 
@@ -628,7 +657,7 @@ export const clubsRepository: ClubsRepository = {
 
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId)
+        member: await findMemberRecord(transaction, membershipId, context.club.id)
       };
     }),
 
@@ -650,6 +679,12 @@ export const clubsRepository: ClubsRepository = {
       if (!context.actorRole) {
         return {
           status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (context.isActorBanned) {
+        return {
+          status: "ACTOR_BANNED"
         };
       }
 
@@ -693,18 +728,23 @@ export const clubsRepository: ClubsRepository = {
 
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId)
+        member: await findMemberRecord(transaction, membershipId, context.club.id)
       };
     }),
 
-  listPublicClubs: async ({ page, limit }) => {
+  listPublicClubs: async (userId, { page, limit }) => {
     const skip = (page - 1) * limit;
+    const now = new Date();
+    const publicClubWhere = {
+      visibility: "PUBLIC",
+      bans: {
+        none: activeUserBanWhere(userId, now)
+      }
+    } satisfies Prisma.ClubWhereInput;
 
     const [clubs, total] = await prisma.$transaction([
       prisma.club.findMany({
-        where: {
-          visibility: "PUBLIC"
-        },
+        where: publicClubWhere,
         orderBy: [
           {
             createdAt: "desc"
@@ -718,9 +758,7 @@ export const clubsRepository: ClubsRepository = {
         select: publicClubSelect
       }),
       prisma.club.count({
-        where: {
-          visibility: "PUBLIC"
-        }
+        where: publicClubWhere
       })
     ]);
 
@@ -747,17 +785,13 @@ type AuditLogAction =
   | "USER_BANNED"
   | "USER_UNBANNED";
 
-const canActorBanTarget = (
-  actorRole: ClubMembershipRole,
-  targetRole: ClubMembershipRole
-) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
-
 const findMemberManagementContext = async (
   transaction: TransactionClient,
   slug: string,
   actorId: string,
   membershipId: string
 ) => {
+  const now = new Date();
   const club = await transaction.club.findUnique({
     where: {
       slug
@@ -772,6 +806,13 @@ const findMemberManagementContext = async (
           role: true
         },
         take: 1
+      },
+      bans: {
+        where: activeUserBanWhere(actorId, now),
+        select: {
+          id: true
+        },
+        take: 1
       }
     }
   });
@@ -780,6 +821,7 @@ const findMemberManagementContext = async (
     return {
       club: null,
       actorRole: null,
+      isActorBanned: false,
       member: null,
       ownerCount: 0
     };
@@ -810,6 +852,7 @@ const findMemberManagementContext = async (
       id: club.id
     },
     actorRole: club.memberships[0]?.role ?? null,
+    isActorBanned: club.bans.length > 0,
     member,
     ownerCount
   };
@@ -817,14 +860,15 @@ const findMemberManagementContext = async (
 
 const findMemberRecord = async (
   transaction: TransactionClient,
-  membershipId: string
+  membershipId: string,
+  clubId: string
 ) => {
   const now = new Date();
   const member = await transaction.clubMembership.findUniqueOrThrow({
     where: {
       id: membershipId
     },
-    select: clubMemberSelect(now)
+    select: clubMemberSelect(clubId, now)
   });
 
   return toClubMemberRecord(member);
@@ -872,6 +916,7 @@ const toClubDetailRecord = (club: {
   createdAt: Date;
   updatedAt: Date;
   memberships: Array<{ role: ClubMembershipRole }>;
+  bans: Array<{ id: string }>;
   _count: {
     memberships: number;
   };
@@ -886,6 +931,7 @@ const toClubDetailRecord = (club: {
   visibility: club.visibility,
   memberCount: club._count.memberships,
   currentUserRole: club.memberships[0]?.role ?? null,
+  isCurrentUserBanned: club.bans.length > 0,
   createdAt: club.createdAt,
   updatedAt: club.updatedAt
 });
@@ -901,9 +947,7 @@ const toClubMemberRecord = (member: {
       objectKey: string;
       status: "PENDING" | "READY" | "FAILED";
     } | null | undefined;
-  };
-  club: {
-    bans: Array<{
+    clubBans: Array<{
       id: string;
       reason: string | null;
       expiresAt: Date | null;
@@ -912,11 +956,15 @@ const toClubMemberRecord = (member: {
   };
   createdAt: Date;
   updatedAt: Date;
-}): ClubMemberRecord => ({
-  id: member.id,
-  role: member.role,
-  user: member.user,
-  activeBan: member.club.bans[0] ?? null,
-  createdAt: member.createdAt,
-  updatedAt: member.updatedAt
-});
+}): ClubMemberRecord => {
+  const { clubBans, ...user } = member.user;
+
+  return {
+    id: member.id,
+    role: member.role,
+    user,
+    activeBan: clubBans[0] ?? null,
+    createdAt: member.createdAt,
+    updatedAt: member.updatedAt
+  };
+};

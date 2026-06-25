@@ -1,4 +1,5 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   type CreateMilestoneTemplateResponse,
   type CreateMilestoneResponse,
@@ -69,6 +70,10 @@ export const createMilestonesService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     if (!canCreateClubMilestone(club.currentUserRole)) {
       throw new HttpError(
         403,
@@ -103,6 +108,10 @@ export const createMilestonesService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     if (!canCreateClubMilestone(club.currentUserRole)) {
       throw new HttpError(
         403,
@@ -126,6 +135,10 @@ export const createMilestonesService = (
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
     }
 
     if (!canCreateClubMilestone(club.currentUserRole)) {
@@ -152,6 +165,10 @@ export const createMilestonesService = (
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
     }
 
     if (!canCreateClubMilestone(club.currentUserRole)) {
@@ -190,6 +207,10 @@ export const createMilestonesService = (
 
     if (!result) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (result.status === "BANNED") {
+      throw bannedFromClubError();
     }
 
     return {

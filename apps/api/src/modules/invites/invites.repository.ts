@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { activeBanWhere, activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubDetailRecord } from "../clubs/clubs.repository.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -10,6 +11,7 @@ export type ClubInviteCreationClubRecord = {
   title: string;
   slug: string;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
 };
 
 export type CreateClubInviteInput = {
@@ -79,8 +81,10 @@ const inviteSelect = {
   }
 } as const;
 
-const clubDetailSelect = (userId: string) =>
-  ({
+const clubDetailSelect = (userId: string) => {
+  const now = new Date();
+
+  return {
     id: true,
     title: true,
     slug: true,
@@ -99,12 +103,20 @@ const clubDetailSelect = (userId: string) =>
       },
       take: 1
     },
+    bans: {
+      where: activeUserBanWhere(userId, now),
+      select: {
+        id: true
+      },
+      take: 1
+    },
     _count: {
       select: {
         memberships: true
       }
     }
-  }) as const;
+  } as const;
+};
 
 const inviteStateSelect = {
   id: true,
@@ -114,21 +126,6 @@ const inviteStateSelect = {
   usedCount: true,
   revokedAt: true
 } as const;
-
-const activeBanWhere = (now: Date) =>
-  ({
-    revokedAt: null,
-    OR: [
-      {
-        expiresAt: null
-      },
-      {
-        expiresAt: {
-          gt: now
-        }
-      }
-    ]
-  });
 
 class InviteAcceptFailure extends Error {
   readonly status: AcceptInviteFailureStatus;
@@ -285,6 +282,7 @@ export const invitesRepository: InvitesRepository = {
     }),
 
   findClubForInviteCreation: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -301,6 +299,13 @@ export const invitesRepository: InvitesRepository = {
             role: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -313,7 +318,8 @@ export const invitesRepository: InvitesRepository = {
       id: club.id,
       title: club.title,
       slug: club.slug,
-      currentUserRole: club.memberships[0]?.role ?? null
+      currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0
     };
   }
 };
@@ -374,6 +380,7 @@ const toClubDetailRecord = (club: {
   createdAt: Date;
   updatedAt: Date;
   memberships: Array<{ role: ClubMembershipRole }>;
+  bans: Array<{ id: string }>;
   _count: {
     memberships: number;
   };
@@ -387,6 +394,7 @@ const toClubDetailRecord = (club: {
   visibility: club.visibility,
   memberCount: club._count.memberships,
   currentUserRole: club.memberships[0]?.role ?? null,
+  isCurrentUserBanned: club.bans.length > 0,
   createdAt: club.createdAt,
   updatedAt: club.updatedAt
 });

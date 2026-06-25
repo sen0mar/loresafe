@@ -471,6 +471,7 @@ class InMemoryDashboardRepository
       id: club.id,
       visibility: club.visibility,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: false,
       progress: {
         mode: progress?.mode ?? "STRICT",
         currentMilestonePosition: currentMilestone?.position ?? null

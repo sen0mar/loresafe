@@ -9,6 +9,7 @@ import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
+import { ClubDetailPage } from "@/features/clubs/pages/club-detail-page";
 import { ClubModerationReportsPage } from "@/features/clubs/pages/club-moderation-reports-page";
 import { ExplorePage } from "@/features/clubs/pages/explore-page";
 import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
@@ -214,6 +215,37 @@ describe("frontend regression smoke", () => {
 
     expect(await screen.findByText("No moderation clubs yet")).toBeVisible();
     expect(screen.queryByLabelText("Club")).not.toBeInTheDocument();
+  });
+
+  it("shows a clear banned state on club detail load", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      {
+        path: "/api/clubs/safe-club",
+        status: 403,
+        response: {
+          error: {
+            code: "BANNED",
+            message: "You are banned from this club."
+          }
+        }
+      }
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:slug" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club"]
+      }
+    );
+
+    expect(await screen.findByText("You're banned from this club")).toBeVisible();
+    expect(screen.getByText("You are banned from this club.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
   it("submits club creation and navigates to the new club", async () => {

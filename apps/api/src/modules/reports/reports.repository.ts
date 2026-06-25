@@ -4,6 +4,11 @@ import {
   createNotificationInTransaction,
   type CreateNotificationResult
 } from "../notifications/notifications.repository.js";
+import {
+  activeBanWhere,
+  activeUserBanWhere,
+  canActorBanTarget
+} from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   CreateReportRequest,
@@ -43,6 +48,7 @@ export type ReportTargetRecord = {
   club: {
     visibility: ClubVisibility;
     currentUserRole: ClubMembershipRole | null;
+    isCurrentUserBanned: boolean;
     progress: {
       mode: ProgressMode;
       currentMilestonePosition: number | null;
@@ -66,6 +72,7 @@ export type ModerationClubAccessRecord = {
   id: string;
   visibility: ClubVisibility;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
 };
 
 type ReportTargetAuthorRecord = {
@@ -127,7 +134,9 @@ export type ModerationActionRepositoryResult =
         | "REPORT_NOT_FOUND"
         | "REPORT_CLOSED"
         | "TARGET_NOT_FOUND"
-        | "MILESTONE_NOT_FOUND";
+        | "MILESTONE_NOT_FOUND"
+        | "TARGET_PROTECTED"
+        | "LAST_OWNER";
     };
 
 export type ReportsRepository = {
@@ -357,6 +366,7 @@ export const reportsRepository: ReportsRepository = {
       club: {
         visibility: post.club.visibility,
         currentUserRole: post.club.memberships[0]?.role ?? null,
+        isCurrentUserBanned: post.club.bans.length > 0,
         progress: toProgress(post.club.progress)
       }
     };
@@ -409,6 +419,7 @@ export const reportsRepository: ReportsRepository = {
       club: {
         visibility: comment.post.club.visibility,
         currentUserRole: comment.post.club.memberships[0]?.role ?? null,
+        isCurrentUserBanned: comment.post.club.bans.length > 0,
         progress: toProgress(comment.post.club.progress)
       }
     };
@@ -480,6 +491,7 @@ export const reportsRepository: ReportsRepository = {
   },
 
   findClubAccessBySlug: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -495,6 +507,13 @@ export const reportsRepository: ReportsRepository = {
             role: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -506,7 +525,8 @@ export const reportsRepository: ReportsRepository = {
     return {
       id: club.id,
       visibility: club.visibility,
-      currentUserRole: club.memberships[0]?.role ?? null
+      currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0
     };
   },
 
@@ -801,22 +821,35 @@ export const reportsRepository: ReportsRepository = {
       target,
       transaction
     }) => {
+      const banContext = await findReportBanContext(
+        transaction,
+        clubId,
+        actorId,
+        target.authorId
+      );
+
+      if (
+        !banContext.actorRole ||
+        (banContext.targetRole &&
+          !canActorBanTarget(banContext.actorRole, banContext.targetRole))
+      ) {
+        return {
+          status: "TARGET_PROTECTED"
+        };
+      }
+
+      if (banContext.targetRole === "OWNER" && banContext.ownerCount <= 1) {
+        return {
+          status: "LAST_OWNER"
+        };
+      }
+
       const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
       const activeBan = await transaction.clubBan.findFirst({
         where: {
           clubId,
           userId: target.authorId,
-          revokedAt: null,
-          OR: [
-            {
-              expiresAt: null
-            },
-            {
-              expiresAt: {
-                gt: new Date()
-              }
-            }
-          ]
+          ...activeBanWhere(new Date())
         },
         select: {
           id: true
@@ -1001,6 +1034,8 @@ const runContentActionTransaction = (
   }) => Promise<
     | { status: "SUCCESS"; notification?: CreateNotificationResult }
     | { status: "MILESTONE_NOT_FOUND" }
+    | { status: "TARGET_PROTECTED" }
+    | { status: "LAST_OWNER" }
   >
 ): Promise<ModerationActionRepositoryResult> =>
   prisma.$transaction(async (transaction) => {
@@ -1096,6 +1131,50 @@ const getActionTarget = (report: ActionReportRecord): ActionTarget | null => {
   return null;
 };
 
+const findReportBanContext = async (
+  transaction: TransactionClient,
+  clubId: string,
+  actorId: string,
+  targetUserId: string
+) => {
+  const [actorMembership, targetMembership, ownerCount] = await Promise.all([
+    transaction.clubMembership.findUnique({
+      where: {
+        userId_clubId: {
+          userId: actorId,
+          clubId
+        }
+      },
+      select: {
+        role: true
+      }
+    }),
+    transaction.clubMembership.findUnique({
+      where: {
+        userId_clubId: {
+          userId: targetUserId,
+          clubId
+        }
+      },
+      select: {
+        role: true
+      }
+    }),
+    transaction.clubMembership.count({
+      where: {
+        clubId,
+        role: "OWNER"
+      }
+    })
+  ]);
+
+  return {
+    actorRole: actorMembership?.role ?? null,
+    targetRole: targetMembership?.role ?? null,
+    ownerCount
+  };
+};
+
 const resolveReportInTransaction = (
   transaction: TransactionClient,
   reportId: string
@@ -1143,8 +1222,10 @@ const createAuditLogInTransaction = (
     }
   });
 
-const clubAccessSelect = (userId: string) =>
-  ({
+const clubAccessSelect = (userId: string) => {
+  const now = new Date();
+
+  return {
     visibility: true,
     memberships: {
       where: {
@@ -1152,6 +1233,13 @@ const clubAccessSelect = (userId: string) =>
       },
       select: {
         role: true
+      },
+      take: 1
+    },
+    bans: {
+      where: activeUserBanWhere(userId, now),
+      select: {
+        id: true
       },
       take: 1
     },
@@ -1169,7 +1257,8 @@ const clubAccessSelect = (userId: string) =>
       },
       take: 1
     }
-  }) satisfies Prisma.ClubSelect;
+  } satisfies Prisma.ClubSelect;
+};
 
 const isUniqueConstraintError = (error: unknown) =>
   !!error &&

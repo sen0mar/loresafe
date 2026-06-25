@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   ClubFeedTab,
@@ -17,6 +18,7 @@ export type ClubFeedRecord = {
   id: string;
   visibility: ClubVisibility;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
   progress: {
     mode: ProgressMode;
     currentMilestonePosition: number | null;
@@ -198,6 +200,7 @@ export const postSelect = {
 
 export const postsRepository: PostsRepository = {
   findClubForFeed: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -211,6 +214,13 @@ export const postsRepository: PostsRepository = {
           },
           select: {
             role: true
+          },
+          take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
           },
           take: 1
         },
@@ -241,6 +251,7 @@ export const postsRepository: PostsRepository = {
       id: club.id,
       visibility: club.visibility,
       currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
         currentMilestonePosition:
@@ -534,6 +545,7 @@ export const postsRepository: PostsRepository = {
   },
 
   findPostForDetail: async (postId, userId) => {
+    const now = new Date();
     const post = await prisma.post.findFirst({
       where: {
         id: postId,
@@ -569,6 +581,13 @@ export const postsRepository: PostsRepository = {
                 }
               },
               take: 1
+            },
+            bans: {
+              where: activeUserBanWhere(userId, now),
+              select: {
+                id: true
+              },
+              take: 1
             }
           }
         }
@@ -591,6 +610,7 @@ export const postsRepository: PostsRepository = {
         slug: post.club.slug,
         visibility: post.club.visibility,
         currentUserRole: post.club.memberships[0]?.role ?? null,
+        isCurrentUserBanned: post.club.bans.length > 0,
         progress: {
           mode: (progress?.mode ?? "STRICT") as ProgressMode,
           currentMilestonePosition:

@@ -111,6 +111,7 @@ Authorization:
 - Strategy: policy-based checks in backend modules.
 - Scope: club-scoped access control.
 - Important policies: can view club, can join club, can manage club, can create post, can view post, can view comment, can reveal locked content, can moderate report, can upload media.
+- Active club bans are hard backend denials for all club-scoped reads and writes, including direct content routes, discovery, invites, uploads, moderation, and dashboard data.
 - Progress checks compare the member's trusted current progress/mode with the content's required milestone/order.
 
 Collaboration model:

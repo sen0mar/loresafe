@@ -7,7 +7,10 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 const canViewClub = (club: {
   visibility: ClubVisibility;
   currentUserRole: string | null;
-}) => club.visibility === "PUBLIC" || club.currentUserRole !== null;
+  isCurrentUserBanned: boolean;
+}) =>
+  !club.isCurrentUserBanned &&
+  (club.visibility === "PUBLIC" || club.currentUserRole !== null);
 
 export const canReportTarget = (target: ReportTargetRecord) =>
   canViewClub(target.club) &&

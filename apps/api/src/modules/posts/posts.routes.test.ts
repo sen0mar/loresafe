@@ -415,8 +415,8 @@ describe("posts routes", () => {
       .expect(403);
 
     expect(response.body.error).toMatchObject({
-      code: "FORBIDDEN",
-      message: "You cannot create posts in this club."
+      code: "BANNED",
+      message: "You are banned from this club."
     });
     expect(repository.posts).toHaveLength(0);
   });
@@ -2555,6 +2555,7 @@ class InMemoryPostsRepository
       id: club.id,
       visibility: club.visibility,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id),
       progress: {
         mode: progress?.mode ?? "STRICT",
         currentMilestonePosition:
@@ -2702,6 +2703,7 @@ class InMemoryPostsRepository
         slug: club.slug,
         visibility: club.visibility,
         currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+        isCurrentUserBanned: this.hasActiveBan(userId, club.id),
         progress: {
           mode: progress?.mode ?? "STRICT",
           currentMilestonePosition:
@@ -2745,7 +2747,8 @@ class InMemoryPostsRepository
 
     return {
       id: club.id,
-      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 

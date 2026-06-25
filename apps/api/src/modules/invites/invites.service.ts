@@ -1,4 +1,5 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   type CreateClubInviteResponse,
   type AcceptInviteResponse,
@@ -46,7 +47,7 @@ export const createInvitesService = (
       case "not_found":
         throw new HttpError(404, "NOT_FOUND", "Invite not found");
       case "banned":
-        throw new HttpError(403, "FORBIDDEN", "You cannot join this club.");
+        throw bannedFromClubError();
       case "expired":
         throw new HttpError(409, "INVITE_EXPIRED", "This invite has expired.");
       case "revoked":
@@ -65,6 +66,10 @@ export const createInvitesService = (
 
     if (!club || !club.currentUserRole) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
     }
 
     if (!canCreateClubInvite(club.currentUserRole)) {

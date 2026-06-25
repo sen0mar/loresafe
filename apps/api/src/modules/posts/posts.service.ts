@@ -23,6 +23,7 @@ import {
   canRevealRequiredMilestone,
   canViewRequiredMilestone
 } from "../spoilers/spoiler.policy.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type PostsService = {
@@ -59,13 +60,15 @@ export const createPostsService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     if (!canCreateClubPost(club)) {
       throw new HttpError(
         403,
         "FORBIDDEN",
-        club.isCurrentUserBanned
-          ? "You cannot create posts in this club."
-          : "Join this club before creating posts."
+        "Join this club before creating posts."
       );
     }
 
@@ -87,7 +90,15 @@ export const createPostsService = (
   listClubPostsBySlug: async (slug, userId, query) => {
     const club = await repository.findClubForFeed(slug, userId);
 
-    if (!club || !canViewClubFeed(club)) {
+    if (!club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(club)) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
@@ -120,7 +131,15 @@ export const createPostsService = (
   getPostById: async (postId, userId) => {
     const detail = await repository.findPostForDetail(postId, userId);
 
-    if (!detail || !canViewClubFeed(detail.club)) {
+    if (!detail) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (detail.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(detail.club)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -136,7 +155,15 @@ export const createPostsService = (
   revealPostById: async (postId, userId) => {
     const detail = await repository.findPostForDetail(postId, userId);
 
-    if (!detail || !canViewClubFeed(detail.club)) {
+    if (!detail) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (detail.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(detail.club)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -167,7 +194,15 @@ export const createPostsService = (
   togglePostReactionById: async (postId, userId, input) => {
     const detail = await repository.findPostForDetail(postId, userId);
 
-    if (!detail || !canViewClubFeed(detail.club)) {
+    if (!detail) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (detail.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(detail.club)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -192,7 +227,15 @@ export const createPostsService = (
       input
     );
 
-    if (!toggledDetail || !canViewClubFeed(toggledDetail.club)) {
+    if (!toggledDetail) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (toggledDetail.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(toggledDetail.club)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 

@@ -1,5 +1,6 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import { canViewClubFeed } from "../posts/posts.policy.js";
 import { canReadClubProgress } from "../progress/progress.policy.js";
 import {
@@ -72,7 +73,7 @@ export const createDashboardService = (
   getProgressSummary: async (slug, userId) => {
     const club = await findVisibleDashboardClub(repository, slug, userId);
 
-    if (!canReadClubProgress(club.currentUserRole)) {
+    if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
     }
 
@@ -84,7 +85,7 @@ export const createDashboardService = (
   getRecentlyUnlockedSummary: async (slug, userId, query) => {
     const club = await findVisibleDashboardClub(repository, slug, userId);
 
-    if (!canReadClubProgress(club.currentUserRole)) {
+    if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
     }
 
@@ -107,7 +108,15 @@ const findVisibleDashboardClub = async (
 ) => {
   const club = await repository.findClubForDashboard(slug, userId);
 
-  if (!club || !canViewClubFeed(club)) {
+  if (!club) {
+    throw new HttpError(404, "NOT_FOUND", "Club not found");
+  }
+
+  if (club.isCurrentUserBanned) {
+    throw bannedFromClubError();
+  }
+
+  if (!canViewClubFeed(club)) {
     throw new HttpError(404, "NOT_FOUND", "Club not found");
   }
 

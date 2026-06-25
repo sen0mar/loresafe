@@ -607,6 +607,25 @@ describe("clubs routes", () => {
       createdAt: expect.any(String)
     });
 
+    const membersResponse = await request(app)
+      .get("/api/clubs/ban-club/members")
+      .set("Cookie", await createSessionCookie(moderator))
+      .expect(200);
+    const activeBanByUserId = new Map(
+      membersResponse.body.members.map(
+        (member: { user: { id: string }; activeBan: unknown }) => [
+          member.user.id,
+          member.activeBan
+        ]
+      )
+    );
+
+    expect(activeBanByUserId.get(reader.id)).toMatchObject({
+      reason: "Repeated spoilers"
+    });
+    expect(activeBanByUserId.get(owner.id)).toBeNull();
+    expect(activeBanByUserId.get(moderator.id)).toBeNull();
+
     await request(app)
       .post(`/api/clubs/ban-club/members/${ownerMembershipId}/ban`)
       .set("Cookie", await createSessionCookie(moderator))
@@ -660,9 +679,30 @@ describe("clubs routes", () => {
       .expect(403);
 
     expect(response.body.error).toMatchObject({
-      code: "FORBIDDEN",
-      message: "You cannot join this club."
+      code: "BANNED",
+      message: "You are banned from this club."
     });
+
+    const detailResponse = await request(app)
+      .get("/api/clubs/protected-club")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(403);
+
+    expect(detailResponse.body.error).toMatchObject({
+      code: "BANNED",
+      message: "You are banned from this club."
+    });
+
+    const discoveryResponse = await request(app)
+      .get("/api/clubs")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(
+      discoveryResponse.body.clubs.map(
+        (discoveredClub: { slug: string }) => discoveredClub.slug
+      )
+    ).not.toContain("protected-club");
     expect(repository.memberships).toHaveLength(1);
   });
 
@@ -1141,7 +1181,11 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
     const detail = this.toClubDetailRecord(club, userId);
 
-    if (detail.visibility !== "PUBLIC" && !detail.currentUserRole) {
+    if (
+      !detail.isCurrentUserBanned &&
+      detail.visibility !== "PUBLIC" &&
+      !detail.currentUserRole
+    ) {
       return null;
     }
 
@@ -1195,12 +1239,14 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
     const currentUserRole =
       this.findMembership(userId, club.id)?.role ?? null;
+    const isCurrentUserBanned = this.hasActiveBan(userId, club.id);
 
-    if (!currentUserRole) {
+    if (!currentUserRole || isCurrentUserBanned) {
       return {
         club: {
           id: club.id,
-          currentUserRole
+          currentUserRole,
+          isCurrentUserBanned
         },
         members: [],
         total: 0
@@ -1219,7 +1265,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return {
       club: {
         id: club.id,
-        currentUserRole
+        currentUserRole,
+        isCurrentUserBanned
       },
       members: members
         .slice(start, start + limit)
@@ -1242,6 +1289,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
     if (!context.actorRole) {
       return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (context.isActorBanned) {
+      return { status: "ACTOR_BANNED" };
     }
 
     if (!context.member) {
@@ -1288,6 +1339,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
     if (!context.actorRole) {
       return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (context.isActorBanned) {
+      return { status: "ACTOR_BANNED" };
     }
 
     if (!context.member) {
@@ -1342,6 +1397,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       return { status: "CLUB_NOT_FOUND" };
     }
 
+    if (context.isActorBanned) {
+      return { status: "ACTOR_BANNED" };
+    }
+
     if (!context.member) {
       return { status: "MEMBER_NOT_FOUND" };
     }
@@ -1373,9 +1432,15 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
-  listPublicClubs = async ({ page, limit }: { page: number; limit: number }) => {
+  listPublicClubs = async (
+    userId: string,
+    { page, limit }: { page: number; limit: number }
+  ) => {
     const publicClubs = Array.from(this.clubs.values())
-      .filter((club) => club.visibility === "PUBLIC")
+      .filter(
+        (club) =>
+          club.visibility === "PUBLIC" && !this.hasActiveBan(userId, club.id)
+      )
       .sort(
         (leftClub, rightClub) =>
           rightClub.createdAt.getTime() - leftClub.createdAt.getTime() ||
@@ -1423,6 +1488,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       return {
         club: null,
         actorRole: null,
+        isActorBanned: false,
         member: null,
         ownerCount: 0
       };
@@ -1431,6 +1497,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return {
       club,
       actorRole: this.findMembership(actorId, club.id)?.role ?? null,
+      isActorBanned: this.hasActiveBan(actorId, club.id),
       member:
         this.memberships.find(
           (membership) =>
@@ -1495,7 +1562,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       this.memberships.find(
         (membership) =>
           membership.clubId === club.id && membership.userId === userId
-      )?.role ?? null
+      )?.role ?? null,
+    isCurrentUserBanned: this.hasActiveBan(userId, club.id)
   });
 
   private toClubMemberRecord = (membership: {

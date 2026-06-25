@@ -16,6 +16,7 @@ import type {
 } from "./progress.schema.js";
 import { canReadClubProgress, canUpdateClubProgress } from "./progress.policy.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 
 const membershipRequiredMessage =
   "Join this club before updating your progress.";
@@ -52,7 +53,11 @@ export const createProgressService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    if (!canUpdateClubProgress(club.currentUserRole)) {
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canUpdateClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", membershipRequiredMessage);
     }
 
@@ -73,7 +78,11 @@ export const createProgressService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    if (!canReadClubProgress(club.currentUserRole)) {
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
     }
 
@@ -91,7 +100,11 @@ export const createProgressService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    if (!canReadClubProgress(club.currentUserRole)) {
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
     }
 
@@ -122,7 +135,11 @@ export const createProgressService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    if (!canUpdateClubProgress(club.currentUserRole)) {
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canUpdateClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", membershipRequiredMessage);
     }
 

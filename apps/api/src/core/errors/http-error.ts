@@ -1,5 +1,6 @@
 export type ApiErrorCode =
   | "BAD_REQUEST"
+  | "BANNED"
   | "CONFLICT"
   | "FORBIDDEN"
   | "INTERNAL_SERVER_ERROR"

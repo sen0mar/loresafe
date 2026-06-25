@@ -881,6 +881,10 @@ describe("reports routes", () => {
       ...validUserInput(),
       email: "moderator@example.com"
     });
+    const bystander = repository.createStoredUser({
+      ...validUserInput(),
+      email: "bystander@example.com"
+    });
     const post = repository.createPostFixture(reporter.id, {
       membershipUserId: reporter.id,
       progressPosition: 1
@@ -892,6 +896,7 @@ describe("reports routes", () => {
     }
 
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+    repository.createMembership(bystander.id, post.clubId, "MEMBER");
     const warnReport = await repository.createReport(
       reporter.id,
       (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
@@ -929,10 +934,69 @@ describe("reports routes", () => {
       userId: reporter.id,
       clubId: post.clubId
     });
+    expect(
+      repository.bans.some(
+        (ban) => ban.userId === bystander.id && ban.clubId === post.clubId
+      )
+    ).toBe(false);
     expect(repository.auditLogs.map((log) => log.action)).toEqual([
       "USER_WARNED",
       "USER_BANNED"
     ]);
+  });
+
+  it("blocks report bans against protected club roles", async () => {
+    const targetModerator = repository.createStoredUser(validUserInput());
+    const actorModerator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "actor-moderator@example.com"
+    });
+    const post = repository.createPostFixture(targetModerator.id, {
+      membershipUserId: targetModerator.id,
+      progressPosition: 1
+    });
+    const club = repository.clubs.get(post.clubId);
+
+    if (!club) {
+      throw new Error("Expected post fixture to create a club.");
+    }
+
+    const targetMembership = repository.memberships.find(
+      (membership) =>
+        membership.userId === targetModerator.id &&
+        membership.clubId === post.clubId
+    );
+
+    if (!targetMembership) {
+      throw new Error("Expected target membership.");
+    }
+
+    targetMembership.role = "MODERATOR";
+    repository.createMembership(actorModerator.id, post.clubId, "MODERATOR");
+    repository.setProgress(actorModerator.id, post.clubId, 1);
+    const report = await repository.createReport(
+      actorModerator.id,
+      (await repository.findPostTarget(
+        post.id,
+        actorModerator.id
+      )) as ReportTargetRecord,
+      validReportInput("POST", post.id)
+    );
+
+    const response = await request(app)
+      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/ban`)
+      .set("Cookie", await createSessionCookie(actorModerator))
+      .send({})
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot ban this club member."
+    });
+    expect(repository.bans).toHaveLength(0);
+    expect(repository.reports.find((row) => row.id === report.id)?.status).toBe(
+      "OPEN"
+    );
   });
 
   it("resolves and dismisses reports with audit logs", async () => {
@@ -1393,7 +1457,8 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     return {
       id: club.id,
       visibility: club.visibility,
-      currentUserRole: membership?.role ?? null
+      currentUserRole: membership?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 
@@ -1628,6 +1693,37 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       return action;
     }
 
+    const actorRole =
+      this.memberships.find(
+        (membership) =>
+          membership.userId === actorId && membership.clubId === clubId
+      )?.role ?? null;
+    const targetMembership =
+      this.memberships.find(
+        (membership) =>
+          membership.userId === action.target.authorId &&
+          membership.clubId === clubId
+      ) ?? null;
+    const ownerCount = this.memberships.filter(
+      (membership) => membership.clubId === clubId && membership.role === "OWNER"
+    ).length;
+
+    if (
+      !actorRole ||
+      (targetMembership &&
+        !canTestActorBanTarget(actorRole, targetMembership.role))
+    ) {
+      return {
+        status: "TARGET_PROTECTED" as const
+      };
+    }
+
+    if (targetMembership?.role === "OWNER" && ownerCount <= 1) {
+      return {
+        status: "LAST_OWNER" as const
+      };
+    }
+
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
     const existingBan = this.bans.find(
       (ban) =>
@@ -1827,9 +1923,10 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       clubId: post.clubId,
       requiredMilestone: post.requiredMilestone,
       club: {
-        visibility: club.visibility,
-        currentUserRole: membership?.role ?? null,
-        progress: {
+	        visibility: club.visibility,
+	        currentUserRole: membership?.role ?? null,
+	        isCurrentUserBanned: this.hasActiveBan(userId, club.id),
+	        progress: {
           mode: progress?.mode ?? "STRICT",
           currentMilestonePosition: progress?.position ?? null
         }
@@ -1906,7 +2003,21 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
 
     return null;
   };
+
+  private hasActiveBan = (userId: string, clubId: string) =>
+    this.bans.some(
+      (ban) =>
+        ban.userId === userId &&
+        ban.clubId === clubId &&
+        !ban.revokedAt &&
+        (!ban.expiresAt || ban.expiresAt.getTime() > Date.now())
+    );
 }
+
+const canTestActorBanTarget = (
+  actorRole: "OWNER" | "MODERATOR" | "MEMBER",
+  targetRole: "OWNER" | "MODERATOR" | "MEMBER"
+) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
 
 const createReportsTestApp = (
   repository: InMemoryReportsRepository,
