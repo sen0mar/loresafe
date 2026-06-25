@@ -3,6 +3,7 @@ import {
   canRevealRequiredMilestone,
   canViewRequiredMilestone
 } from "../spoilers/spoiler.policy.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   type CommentDto,
   type CreatePostCommentResponse,
@@ -59,7 +60,15 @@ export const createCommentsService = (
   listPostComments: async (postId, userId, query) => {
     const post = await repository.findPostForComments(postId, userId);
 
-    if (!post || !canViewPostComments(post)) {
+    if (!post) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(post)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -89,7 +98,15 @@ export const createCommentsService = (
   createPostComment: async (postId, userId, input) => {
     const post = await repository.findPostForComments(postId, userId);
 
-    if (!post || !canViewPostComments(post)) {
+    if (!post) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(post)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -151,7 +168,15 @@ export const createCommentsService = (
   revealPostComment: async (postId, commentId, userId) => {
     const post = await repository.findPostForComments(postId, userId);
 
-    if (!post || !canViewPostComments(post)) {
+    if (!post) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(post)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
     }
 
@@ -189,7 +214,15 @@ export const createCommentsService = (
       userId
     );
 
-    if (!target || !canViewPostComments(target.post)) {
+    if (!target) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (target.post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(target.post)) {
       throw new HttpError(404, "NOT_FOUND", "Comment not found");
     }
 
@@ -222,7 +255,15 @@ export const createCommentsService = (
       input
     );
 
-    if (!toggledTarget || !canViewPostComments(toggledTarget.post)) {
+    if (!toggledTarget) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (toggledTarget.post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(toggledTarget.post)) {
       throw new HttpError(404, "NOT_FOUND", "Comment not found");
     }
 

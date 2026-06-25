@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import { enqueueProgressUnlockedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { PostReactionEmoji } from "../posts/posts.schema.js";
 import { postReactionEmojis } from "../posts/posts.schema.js";
@@ -11,6 +12,7 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 export type ProgressClubRecord = {
   id: string;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
 };
 
 export type ProgressMilestoneRecord = {
@@ -174,6 +176,7 @@ const recentlyUnlockedPostSelect = {
 
 export const progressRepository: ProgressRepository = {
   findClubForProgress: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -188,6 +191,13 @@ export const progressRepository: ProgressRepository = {
             role: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -198,7 +208,8 @@ export const progressRepository: ProgressRepository = {
 
     return {
       id: club.id,
-      currentUserRole: club.memberships[0]?.role ?? null
+      currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0
     };
   },
 

@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 export type UpdateCurrentUserProfileInput = {
@@ -82,12 +83,19 @@ export const usersRepository: UsersRepository = {
 
   listJoinedClubsForUser: async (userId, { page, limit }) => {
     const skip = (page - 1) * limit;
+    const now = new Date();
+    const membershipWhere = {
+      userId,
+      club: {
+        bans: {
+          none: activeUserBanWhere(userId, now)
+        }
+      }
+    };
 
     const [memberships, total] = await prisma.$transaction([
       prisma.clubMembership.findMany({
-        where: {
-          userId
-        },
+        where: membershipWhere,
         orderBy: [
           {
             createdAt: "desc"
@@ -123,9 +131,7 @@ export const usersRepository: UsersRepository = {
         }
       }),
       prisma.clubMembership.count({
-        where: {
-          userId
-        }
+        where: membershipWhere
       })
     ]);
 

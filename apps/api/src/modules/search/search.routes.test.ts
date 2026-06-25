@@ -570,6 +570,7 @@ class InMemorySearchRepository
       title: club.title,
       visibility: club.visibility,
       currentUserRole: membership?.role ?? null,
+      isCurrentUserBanned: false,
       progress: {
         mode: progress?.mode ?? "STRICT",
         currentMilestonePosition: currentMilestone?.position ?? null

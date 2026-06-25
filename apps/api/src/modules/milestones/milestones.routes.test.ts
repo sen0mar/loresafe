@@ -1495,7 +1495,8 @@ class InMemoryMilestonesRepository
 
     return {
       id: club.id,
-      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: false
     };
   };
 
@@ -1524,6 +1525,7 @@ class InMemoryMilestonesRepository
     );
 
     return {
+      status: "SUCCESS",
       milestones: orderedMilestones.slice(start, start + limit),
       total: orderedMilestones.length,
       viewerProgress: {

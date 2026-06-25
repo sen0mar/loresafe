@@ -383,8 +383,8 @@ describe("invite routes", () => {
       .expect(403);
 
     expect(response.body.error).toMatchObject({
-      code: "FORBIDDEN",
-      message: "You cannot join this club."
+      code: "BANNED",
+      message: "You are banned from this club."
     });
     expect(repository.memberships).toHaveLength(0);
     expect(repository.invites[0].usedCount).toBe(0);
@@ -758,7 +758,8 @@ class InMemoryInvitesRepository
       id: club.id,
       title: club.title,
       slug: club.slug,
-      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 
@@ -817,7 +818,8 @@ class InMemoryInvitesRepository
       memberCount: this.memberships.filter(
         (membership) => membership.clubId === club.id
       ).length,
-      currentUserRole: this.findMembership(userId, club.id)?.role ?? null
+      currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 }

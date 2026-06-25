@@ -249,7 +249,10 @@ export const createClubsController = (
         );
       }
 
-      const response = await service.listPublicClubs(parseResult.data);
+      const response = await service.listPublicClubs(
+        req.currentUser.id,
+        parseResult.data
+      );
 
       res.status(200).json(response);
     } catch (error) {

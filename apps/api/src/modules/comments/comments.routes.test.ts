@@ -322,7 +322,8 @@ describe("comments routes", () => {
       .expect(403);
 
     expect(bannedResponse.body.error).toMatchObject({
-      message: "You cannot comment in this club."
+      code: "BANNED",
+      message: "You are banned from this club."
     });
 
     repository.revokeBans(user.id, post.clubId);
@@ -996,8 +997,8 @@ describe("comments routes", () => {
       .expect(403);
 
     expect(response.body.error).toMatchObject({
-      code: "FORBIDDEN",
-      message: "You cannot react in this club."
+      code: "BANNED",
+      message: "You are banned from this club."
     });
     expect(repository.commentReactions).toHaveLength(0);
   });

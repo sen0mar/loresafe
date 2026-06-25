@@ -14,6 +14,7 @@ import {
   isUniqueConstraintError,
   type ClubsRepository
 } from "./clubs.repository.js";
+import { bannedFromClubError } from "./club-bans.js";
 import type {
   BanClubMemberRequest,
   CreateClubRequest,
@@ -57,6 +58,7 @@ export type ClubsService = {
     userId: string
   ) => Promise<ClubMemberResponse>;
   listPublicClubs: (
+    userId: string,
     query: ListClubsQuery
   ) => Promise<ClubsDiscoveryResponse>;
 };
@@ -93,6 +95,10 @@ export const createClubsService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
+    if (club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     return {
       club: toClubDto(club)
     };
@@ -109,14 +115,22 @@ export const createClubsService = (
       case "NOT_FOUND":
         throw new HttpError(404, "NOT_FOUND", "Club not found");
       case "BANNED":
-        throw new HttpError(403, "FORBIDDEN", "You cannot join this club.");
+        throw bannedFromClubError();
     }
   },
 
   listClubMembersBySlug: async (slug, userId, query) => {
     const result = await repository.listClubMembersBySlug(slug, userId, query);
 
-    if (!result.club || !result.club.currentUserRole) {
+    if (!result.club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (result.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!result.club.currentUserRole) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
@@ -159,8 +173,8 @@ export const createClubsService = (
     return toMemberMutationResponse(result);
   },
 
-  listPublicClubs: async (query) => {
-    const result = await repository.listPublicClubs(query);
+  listPublicClubs: async (userId, query) => {
+    const result = await repository.listPublicClubs(userId, query);
 
     return {
       clubs: result.clubs.map(toClubDiscoveryDto),
@@ -190,6 +204,8 @@ const toMemberMutationResponse = (
     case "CLUB_NOT_FOUND":
     case "MEMBER_NOT_FOUND":
       throw new HttpError(404, "NOT_FOUND", "Club member not found");
+    case "ACTOR_BANNED":
+      throw bannedFromClubError();
     case "ACTOR_NOT_ALLOWED":
       throw new HttpError(
         403,

@@ -7,8 +7,11 @@ export const canViewPostComments = (post: {
   club: {
     visibility: ClubVisibility;
     currentUserRole: string | null;
+    isCurrentUserBanned: boolean;
   };
-}) => post.club.visibility === "PUBLIC" || post.club.currentUserRole !== null;
+}) =>
+  !post.club.isCurrentUserBanned &&
+  (post.club.visibility === "PUBLIC" || post.club.currentUserRole !== null);
 
 export const canCreatePostComment = (
   post: CommentPostRecord,

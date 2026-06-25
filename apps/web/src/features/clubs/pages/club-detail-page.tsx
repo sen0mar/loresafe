@@ -358,6 +358,7 @@ const ClubDetailError = ({
   onRetry: () => void;
 }) => {
   const isNotFound = error instanceof ApiError && error.statusCode === 404;
+  const isBanned = error instanceof ApiError && error.code === "BANNED";
 
   return (
     <Card>
@@ -367,22 +368,28 @@ const ClubDetailError = ({
         </span>
         <div>
           <h2 className="text-lg font-semibold text-primary">
-            {isNotFound ? "Club not found" : "Could not load club"}
+            {isBanned
+              ? "You're banned from this club"
+              : isNotFound
+                ? "Club not found"
+                : "Could not load club"}
           </h2>
           <p className="mt-1 max-w-md text-sm leading-6 text-muted">
-            {isNotFound
-              ? "This club is unavailable from your account."
-              : "Refresh the club page and try again."}
+            {isBanned
+              ? error.message
+              : isNotFound
+                ? "This club is unavailable from your account."
+                : "Refresh the club page and try again."}
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          {isNotFound ? null : (
+          {isNotFound || isBanned ? null : (
             <Button variant="secondary" onClick={onRetry}>
               <RefreshCw />
               Retry
             </Button>
           )}
-          <Button variant={isNotFound ? "secondary" : "ghost"} asChild>
+          <Button variant={isNotFound || isBanned ? "secondary" : "ghost"} asChild>
             <Link to="/app/explore">
               <ArrowLeft />
               Explore

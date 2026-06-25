@@ -1,4 +1,5 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   eventsService,
   type EventsService
@@ -89,7 +90,15 @@ export const createReportsService = (
   createReport: async (userId, input) => {
     const target = await findTarget(repository, userId, input);
 
-    if (!target || !canReportTarget(target)) {
+    if (!target) {
+      throw new HttpError(404, "NOT_FOUND", "Target not found");
+    }
+
+    if (target.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canReportTarget(target)) {
       throw new HttpError(404, "NOT_FOUND", "Target not found");
     }
 
@@ -185,7 +194,15 @@ const findTarget = (
 const getAccessibleModerationClub = (
   club: ModerationClubAccessRecord | null
 ): ModerationClubAccessRecord => {
-  if (!club || (club.visibility !== "PUBLIC" && !club.currentUserRole)) {
+  if (!club) {
+    throw new HttpError(404, "NOT_FOUND", "Club not found");
+  }
+
+  if (club.isCurrentUserBanned) {
+    throw bannedFromClubError();
+  }
+
+  if (club.visibility !== "PUBLIC" && !club.currentUserRole) {
     throw new HttpError(404, "NOT_FOUND", "Club not found");
   }
 
@@ -240,6 +257,18 @@ const runModerationAction = async (
         400,
         "BAD_REQUEST",
         "Choose a milestone from this club."
+      );
+    case "TARGET_PROTECTED":
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "You cannot ban this club member."
+      );
+    case "LAST_OWNER":
+      throw new HttpError(
+        409,
+        "CONFLICT",
+        "This club must keep at least one owner."
       );
     case "REPORT_CLOSED":
       throw new HttpError(

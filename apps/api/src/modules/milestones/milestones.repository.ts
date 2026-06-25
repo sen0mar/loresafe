@@ -7,6 +7,7 @@ import type {
   MoveMilestoneRequest,
   UpdateMilestoneRequest
 } from "./milestones.schema.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
@@ -15,6 +16,7 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 export type ClubMilestoneCreationClubRecord = {
   id: string;
   currentUserRole: ClubMembershipRole | null;
+  isCurrentUserBanned: boolean;
 };
 
 export type MilestoneRecord = {
@@ -32,9 +34,12 @@ export type MilestoneViewerProgress = {
 };
 
 export type ListMilestonesResult = {
+  status: "SUCCESS";
   milestones: MilestoneRecord[];
   total: number;
   viewerProgress: MilestoneViewerProgress;
+} | {
+  status: "BANNED";
 };
 
 export type MilestonesRepository = {
@@ -334,6 +339,7 @@ export const milestonesRepository: MilestonesRepository = {
   },
 
   findClubForMilestoneCreation: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -349,6 +355,13 @@ export const milestonesRepository: MilestonesRepository = {
             role: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -362,11 +375,13 @@ export const milestonesRepository: MilestonesRepository = {
 
     return {
       id: club.id,
-      currentUserRole: club.memberships[0]?.role ?? null
+      currentUserRole: club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: club.bans.length > 0
     };
   },
 
   listVisibleMilestonesByClubSlug: async (slug, userId, { page, limit }) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -382,9 +397,22 @@ export const milestonesRepository: MilestonesRepository = {
             id: true
           },
           take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
+
+    if (club?.bans.length) {
+      return {
+        status: "BANNED"
+      };
+    }
 
     if (!club || !canViewClubMilestones(club)) {
       return null;
@@ -433,6 +461,7 @@ export const milestonesRepository: MilestonesRepository = {
     ]);
 
     return {
+      status: "SUCCESS",
       milestones,
       total,
       viewerProgress: {

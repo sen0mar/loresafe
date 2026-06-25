@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import {
   postSelect,
   toClubPostRecord,
@@ -80,6 +81,7 @@ export type DashboardRepository = {
 
 export const dashboardRepository: DashboardRepository = {
   findClubForDashboard: async (slug, userId) => {
+    const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
         slug
@@ -93,6 +95,13 @@ export const dashboardRepository: DashboardRepository = {
           },
           select: {
             role: true
+          },
+          take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
           },
           take: 1
         },
@@ -125,6 +134,7 @@ export const dashboardRepository: DashboardRepository = {
       currentUserRole: (club.memberships[0]?.role ?? null) as
         | ClubMembershipRole
         | null,
+      isCurrentUserBanned: club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
         currentMilestonePosition:

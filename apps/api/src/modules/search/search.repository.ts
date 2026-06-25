@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import {
   postSelect,
@@ -39,6 +40,7 @@ export type SearchPostRecord = {
       mode: ProgressMode;
       currentMilestonePosition: number | null;
     };
+    isCurrentUserBanned: boolean;
   };
 };
 
@@ -84,37 +86,54 @@ type SearchPostRow = {
 };
 
 type SelectedSearchPost = Prisma.PostGetPayload<{
-  select: typeof searchPostSelect;
+  select: ReturnType<typeof searchPostSelect>;
 }>;
 
-const searchPostSelect = {
-  ...postSelect,
-  club: {
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      visibility: true,
-      memberships: {
-        select: {
-          role: true
+const searchPostSelect = (userId: string) => {
+  const now = new Date();
+
+  return {
+    ...postSelect,
+    club: {
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        visibility: true,
+        memberships: {
+          where: {
+            userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
         },
-        take: 1
-      },
-      progress: {
-        select: {
-          mode: true,
-          currentMilestone: {
-            select: {
-              position: true
+        progress: {
+          where: {
+            userId
+          },
+          select: {
+            mode: true,
+            currentMilestone: {
+              select: {
+                position: true
+              }
             }
-          }
+          },
+          take: 1
         },
-        take: 1
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
+        },
       }
     }
-  }
-} as const;
+  } as const;
+};
 
 export const searchRepository: SearchRepository = {
   searchClubs: async (query, userId, { limit, offset }) => {
@@ -131,7 +150,7 @@ export const searchRepository: SearchRepository = {
         c."visibility"::text AS "visibility",
         cover."object_key" AS "coverObjectKey",
         cover."status"::text AS "coverStatus",
-        COUNT(member_count."id")::int AS "memberCount",
+        COUNT(DISTINCT member_count."id")::int AS "memberCount",
         c."created_at" AS "createdAt",
         c."updated_at" AS "updatedAt"
       FROM "clubs" c
@@ -140,12 +159,21 @@ export const searchRepository: SearchRepository = {
       LEFT JOIN "club_memberships" current_member
         ON current_member."club_id" = c."id"
         AND current_member."user_id" = ${userId}::uuid
+      LEFT JOIN "club_bans" current_ban
+        ON current_ban."club_id" = c."id"
+        AND current_ban."user_id" = ${userId}::uuid
+        AND current_ban."revoked_at" IS NULL
+        AND (
+          current_ban."expires_at" IS NULL
+          OR current_ban."expires_at" > now()
+        )
       LEFT JOIN "club_memberships" member_count
         ON member_count."club_id" = c."id"
       WHERE (
         c."visibility" = 'PUBLIC'
         OR current_member."user_id" IS NOT NULL
       )
+      AND current_ban."id" IS NULL
       AND to_tsvector(
         'english',
         coalesce(c."title", '') || ' ' ||
@@ -187,12 +215,21 @@ export const searchRepository: SearchRepository = {
       LEFT JOIN "club_memberships" current_member
         ON current_member."club_id" = c."id"
         AND current_member."user_id" = ${userId}::uuid
+      LEFT JOIN "club_bans" current_ban
+        ON current_ban."club_id" = c."id"
+        AND current_ban."user_id" = ${userId}::uuid
+        AND current_ban."revoked_at" IS NULL
+        AND (
+          current_ban."expires_at" IS NULL
+          OR current_ban."expires_at" > now()
+        )
       WHERE p."status" = 'VISIBLE'
       AND p."deleted_at" IS NULL
       AND (
         c."visibility" = 'PUBLIC'
         OR current_member."user_id" IS NOT NULL
       )
+      AND current_ban."id" IS NULL
       AND to_tsvector(
         'english',
         coalesce(p."title", '') || ' ' || coalesce(p."body", '')
@@ -215,7 +252,7 @@ export const searchRepository: SearchRepository = {
           in: postIds
         }
       },
-      select: searchPostSelect
+      select: searchPostSelect(userId)
     });
     const postOrder = new Map(postIds.map((postId, index) => [postId, index]));
     const reactionMap = await userReactionMapForPostIds(postIds, userId);
@@ -265,6 +302,7 @@ const toSearchPostRecord = (
       title: post.club.title,
       visibility: post.club.visibility as ClubVisibility,
       currentUserRole: post.club.memberships[0]?.role ?? null,
+      isCurrentUserBanned: post.club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
         currentMilestonePosition:
