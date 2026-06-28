@@ -764,6 +764,53 @@ describe("comments routes", () => {
     });
   });
 
+  it("locks future comments again after Finished progress is reset to Strict", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 3);
+    repository.setProgress(user.id, post.clubId, 3, "FINISHED");
+    repository.createComment(post.id, user.id, futureMilestone, {
+      body: "REWOUND_COMMENT_BODY_SHOULD_LOCK"
+    });
+    const cookie = await createSessionCookie(user);
+
+    await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", cookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.comments[0]).toMatchObject({
+          visibility: "VISIBLE",
+          body: "REWOUND_COMMENT_BODY_SHOULD_LOCK"
+        });
+      });
+
+    repository.setProgress(user.id, post.clubId, 1, "STRICT");
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(response.body.comments).toHaveLength(1);
+    expect(response.body.comments[0]).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        id: futureMilestone.id,
+        position: 3
+      }
+    });
+    expect(response.body.comments[0]).not.toHaveProperty("body");
+    expect(response.body.comments[0]).not.toHaveProperty("author");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "REWOUND_COMMENT_BODY_SHOULD_LOCK"
+    );
+  });
+
   it("toggles comment reactions and returns updated aggregate counts", async () => {
     const user = repository.createStoredUser(validUserInput());
     const otherUser = repository.createStoredUser({

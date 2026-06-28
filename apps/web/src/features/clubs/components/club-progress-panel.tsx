@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Save,
   Sparkles,
+  StepBack,
   StepForward
 } from "lucide-react";
 import { toast } from "sonner";
@@ -163,9 +164,24 @@ export const ClubProgressPanel = ({
       ? null
       : milestones.find((milestone) => milestone.id === selectedMilestoneId) ??
         null;
+  const currentSafePosition = getSafeProgressPosition({
+    mode: progress.mode,
+    milestonePosition: progress.currentMilestone?.position ?? null,
+    totalMilestones: progress.totalMilestones
+  });
+  const selectedPosition = selectedMilestone?.position ?? 0;
+  const isRewindSelection = selectedPosition < currentSafePosition;
+  const shouldSaveRewindAsStrict =
+    isRewindSelection &&
+    (progress.mode === "FINISHED" || selectedMode === "FINISHED");
+  const modeToSave = shouldSaveRewindAsStrict ? "STRICT" : selectedMode;
+  const previousMilestone = getPreviousMilestone(
+    milestones,
+    currentSafePosition
+  );
   const hasChanges =
     progress.currentMilestone?.id !==
-      (selectedMilestone?.id ?? null) || progress.mode !== selectedMode;
+      (selectedMilestone?.id ?? null) || progress.mode !== modeToSave;
   const activeMode = progressModeOptions.find(
     (mode) => mode.value === progress.mode
   );
@@ -176,24 +192,67 @@ export const ClubProgressPanel = ({
     progress.currentMilestone?.position === finalMilestonePosition;
   const isProgressSaving =
     updateProgressMutation.isPending || advanceProgressMutation.isPending;
+  const canRewindProgress = currentSafePosition > 0 && !isProgressSaving;
   const canAdvanceProgress =
     milestones.length > 0 && !isFinalMilestoneComplete && !isProgressSaving;
+
+  const selectMilestone = (milestoneId: string) => {
+    setSelectedMilestoneId(milestoneId);
+
+    const milestonePosition = getSelectedMilestonePosition(
+      milestoneId,
+      milestones
+    );
+
+    if (milestonePosition < currentSafePosition && selectedMode === "FINISHED") {
+      setSelectedMode("STRICT");
+    }
+  };
 
   const saveProgress = () => {
     updateProgressMutation.mutate(
       {
         currentMilestoneId: selectedMilestone?.id ?? null,
-        mode: selectedMode
+        mode: modeToSave
       },
       {
         onSuccess: () => {
-          toast.success("Progress updated");
+          toast.success(
+            isRewindSelection
+              ? "Progress rewound. Future discussions are locked again."
+              : "Progress updated"
+          );
         },
         onError: (error) => {
           toast.error(
             error instanceof ApiError
               ? error.message
               : "Could not update progress. Try again."
+          );
+        }
+      }
+    );
+  };
+
+  const rewindProgress = () => {
+    const nextMode = progress.mode === "FINISHED" ? "STRICT" : progress.mode;
+
+    updateProgressMutation.mutate(
+      {
+        currentMilestoneId: previousMilestone?.id ?? null,
+        mode: nextMode
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            `Rewound to ${getProgressLabel(previousMilestone)}. Future discussions are locked again.`
+          );
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : "Could not rewind progress. Try again."
           );
         }
       }
@@ -258,7 +317,7 @@ export const ClubProgressPanel = ({
               className="h-10 rounded-md border border-subtle bg-inset px-3 text-sm text-primary transition-colors hover:border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
               value={selectedMilestoneId}
               disabled={isProgressSaving}
-              onChange={(event) => setSelectedMilestoneId(event.target.value)}
+              onChange={(event) => selectMilestone(event.target.value)}
             >
               <option value={notStartedValue}>Not started</option>
               {milestones.map((milestone) => (
@@ -269,6 +328,16 @@ export const ClubProgressPanel = ({
             </select>
           </label>
 
+          {isRewindSelection ? (
+            <div className="rounded-lg border border-strong bg-inset p-3 text-sm leading-6 text-muted">
+              <StepBack className="mb-2 size-4 text-brand" />
+              Future discussions after this milestone will be locked again.
+              {shouldSaveRewindAsStrict
+                ? " Finished mode will switch back to Strict."
+                : ""}
+            </div>
+          ) : null}
+
           {milestones.length === 0 ? (
             <div className="rounded-lg border border-default bg-inset p-3 text-sm text-muted">
               <ListChecks className="mb-2 size-4 text-faint" />
@@ -277,21 +346,37 @@ export const ClubProgressPanel = ({
             </div>
           ) : null}
 
-          <Button
-            className="w-full"
-            variant="secondary"
-            disabled={!canAdvanceProgress}
-            onClick={advanceProgress}
-          >
-            <StepForward />
-            {advanceProgressMutation.isPending
-              ? "Marking next"
-              : milestones.length === 0
-                ? "No milestones to advance"
-                : isFinalMilestoneComplete
-                ? "Final milestone complete"
-                : "Next milestone complete"}
-          </Button>
+          <div className="grid gap-2">
+            <Button
+              className="w-full"
+              variant="secondary"
+              disabled={!canRewindProgress}
+              onClick={rewindProgress}
+            >
+              <StepBack />
+              {updateProgressMutation.isPending
+                ? "Rewinding"
+                : currentSafePosition <= 0
+                  ? "No previous milestone"
+                  : "Previous milestone"}
+            </Button>
+
+            <Button
+              className="w-full"
+              variant="secondary"
+              disabled={!canAdvanceProgress}
+              onClick={advanceProgress}
+            >
+              <StepForward />
+              {advanceProgressMutation.isPending
+                ? "Marking next"
+                : milestones.length === 0
+                  ? "No milestones to advance"
+                  : isFinalMilestoneComplete
+                    ? "Final milestone complete"
+                    : "Next milestone complete"}
+            </Button>
+          </div>
 
           <div className="grid gap-2">
             <p className="text-sm text-muted">Reading mode</p>
@@ -303,7 +388,13 @@ export const ClubProgressPanel = ({
                   "rounded-lg border border-default bg-inset px-3 py-2 text-left transition-colors hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
                   selectedMode === mode.value && "border-brand bg-active"
                 )}
-                disabled={isProgressSaving}
+                disabled={
+                  isProgressSaving ||
+                  (isRewindSelection &&
+                    (mode.value === "FINISHED" ||
+                      (progress.mode === "FINISHED" &&
+                        mode.value !== "STRICT")))
+                }
                 onClick={() => setSelectedMode(mode.value)}
               >
                 <span className="flex items-center justify-between gap-3">
@@ -451,6 +542,35 @@ const getProgressLabel = (
 
 const formatMilestoneOption = (milestone: ClubMilestone) =>
   `${milestone.position}. ${getMilestoneDisplayTitle(milestone)}`;
+
+const getSelectedMilestonePosition = (
+  milestoneId: string,
+  milestones: ClubMilestone[]
+) => {
+  if (milestoneId === notStartedValue) {
+    return 0;
+  }
+
+  return (
+    milestones.find((milestone) => milestone.id === milestoneId)?.position ?? 0
+  );
+};
+
+const getPreviousMilestone = (
+  milestones: ClubMilestone[],
+  currentSafePosition: number
+) => {
+  const previousPosition = currentSafePosition - 1;
+
+  if (previousPosition <= 0) {
+    return null;
+  }
+
+  return (
+    milestones.find((milestone) => milestone.position === previousPosition) ??
+    null
+  );
+};
 
 const getMilestoneDisplayTitle = (milestone: {
   safeTitle: string;

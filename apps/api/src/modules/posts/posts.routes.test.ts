@@ -1422,6 +1422,85 @@ describe("posts routes", () => {
     });
   });
 
+  it("locks future posts again after Finished progress is rewound to Strict", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("finished-rewind-story-circle");
+    const openingMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const finalMilestone = repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, finalMilestone.id, "FINISHED");
+    const post = repository.createPost(club.id, user.id, finalMilestone.id, {
+      title: "REWOUND_FUTURE_TITLE_SHOULD_LOCK",
+      body: "REWOUND_FUTURE_BODY_SHOULD_LOCK"
+    });
+    const cookie = await createSessionCookie(user);
+
+    await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.post).toMatchObject({
+          visibility: "VISIBLE",
+          title: "REWOUND_FUTURE_TITLE_SHOULD_LOCK"
+        });
+      });
+    await request(app)
+      .patch("/api/clubs/finished-rewind-story-circle/progress")
+      .set("Cookie", cookie)
+      .send({
+        currentMilestoneId: openingMilestone.id,
+        mode: "STRICT"
+      })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.progress).toMatchObject({
+          mode: "STRICT",
+          currentMilestone: {
+            id: openingMilestone.id,
+            position: 1
+          }
+        });
+      });
+
+    const detailResponse = await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+    const lockedFeedResponse = await request(app)
+      .get("/api/clubs/finished-rewind-story-circle/posts?tab=locked")
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(detailResponse.body.post).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        id: finalMilestone.id,
+        position: 3,
+        label: "Finale"
+      }
+    });
+    expect(detailResponse.body.post).not.toHaveProperty("title");
+    expect(detailResponse.body.post).not.toHaveProperty("bodyPreview");
+    expect(lockedFeedResponse.body.posts).toHaveLength(1);
+    expect(lockedFeedResponse.body.posts[0]).toMatchObject({
+      id: post.id,
+      visibility: "LOCKED"
+    });
+    expect(JSON.stringify(detailResponse.body)).not.toContain(
+      "REWOUND_FUTURE_TITLE_SHOULD_LOCK"
+    );
+    expect(JSON.stringify(detailResponse.body)).not.toContain(
+      "REWOUND_FUTURE_BODY_SHOULD_LOCK"
+    );
+  });
+
   it("returns visible card title and body preview at the required milestone", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("visible-story-circle");

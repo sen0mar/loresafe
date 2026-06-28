@@ -348,6 +348,125 @@ describe("frontend regression smoke", () => {
     });
   });
 
+  it("rewinds Finished progress and refetches open spoiler content as locked", async () => {
+    let hasRewound = false;
+    const postDetailPath = `/api/posts/${postId}`;
+    const commentsPath = `/api/posts/${postId}/comments`;
+    const rewoundLockedPost: ClubPostCard = {
+      ...lockedPost,
+      id: postId
+    };
+    const rewoundLockedComment: Comment = {
+      ...lockedComment,
+      id: commentId
+    };
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress: {
+          ...progress,
+          mode: "FINISHED",
+          currentMilestone: milestoneTwo,
+          completedMilestones: 2,
+          percentage: 100
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute(postDetailPath, () => ({
+        post: hasRewound ? rewoundLockedPost : visiblePost,
+        club: {
+          id: club.id,
+          slug: club.slug
+        }
+      })),
+      shellRoute(commentsPath, () => ({
+        comments: [hasRewound ? rewoundLockedComment : visibleComment],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      })),
+      {
+        method: "PATCH",
+        path: "/api/clubs/safe-club/progress",
+        response: () => {
+          hasRewound = true;
+
+          return {
+            progress: {
+              ...progress,
+              mode: "STRICT",
+              currentMilestone: milestoneOne,
+              completedMilestones: 1,
+              percentage: 50,
+              updatedAt: now
+            }
+          };
+        }
+      }
+    ]);
+    renderWithProviders(
+      <Fragment>
+        <Routes>
+          <Route path="/app/posts/:postId" element={<PostDetailPage />} />
+        </Routes>
+        <ClubProgressPanel slug="safe-club" clubTitle="Safe Club" />
+      </Fragment>,
+      {
+        initialEntries: [`/app/posts/${postId}`]
+      }
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Visible post body.")).toBeInTheDocument();
+    expect(await screen.findByText("Visible comment body")).toBeInTheDocument();
+
+    const postReadsBeforeRewind = countFetchCalls(
+      fetchMock,
+      "GET",
+      postDetailPath
+    );
+    const commentReadsBeforeRewind = countFetchCalls(
+      fetchMock,
+      "GET",
+      commentsPath
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /previous milestone/i })
+    );
+
+    await waitFor(() =>
+      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
+        .toBeTruthy()
+    );
+    expect(
+      getJsonRequestBody(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")!
+      )
+    ).toEqual({
+      currentMilestoneId: firstMilestoneId,
+      mode: "STRICT"
+    });
+    await waitFor(() =>
+      expect(countFetchCalls(fetchMock, "GET", postDetailPath)).toBeGreaterThan(
+        postReadsBeforeRewind
+      )
+    );
+    await waitFor(() =>
+      expect(countFetchCalls(fetchMock, "GET", commentsPath)).toBeGreaterThan(
+        commentReadsBeforeRewind
+      )
+    );
+    expect(await screen.findByText("Locked discussion")).toBeInTheDocument();
+    expect(await screen.findByText("Locked comment")).toBeInTheDocument();
+    expect(screen.queryByText("Visible post body.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Visible comment body")).not.toBeInTheDocument();
+  });
+
   it("creates posts from the feed dialog", async () => {
     const fetchMock = mockFetchRoutes([
       shellRoute("/api/clubs/safe-club/posts", {
@@ -1182,3 +1301,15 @@ const findFetchCall = (
 
     return init?.method === method && url.pathname === path;
   });
+
+const countFetchCalls = (
+  fetchMock: ReturnType<typeof mockFetchRoutes>,
+  method: string,
+  path: string
+) =>
+  fetchMock.mock.calls.filter((call) => {
+    const url = new URL(String(call[0]), "http://localhost:5173");
+    const init = call[1] as RequestInit | undefined;
+
+    return init?.method === method && url.pathname === path;
+  }).length;

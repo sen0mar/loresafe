@@ -767,6 +767,7 @@ export const clubsQueryKeys = {
     ["clubs", "detail", slug, "recently-unlocked"] as const,
   moderationReports: (slug: string) =>
     ["clubs", "detail", slug, "moderation", "reports"] as const,
+  postsRoot: ["posts"] as const,
   postDetail: (postId: string) => ["posts", "detail", postId] as const,
   postComments: (postId: string) =>
     ["posts", "detail", postId, "comments"] as const
@@ -1760,6 +1761,9 @@ export const invalidateClubProgressDependencies = (
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.dashboardRoot(slug)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.postsRoot
   });
 };
 
