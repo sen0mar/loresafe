@@ -1,6 +1,8 @@
 import type * as React from "react";
 import { toast, Toaster as Sonner, type ToasterProps } from "sonner";
 
+const TOAST_DURATION_MS = 2500;
+
 const Toaster = ({
   toastOptions,
   ...props
@@ -9,6 +11,7 @@ const Toaster = ({
     theme="dark"
     richColors={false}
     toastOptions={{
+      duration: TOAST_DURATION_MS,
       ...toastOptions,
       classNames: {
         toast:
