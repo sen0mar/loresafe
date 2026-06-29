@@ -131,7 +131,7 @@ const DeleteContentDialog = ({
         <DialogHeader>
           <DialogTitle>Delete {targetLabel}</DialogTitle>
           <DialogDescription>
-            This will hide the {targetLabel} from normal ThreadSync views.
+            Are you sure you want to delete this {targetLabel}?
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
