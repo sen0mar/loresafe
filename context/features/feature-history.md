@@ -76,6 +76,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 70: Club ban enforcement — Made active club bans hard backend denials across club-scoped access, fixed member roster ban shaping, constrained report-queue bans to the reported author with role and last-owner protections, and added focused backend/frontend regression coverage.
 - Feature 71: Progress rewind safety — Added explicit milestone rewind controls, Finished-to-Strict rewind protection, post/comment cache refreshes after progress changes, and focused spoiler re-lock regression coverage.
 - Feature 72: Direct content deletion — Added author/owner/moderator soft-delete actions for posts and comments, spoiler-safe delete permission DTOs, direct delete UI controls, audit logging, rate-limited endpoints, and focused backend/frontend regression coverage.
+- Feature 73: Explore club avatars — Added shared club cover thumbnails for Explore and search club cards, preserving fallback icons and adding focused frontend regression coverage.
 
 ## Entry Format
 
