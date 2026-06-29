@@ -64,7 +64,7 @@ describe("clubs routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         title: "  New Story Circle  ",
-        slug: " New-Story-Circle ",
+        linkName: " New-Story-Circle ",
         description: "  Spoiler-safe theories.  ",
         category: "  Books  ",
         visibility: "PUBLIC",
@@ -76,7 +76,7 @@ describe("clubs routes", () => {
       club: {
         id: expect.any(String),
         title: "New Story Circle",
-        slug: "new-story-circle",
+        linkName: "new-story-circle",
         description: "Spoiler-safe theories.",
         category: "Books",
         coverUrl: null,
@@ -105,7 +105,7 @@ describe("clubs routes", () => {
     ]);
   });
 
-  it("rejects duplicate club slugs cleanly", async () => {
+  it("rejects duplicate club link names cleanly", async () => {
     const user = await repository.createUser({
       email: "owner@example.com",
       displayName: "Owner",
@@ -113,25 +113,25 @@ describe("clubs routes", () => {
     });
     repository.createClub({
       title: "Existing Club",
-      slug: "existing-club",
+      linkName: "existing-club",
       visibility: "PUBLIC"
     });
 
     const response = await request(app)
       .post("/api/clubs")
-      .set("x-request-id", "clubs-duplicate-slug")
+      .set("x-request-id", "clubs-duplicate-linkName")
       .set("Cookie", await createSessionCookie(user))
       .send({
         ...validCreateClubPayload(),
-        slug: "existing-club"
+        linkName: "existing-club"
       })
       .expect(409);
 
     expect(response.body).toEqual({
       error: {
         code: "CONFLICT",
-        message: "That club slug is already taken.",
-        requestId: "clubs-duplicate-slug"
+        message: "That club link name is already taken.",
+        requestId: "clubs-duplicate-linkName"
       }
     });
     expect(repository.clubs.size).toBe(1);
@@ -140,7 +140,7 @@ describe("clubs routes", () => {
 
   it.each([
     ["title", { title: "x" }],
-    ["slug", { slug: "not ok" }],
+    ["linkName", { linkName: "not ok" }],
     ["description", { description: "x".repeat(281) }],
     ["category", { category: "x".repeat(61) }],
     ["visibility", { visibility: "FRIENDS_ONLY" }],
@@ -189,7 +189,7 @@ describe("clubs routes", () => {
       .send({
         ...validCreateClubPayload(),
         title: "Private Plot Room",
-        slug: "private-plot-room",
+        linkName: "private-plot-room",
         visibility: "PRIVATE"
       })
       .expect(201);
@@ -202,7 +202,7 @@ describe("clubs routes", () => {
     expect(ownerResponse.body.club).toMatchObject({
       id: createResponse.body.club.id,
       title: "Private Plot Room",
-      slug: "private-plot-room",
+      linkName: "private-plot-room",
       visibility: "PRIVATE",
       currentUserRole: "OWNER",
       membership: {
@@ -258,7 +258,7 @@ describe("clubs routes", () => {
 
     const club = repository.createClub({
       title: "Invite Arc Watch",
-      slug: "invite-arc-watch",
+      linkName: "invite-arc-watch",
       description: "Hidden invite-only discussion.",
       category: "Anime",
       visibility: "INVITE_ONLY"
@@ -289,7 +289,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       description: "Safe public discussion.",
       category: "Books",
       rules: "Keep future chapters out of early discussions.",
@@ -304,7 +304,7 @@ describe("clubs routes", () => {
     expect(response.body.club).toMatchObject({
       id: club.id,
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC",
       currentUserRole: null,
       membership: {
@@ -327,7 +327,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       description: "Safe public discussion.",
       category: "Books",
       visibility: "PUBLIC"
@@ -341,7 +341,7 @@ describe("clubs routes", () => {
     expect(response.body.club).toMatchObject({
       id: club.id,
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC",
       memberCount: 1,
       currentUserRole: "MEMBER",
@@ -367,7 +367,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
 
@@ -403,7 +403,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
 
@@ -450,7 +450,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Member List Club",
-      slug: "member-list-club",
+      linkName: "member-list-club",
       visibility: "PUBLIC"
     });
     const ownerMembershipId = repository.createMembership(
@@ -511,7 +511,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Role Club",
-      slug: "role-club",
+      linkName: "role-club",
       visibility: "PUBLIC"
     });
     const ownerMembershipId = repository.createMembership(
@@ -573,7 +573,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Ban Club",
-      slug: "ban-club",
+      linkName: "ban-club",
       visibility: "PUBLIC"
     });
     const ownerMembershipId = repository.createMembership(
@@ -657,7 +657,7 @@ describe("clubs routes", () => {
     });
     const club = repository.createClub({
       title: "Protected Club",
-      slug: "protected-club",
+      linkName: "protected-club",
       visibility: "PUBLIC"
     });
     const ownerMembershipId = repository.createMembership(
@@ -700,7 +700,7 @@ describe("clubs routes", () => {
 
     expect(
       discoveryResponse.body.clubs.map(
-        (discoveredClub: { slug: string }) => discoveredClub.slug
+        (discoveredClub: { linkName: string }) => discoveredClub.linkName
       )
     ).not.toContain("protected-club");
     expect(repository.memberships).toHaveLength(1);
@@ -720,7 +720,7 @@ describe("clubs routes", () => {
 
       repository.createClub({
         title: "Hidden Story Circle",
-        slug: "hidden-story-circle",
+        linkName: "hidden-story-circle",
         visibility
       });
 
@@ -765,21 +765,21 @@ describe("clubs routes", () => {
     });
     const publicClub = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       description: "Safe public discussion.",
       category: "Books",
       visibility: "PUBLIC"
     });
     const privateClub = repository.createClub({
       title: "Private Plot Room",
-      slug: "private-plot-room",
+      linkName: "private-plot-room",
       description: "Hidden private discussion.",
       category: "Shows",
       visibility: "PRIVATE"
     });
     const inviteOnlyClub = repository.createClub({
       title: "Invite Arc Watch",
-      slug: "invite-arc-watch",
+      linkName: "invite-arc-watch",
       description: "Hidden invite-only discussion.",
       category: "Anime",
       visibility: "INVITE_ONLY"
@@ -799,7 +799,7 @@ describe("clubs routes", () => {
         {
           id: publicClub.id,
           title: "Public Story Circle",
-          slug: "public-story-circle",
+          linkName: "public-story-circle",
           description: "Safe public discussion.",
           category: "Books",
           coverUrl: null,
@@ -829,7 +829,7 @@ describe("clubs routes", () => {
 
     repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       description: null,
       category: null,
       visibility: "PUBLIC"
@@ -848,7 +848,7 @@ describe("clubs routes", () => {
         "description",
         "id",
         "memberCount",
-        "slug",
+        "linkName",
         "title",
         "updatedAt",
         "visibility"
@@ -865,7 +865,7 @@ describe("clubs routes", () => {
 
     repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       description: null,
       category: null,
       rules: "Mind the spoiler line.",
@@ -889,7 +889,7 @@ describe("clubs routes", () => {
         "membership",
         "rules",
         "settings",
-        "slug",
+        "linkName",
         "title",
         "updatedAt",
         "visibility"
@@ -913,19 +913,19 @@ describe("clubs routes", () => {
 
     repository.createClub({
       title: "First Public Club",
-      slug: "first-public-club",
+      linkName: "first-public-club",
       visibility: "PUBLIC",
       createdAt: new Date("2026-01-01T00:00:00.000Z")
     });
     repository.createClub({
       title: "Second Public Club",
-      slug: "second-public-club",
+      linkName: "second-public-club",
       visibility: "PUBLIC",
       createdAt: new Date("2026-01-02T00:00:00.000Z")
     });
     repository.createClub({
       title: "Third Public Club",
-      slug: "third-public-club",
+      linkName: "third-public-club",
       visibility: "PUBLIC",
       createdAt: new Date("2026-01-03T00:00:00.000Z")
     });
@@ -935,7 +935,7 @@ describe("clubs routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { slug: string }) => club.slug)).toEqual([
+    expect(response.body.clubs.map((club: { linkName: string }) => club.linkName)).toEqual([
       "first-public-club"
     ]);
     expect(response.body.pagination).toEqual({
@@ -994,7 +994,7 @@ type StoredClub = Omit<ClubDiscoveryRecord, "memberCount" | "visibility"> & {
 
 type CreateStoredClubInput = {
   title: string;
-  slug: string;
+  linkName: string;
   description?: string | null;
   category?: string | null;
   rules?: string | null;
@@ -1073,7 +1073,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
   createClub = ({
     title,
-    slug,
+    linkName,
     description = null,
     category = null,
     rules = null,
@@ -1083,7 +1083,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     const club = {
       id: crypto.randomUUID(),
       title,
-      slug,
+      linkName,
       description,
       category,
       rules,
@@ -1146,7 +1146,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     userId: string,
     input: CreateClubRequest
   ) => {
-    if (await this.findClubBySlug(input.slug)) {
+    if (await this.findClubByLinkName(input.linkName)) {
       throw {
         code: "P2002"
       };
@@ -1154,7 +1154,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
 
     const club = this.createClub({
       title: input.title,
-      slug: input.slug,
+      linkName: input.linkName,
       description: input.description,
       category: input.category,
       rules: input.rules,
@@ -1166,14 +1166,14 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return this.toClubDetailRecord(club, userId);
   };
 
-  findClubBySlug = async (slug: string) => {
-    const club = this.findStoredClubBySlug(slug);
+  findClubByLinkName = async (linkName: string) => {
+    const club = this.findStoredClubByLinkName(linkName);
 
     return club ? { id: club.id } : null;
   };
 
-  findVisibleClubBySlugForUser = async (slug: string, userId: string) => {
-    const club = this.findStoredClubBySlug(slug);
+  findVisibleClubByLinkNameForUser = async (linkName: string, userId: string) => {
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -1192,8 +1192,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return detail;
   };
 
-  joinPublicClubBySlug = async (slug: string, userId: string) => {
-    const club = this.findStoredClubBySlug(slug);
+  joinPublicClubByLinkName = async (linkName: string, userId: string) => {
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club || club.visibility !== "PUBLIC") {
       return {
@@ -1222,12 +1222,12 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
-  listClubMembersBySlug = async (
-    slug: string,
+  listClubMembersByLinkName = async (
+    linkName: string,
     userId: string,
     { page, limit }: { page: number; limit: number }
   ) => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return {
@@ -1276,12 +1276,12 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   };
 
   updateClubMemberRole = async (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string,
     role: "OWNER" | "MODERATOR" | "MEMBER"
   ): Promise<ClubMemberMutationResult> => {
-    const context = this.findMemberContext(slug, actorId, membershipId);
+    const context = this.findMemberContext(linkName, actorId, membershipId);
 
     if (!context.club) {
       return { status: "CLUB_NOT_FOUND" };
@@ -1326,12 +1326,12 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   };
 
   banClubMember = async (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string,
     input: { reason?: string | null; expiresAt?: string }
   ): Promise<ClubMemberMutationResult> => {
-    const context = this.findMemberContext(slug, actorId, membershipId);
+    const context = this.findMemberContext(linkName, actorId, membershipId);
 
     if (!context.club) {
       return { status: "CLUB_NOT_FOUND" };
@@ -1383,11 +1383,11 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   };
 
   unbanClubMember = async (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string
   ): Promise<ClubMemberMutationResult> => {
-    const context = this.findMemberContext(slug, actorId, membershipId);
+    const context = this.findMemberContext(linkName, actorId, membershipId);
 
     if (!context.club) {
       return { status: "CLUB_NOT_FOUND" };
@@ -1461,9 +1461,9 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
-  private findStoredClubBySlug = (slug: string) => {
+  private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
-      if (club.slug === slug) {
+      if (club.linkName === linkName) {
         return club;
       }
     }
@@ -1478,11 +1478,11 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     ) ?? null;
 
   private findMemberContext = (
-    slug: string,
+    linkName: string,
     actorId: string,
     membershipId: string
   ) => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return {
@@ -1617,7 +1617,7 @@ const createSessionCookie = async (user: AuthUserRecord) => {
 
 const validCreateClubPayload = () => ({
   title: "New Story Circle",
-  slug: "new-story-circle",
+  linkName: "new-story-circle",
   description: "Spoiler-safe theories.",
   category: "Books",
   visibility: "PUBLIC",

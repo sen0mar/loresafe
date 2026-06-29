@@ -11,7 +11,7 @@ const optionalTrimmedText = (maxLength: number) =>
     .transform((value) => (value.length > 0 ? value : null))
     .optional();
 
-export const clubSlugSchema = z
+export const clubLinkNameSchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -36,7 +36,7 @@ export const listClubMembersQuerySchema = z
 export const createClubRequestSchema = z
   .object({
     title: z.string().trim().min(2).max(120),
-    slug: clubSlugSchema,
+    linkName: clubLinkNameSchema,
     description: optionalTrimmedText(280),
     category: optionalTrimmedText(60),
     visibility: clubVisibilitySchema,
@@ -44,15 +44,15 @@ export const createClubRequestSchema = z
   })
   .strict();
 
-export const clubSlugParamsSchema = z
+export const clubLinkNameParamsSchema = z
   .object({
-    slug: clubSlugSchema
+    linkName: clubLinkNameSchema
   })
   .strict();
 
 export const clubMemberParamsSchema = z
   .object({
-    slug: clubSlugSchema,
+    linkName: clubLinkNameSchema,
     membershipId: z.uuid()
   })
   .strict();
@@ -84,7 +84,7 @@ export const banClubMemberRequestSchema = z
 export type ListClubsQuery = z.infer<typeof listClubsQuerySchema>;
 export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
 export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
-export type ClubSlugParams = z.infer<typeof clubSlugParamsSchema>;
+export type ClubLinkNameParams = z.infer<typeof clubLinkNameParamsSchema>;
 export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;
 export type UpdateClubMemberRoleRequest = z.infer<
   typeof updateClubMemberRoleRequestSchema

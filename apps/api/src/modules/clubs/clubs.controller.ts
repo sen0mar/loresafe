@@ -5,7 +5,7 @@ import "../auth/auth.request.js";
 import {
   banClubMemberRequestSchema,
   clubMemberParamsSchema,
-  clubSlugParamsSchema,
+  clubLinkNameParamsSchema,
   createClubRequestSchema,
   listClubMembersQuerySchema,
   listClubsQuerySchema,
@@ -16,8 +16,8 @@ import { clubsService, type ClubsService } from "./clubs.service.js";
 export type ClubsController = {
   banClubMember: RequestHandler;
   createClub: RequestHandler;
-  getClubBySlug: RequestHandler;
-  joinPublicClubBySlug: RequestHandler;
+  getClubByLinkName: RequestHandler;
+  joinPublicClubByLinkName: RequestHandler;
   listClubMembers: RequestHandler;
   listClubs: RequestHandler;
   unbanClubMember: RequestHandler;
@@ -54,13 +54,13 @@ export const createClubsController = (
     }
   },
 
-  getClubBySlug: async (req, res, next) => {
+  getClubByLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const parseResult = clubSlugParamsSchema.safeParse(req.params);
+      const parseResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!parseResult.success) {
         throw new HttpError(
@@ -70,8 +70,8 @@ export const createClubsController = (
         );
       }
 
-      const response = await service.getVisibleClubBySlug(
-        parseResult.data.slug,
+      const response = await service.getVisibleClubByLinkName(
+        parseResult.data.linkName,
         req.currentUser.id
       );
 
@@ -81,13 +81,13 @@ export const createClubsController = (
     }
   },
 
-  joinPublicClubBySlug: async (req, res, next) => {
+  joinPublicClubByLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const parseResult = clubSlugParamsSchema.safeParse(req.params);
+      const parseResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!parseResult.success) {
         throw new HttpError(
@@ -105,8 +105,8 @@ export const createClubsController = (
         );
       }
 
-      const response = await service.joinPublicClubBySlug(
-        parseResult.data.slug,
+      const response = await service.joinPublicClubByLinkName(
+        parseResult.data.linkName,
         req.currentUser.id
       );
 
@@ -122,7 +122,7 @@ export const createClubsController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
       const queryResult = listClubMembersQuerySchema.safeParse(req.query);
 
       if (!paramsResult.success || !queryResult.success) {
@@ -133,8 +133,8 @@ export const createClubsController = (
         );
       }
 
-      const response = await service.listClubMembersBySlug(
-        paramsResult.data.slug,
+      const response = await service.listClubMembersByLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );
@@ -163,7 +163,7 @@ export const createClubsController = (
       }
 
       const response = await service.updateClubMemberRole(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.membershipId,
         req.currentUser.id,
         bodyResult.data.role
@@ -193,7 +193,7 @@ export const createClubsController = (
       }
 
       const response = await service.banClubMember(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.membershipId,
         req.currentUser.id,
         bodyResult.data
@@ -222,7 +222,7 @@ export const createClubsController = (
       }
 
       const response = await service.unbanClubMember(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.membershipId,
         req.currentUser.id
       );

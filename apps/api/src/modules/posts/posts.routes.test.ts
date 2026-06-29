@@ -2052,11 +2052,11 @@ describe("posts routes", () => {
     );
   });
 
-  it("validates recently unlocked slugs and query params", async () => {
+  it("validates recently unlocked link names and query params", async () => {
     const user = repository.createStoredUser(validUserInput());
 
     await request(app)
-      .get("/api/clubs/Invalid Slug/recently-unlocked")
+      .get("/api/clubs/Invalid Link Name/recently-unlocked")
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
 
@@ -2456,7 +2456,7 @@ class FakeReadStorage implements Pick<ObjectStorage, "createPresignedRead"> {
 
 type StoredClub = {
   id: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 };
 
@@ -2585,12 +2585,12 @@ class InMemoryPostsRepository
   };
 
   createClub = (
-    slug: string,
+    linkName: string,
     visibility: StoredClub["visibility"] = "PUBLIC"
   ) => {
     const club = {
       id: crypto.randomUUID(),
-      slug,
+      linkName,
       visibility
     };
 
@@ -2786,10 +2786,10 @@ class InMemoryPostsRepository
   };
 
   findClubForFeed = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<ClubFeedRecord | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -2812,10 +2812,10 @@ class InMemoryPostsRepository
   };
 
   findClubForPostCreation = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<ClubPostCreationClubRecord | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -2946,7 +2946,7 @@ class InMemoryPostsRepository
       post: this.withReactions(post, userId),
       club: {
         id: club.id,
-        slug: club.slug,
+        linkName: club.linkName,
         visibility: club.visibility,
         currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
         isCurrentUserBanned: this.hasActiveBan(userId, club.id),
@@ -3021,10 +3021,10 @@ class InMemoryPostsRepository
   };
 
   findClubForProgress = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<ProgressClubRecord | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -3242,9 +3242,9 @@ class InMemoryPostsRepository
     updatedAt: progress?.updatedAt ?? null
   });
 
-  private findStoredClubBySlug = (slug: string) => {
+  private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
-      if (club.slug === slug) {
+      if (club.linkName === linkName) {
         return club;
       }
     }

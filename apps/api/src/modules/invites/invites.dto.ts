@@ -14,7 +14,7 @@ export type ClubInviteDto = {
   club: {
     id: string;
     title: string;
-    slug: string;
+    linkName: string;
   };
 };
 

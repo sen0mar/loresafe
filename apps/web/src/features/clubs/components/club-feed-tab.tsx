@@ -131,7 +131,7 @@ const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
 
 export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
   const [activeTab, setActiveTab] = useState<ClubFeedTabValue>("all");
-  const postsQuery = useClubPostsInfiniteQuery(club.slug, activeTab);
+  const postsQuery = useClubPostsInfiniteQuery(club.linkName, activeTab);
   const createPostAction = club.membership.isMember ? (
     <CreatePostDialog club={club} />
   ) : null;
@@ -240,8 +240,8 @@ const CreatePostDialog = ({
     Partial<Record<keyof CreatePostFormValues, string>>
   >({});
   const [hasPendingImage, setHasPendingImage] = useState(false);
-  const milestonesQuery = useClubMilestonesQuery(club.slug, 1, open);
-  const createPostMutation = useCreateClubPostMutation(club.slug);
+  const milestonesQuery = useClubMilestonesQuery(club.linkName, 1, open);
+  const createPostMutation = useCreateClubPostMutation(club.linkName);
   const milestones = milestonesQuery.data?.milestones ?? [];
   const isSaving = createPostMutation.isPending;
   const canSubmit =
@@ -583,7 +583,7 @@ const CreatePostDialog = ({
           ) : null}
 
           <PostImageUploadField
-            clubSlug={club.slug}
+            clubLinkName={club.linkName}
             disabled={isSaving}
             onAssetChange={updateMediaAsset}
             onPendingImageChange={setHasPendingImage}

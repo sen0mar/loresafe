@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { clubSlugSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameSchema } from "../clubs/clubs.schema.js";
 
 export const reportTargetTypeSchema = z.enum(["POST", "COMMENT"]);
 
@@ -36,13 +36,13 @@ export const listModerationReportsQuerySchema = z
 
 export const clubModerationReportsParamsSchema = z
   .object({
-    slug: clubSlugSchema
+    linkName: clubLinkNameSchema
   })
   .strict();
 
 export const moderationReportRevealParamsSchema = z
   .object({
-    slug: clubSlugSchema,
+    linkName: clubLinkNameSchema,
     reportId: z.uuid()
   })
   .strict();

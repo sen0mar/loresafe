@@ -66,22 +66,22 @@ describe("users routes", () => {
     });
     const publicClub = repository.createClub({
       title: "Public Story Circle",
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     const privateClub = repository.createClub({
       title: "Private Plot Room",
-      slug: "private-plot-room",
+      linkName: "private-plot-room",
       visibility: "PRIVATE"
     });
     const inviteOnlyClub = repository.createClub({
       title: "Invite Arc Watch",
-      slug: "invite-arc-watch",
+      linkName: "invite-arc-watch",
       visibility: "INVITE_ONLY"
     });
     const unjoinedClub = repository.createClub({
       title: "Unjoined Spoiler Room",
-      slug: "unjoined-spoiler-room",
+      linkName: "unjoined-spoiler-room",
       visibility: "PRIVATE"
     });
     const publicJoinedAt = new Date("2026-01-01T00:00:00.000Z");
@@ -109,7 +109,7 @@ describe("users routes", () => {
         {
           id: privateClub.id,
           title: "Private Plot Room",
-          slug: "private-plot-room",
+          linkName: "private-plot-room",
           coverUrl: null,
           visibility: "PRIVATE",
           role: "OWNER",
@@ -119,7 +119,7 @@ describe("users routes", () => {
         {
           id: inviteOnlyClub.id,
           title: "Invite Arc Watch",
-          slug: "invite-arc-watch",
+          linkName: "invite-arc-watch",
           coverUrl: null,
           visibility: "INVITE_ONLY",
           role: "MODERATOR",
@@ -129,7 +129,7 @@ describe("users routes", () => {
         {
           id: publicClub.id,
           title: "Public Story Circle",
-          slug: "public-story-circle",
+          linkName: "public-story-circle",
           coverUrl: null,
           visibility: "PUBLIC",
           role: "MEMBER",
@@ -150,7 +150,7 @@ describe("users routes", () => {
         "joinedAt",
         "memberCount",
         "role",
-        "slug",
+        "linkName",
         "title",
         "visibility",
         "coverUrl"
@@ -168,17 +168,17 @@ describe("users routes", () => {
 
     const oldestClub = repository.createClub({
       title: "Oldest Club",
-      slug: "oldest-club",
+      linkName: "oldest-club",
       visibility: "PUBLIC"
     });
     const middleClub = repository.createClub({
       title: "Middle Club",
-      slug: "middle-club",
+      linkName: "middle-club",
       visibility: "PUBLIC"
     });
     const newestClub = repository.createClub({
       title: "Newest Club",
-      slug: "newest-club",
+      linkName: "newest-club",
       visibility: "PUBLIC"
     });
 
@@ -206,7 +206,7 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { slug: string }) => club.slug)).toEqual([
+    expect(response.body.clubs.map((club: { linkName: string }) => club.linkName)).toEqual([
       "oldest-club"
     ]);
     expect(response.body.pagination).toEqual({
@@ -574,14 +574,14 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
 
   createClub = ({
     title,
-    slug,
+    linkName,
     visibility,
     createdAt = new Date()
   }: CreateStoredClubInput) => {
     const club = {
       id: crypto.randomUUID(),
       title,
-      slug,
+      linkName,
       visibility,
       createdAt,
       updatedAt: createdAt
@@ -632,7 +632,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
         return {
           id: club.id,
           title: club.title,
-          slug: club.slug,
+          linkName: club.linkName,
           visibility: club.visibility,
           role: membership.role,
           memberCount: this.memberships.filter(
@@ -721,7 +721,7 @@ const createUniqueConstraintError = () => ({
 type StoredClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   createdAt: Date;
   updatedAt: Date;
@@ -729,7 +729,7 @@ type StoredClub = {
 
 type CreateStoredClubInput = {
   title: string;
-  slug: string;
+  linkName: string;
   visibility: StoredClub["visibility"];
   createdAt?: Date;
 };

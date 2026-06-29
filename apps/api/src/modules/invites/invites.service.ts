@@ -21,7 +21,7 @@ export type InvitesService = {
     userId: string
   ) => Promise<AcceptInviteResponse>;
   createClubInvite: (
-    slug: string,
+    linkName: string,
     userId: string,
     input: CreateClubInviteRequest
   ) => Promise<CreateClubInviteResponse>;
@@ -61,8 +61,8 @@ export const createInvitesService = (
     }
   },
 
-  createClubInvite: async (slug, userId, input) => {
-    const club = await repository.findClubForInviteCreation(slug, userId);
+  createClubInvite: async (linkName, userId, input) => {
+    const club = await repository.findClubForInviteCreation(linkName, userId);
 
     if (!club || !club.currentUserRole) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");

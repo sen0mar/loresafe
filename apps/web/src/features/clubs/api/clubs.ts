@@ -66,7 +66,7 @@ export type ClubFeedTab =
 export type ClubDiscoveryClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;
@@ -79,7 +79,7 @@ export type ClubDiscoveryClub = {
 export type Club = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;
@@ -121,7 +121,7 @@ export type ClubMember = {
 export type JoinedClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   coverUrl: string | null;
   visibility: ClubVisibility;
   role: ClubMembershipRole;
@@ -434,7 +434,7 @@ export type PostDetailResponse = {
   post: ClubPostCard;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
   };
 };
 
@@ -442,7 +442,7 @@ export type RevealPostResponse = {
   post: RevealedClubPost;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
   };
 };
 
@@ -659,7 +659,7 @@ export type CreateClubMilestoneTemplateResponse = {
 
 export type CreateClubInput = {
   title: string;
-  slug: string;
+  linkName: string;
   description?: string | null;
   category?: string | null;
   visibility: ClubVisibility;
@@ -682,10 +682,10 @@ export type BanClubMemberInput = {
 
 export const refreshClubAssetQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
-  slug: string
+  linkName: string
 ) => {
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.detail(slug)
+    queryKey: clubsQueryKeys.detail(linkName)
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.discovery
@@ -697,19 +697,19 @@ export const refreshClubAssetQueries = (
 
 export const refreshClubMemberManagementQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
-  slug: string
+  linkName: string
 ) => {
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.detail(slug)
+    queryKey: clubsQueryKeys.detail(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.membersRoot(slug)
+    queryKey: clubsQueryKeys.membersRoot(linkName)
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.feedRoot(slug)
+    queryKey: clubsQueryKeys.feedRoot(linkName)
   });
   void queryClient.invalidateQueries({
     predicate: (query) =>
@@ -719,11 +719,11 @@ export const refreshClubMemberManagementQueries = (
 
 const reconcileModerationReportMutation = (
   queryClient: ReturnType<typeof useQueryClient>,
-  slug: string,
+  linkName: string,
   report: ModerationReport
 ) => {
   queryClient.setQueryData<InfiniteData<ModerationReportsResponse>>(
-    clubsQueryKeys.moderationReports(slug),
+    clubsQueryKeys.moderationReports(linkName),
     (currentResponse) => {
       if (!currentResponse) {
         return currentResponse;
@@ -746,10 +746,10 @@ const reconcileModerationReportMutation = (
     }
   );
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.feedRoot(slug)
+    queryKey: clubsQueryKeys.feedRoot(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.moderationReports(slug)
+    queryKey: clubsQueryKeys.moderationReports(linkName)
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.postDetail(report.target.id)
@@ -763,33 +763,33 @@ const reconcileModerationReportMutation = (
 export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
   joined: ["users", "me", "clubs"] as const,
-  detail: (slug: string) => ["clubs", "detail", slug] as const,
-  milestonesRoot: (slug: string) =>
-    ["clubs", "detail", slug, "milestones"] as const,
-  milestones: (slug: string, page: number) =>
-    ["clubs", "detail", slug, "milestones", page] as const,
-  progress: (slug: string) => ["clubs", "detail", slug, "progress"] as const,
-  membersRoot: (slug: string) =>
-    ["clubs", "detail", slug, "members"] as const,
-  members: (slug: string, page: number) =>
-    ["clubs", "detail", slug, "members", page] as const,
-  feedRoot: (slug: string) => ["clubs", "detail", slug, "feed"] as const,
-  feed: (slug: string, tab: ClubFeedTab) =>
-    ["clubs", "detail", slug, "feed", tab] as const,
-  dashboardRoot: (slug: string) =>
-    ["clubs", "detail", slug, "dashboard"] as const,
-  dashboardStats: (slug: string) =>
-    ["clubs", "detail", slug, "dashboard", "stats"] as const,
-  dashboardProgressSummary: (slug: string) =>
-    ["clubs", "detail", slug, "dashboard", "progress-summary"] as const,
-  dashboardPopularDiscussions: (slug: string) =>
-    ["clubs", "detail", slug, "dashboard", "popular-discussions"] as const,
-  dashboardRecentlyUnlockedSummary: (slug: string) =>
-    ["clubs", "detail", slug, "dashboard", "recently-unlocked-summary"] as const,
-  recentlyUnlocked: (slug: string) =>
-    ["clubs", "detail", slug, "recently-unlocked"] as const,
-  moderationReports: (slug: string) =>
-    ["clubs", "detail", slug, "moderation", "reports"] as const,
+  detail: (linkName: string) => ["clubs", "detail", linkName] as const,
+  milestonesRoot: (linkName: string) =>
+    ["clubs", "detail", linkName, "milestones"] as const,
+  milestones: (linkName: string, page: number) =>
+    ["clubs", "detail", linkName, "milestones", page] as const,
+  progress: (linkName: string) => ["clubs", "detail", linkName, "progress"] as const,
+  membersRoot: (linkName: string) =>
+    ["clubs", "detail", linkName, "members"] as const,
+  members: (linkName: string, page: number) =>
+    ["clubs", "detail", linkName, "members", page] as const,
+  feedRoot: (linkName: string) => ["clubs", "detail", linkName, "feed"] as const,
+  feed: (linkName: string, tab: ClubFeedTab) =>
+    ["clubs", "detail", linkName, "feed", tab] as const,
+  dashboardRoot: (linkName: string) =>
+    ["clubs", "detail", linkName, "dashboard"] as const,
+  dashboardStats: (linkName: string) =>
+    ["clubs", "detail", linkName, "dashboard", "stats"] as const,
+  dashboardProgressSummary: (linkName: string) =>
+    ["clubs", "detail", linkName, "dashboard", "progress-summary"] as const,
+  dashboardPopularDiscussions: (linkName: string) =>
+    ["clubs", "detail", linkName, "dashboard", "popular-discussions"] as const,
+  dashboardRecentlyUnlockedSummary: (linkName: string) =>
+    ["clubs", "detail", linkName, "dashboard", "recently-unlocked-summary"] as const,
+  recentlyUnlocked: (linkName: string) =>
+    ["clubs", "detail", linkName, "recently-unlocked"] as const,
+  moderationReports: (linkName: string) =>
+    ["clubs", "detail", linkName, "moderation", "reports"] as const,
   postsRoot: ["posts"] as const,
   postDetail: (postId: string) => ["posts", "detail", postId] as const,
   postComments: (postId: string) =>
@@ -799,24 +799,24 @@ export const clubsQueryKeys = {
 export const getPublicClubs = () =>
   apiGet<ClubsDiscoveryResponse>("/api/clubs");
 
-export const getClubBySlug = (slug: string) =>
-  apiGet<ClubResponse>(`/api/clubs/${slug}`);
+export const getClubByLinkName = (linkName: string) =>
+  apiGet<ClubResponse>(`/api/clubs/${linkName}`);
 
-export const getClubMembers = (slug: string, page = 1) =>
+export const getClubMembers = (linkName: string, page = 1) =>
   apiGet<ClubMembersResponse>(
-    `/api/clubs/${slug}/members?page=${page}&limit=20`
+    `/api/clubs/${linkName}/members?page=${page}&limit=20`
   );
 
-export const getClubMilestones = (slug: string, page = 1) =>
+export const getClubMilestones = (linkName: string, page = 1) =>
   apiGet<ClubMilestonesResponse>(
-    `/api/clubs/${slug}/milestones?page=${page}&limit=100`
+    `/api/clubs/${linkName}/milestones?page=${page}&limit=100`
   );
 
-export const getClubProgress = (slug: string) =>
-  apiGet<ClubProgressResponse>(`/api/clubs/${slug}/progress`);
+export const getClubProgress = (linkName: string) =>
+  apiGet<ClubProgressResponse>(`/api/clubs/${linkName}/progress`);
 
 export const getClubPosts = (
-  slug: string,
+  linkName: string,
   tab: ClubFeedTab,
   cursor: string | null = null
 ) => {
@@ -829,11 +829,11 @@ export const getClubPosts = (
     params.set("cursor", cursor);
   }
 
-  return apiGet<ClubPostsResponse>(`/api/clubs/${slug}/posts?${params}`);
+  return apiGet<ClubPostsResponse>(`/api/clubs/${linkName}/posts?${params}`);
 };
 
 export const getRecentlyUnlockedPosts = (
-  slug: string,
+  linkName: string,
   cursor: string | null = null
 ) => {
   const params = new URLSearchParams({
@@ -845,24 +845,24 @@ export const getRecentlyUnlockedPosts = (
   }
 
   return apiGet<RecentlyUnlockedResponse>(
-    `/api/clubs/${slug}/recently-unlocked?${params}`
+    `/api/clubs/${linkName}/recently-unlocked?${params}`
   );
 };
 
-export const getClubDashboardStats = (slug: string) =>
-  apiGet<ClubDashboardStatsResponse>(`/api/clubs/${slug}/stats`);
+export const getClubDashboardStats = (linkName: string) =>
+  apiGet<ClubDashboardStatsResponse>(`/api/clubs/${linkName}/stats`);
 
-export const getClubProgressSummary = (slug: string) =>
-  apiGet<ProgressSummaryResponse>(`/api/clubs/${slug}/progress/summary`);
+export const getClubProgressSummary = (linkName: string) =>
+  apiGet<ProgressSummaryResponse>(`/api/clubs/${linkName}/progress/summary`);
 
-export const getPopularDiscussions = (slug: string) =>
+export const getPopularDiscussions = (linkName: string) =>
   apiGet<PopularDiscussionsResponse>(
-    `/api/clubs/${slug}/popular-discussions?limit=5`
+    `/api/clubs/${linkName}/popular-discussions?limit=5`
   );
 
-export const getRecentlyUnlockedSummary = (slug: string) =>
+export const getRecentlyUnlockedSummary = (linkName: string) =>
   apiGet<RecentlyUnlockedSummaryResponse>(
-    `/api/clubs/${slug}/recently-unlocked/summary?limit=3`
+    `/api/clubs/${linkName}/recently-unlocked/summary?limit=3`
   );
 
 export const getPostById = (postId: string) =>
@@ -920,9 +920,9 @@ export const getJoinedClubs = () =>
 export const createClub = (input: CreateClubInput) =>
   apiPost<ClubResponse, CreateClubInput>("/api/clubs", input);
 
-export const createClubPost = (slug: string, input: CreateClubPostInput) =>
+export const createClubPost = (linkName: string, input: CreateClubPostInput) =>
   apiPost<CreateClubPostResponse, CreateClubPostInput>(
-    `/api/clubs/${slug}/posts`,
+    `/api/clubs/${linkName}/posts`,
     input
   );
 
@@ -939,32 +939,32 @@ export const createReport = (input: CreateReportInput) =>
   apiPost<CreateReportResponse, CreateReportInput>("/api/reports", input);
 
 export const updateClubMemberRole = (
-  slug: string,
+  linkName: string,
   membershipId: string,
   input: UpdateClubMemberRoleInput
 ) =>
   apiPatch<ClubMemberResponse, UpdateClubMemberRoleInput>(
-    `/api/clubs/${slug}/members/${membershipId}/role`,
+    `/api/clubs/${linkName}/members/${membershipId}/role`,
     input
   );
 
 export const banClubMember = (
-  slug: string,
+  linkName: string,
   membershipId: string,
   input: BanClubMemberInput = {}
 ) =>
   apiPost<ClubMemberResponse, BanClubMemberInput>(
-    `/api/clubs/${slug}/members/${membershipId}/ban`,
+    `/api/clubs/${linkName}/members/${membershipId}/ban`,
     input
   );
 
-export const unbanClubMember = (slug: string, membershipId: string) =>
+export const unbanClubMember = (linkName: string, membershipId: string) =>
   apiPost<ClubMemberResponse>(
-    `/api/clubs/${slug}/members/${membershipId}/unban`
+    `/api/clubs/${linkName}/members/${membershipId}/unban`
   );
 
 export const getModerationReports = (
-  slug: string,
+  linkName: string,
   cursor: string | null = null
 ) => {
   const params = new URLSearchParams({
@@ -977,131 +977,131 @@ export const getModerationReports = (
   }
 
   return apiGet<ModerationReportsResponse>(
-    `/api/clubs/${slug}/moderation/reports?${params}`
+    `/api/clubs/${linkName}/moderation/reports?${params}`
   );
 };
 
-export const revealModerationReport = (slug: string, reportId: string) =>
+export const revealModerationReport = (linkName: string, reportId: string) =>
   apiPost<RevealModerationReportResponse>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/reveal`
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/reveal`
   );
 
 export const updateReportRequiredMilestone = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: UpdateReportRequiredMilestoneInput
 ) =>
   apiPatch<ModerationReportActionResponse, UpdateReportRequiredMilestoneInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/required-milestone`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/required-milestone`,
     input
   );
 
 export const hideReportedContent = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: ModerationReportNoteInput
 ) =>
   apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/hide`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/hide`,
     input
   );
 
 export const deleteReportedContent = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: ModerationReportNoteInput
 ) =>
   apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/delete`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/delete`,
     input
   );
 
 export const warnReportedContentAuthor = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: ModerationReportNoteInput
 ) =>
   apiPost<ModerationReportActionResponse, ModerationReportNoteInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/warn`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/warn`,
     input
   );
 
 export const banReportedContentAuthor = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: BanReportedContentAuthorInput
 ) =>
   apiPost<ModerationReportActionResponse, BanReportedContentAuthorInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/ban`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/ban`,
     input
   );
 
 export const resolveModerationReport = (
-  slug: string,
+  linkName: string,
   reportId: string,
   input: ResolveModerationReportInput
 ) =>
   apiPatch<ModerationReportActionResponse, ResolveModerationReportInput>(
-    `/api/clubs/${slug}/moderation/reports/${reportId}/resolve`,
+    `/api/clubs/${linkName}/moderation/reports/${reportId}/resolve`,
     input
   );
 
 export const createClubMilestone = (
-  slug: string,
+  linkName: string,
   input: CreateClubMilestoneInput
 ) =>
   apiPost<CreateClubMilestoneResponse, CreateClubMilestoneInput>(
-    `/api/clubs/${slug}/milestones`,
+    `/api/clubs/${linkName}/milestones`,
     input
   );
 
 export const updateClubMilestone = (
-  slug: string,
+  linkName: string,
   milestoneId: string,
   input: UpdateClubMilestoneInput
 ) =>
   apiPatch<UpdateClubMilestoneResponse, UpdateClubMilestoneInput>(
-    `/api/clubs/${slug}/milestones/${milestoneId}`,
+    `/api/clubs/${linkName}/milestones/${milestoneId}`,
     input
   );
 
 export const moveClubMilestone = (
-  slug: string,
+  linkName: string,
   input: MoveClubMilestoneInput
 ) =>
   apiPost<
     MoveClubMilestoneResponse,
     { direction: MoveClubMilestoneInput["direction"] }
   >(
-    `/api/clubs/${slug}/milestones/${input.milestoneId}/move`,
+    `/api/clubs/${linkName}/milestones/${input.milestoneId}/move`,
     {
       direction: input.direction
     }
   );
 
 export const createClubMilestoneTemplate = (
-  slug: string,
+  linkName: string,
   input: CreateClubMilestoneTemplateInput
 ) =>
   apiPost<
     CreateClubMilestoneTemplateResponse,
     CreateClubMilestoneTemplateInput
-  >(`/api/clubs/${slug}/milestones/templates`, input);
+  >(`/api/clubs/${linkName}/milestones/templates`, input);
 
-export const joinClub = (slug: string) =>
-  apiPost<ClubResponse>(`/api/clubs/${slug}/join`);
+export const joinClub = (linkName: string) =>
+  apiPost<ClubResponse>(`/api/clubs/${linkName}/join`);
 
 export const updateClubProgress = (
-  slug: string,
+  linkName: string,
   input: UpdateClubProgressInput
 ) =>
   apiPatch<ClubProgressResponse, UpdateClubProgressInput>(
-    `/api/clubs/${slug}/progress`,
+    `/api/clubs/${linkName}/progress`,
     input
   );
 
-export const advanceClubProgressToNextMilestone = (slug: string) =>
-  apiPost<ClubProgressResponse>(`/api/clubs/${slug}/progress/next`);
+export const advanceClubProgressToNextMilestone = (linkName: string) =>
+  apiPost<ClubProgressResponse>(`/api/clubs/${linkName}/progress/next`);
 
 export const usePublicClubsQuery = () =>
   useQuery({
@@ -1109,92 +1109,92 @@ export const usePublicClubsQuery = () =>
     queryFn: getPublicClubs
   });
 
-export const useClubQuery = (slug: string) =>
+export const useClubQuery = (linkName: string) =>
   useQuery({
-    queryKey: clubsQueryKeys.detail(slug),
-    queryFn: () => getClubBySlug(slug),
-    enabled: slug.length > 0
+    queryKey: clubsQueryKeys.detail(linkName),
+    queryFn: () => getClubByLinkName(linkName),
+    enabled: linkName.length > 0
   });
 
 export const useClubMilestonesQuery = (
-  slug: string,
+  linkName: string,
   page: number,
   enabled = true
 ) =>
   useQuery({
-    queryKey: clubsQueryKeys.milestones(slug, page),
-    queryFn: () => getClubMilestones(slug, page),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.milestones(linkName, page),
+    queryFn: () => getClubMilestones(linkName, page),
+    enabled: enabled && linkName.length > 0
   });
 
-export const useClubProgressQuery = (slug: string, enabled = true) =>
+export const useClubProgressQuery = (linkName: string, enabled = true) =>
   useQuery({
-    queryKey: clubsQueryKeys.progress(slug),
-    queryFn: () => getClubProgress(slug),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.progress(linkName),
+    queryFn: () => getClubProgress(linkName),
+    enabled: enabled && linkName.length > 0
   });
 
 export const useClubMembersQuery = (
-  slug: string,
+  linkName: string,
   page: number,
   enabled = true
 ) =>
   useQuery({
-    queryKey: clubsQueryKeys.members(slug, page),
-    queryFn: () => getClubMembers(slug, page),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.members(linkName, page),
+    queryFn: () => getClubMembers(linkName, page),
+    enabled: enabled && linkName.length > 0
   });
 
 export const useClubPostsInfiniteQuery = (
-  slug: string,
+  linkName: string,
   tab: ClubFeedTab
 ) =>
   useInfiniteQuery({
-    queryKey: clubsQueryKeys.feed(slug, tab),
-    queryFn: ({ pageParam }) => getClubPosts(slug, tab, pageParam),
+    queryKey: clubsQueryKeys.feed(linkName, tab),
+    queryFn: ({ pageParam }) => getClubPosts(linkName, tab, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
-    enabled: slug.length > 0
+    enabled: linkName.length > 0
   });
 
-export const useRecentlyUnlockedQuery = (slug: string, enabled = true) =>
+export const useRecentlyUnlockedQuery = (linkName: string, enabled = true) =>
   useInfiniteQuery({
-    queryKey: clubsQueryKeys.recentlyUnlocked(slug),
-    queryFn: ({ pageParam }) => getRecentlyUnlockedPosts(slug, pageParam),
+    queryKey: clubsQueryKeys.recentlyUnlocked(linkName),
+    queryFn: ({ pageParam }) => getRecentlyUnlockedPosts(linkName, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
-    enabled: enabled && slug.length > 0
+    enabled: enabled && linkName.length > 0
   });
 
-export const useClubDashboardStatsQuery = (slug: string, enabled = true) =>
+export const useClubDashboardStatsQuery = (linkName: string, enabled = true) =>
   useQuery({
-    queryKey: clubsQueryKeys.dashboardStats(slug),
-    queryFn: () => getClubDashboardStats(slug),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.dashboardStats(linkName),
+    queryFn: () => getClubDashboardStats(linkName),
+    enabled: enabled && linkName.length > 0
   });
 
-export const useClubProgressSummaryQuery = (slug: string, enabled = true) =>
+export const useClubProgressSummaryQuery = (linkName: string, enabled = true) =>
   useQuery({
-    queryKey: clubsQueryKeys.dashboardProgressSummary(slug),
-    queryFn: () => getClubProgressSummary(slug),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.dashboardProgressSummary(linkName),
+    queryFn: () => getClubProgressSummary(linkName),
+    enabled: enabled && linkName.length > 0
   });
 
-export const usePopularDiscussionsQuery = (slug: string, enabled = true) =>
+export const usePopularDiscussionsQuery = (linkName: string, enabled = true) =>
   useQuery({
-    queryKey: clubsQueryKeys.dashboardPopularDiscussions(slug),
-    queryFn: () => getPopularDiscussions(slug),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.dashboardPopularDiscussions(linkName),
+    queryFn: () => getPopularDiscussions(linkName),
+    enabled: enabled && linkName.length > 0
   });
 
 export const useRecentlyUnlockedSummaryQuery = (
-  slug: string,
+  linkName: string,
   enabled = true
 ) =>
   useQuery({
-    queryKey: clubsQueryKeys.dashboardRecentlyUnlockedSummary(slug),
-    queryFn: () => getRecentlyUnlockedSummary(slug),
-    enabled: enabled && slug.length > 0
+    queryKey: clubsQueryKeys.dashboardRecentlyUnlockedSummary(linkName),
+    queryFn: () => getRecentlyUnlockedSummary(linkName),
+    enabled: enabled && linkName.length > 0
   });
 
 export const usePostQuery = (postId: string) =>
@@ -1227,7 +1227,7 @@ export const useCreateClubMutation = () => {
     mutationFn: createClub,
     onSuccess: (response) => {
       queryClient.setQueryData(
-        clubsQueryKeys.detail(response.club.slug),
+        clubsQueryKeys.detail(response.club.linkName),
         response
       );
       void queryClient.invalidateQueries({
@@ -1240,16 +1240,16 @@ export const useCreateClubMutation = () => {
   });
 };
 
-export const useCreateClubMilestoneMutation = (slug: string) => {
+export const useCreateClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateClubMilestoneInput) =>
-      createClubMilestone(slug, input),
+      createClubMilestone(linkName, input),
     onSuccess: (response) => {
       queryClient.setQueriesData<ClubMilestonesResponse>(
         {
-          queryKey: clubsQueryKeys.milestonesRoot(slug)
+          queryKey: clubsQueryKeys.milestonesRoot(linkName)
         },
         (currentResponse) => {
           if (!currentResponse) {
@@ -1267,26 +1267,26 @@ export const useCreateClubMilestoneMutation = (slug: string) => {
         }
       );
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.milestonesRoot(slug)
+        queryKey: clubsQueryKeys.milestonesRoot(linkName)
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(slug)
+        queryKey: clubsQueryKeys.dashboardRoot(linkName)
       });
     }
   });
 };
 
-export const useCreateClubPostMutation = (slug: string) => {
+export const useCreateClubPostMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateClubPostInput) => createClubPost(slug, input),
+    mutationFn: (input: CreateClubPostInput) => createClubPost(linkName, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.feedRoot(slug)
+        queryKey: clubsQueryKeys.feedRoot(linkName)
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(slug)
+        queryKey: clubsQueryKeys.dashboardRoot(linkName)
       });
     }
   });
@@ -1322,7 +1322,7 @@ export const useCreateReportMutation = () =>
     mutationFn: createReport
   });
 
-export const useUpdateClubMemberRoleMutation = (slug: string) => {
+export const useUpdateClubMemberRoleMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1332,14 +1332,14 @@ export const useUpdateClubMemberRoleMutation = (slug: string) => {
     }: {
       membershipId: string;
       input: UpdateClubMemberRoleInput;
-    }) => updateClubMemberRole(slug, membershipId, input),
+    }) => updateClubMemberRole(linkName, membershipId, input),
     onSuccess: () => {
-      refreshClubMemberManagementQueries(queryClient, slug);
+      refreshClubMemberManagementQueries(queryClient, linkName);
     }
   });
 };
 
-export const useBanClubMemberMutation = (slug: string) => {
+export const useBanClubMemberMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1349,39 +1349,39 @@ export const useBanClubMemberMutation = (slug: string) => {
     }: {
       membershipId: string;
       input?: BanClubMemberInput;
-    }) => banClubMember(slug, membershipId, input),
+    }) => banClubMember(linkName, membershipId, input),
     onSuccess: () => {
-      refreshClubMemberManagementQueries(queryClient, slug);
+      refreshClubMemberManagementQueries(queryClient, linkName);
     }
   });
 };
 
-export const useUnbanClubMemberMutation = (slug: string) => {
+export const useUnbanClubMemberMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (membershipId: string) => unbanClubMember(slug, membershipId),
+    mutationFn: (membershipId: string) => unbanClubMember(linkName, membershipId),
     onSuccess: () => {
-      refreshClubMemberManagementQueries(queryClient, slug);
+      refreshClubMemberManagementQueries(queryClient, linkName);
     }
   });
 };
 
-export const useModerationReportsQuery = (slug: string, enabled = true) =>
+export const useModerationReportsQuery = (linkName: string, enabled = true) =>
   useInfiniteQuery({
-    queryKey: clubsQueryKeys.moderationReports(slug),
-    queryFn: ({ pageParam }) => getModerationReports(slug, pageParam),
+    queryKey: clubsQueryKeys.moderationReports(linkName),
+    queryFn: ({ pageParam }) => getModerationReports(linkName, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
-    enabled: enabled && slug.length > 0
+    enabled: enabled && linkName.length > 0
   });
 
-export const useRevealModerationReportMutation = (slug: string) =>
+export const useRevealModerationReportMutation = (linkName: string) =>
   useMutation({
-    mutationFn: (reportId: string) => revealModerationReport(slug, reportId)
+    mutationFn: (reportId: string) => revealModerationReport(linkName, reportId)
   });
 
-export const useUpdateReportRequiredMilestoneMutation = (slug: string) => {
+export const useUpdateReportRequiredMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1391,14 +1391,14 @@ export const useUpdateReportRequiredMilestoneMutation = (slug: string) => {
     }: {
       reportId: string;
       input: UpdateReportRequiredMilestoneInput;
-    }) => updateReportRequiredMilestone(slug, reportId, input),
+    }) => updateReportRequiredMilestone(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
     }
   });
 };
 
-export const useHideReportedContentMutation = (slug: string) => {
+export const useHideReportedContentMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1408,14 +1408,14 @@ export const useHideReportedContentMutation = (slug: string) => {
     }: {
       reportId: string;
       input: ModerationReportNoteInput;
-    }) => hideReportedContent(slug, reportId, input),
+    }) => hideReportedContent(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
     }
   });
 };
 
-export const useDeleteReportedContentMutation = (slug: string) => {
+export const useDeleteReportedContentMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1425,14 +1425,14 @@ export const useDeleteReportedContentMutation = (slug: string) => {
     }: {
       reportId: string;
       input: ModerationReportNoteInput;
-    }) => deleteReportedContent(slug, reportId, input),
+    }) => deleteReportedContent(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
     }
   });
 };
 
-export const useWarnReportedContentAuthorMutation = (slug: string) => {
+export const useWarnReportedContentAuthorMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1442,9 +1442,9 @@ export const useWarnReportedContentAuthorMutation = (slug: string) => {
     }: {
       reportId: string;
       input: ModerationReportNoteInput;
-    }) => warnReportedContentAuthor(slug, reportId, input),
+    }) => warnReportedContentAuthor(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
       void queryClient.invalidateQueries({
         queryKey: ["notifications"]
       });
@@ -1452,7 +1452,7 @@ export const useWarnReportedContentAuthorMutation = (slug: string) => {
   });
 };
 
-export const useBanReportedContentAuthorMutation = (slug: string) => {
+export const useBanReportedContentAuthorMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1462,14 +1462,14 @@ export const useBanReportedContentAuthorMutation = (slug: string) => {
     }: {
       reportId: string;
       input: BanReportedContentAuthorInput;
-    }) => banReportedContentAuthor(slug, reportId, input),
+    }) => banReportedContentAuthor(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
     }
   });
 };
 
-export const useResolveModerationReportMutation = (slug: string) => {
+export const useResolveModerationReportMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1479,9 +1479,9 @@ export const useResolveModerationReportMutation = (slug: string) => {
     }: {
       reportId: string;
       input: ResolveModerationReportInput;
-    }) => resolveModerationReport(slug, reportId, input),
+    }) => resolveModerationReport(linkName, reportId, input),
     onSuccess: (response) => {
-      reconcileModerationReportMutation(queryClient, slug, response.report);
+      reconcileModerationReportMutation(queryClient, linkName, response.report);
     }
   });
 };
@@ -1710,16 +1710,16 @@ export const useRevealPostCommentMutation = (postId: string) =>
     mutationFn: (commentId: string) => revealPostComment(postId, commentId)
   });
 
-export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
+export const useCreateClubMilestoneTemplateMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateClubMilestoneTemplateInput) =>
-      createClubMilestoneTemplate(slug, input),
+      createClubMilestoneTemplate(linkName, input),
     onSuccess: (response) => {
       queryClient.setQueriesData<ClubMilestonesResponse>(
         {
-          queryKey: clubsQueryKeys.milestonesRoot(slug)
+          queryKey: clubsQueryKeys.milestonesRoot(linkName)
         },
         (currentResponse) => {
           if (!currentResponse) {
@@ -1740,16 +1740,16 @@ export const useCreateClubMilestoneTemplateMutation = (slug: string) => {
         }
       );
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.milestonesRoot(slug)
+        queryKey: clubsQueryKeys.milestonesRoot(linkName)
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(slug)
+        queryKey: clubsQueryKeys.dashboardRoot(linkName)
       });
     }
   });
 };
 
-export const useUpdateClubMilestoneMutation = (slug: string) => {
+export const useUpdateClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -1759,84 +1759,84 @@ export const useUpdateClubMilestoneMutation = (slug: string) => {
     }: {
       milestoneId: string;
       input: UpdateClubMilestoneInput;
-    }) => updateClubMilestone(slug, milestoneId, input),
+    }) => updateClubMilestone(linkName, milestoneId, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.milestonesRoot(slug)
+        queryKey: clubsQueryKeys.milestonesRoot(linkName)
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(slug)
+        queryKey: clubsQueryKeys.dashboardRoot(linkName)
       });
     }
   });
 };
 
-export const useMoveClubMilestoneMutation = (slug: string) => {
+export const useMoveClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: MoveClubMilestoneInput) =>
-      moveClubMilestone(slug, input),
+      moveClubMilestone(linkName, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.milestonesRoot(slug)
+        queryKey: clubsQueryKeys.milestonesRoot(linkName)
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(slug)
+        queryKey: clubsQueryKeys.dashboardRoot(linkName)
       });
     }
   });
 };
 
-export const useUpdateClubProgressMutation = (slug: string) => {
+export const useUpdateClubProgressMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: UpdateClubProgressInput) =>
-      updateClubProgress(slug, input),
+      updateClubProgress(linkName, input),
     onSuccess: (response) => {
-      queryClient.setQueryData(clubsQueryKeys.progress(slug), response);
-      invalidateClubProgressDependencies(queryClient, slug);
+      queryClient.setQueryData(clubsQueryKeys.progress(linkName), response);
+      invalidateClubProgressDependencies(queryClient, linkName);
     }
   });
 };
 
-export const useAdvanceClubProgressMutation = (slug: string) => {
+export const useAdvanceClubProgressMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => advanceClubProgressToNextMilestone(slug),
+    mutationFn: () => advanceClubProgressToNextMilestone(linkName),
     onSuccess: (response) => {
-      queryClient.setQueryData(clubsQueryKeys.progress(slug), response);
-      invalidateClubProgressDependencies(queryClient, slug);
+      queryClient.setQueryData(clubsQueryKeys.progress(linkName), response);
+      invalidateClubProgressDependencies(queryClient, linkName);
     }
   });
 };
 
 export const invalidateClubProgressDependencies = (
   queryClient: ReturnType<typeof useQueryClient>,
-  slug: string
+  linkName: string
 ) => {
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.progress(slug)
+    queryKey: clubsQueryKeys.progress(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.detail(slug)
+    queryKey: clubsQueryKeys.detail(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.milestonesRoot(slug)
+    queryKey: clubsQueryKeys.milestonesRoot(linkName)
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.feedRoot(slug)
+    queryKey: clubsQueryKeys.feedRoot(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.recentlyUnlocked(slug)
+    queryKey: clubsQueryKeys.recentlyUnlocked(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.dashboardRoot(slug)
+    queryKey: clubsQueryKeys.dashboardRoot(linkName)
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.postsRoot
@@ -1850,7 +1850,7 @@ export const useJoinClubMutation = () => {
     mutationFn: joinClub,
     onSuccess: (response) => {
       queryClient.setQueryData(
-        clubsQueryKeys.detail(response.club.slug),
+        clubsQueryKeys.detail(response.club.linkName),
         response
       );
       void queryClient.invalidateQueries({
@@ -1860,7 +1860,7 @@ export const useJoinClubMutation = () => {
         queryKey: clubsQueryKeys.joined
       });
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.dashboardRoot(response.club.slug)
+        queryKey: clubsQueryKeys.dashboardRoot(response.club.linkName)
       });
     }
   });

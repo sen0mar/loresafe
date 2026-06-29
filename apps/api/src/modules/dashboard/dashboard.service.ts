@@ -24,20 +24,20 @@ import type {
 
 export type DashboardService = {
   getClubStats: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ClubDashboardStatsResponse>;
   getPopularDiscussions: (
-    slug: string,
+    linkName: string,
     userId: string,
     query: PopularDiscussionsQuery
   ) => Promise<PopularDiscussionsResponse>;
   getProgressSummary: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ProgressSummaryResponse>;
   getRecentlyUnlockedSummary: (
-    slug: string,
+    linkName: string,
     userId: string,
     query: RecentlyUnlockedSummaryQuery
   ) => Promise<RecentlyUnlockedSummaryResponse>;
@@ -47,15 +47,15 @@ export const createDashboardService = (
   repository: DashboardRepository = dashboardRepository,
   storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): DashboardService => ({
-  getClubStats: async (slug, userId) => {
-    const club = await findVisibleDashboardClub(repository, slug, userId);
+  getClubStats: async (linkName, userId) => {
+    const club = await findVisibleDashboardClub(repository, linkName, userId);
     const stats = await repository.getClubDashboardStats(userId, club);
 
     return toClubDashboardStatsResponse(stats);
   },
 
-  getPopularDiscussions: async (slug, userId, query) => {
-    const club = await findVisibleDashboardClub(repository, slug, userId);
+  getPopularDiscussions: async (linkName, userId, query) => {
+    const club = await findVisibleDashboardClub(repository, linkName, userId);
     const discussions = await repository.getPopularDiscussions(
       userId,
       club.id,
@@ -74,8 +74,8 @@ export const createDashboardService = (
     );
   },
 
-  getProgressSummary: async (slug, userId) => {
-    const club = await findVisibleDashboardClub(repository, slug, userId);
+  getProgressSummary: async (linkName, userId) => {
+    const club = await findVisibleDashboardClub(repository, linkName, userId);
 
     if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
@@ -86,8 +86,8 @@ export const createDashboardService = (
     return toProgressSummaryResponse(progress);
   },
 
-  getRecentlyUnlockedSummary: async (slug, userId, query) => {
-    const club = await findVisibleDashboardClub(repository, slug, userId);
+  getRecentlyUnlockedSummary: async (linkName, userId, query) => {
+    const club = await findVisibleDashboardClub(repository, linkName, userId);
 
     if (!canReadClubProgress(club)) {
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
@@ -116,10 +116,10 @@ export const dashboardService = createDashboardService();
 
 const findVisibleDashboardClub = async (
   repository: DashboardRepository,
-  slug: string,
+  linkName: string,
   userId: string
 ) => {
-  const club = await repository.findClubForDashboard(slug, userId);
+  const club = await repository.findClubForDashboard(linkName, userId);
 
   if (!club) {
     throw new HttpError(404, "NOT_FOUND", "Club not found");

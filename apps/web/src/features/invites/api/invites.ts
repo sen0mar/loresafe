@@ -18,7 +18,7 @@ export type ClubInvite = {
   club: {
     id: string;
     title: string;
-    slug: string;
+    linkName: string;
   };
 };
 
@@ -32,20 +32,20 @@ export type AcceptInviteResponse = {
 };
 
 export const createClubInvite = (
-  slug: string,
+  linkName: string,
   input: CreateInvitePayload
 ) =>
   apiPost<CreateClubInviteResponse, CreateInvitePayload>(
-    `/api/clubs/${slug}/invites`,
+    `/api/clubs/${linkName}/invites`,
     input
   );
 
 export const acceptInvite = (token: string) =>
   apiPost<AcceptInviteResponse>(`/api/invites/${token}/accept`);
 
-export const useCreateClubInviteMutation = (slug: string) =>
+export const useCreateClubInviteMutation = (linkName: string) =>
   useMutation({
-    mutationFn: (input: CreateInvitePayload) => createClubInvite(slug, input)
+    mutationFn: (input: CreateInvitePayload) => createClubInvite(linkName, input)
   });
 
 export const useAcceptInviteMutation = () => {
@@ -55,7 +55,7 @@ export const useAcceptInviteMutation = () => {
     mutationFn: acceptInvite,
     onSuccess: (response) => {
       queryClient.setQueryData(
-        clubsQueryKeys.detail(response.club.slug),
+        clubsQueryKeys.detail(response.club.linkName),
         { club: response.club }
       );
       void queryClient.invalidateQueries({

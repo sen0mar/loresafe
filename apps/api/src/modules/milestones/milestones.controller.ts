@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
-import { clubSlugParamsSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameParamsSchema } from "../clubs/clubs.schema.js";
 import {
   createMilestoneRequestSchema,
   createMilestoneTemplateRequestSchema,
@@ -17,23 +17,23 @@ import {
 } from "./milestones.service.js";
 
 export type MilestonesController = {
-  createMilestoneTemplateForClubSlug: RequestHandler;
-  createMilestoneForClubSlug: RequestHandler;
-  updateMilestoneForClubSlug: RequestHandler;
-  moveMilestoneForClubSlug: RequestHandler;
-  listMilestonesByClubSlug: RequestHandler;
+  createMilestoneTemplateForClubLinkName: RequestHandler;
+  createMilestoneForClubLinkName: RequestHandler;
+  updateMilestoneForClubLinkName: RequestHandler;
+  moveMilestoneForClubLinkName: RequestHandler;
+  listMilestonesByClubLinkName: RequestHandler;
 };
 
 export const createMilestonesController = (
   service: MilestonesService = milestonesService
 ): MilestonesController => ({
-  createMilestoneTemplateForClubSlug: async (req, res, next) => {
+  createMilestoneTemplateForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -55,8 +55,8 @@ export const createMilestonesController = (
         );
       }
 
-      const response = await service.createMilestoneTemplateForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.createMilestoneTemplateForClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         bodyResult.data
       );
@@ -67,13 +67,13 @@ export const createMilestonesController = (
     }
   },
 
-  createMilestoneForClubSlug: async (req, res, next) => {
+  createMilestoneForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -93,8 +93,8 @@ export const createMilestonesController = (
         );
       }
 
-      const response = await service.createMilestoneForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.createMilestoneForClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         bodyResult.data
       );
@@ -105,7 +105,7 @@ export const createMilestonesController = (
     }
   },
 
-  updateMilestoneForClubSlug: async (req, res, next) => {
+  updateMilestoneForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
@@ -131,8 +131,8 @@ export const createMilestonesController = (
         );
       }
 
-      const response = await service.updateMilestoneForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.updateMilestoneForClubLinkName(
+        paramsResult.data.linkName,
         paramsResult.data.milestoneId,
         req.currentUser.id,
         bodyResult.data
@@ -144,7 +144,7 @@ export const createMilestonesController = (
     }
   },
 
-  moveMilestoneForClubSlug: async (req, res, next) => {
+  moveMilestoneForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
@@ -170,8 +170,8 @@ export const createMilestonesController = (
         );
       }
 
-      const response = await service.moveMilestoneForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.moveMilestoneForClubLinkName(
+        paramsResult.data.linkName,
         paramsResult.data.milestoneId,
         req.currentUser.id,
         bodyResult.data
@@ -183,13 +183,13 @@ export const createMilestonesController = (
     }
   },
 
-  listMilestonesByClubSlug: async (req, res, next) => {
+  listMilestonesByClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -209,8 +209,8 @@ export const createMilestonesController = (
         );
       }
 
-      const response = await service.listMilestonesByClubSlug(
-        paramsResult.data.slug,
+      const response = await service.listMilestonesByClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );

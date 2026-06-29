@@ -16,11 +16,11 @@ import {
 type UploadStatus = "idle" | "requesting" | "uploading" | "completing";
 
 export const usePublicAssetUpload = ({
-  clubSlug,
+  clubLinkName,
   onCompleted,
   purpose
 }: {
-  clubSlug?: string;
+  clubLinkName?: string;
   onCompleted: (asset: FileAsset) => void | Promise<void>;
   purpose: PublicAssetPurpose;
 }) => {
@@ -46,7 +46,7 @@ export const usePublicAssetUpload = ({
         purpose,
         contentType: file.type,
         sizeBytes: file.size,
-        ...(clubSlug ? { clubSlug } : {})
+        ...(clubLinkName ? { clubLinkName } : {})
       });
 
       setStatus("uploading");

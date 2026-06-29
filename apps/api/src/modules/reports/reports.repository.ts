@@ -157,8 +157,8 @@ export type ReportsRepository = {
     target: ReportTargetRecord,
     input: CreateReportRequest
   ) => Promise<ReportRecord>;
-  findClubAccessBySlug: (
-    slug: string,
+  findClubAccessByLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<ModerationClubAccessRecord | null>;
   listModerationReports: (
@@ -490,11 +490,11 @@ export const reportsRepository: ReportsRepository = {
     }
   },
 
-  findClubAccessBySlug: async (slug, userId) => {
+  findClubAccessByLinkName: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,

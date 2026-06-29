@@ -138,7 +138,7 @@ describe("frontend accessibility regressions", () => {
     ]);
 
     renderWithProviders(
-      <ClubProgressPanel slug="safe-club" clubTitle="Safe Club" />
+      <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
     );
 
     const advanceButton = await screen.findByRole("button", {

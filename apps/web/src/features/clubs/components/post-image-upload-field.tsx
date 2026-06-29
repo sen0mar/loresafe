@@ -7,14 +7,14 @@ import type { FileAsset } from "@/features/uploads/api/uploads";
 import { usePostImageUpload } from "@/features/uploads/hooks/use-post-image-upload";
 
 type PostImageUploadFieldProps = {
-  clubSlug: string;
+  clubLinkName: string;
   disabled: boolean;
   onAssetChange: (assetId: string | undefined) => void;
   onPendingImageChange: (hasPendingImage: boolean) => void;
 };
 
 export const PostImageUploadField = ({
-  clubSlug,
+  clubLinkName,
   disabled,
   onAssetChange,
   onPendingImageChange
@@ -24,7 +24,7 @@ export const PostImageUploadField = ({
   const [safePreview, setSafePreview] = useState(false);
   const [completedAsset, setCompletedAsset] = useState<FileAsset | null>(null);
   const upload = usePostImageUpload({
-    clubSlug,
+    clubLinkName,
     onCompleted: (asset) => {
       setCompletedAsset(asset);
       onAssetChange(asset.id);

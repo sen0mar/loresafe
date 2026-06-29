@@ -34,7 +34,7 @@ import { cn } from "@/shared/lib/utils";
 export type AppShellJoinedClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   role: "OWNER" | "MODERATOR" | "MEMBER";
   memberCount: number;
@@ -271,7 +271,7 @@ const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
 
   return (
     <NavLink
-      to={`/app/clubs/${club.slug}`}
+      to={`/app/clubs/${club.linkName}`}
       className={({ isActive }) =>
         cn(
           "min-h-14 rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
@@ -335,7 +335,7 @@ const MobileJoinedClubs = ({
 
     return (
       <DropdownMenuItem key={club.id} asChild>
-        <NavLink to={`/app/clubs/${club.slug}`}>
+        <NavLink to={`/app/clubs/${club.linkName}`}>
           <VisibilityIcon className="size-4" />
           <span className="min-w-0 flex-1 truncate">{club.title}</span>
           <Badge variant="secondary">{roleLabels[club.role]}</Badge>

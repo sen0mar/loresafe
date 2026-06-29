@@ -9,7 +9,7 @@ type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 export type ClubInviteCreationClubRecord = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   currentUserRole: ClubMembershipRole | null;
   isCurrentUserBanned: boolean;
 };
@@ -31,7 +31,7 @@ export type ClubInviteRecord = {
   club: {
     id: string;
     title: string;
-    slug: string;
+    linkName: string;
   };
 };
 
@@ -61,7 +61,7 @@ export type InvitesRepository = {
   ) => Promise<AcceptInviteRecord>;
   createClubInvite: (input: CreateClubInviteInput) => Promise<ClubInviteRecord>;
   findClubForInviteCreation: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ClubInviteCreationClubRecord | null>;
 };
@@ -76,7 +76,7 @@ const inviteSelect = {
     select: {
       id: true,
       title: true,
-      slug: true
+      linkName: true
     }
   }
 } as const;
@@ -87,7 +87,7 @@ const clubDetailSelect = (userId: string) => {
   return {
     id: true,
     title: true,
-    slug: true,
+    linkName: true,
     description: true,
     category: true,
     rules: true,
@@ -281,16 +281,16 @@ export const invitesRepository: InvitesRepository = {
       select: inviteSelect
     }),
 
-  findClubForInviteCreation: async (slug, userId) => {
+  findClubForInviteCreation: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,
         title: true,
-        slug: true,
+        linkName: true,
         memberships: {
           where: {
             userId
@@ -317,7 +317,7 @@ export const invitesRepository: InvitesRepository = {
     return {
       id: club.id,
       title: club.title,
-      slug: club.slug,
+      linkName: club.linkName,
       currentUserRole: club.memberships[0]?.role ?? null,
       isCurrentUserBanned: club.bans.length > 0
     };
@@ -372,7 +372,7 @@ const findClubDetail = async (
 const toClubDetailRecord = (club: {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   rules: string | null;
@@ -387,7 +387,7 @@ const toClubDetailRecord = (club: {
 }): ClubDetailRecord => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   description: club.description,
   category: club.category,
   rules: club.rules,

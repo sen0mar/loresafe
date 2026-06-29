@@ -63,7 +63,7 @@ const seedPerfData = async () => {
   const clubs = Array.from({ length: 8 }, (_, index) => ({
     id: uuidFor(`${PERF_PREFIX}:club:${index}`),
     title: `ThreadSync Perf Club ${index}`,
-    slug: `${PERF_PREFIX}-club-${index}`,
+    linkName: `${PERF_PREFIX}-club-${index}`,
     description: `Volume club ${index} for feed search moderation checks.`,
     category: index % 2 === 0 ? "Fantasy" : "Sci-Fi",
     visibility: index < 6 ? ("PUBLIC" as const) : ("PRIVATE" as const),

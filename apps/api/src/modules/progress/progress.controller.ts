@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
-import { clubSlugParamsSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameParamsSchema } from "../clubs/clubs.schema.js";
 import {
   progressService,
   type ProgressService
@@ -13,22 +13,22 @@ import {
 } from "./progress.schema.js";
 
 export type ProgressController = {
-  advanceProgressToNextMilestoneForClubSlug: RequestHandler;
-  getProgressForClubSlug: RequestHandler;
-  listRecentlyUnlockedForClubSlug: RequestHandler;
-  updateProgressForClubSlug: RequestHandler;
+  advanceProgressToNextMilestoneForClubLinkName: RequestHandler;
+  getProgressForClubLinkName: RequestHandler;
+  listRecentlyUnlockedForClubLinkName: RequestHandler;
+  updateProgressForClubLinkName: RequestHandler;
 };
 
 export const createProgressController = (
   service: ProgressService = progressService
 ): ProgressController => ({
-  advanceProgressToNextMilestoneForClubSlug: async (req, res, next) => {
+  advanceProgressToNextMilestoneForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -39,8 +39,8 @@ export const createProgressController = (
       }
 
       const response =
-        await service.advanceProgressToNextMilestoneForClubSlug(
-          paramsResult.data.slug,
+        await service.advanceProgressToNextMilestoneForClubLinkName(
+          paramsResult.data.linkName,
           req.currentUser.id
         );
 
@@ -50,13 +50,13 @@ export const createProgressController = (
     }
   },
 
-  getProgressForClubSlug: async (req, res, next) => {
+  getProgressForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -66,8 +66,8 @@ export const createProgressController = (
         );
       }
 
-      const response = await service.getProgressForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.getProgressForClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id
       );
 
@@ -77,13 +77,13 @@ export const createProgressController = (
     }
   },
 
-  listRecentlyUnlockedForClubSlug: async (req, res, next) => {
+  listRecentlyUnlockedForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
       const queryResult = recentlyUnlockedQuerySchema.safeParse(req.query);
 
       if (!paramsResult.success || !queryResult.success) {
@@ -94,8 +94,8 @@ export const createProgressController = (
         );
       }
 
-      const response = await service.listRecentlyUnlockedForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.listRecentlyUnlockedForClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );
@@ -106,13 +106,13 @@ export const createProgressController = (
     }
   },
 
-  updateProgressForClubSlug: async (req, res, next) => {
+  updateProgressForClubLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -132,8 +132,8 @@ export const createProgressController = (
         );
       }
 
-      const response = await service.updateProgressForClubSlug(
-        paramsResult.data.slug,
+      const response = await service.updateProgressForClubLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         bodyResult.data
       );

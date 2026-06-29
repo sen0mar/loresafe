@@ -48,14 +48,14 @@ const isHiddenPanelError = (error: Error | null) =>
 
 export const ClubDashboardPanels = ({ club }: ClubDashboardPanelsProps) => {
   const isMember = club.membership.isMember;
-  const statsQuery = useClubDashboardStatsQuery(club.slug);
+  const statsQuery = useClubDashboardStatsQuery(club.linkName);
   const progressSummaryQuery = useClubProgressSummaryQuery(
-    club.slug,
+    club.linkName,
     isMember
   );
-  const popularDiscussionsQuery = usePopularDiscussionsQuery(club.slug);
+  const popularDiscussionsQuery = usePopularDiscussionsQuery(club.linkName);
   const recentlyUnlockedSummaryQuery = useRecentlyUnlockedSummaryQuery(
-    club.slug,
+    club.linkName,
     isMember
   );
 

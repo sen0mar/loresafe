@@ -48,7 +48,7 @@ describe("notification job handlers", () => {
         notificationId: expect.any(String),
         club: {
           id: source.clubId,
-          slug: "fixture-story-club"
+          linkName: "fixture-story-club"
         },
         postId: source.postId,
         commentId: source.commentId,
@@ -213,7 +213,7 @@ class InMemoryNotificationsJobsRepository
         userId: existingNotification.userId,
         club: {
           id: existingNotification.clubId,
-          slug: "fixture-story-club"
+          linkName: "fixture-story-club"
         },
         postId: existingNotification.postId,
         commentId: existingNotification.commentId,
@@ -235,7 +235,7 @@ class InMemoryNotificationsJobsRepository
       userId: notification.userId,
       club: {
         id: notification.clubId,
-        slug: "fixture-story-club"
+        linkName: "fixture-story-club"
       },
       postId: notification.postId,
       commentId: notification.commentId,

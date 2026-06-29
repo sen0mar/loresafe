@@ -64,7 +64,7 @@ const toDemoUsername = (displayName: string) => {
 const seedDemoClub = async (ownerId: string) => {
   const demoClub = await prisma.club.upsert({
     where: {
-      slug: "the-first-law-book-club"
+      linkName: "the-first-law-book-club"
     },
     update: {
       title: "The First Law Book Club",
@@ -74,7 +74,7 @@ const seedDemoClub = async (ownerId: string) => {
     },
     create: {
       title: "The First Law Book Club",
-      slug: "the-first-law-book-club",
+      linkName: "the-first-law-book-club",
       description: "Abercrombie fans discussing the books one chapter at a time.",
       category: "Fantasy",
       visibility: "PUBLIC"

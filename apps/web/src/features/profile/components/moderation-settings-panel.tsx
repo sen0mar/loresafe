@@ -69,14 +69,14 @@ export const ModerationSettingsPanel = () => {
               <Link
                 key={club.id}
                 className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-default bg-inset px-4 py-3 text-sm transition-colors hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                to={`/app/clubs/${club.slug}/settings/moderation`}
+                to={`/app/clubs/${club.linkName}/settings/moderation`}
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium text-primary">
                     {club.title}
                   </span>
                   <span className="mt-1 block truncate text-xs text-faint">
-                    {roleLabels[club.role]} / {club.slug}
+                    {roleLabels[club.role]} / {club.linkName}
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-brand">

@@ -39,7 +39,7 @@ type CreateClubFieldErrors = Partial<Record<keyof CreateClubFormValues, string>>
 
 const initialValues: CreateClubFormValues = {
   title: "",
-  slug: "",
+  linkName: "",
   description: "",
   category: "",
   visibility: "PUBLIC",
@@ -115,7 +115,7 @@ export const CreateClubForm = () => {
 
       setFieldErrors({
         title: flattenedErrors.title?.[0],
-        slug: flattenedErrors.slug?.[0],
+        linkName: flattenedErrors.linkName?.[0],
         description: flattenedErrors.description?.[0],
         category: flattenedErrors.category?.[0],
         visibility: flattenedErrors.visibility?.[0],
@@ -129,13 +129,13 @@ export const CreateClubForm = () => {
     createClubMutation.mutate(parseResult.data, {
       onSuccess: (response) => {
         toast.success("Club created");
-        navigate(`/app/clubs/${response.club.slug}`, { replace: true });
+        navigate(`/app/clubs/${response.club.linkName}`, { replace: true });
       },
       onError: (error) => {
         if (error instanceof ApiError && error.statusCode === 409) {
           setFieldErrors((currentErrors) => ({
             ...currentErrors,
-            slug: error.message
+            linkName: error.message
           }));
           return;
         }
@@ -186,19 +186,19 @@ export const CreateClubForm = () => {
           </CreateClubFormField>
 
           <CreateClubFormField
-            id="slug"
-            label="Slug"
+            id="linkName"
+            label="Link name"
             icon={<Sparkles className="size-4" />}
-            error={fieldErrors.slug}
+            error={fieldErrors.linkName}
           >
             <Input
-              id="slug"
+              id="linkName"
               type="text"
-              value={values.slug}
-              onChange={updateField("slug")}
+              value={values.linkName}
+              onChange={updateField("linkName")}
               disabled={createClubMutation.isPending}
-              aria-invalid={!!fieldErrors.slug}
-              aria-describedby={fieldErrors.slug ? "slug-error" : undefined}
+              aria-invalid={!!fieldErrors.linkName}
+              aria-describedby={fieldErrors.linkName ? "linkName-error" : undefined}
               placeholder="the-first-law-book-club"
             />
           </CreateClubFormField>

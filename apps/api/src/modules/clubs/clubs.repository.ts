@@ -18,7 +18,7 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 export type ClubDiscoveryRecord = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverAsset?: {
@@ -34,7 +34,7 @@ export type ClubDiscoveryRecord = {
 export type ClubDetailRecord = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverAsset?: {
@@ -115,34 +115,34 @@ export type ClubsRepository = {
     userId: string,
     input: CreateClubRequest
   ) => Promise<ClubDetailRecord>;
-  findClubBySlug: (slug: string) => Promise<{ id: string } | null>;
-  findVisibleClubBySlugForUser: (
-    slug: string,
+  findClubByLinkName: (linkName: string) => Promise<{ id: string } | null>;
+  findVisibleClubByLinkNameForUser: (
+    linkName: string,
     userId: string
   ) => Promise<ClubDetailRecord | null>;
-  joinPublicClubBySlug: (
-    slug: string,
+  joinPublicClubByLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<JoinPublicClubResult>;
-  listClubMembersBySlug: (
-    slug: string,
+  listClubMembersByLinkName: (
+    linkName: string,
     userId: string,
     input: ListClubMembersQuery
   ) => Promise<ListClubMembersResult>;
   updateClubMemberRole: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string,
     role: ClubMembershipRole
   ) => Promise<ClubMemberMutationResult>;
   banClubMember: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string,
     input: BanClubMemberRequest
   ) => Promise<ClubMemberMutationResult>;
   unbanClubMember: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     actorId: string
   ) => Promise<ClubMemberMutationResult>;
@@ -155,7 +155,7 @@ export type ClubsRepository = {
 const publicClubSelect = {
   id: true,
   title: true,
-  slug: true,
+  linkName: true,
   description: true,
   category: true,
   coverAsset: {
@@ -180,7 +180,7 @@ const clubDetailSelect = (userId: string) => {
   return {
     id: true,
     title: true,
-    slug: true,
+    linkName: true,
     description: true,
     category: true,
     coverAsset: {
@@ -260,7 +260,7 @@ export const clubsRepository: ClubsRepository = {
       const club = await transaction.club.create({
         data: {
           title: input.title,
-          slug: input.slug,
+          linkName: input.linkName,
           description: input.description ?? null,
           category: input.category ?? null,
           rules: input.rules ?? null,
@@ -292,20 +292,20 @@ export const clubsRepository: ClubsRepository = {
       return toClubDetailRecord(createdClub);
     }),
 
-  findClubBySlug: (slug) =>
+  findClubByLinkName: (linkName) =>
     prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true
       }
     }),
 
-  findVisibleClubBySlugForUser: async (slug, userId) => {
+  findVisibleClubByLinkNameForUser: async (linkName, userId) => {
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: clubDetailSelect(userId)
     });
@@ -327,12 +327,12 @@ export const clubsRepository: ClubsRepository = {
     return detail;
   },
 
-  joinPublicClubBySlug: async (slug, userId) =>
+  joinPublicClubByLinkName: async (linkName, userId) =>
     prisma.$transaction(async (transaction) => {
       const now = new Date();
       const club = await transaction.club.findUnique({
         where: {
-          slug
+          linkName
         },
         select: {
           id: true,
@@ -392,12 +392,12 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  listClubMembersBySlug: async (slug, userId, { page, limit }) => {
+  listClubMembersByLinkName: async (linkName, userId, { page, limit }) => {
     const skip = (page - 1) * limit;
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,
@@ -481,11 +481,11 @@ export const clubsRepository: ClubsRepository = {
     };
   },
 
-  updateClubMemberRole: (slug, membershipId, actorId, role) =>
+  updateClubMemberRole: (linkName, membershipId, actorId, role) =>
     prisma.$transaction(async (transaction) => {
       const context = await findMemberManagementContext(
         transaction,
-        slug,
+        linkName,
         actorId,
         membershipId
       );
@@ -560,11 +560,11 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  banClubMember: (slug, membershipId, actorId, input) =>
+  banClubMember: (linkName, membershipId, actorId, input) =>
     prisma.$transaction(async (transaction) => {
       const context = await findMemberManagementContext(
         transaction,
-        slug,
+        linkName,
         actorId,
         membershipId
       );
@@ -661,11 +661,11 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  unbanClubMember: (slug, membershipId, actorId) =>
+  unbanClubMember: (linkName, membershipId, actorId) =>
     prisma.$transaction(async (transaction) => {
       const context = await findMemberManagementContext(
         transaction,
-        slug,
+        linkName,
         actorId,
         membershipId
       );
@@ -787,14 +787,14 @@ type AuditLogAction =
 
 const findMemberManagementContext = async (
   transaction: TransactionClient,
-  slug: string,
+  linkName: string,
   actorId: string,
   membershipId: string
 ) => {
   const now = new Date();
   const club = await transaction.club.findUnique({
     where: {
-      slug
+      linkName
     },
     select: {
       id: true,
@@ -904,7 +904,7 @@ const createAuditLogInTransaction = (
 const toClubDetailRecord = (club: {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverAsset: {
@@ -923,7 +923,7 @@ const toClubDetailRecord = (club: {
 }): ClubDetailRecord => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   description: club.description,
   category: club.category,
   coverAsset: club.coverAsset,

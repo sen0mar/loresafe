@@ -236,7 +236,7 @@ describe("frontend regression smoke", () => {
 
     renderWithProviders(
       <Routes>
-        <Route path="/app/clubs/:slug" element={<ClubDetailPage />} />
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
       </Routes>,
       {
         initialEntries: ["/app/clubs/safe-club"]
@@ -257,7 +257,7 @@ describe("frontend regression smoke", () => {
           club: {
             ...club,
             title: "Nebula Readers",
-            slug: "nebula-readers"
+            linkName: "nebula-readers"
           }
         }
       }
@@ -270,7 +270,7 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Title"), "Nebula Readers");
-    await user.type(screen.getByLabelText("Slug"), "nebula-readers");
+    await user.type(screen.getByLabelText("Link name"), "nebula-readers");
     await user.type(screen.getByLabelText("Description"), "Spoiler-safe space.");
     await user.type(screen.getByLabelText("Category"), "Books");
     await user.click(screen.getByRole("radio", { name: /private/i }));
@@ -281,7 +281,7 @@ describe("frontend regression smoke", () => {
     );
     expect(getJsonRequestBody(fetchMock.mock.calls[0])).toMatchObject({
       title: "Nebula Readers",
-      slug: "nebula-readers",
+      linkName: "nebula-readers",
       visibility: "PRIVATE"
     });
   });
@@ -319,7 +319,7 @@ describe("frontend regression smoke", () => {
     ]);
     renderWithProviders(
       <Fragment>
-        <ClubProgressPanel slug="safe-club" clubTitle="Safe Club" />
+        <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
         <ClubFeedTab club={club} />
       </Fragment>
     );
@@ -378,7 +378,7 @@ describe("frontend regression smoke", () => {
         post: hasRewound ? rewoundLockedPost : visiblePost,
         club: {
           id: club.id,
-          slug: club.slug
+          linkName: club.linkName
         }
       })),
       shellRoute(commentsPath, () => ({
@@ -413,7 +413,7 @@ describe("frontend regression smoke", () => {
         <Routes>
           <Route path="/app/posts/:postId" element={<PostDetailPage />} />
         </Routes>
-        <ClubProgressPanel slug="safe-club" clubTitle="Safe Club" />
+        <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
       </Fragment>,
       {
         initialEntries: [`/app/posts/${postId}`]
@@ -713,7 +713,7 @@ describe("frontend regression smoke", () => {
         post: visiblePost,
         club: {
           id: club.id,
-          slug: club.slug
+          linkName: club.linkName
         }
       }),
       shellRoute(
@@ -800,7 +800,7 @@ describe("frontend regression smoke", () => {
         },
         club: {
           id: club.id,
-          slug: club.slug
+          linkName: club.linkName
         }
       }),
       shellRoute(`/api/posts/${postId}/comments`, {
@@ -936,7 +936,7 @@ describe("frontend regression smoke", () => {
     renderWithProviders(
       <Routes>
         <Route
-          path="/app/clubs/:slug/settings/moderation"
+          path="/app/clubs/:linkName/settings/moderation"
           element={<ClubModerationReportsPage />}
         />
       </Routes>,
@@ -979,7 +979,7 @@ describe("frontend regression smoke", () => {
           {
             id: clubId,
             title: "Public Story Club",
-            slug: "public-story-club",
+            linkName: "public-story-club",
             description: "Public discussion.",
             category: "Books",
             coverUrl: "https://cdn.example/public-story-club.png",
@@ -1023,7 +1023,7 @@ describe("frontend regression smoke", () => {
           {
             id: clubId,
             title: "Public Nebula Club",
-            slug: "public-nebula-club",
+            linkName: "public-nebula-club",
             description: "Visible result.",
             category: "Books",
             coverUrl: "https://cdn.example/public-nebula-club.png",
@@ -1068,7 +1068,7 @@ const authUser = {
 const club: Club = {
   id: clubId,
   title: "Safe Club",
-  slug: "safe-club",
+  linkName: "safe-club",
   description: "Spoiler-safe space.",
   category: "Books",
   coverUrl: null,
@@ -1305,7 +1305,7 @@ const joinedClubsResponse = {
     {
       id: club.id,
       title: club.title,
-      slug: club.slug,
+      linkName: club.linkName,
       coverUrl: null,
       visibility: club.visibility,
       role: "MEMBER",
@@ -1336,7 +1336,7 @@ const twoJoinedClubsResponse = {
     {
       id: "00000000-0000-4000-8000-000000000101",
       title: "Newest Club",
-      slug: "newest-club",
+      linkName: "newest-club",
       coverUrl: null,
       visibility: "PRIVATE",
       role: "OWNER",
@@ -1346,7 +1346,7 @@ const twoJoinedClubsResponse = {
     {
       id: "00000000-0000-4000-8000-000000000102",
       title: "Older Club",
-      slug: "older-club",
+      linkName: "older-club",
       coverUrl: null,
       visibility: "PUBLIC",
       role: "MEMBER",
@@ -1367,7 +1367,7 @@ const moderatedJoinedClubsResponse = {
     {
       id: club.id,
       title: club.title,
-      slug: club.slug,
+      linkName: club.linkName,
       coverUrl: null,
       visibility: club.visibility,
       role: "OWNER",
@@ -1377,7 +1377,7 @@ const moderatedJoinedClubsResponse = {
     {
       id: "00000000-0000-4000-8000-000000000103",
       title: "Mod Club",
-      slug: "mod-club",
+      linkName: "mod-club",
       coverUrl: null,
       visibility: "PRIVATE",
       role: "MODERATOR",
@@ -1387,7 +1387,7 @@ const moderatedJoinedClubsResponse = {
     {
       id: "00000000-0000-4000-8000-000000000104",
       title: "Member Club",
-      slug: "member-club",
+      linkName: "member-club",
       coverUrl: null,
       visibility: "PUBLIC",
       role: "MEMBER",

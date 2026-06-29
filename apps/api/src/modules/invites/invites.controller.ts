@@ -81,7 +81,7 @@ export const createInvitesController = (
       }
 
       const response = await service.createClubInvite(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id,
         bodyResult.data
       );

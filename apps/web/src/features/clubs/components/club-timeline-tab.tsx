@@ -42,26 +42,26 @@ import {
 
 type ClubTimelineTabProps = {
   club?: Club;
-  slug?: string;
+  linkName?: string;
 };
 type MilestoneFieldErrors = Partial<
   Record<keyof CreateMilestoneFormValues, string>
 >;
 
-export const ClubTimelineTab = ({ club, slug: fallbackSlug }: ClubTimelineTabProps) => {
-  const slug = club?.slug ?? fallbackSlug ?? "";
+export const ClubTimelineTab = ({ club, linkName: fallbackLinkName }: ClubTimelineTabProps) => {
+  const linkName = club?.linkName ?? fallbackLinkName ?? "";
   const [page, setPage] = useState(1);
-  const milestonesQuery = useClubMilestonesQuery(slug, page);
-  const progressQuery = useClubProgressQuery(slug, !!club?.membership.isMember);
-  const updateMilestoneMutation = useUpdateClubMilestoneMutation(slug);
-  const moveMilestoneMutation = useMoveClubMilestoneMutation(slug);
+  const milestonesQuery = useClubMilestonesQuery(linkName, page);
+  const progressQuery = useClubProgressQuery(linkName, !!club?.membership.isMember);
+  const updateMilestoneMutation = useUpdateClubMilestoneMutation(linkName);
+  const moveMilestoneMutation = useMoveClubMilestoneMutation(linkName);
   const progress = progressQuery.data?.progress;
   const canManageMilestones =
     club?.membership.role === "OWNER" || club?.membership.role === "MODERATOR";
 
   useEffect(() => {
     setPage(1);
-  }, [slug]);
+  }, [linkName]);
 
   useEffect(() => {
     if (!progress) {

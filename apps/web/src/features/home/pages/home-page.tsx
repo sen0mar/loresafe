@@ -199,14 +199,14 @@ const FeaturedClubPanel = ({ club }: { club: JoinedClub }) => (
         </div>
       </div>
       <Button asChild variant="secondary" className="w-full md:w-fit">
-        <Link to={`/app/clubs/${club.slug}`}>Open club</Link>
+        <Link to={`/app/clubs/${club.linkName}`}>Open club</Link>
       </Button>
     </CardContent>
   </Card>
 );
 
 const SafeDiscussionsPreview = ({ club }: { club: JoinedClub }) => {
-  const postsQuery = useClubPostsInfiniteQuery(club.slug, "safe");
+  const postsQuery = useClubPostsInfiniteQuery(club.linkName, "safe");
   const posts = postsQuery.data?.pages.flatMap((page) => page.posts) ?? [];
 
   if (postsQuery.isPending) {
@@ -237,7 +237,7 @@ const SafeDiscussionsPreview = ({ club }: { club: JoinedClub }) => {
         description={`Visible from your current progress in ${club.title}.`}
         action={
           <Button asChild variant="secondary" size="sm">
-            <Link to={`/app/clubs/${club.slug}`}>View feed</Link>
+            <Link to={`/app/clubs/${club.linkName}`}>View feed</Link>
           </Button>
         }
       />
@@ -248,7 +248,7 @@ const SafeDiscussionsPreview = ({ club }: { club: JoinedClub }) => {
           description="Create the first milestone-aware post when this club is ready."
           action={
             <Button asChild variant="secondary" size="sm">
-              <Link to={`/app/clubs/${club.slug}`}>Open club</Link>
+              <Link to={`/app/clubs/${club.linkName}`}>Open club</Link>
             </Button>
           }
         />
@@ -264,7 +264,7 @@ const SafeDiscussionsPreview = ({ club }: { club: JoinedClub }) => {
 };
 
 const RecentlyUnlockedPreview = ({ club }: { club: JoinedClub }) => {
-  const unlockedQuery = useRecentlyUnlockedSummaryQuery(club.slug);
+  const unlockedQuery = useRecentlyUnlockedSummaryQuery(club.linkName);
   const posts = unlockedQuery.data?.posts ?? [];
 
   if (unlockedQuery.isPending) {
@@ -279,7 +279,7 @@ const RecentlyUnlockedPreview = ({ club }: { club: JoinedClub }) => {
         description="Progress updates will surface newly safe discussions here."
         action={
           <Button asChild variant="secondary" size="sm">
-            <Link to={`/app/clubs/${club.slug}/recently-unlocked`}>
+            <Link to={`/app/clubs/${club.linkName}/recently-unlocked`}>
               View unlocks
             </Link>
           </Button>
@@ -305,7 +305,7 @@ const RecentlyUnlockedPreview = ({ club }: { club: JoinedClub }) => {
 };
 
 const PopularDiscussionsPreview = ({ club }: { club: JoinedClub }) => {
-  const popularQuery = usePopularDiscussionsQuery(club.slug);
+  const popularQuery = usePopularDiscussionsQuery(club.linkName);
   const discussions = popularQuery.data?.discussions ?? [];
 
   if (popularQuery.isPending) {
@@ -362,8 +362,8 @@ const HomeRightRail = ({
 };
 
 const ClubRightRail = ({ club }: { club: JoinedClub }) => {
-  const progressQuery = useClubProgressSummaryQuery(club.slug);
-  const statsQuery = useClubDashboardStatsQuery(club.slug);
+  const progressQuery = useClubProgressSummaryQuery(club.linkName);
+  const statsQuery = useClubDashboardStatsQuery(club.linkName);
   const progress = progressQuery.data?.progress;
   const stats = statsQuery.data?.stats;
 
@@ -461,13 +461,13 @@ const ClubRightRail = ({ club }: { club: JoinedClub }) => {
       <Card>
         <CardContent className="grid gap-2 p-4">
           <Button asChild>
-            <Link to={`/app/clubs/${club.slug}`}>
+            <Link to={`/app/clubs/${club.linkName}`}>
               <ShieldCheck />
               Open featured club
             </Link>
           </Button>
           <Button asChild variant="secondary">
-            <Link to={`/app/clubs/${club.slug}/recently-unlocked`}>
+            <Link to={`/app/clubs/${club.linkName}/recently-unlocked`}>
               <Sparkles />
               Recently unlocked
             </Link>

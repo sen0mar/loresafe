@@ -34,13 +34,13 @@ import { bannedFromClubError } from "../clubs/club-bans.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type PostsService = {
-  createClubPostForSlug: (
-    slug: string,
+  createClubPostForLinkName: (
+    linkName: string,
     userId: string,
     input: CreateClubPostRequest
   ) => Promise<CreateClubPostResponse>;
-  listClubPostsBySlug: (
-    slug: string,
+  listClubPostsByLinkName: (
+    linkName: string,
     userId: string,
     query: ListClubPostsQuery
   ) => Promise<ClubPostsResponse>;
@@ -64,8 +64,8 @@ export const createPostsService = (
   repository: PostsRepository = postsRepository,
   storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): PostsService => ({
-  createClubPostForSlug: async (slug, userId, input) => {
-    const club = await repository.findClubForPostCreation(slug, userId);
+  createClubPostForLinkName: async (linkName, userId, input) => {
+    const club = await repository.findClubForPostCreation(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -102,8 +102,8 @@ export const createPostsService = (
     };
   },
 
-  listClubPostsBySlug: async (slug, userId, query) => {
-    const club = await repository.findClubForFeed(slug, userId);
+  listClubPostsByLinkName: async (linkName, userId, query) => {
+    const club = await repository.findClubForFeed(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -170,7 +170,7 @@ export const createPostsService = (
       ),
       club: {
         id: detail.club.id,
-        slug: detail.club.slug
+        linkName: detail.club.linkName
       }
     };
   },
@@ -213,7 +213,7 @@ export const createPostsService = (
       ),
       club: {
         id: detail.club.id,
-        slug: detail.club.slug
+        linkName: detail.club.linkName
       }
     };
   },

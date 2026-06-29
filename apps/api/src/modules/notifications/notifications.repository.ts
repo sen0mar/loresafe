@@ -10,7 +10,7 @@ export type NotificationRecord = {
   club: {
     id: string;
     title: string;
-    slug: string;
+    linkName: string;
   };
   postId: string | null;
   commentId: string | null;
@@ -60,7 +60,7 @@ export type CreateNotificationResult = {
   userId: string;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
   };
   postId: string | null;
   commentId: string | null;
@@ -91,7 +91,7 @@ const notificationSelect = (userId: string) =>
       select: {
         id: true,
         title: true,
-        slug: true,
+        linkName: true,
         progress: {
           where: {
             userId
@@ -279,7 +279,7 @@ const notificationEventSelect = {
   club: {
     select: {
       id: true,
-      slug: true
+      linkName: true
     }
   },
   postId: true,
@@ -303,7 +303,7 @@ const toNotificationRecord = (
     club: {
       id: notification.club.id,
       title: notification.club.title,
-      slug: notification.club.slug
+      linkName: notification.club.linkName
     },
     postId: notification.postId,
     commentId: notification.commentId,

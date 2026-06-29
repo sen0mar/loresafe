@@ -23,9 +23,9 @@ import { PostCard } from "../components/club-feed-tab.js";
 const countFormatter = new Intl.NumberFormat();
 
 export const RecentlyUnlockedPage = () => {
-  const { slug = "" } = useParams();
-  const clubQuery = useClubQuery(slug);
-  const recentlyUnlockedQuery = useRecentlyUnlockedQuery(slug);
+  const { linkName = "" } = useParams();
+  const clubQuery = useClubQuery(linkName);
+  const recentlyUnlockedQuery = useRecentlyUnlockedQuery(linkName);
   const posts =
     recentlyUnlockedQuery.data?.pages.flatMap((page) => page.posts) ?? [];
   const latestUnlock =
@@ -41,7 +41,7 @@ export const RecentlyUnlockedPage = () => {
         <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
           <div className="min-w-0 space-y-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/app/clubs/${slug}`}>
+              <Link to={`/app/clubs/${linkName}`}>
                 <ArrowLeft />
                 Club
               </Link>
@@ -51,7 +51,7 @@ export const RecentlyUnlockedPage = () => {
                 Recently unlocked
               </h1>
               <p className="mt-1 text-sm text-faint">
-                {clubQuery.data?.club.title ?? `/${slug}`}
+                {clubQuery.data?.club.title ?? `/${linkName}`}
               </p>
             </div>
           </div>

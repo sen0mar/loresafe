@@ -16,7 +16,7 @@ export type NotificationDto = {
   club: {
     id: string;
     title: string;
-    slug: string;
+    linkName: string;
   };
   postId: string | null;
   commentId: string | null;

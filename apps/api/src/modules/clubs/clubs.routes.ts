@@ -24,45 +24,45 @@ export const createClubsRouter = (
   );
 
   router.post(
-    "/:slug/join",
+    "/:linkName/join",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.joinPublicClubBySlug
+    controller.joinPublicClubByLinkName
   );
 
   router.get(
-    "/:slug/members",
+    "/:linkName/members",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.listClubMembers
   );
 
   router.patch(
-    "/:slug/members/:membershipId/role",
+    "/:linkName/members/:membershipId/role",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.updateClubMemberRole
   );
 
   router.post(
-    "/:slug/members/:membershipId/ban",
+    "/:linkName/members/:membershipId/ban",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.banClubMember
   );
 
   router.post(
-    "/:slug/members/:membershipId/unban",
+    "/:linkName/members/:membershipId/unban",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.unbanClubMember
   );
 
   router.get(
-    "/:slug",
+    "/:linkName",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.getClubBySlug
+    controller.getClubByLinkName
   );
 
   return router;

@@ -36,7 +36,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
 export const ClubInviteSection = ({ club }: { club: Club }) => {
   const role = club.membership.role;
   const canCreateInvite = role === "OWNER" || role === "MODERATOR";
-  const createInviteMutation = useCreateClubInviteMutation(club.slug);
+  const createInviteMutation = useCreateClubInviteMutation(club.linkName);
   const [values, setValues] = useState<CreateInviteFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<InviteFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);

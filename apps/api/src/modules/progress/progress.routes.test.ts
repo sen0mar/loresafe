@@ -483,11 +483,11 @@ describe("progress routes", () => {
     });
   });
 
-  it("rejects invalid slugs and progress bodies", async () => {
+  it("rejects invalid link names and progress bodies", async () => {
     const user = repository.createStoredUser(validUserInput());
 
     await request(app)
-      .get("/api/clubs/Invalid Slug/progress")
+      .get("/api/clubs/Invalid Link Name/progress")
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
 
@@ -614,7 +614,7 @@ const createProgressTestApp = (
 
 type StoredClub = {
   id: string;
-  slug: string;
+  linkName: string;
 };
 
 type StoredProgress = {
@@ -696,10 +696,10 @@ class InMemoryProgressRepository
     return user;
   };
 
-  createClub = (slug: string) => {
+  createClub = (linkName: string) => {
     const club = {
       id: crypto.randomUUID(),
-      slug
+      linkName
     };
 
     this.clubs.set(club.id, club);
@@ -738,10 +738,10 @@ class InMemoryProgressRepository
   };
 
   findClubForProgress = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<ProgressClubRecord | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -937,9 +937,9 @@ class InMemoryProgressRepository
     updatedAt: progress?.updatedAt ?? null
   });
 
-  private findStoredClubBySlug = (slug: string) => {
+  private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
-      if (club.slug === slug) {
+      if (club.linkName === linkName) {
         return club;
       }
     }

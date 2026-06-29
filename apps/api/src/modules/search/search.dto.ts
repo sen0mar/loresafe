@@ -5,7 +5,7 @@ import type { SearchClubRecord } from "./search.repository.js";
 export type SearchClubDto = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;
@@ -30,7 +30,7 @@ export type SearchResponse = {
 export const toSearchClubDto = (club: SearchClubRecord): SearchClubDto => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   description: club.description,
   category: club.category,
   coverUrl:

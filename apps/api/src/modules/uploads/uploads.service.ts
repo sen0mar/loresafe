@@ -42,7 +42,7 @@ export const createUploadsService = (
   createPublicAssetUpload: async (userId, input) => {
     const club =
       input.purpose === "CLUB_COVER"
-        ? await repository.findClubBySlugForUser(input.clubSlug ?? "", userId)
+        ? await repository.findClubByLinkNameForUser(input.clubLinkName ?? "", userId)
         : null;
 
     if (input.purpose === "CLUB_COVER") {
@@ -94,7 +94,7 @@ export const createUploadsService = (
   },
 
   createPostImageUpload: async (userId, input) => {
-    const club = await repository.findClubBySlugForUser(input.clubSlug, userId);
+    const club = await repository.findClubByLinkNameForUser(input.clubLinkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");

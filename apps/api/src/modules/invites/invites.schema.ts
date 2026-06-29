@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { clubSlugSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameSchema } from "../clubs/clubs.schema.js";
 
 const inviteTokenSchema = z
   .string()
@@ -10,7 +10,7 @@ const inviteTokenSchema = z
 
 export const createClubInviteParamsSchema = z
   .object({
-    slug: clubSlugSchema
+    linkName: clubLinkNameSchema
   })
   .strict();
 

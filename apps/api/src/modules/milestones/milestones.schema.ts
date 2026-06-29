@@ -26,7 +26,7 @@ export const createMilestoneRequestSchema = z
 
 export const milestoneParamsSchema = z
   .object({
-    slug: z
+    linkName: z
       .string()
       .trim()
       .toLowerCase()

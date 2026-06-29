@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { clubSlugSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameSchema } from "../clubs/clubs.schema.js";
 
 export const postReactionEmojis = ["👍", "❤️", "😂", "😮", "👀"] as const;
 
@@ -73,7 +73,7 @@ export const togglePostReactionRequestSchema = z
 
 export const clubPostsParamsSchema = z
   .object({
-    slug: clubSlugSchema
+    linkName: clubLinkNameSchema
   })
   .strict();
 

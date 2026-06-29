@@ -88,7 +88,7 @@ describe("notifications routes", () => {
           club: {
             id: club.id,
             title: "Readable Club",
-            slug: "readable-club"
+            linkName: "readable-club"
           },
           requiredMilestone: {
             id: milestone.id,
@@ -240,7 +240,7 @@ describe("notifications routes", () => {
         notificationId: notification.id,
         club: {
           id: club.id,
-          slug: club.slug
+          linkName: club.linkName
         },
         postId: notification.postId,
         commentId: notification.commentId,
@@ -305,7 +305,7 @@ const createMockEventsService = (): EventsService => ({
 type StoredClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
 };
 
 type StoredMilestone = {
@@ -385,7 +385,7 @@ class InMemoryNotificationsRepository
     const club = {
       id: crypto.randomUUID(),
       title,
-      slug: title.toLowerCase().replace(/\s+/g, "-")
+      linkName: title.toLowerCase().replace(/\s+/g, "-")
     };
 
     this.clubs.set(club.id, club);

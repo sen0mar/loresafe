@@ -23,7 +23,7 @@ export const ClubDiscoveryCard = ({ club }: ClubDiscoveryCardProps) => (
     <Link
       aria-label={`Open ${club.title}`}
       className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      to={`/app/clubs/${club.slug}`}
+      to={`/app/clubs/${club.linkName}`}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
@@ -41,7 +41,7 @@ export const ClubDiscoveryCard = ({ club }: ClubDiscoveryCardProps) => (
           <CardTitle className="truncate text-lg transition-colors group-hover:text-brand">
             {club.title}
           </CardTitle>
-          <p className="mt-1 truncate text-xs text-faint">/{club.slug}</p>
+          <p className="mt-1 truncate text-xs text-faint">/{club.linkName}</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

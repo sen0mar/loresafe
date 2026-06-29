@@ -56,11 +56,11 @@ export type MilestonesRepository = {
     input: MoveMilestoneForClubInput
   ) => Promise<MilestoneRecord[] | null>;
   findClubForMilestoneCreation: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ClubMilestoneCreationClubRecord | null>;
-  listVisibleMilestonesByClubSlug: (
-    slug: string,
+  listVisibleMilestonesByClubLinkName: (
+    linkName: string,
     userId: string,
     query: ListMilestonesQuery
   ) => Promise<ListMilestonesResult | null>;
@@ -338,11 +338,11 @@ export const milestonesRepository: MilestonesRepository = {
     }
   },
 
-  findClubForMilestoneCreation: async (slug, userId) => {
+  findClubForMilestoneCreation: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,
@@ -380,11 +380,11 @@ export const milestonesRepository: MilestonesRepository = {
     };
   },
 
-  listVisibleMilestonesByClubSlug: async (slug, userId, { page, limit }) => {
+  listVisibleMilestonesByClubLinkName: async (linkName, userId, { page, limit }) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,

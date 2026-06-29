@@ -29,56 +29,56 @@ export const createClubReportsRouter = (
   const router = Router();
 
   router.get(
-    "/:slug/moderation/reports",
+    "/:linkName/moderation/reports",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.listModerationReportsForClub
   );
 
   router.post(
-    "/:slug/moderation/reports/:reportId/reveal",
+    "/:linkName/moderation/reports/:reportId/reveal",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.revealModerationReportForClub
   );
 
   router.patch(
-    "/:slug/moderation/reports/:reportId/required-milestone",
+    "/:linkName/moderation/reports/:reportId/required-milestone",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.updateReportRequiredMilestoneForClub
   );
 
   router.post(
-    "/:slug/moderation/reports/:reportId/hide",
+    "/:linkName/moderation/reports/:reportId/hide",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.hideReportedContentForClub
   );
 
   router.post(
-    "/:slug/moderation/reports/:reportId/delete",
+    "/:linkName/moderation/reports/:reportId/delete",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.deleteReportedContentForClub
   );
 
   router.post(
-    "/:slug/moderation/reports/:reportId/warn",
+    "/:linkName/moderation/reports/:reportId/warn",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.warnReportedContentAuthorForClub
   );
 
   router.post(
-    "/:slug/moderation/reports/:reportId/ban",
+    "/:linkName/moderation/reports/:reportId/ban",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.banReportedContentAuthorForClub
   );
 
   router.patch(
-    "/:slug/moderation/reports/:reportId/resolve",
+    "/:linkName/moderation/reports/:reportId/resolve",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.resolveModerationReportForClub

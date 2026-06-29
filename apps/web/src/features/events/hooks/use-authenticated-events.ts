@@ -12,7 +12,7 @@ type NotificationEventPayload = {
   notificationId: string;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
   };
   postId: string | null;
   commentId: string | null;
@@ -42,7 +42,7 @@ export const useAuthenticatedEvents = (enabled: boolean) => {
       void queryClient.invalidateQueries({
         queryKey: notificationsQueryKeys.root
       });
-      invalidateClubProgressDependencies(queryClient, payload.club.slug);
+      invalidateClubProgressDependencies(queryClient, payload.club.linkName);
 
       if (payload.postId) {
         void queryClient.invalidateQueries({
@@ -125,7 +125,7 @@ const isNotificationEventPayload = (
     !!payload.club &&
     typeof payload.club === "object" &&
     typeof payload.club.id === "string" &&
-    typeof payload.club.slug === "string" &&
+    typeof payload.club.linkName === "string" &&
     (typeof payload.postId === "string" || payload.postId === null) &&
     (typeof payload.commentId === "string" || payload.commentId === null) &&
     typeof payload.occurredAt === "string"

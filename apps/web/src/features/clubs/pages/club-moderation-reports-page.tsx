@@ -78,10 +78,10 @@ const formatUser = (user: { displayName: string; username: string | null }) =>
   user.username ? `${user.displayName} / ${user.username}` : user.displayName;
 
 export const ClubModerationReportsPage = () => {
-  const { slug = "" } = useParams();
-  const clubQuery = useClubQuery(slug);
-  const reportsQuery = useModerationReportsQuery(slug);
-  const milestonesQuery = useClubMilestonesQuery(slug, 1);
+  const { linkName = "" } = useParams();
+  const clubQuery = useClubQuery(linkName);
+  const reportsQuery = useModerationReportsQuery(linkName);
+  const milestonesQuery = useClubMilestonesQuery(linkName, 1);
   const [typeSearch, setTypeSearch] = useState("");
   const reports =
     reportsQuery.data?.pages.flatMap((page) => page.reports) ?? [];
@@ -96,7 +96,7 @@ export const ClubModerationReportsPage = () => {
         <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
           <div className="min-w-0 space-y-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/app/clubs/${slug}`}>
+              <Link to={`/app/clubs/${linkName}`}>
                 <ArrowLeft />
                 Club settings
               </Link>
@@ -106,7 +106,7 @@ export const ClubModerationReportsPage = () => {
                 Moderation reports
               </h1>
               <p className="mt-1 text-sm text-faint">
-                {clubQuery.data?.club.title ?? `/${slug}`}
+                {clubQuery.data?.club.title ?? `/${linkName}`}
               </p>
             </div>
           </div>
@@ -145,7 +145,7 @@ export const ClubModerationReportsPage = () => {
               <ModerationReportCard
                 key={report.id}
                 report={report}
-                slug={slug}
+                linkName={linkName}
                 milestones={milestonesQuery.data?.milestones ?? []}
               />
             ))}
@@ -203,17 +203,17 @@ const filterReportsByType = (
 
 const ModerationReportCard = ({
   report,
-  slug,
+  linkName,
   milestones
 }: {
   report: ModerationReport;
-  slug: string;
+  linkName: string;
   milestones: ClubMilestone[];
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [revealedReport, setRevealedReport] =
     useState<RevealedModerationReport | null>(null);
-  const revealMutation = useRevealModerationReportMutation(slug);
+  const revealMutation = useRevealModerationReportMutation(linkName);
   const target = revealedReport?.target ?? report.target;
   const detailsId = `report-${report.id}-details`;
 
@@ -310,7 +310,7 @@ const ModerationReportCard = ({
 
             <ModerationActionControls
               report={report}
-              slug={slug}
+              linkName={linkName}
               milestones={milestones}
             />
           </div>
@@ -322,11 +322,11 @@ const ModerationReportCard = ({
 
 const ModerationActionControls = ({
   report,
-  slug,
+  linkName,
   milestones
 }: {
   report: ModerationReport;
-  slug: string;
+  linkName: string;
   milestones: ClubMilestone[];
 }) => {
   const [moderatorNote, setModeratorNote] = useState("");
@@ -334,12 +334,12 @@ const ModerationActionControls = ({
     report.target.requiredMilestone?.id ?? ""
   );
   const [banExpiresAt, setBanExpiresAt] = useState("");
-  const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(slug);
-  const hideMutation = useHideReportedContentMutation(slug);
-  const deleteMutation = useDeleteReportedContentMutation(slug);
-  const warnMutation = useWarnReportedContentAuthorMutation(slug);
-  const banMutation = useBanReportedContentAuthorMutation(slug);
-  const resolveMutation = useResolveModerationReportMutation(slug);
+  const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(linkName);
+  const hideMutation = useHideReportedContentMutation(linkName);
+  const deleteMutation = useDeleteReportedContentMutation(linkName);
+  const warnMutation = useWarnReportedContentAuthorMutation(linkName);
+  const banMutation = useBanReportedContentAuthorMutation(linkName);
+  const resolveMutation = useResolveModerationReportMutation(linkName);
   const isWorking =
     updateMilestoneMutation.isPending ||
     hideMutation.isPending ||

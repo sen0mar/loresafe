@@ -13,7 +13,7 @@ export const createClubInvitesRouter = (
   const router = Router();
 
   router.post(
-    "/:slug/invites",
+    "/:linkName/invites",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.createClubInvite

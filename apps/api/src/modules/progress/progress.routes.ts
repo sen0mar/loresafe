@@ -13,31 +13,31 @@ export const createProgressRouter = (
   const router = Router();
 
   router.get(
-    "/:slug/progress",
+    "/:linkName/progress",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.getProgressForClubSlug
+    controller.getProgressForClubLinkName
   );
 
   router.get(
-    "/:slug/recently-unlocked",
+    "/:linkName/recently-unlocked",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.listRecentlyUnlockedForClubSlug
+    controller.listRecentlyUnlockedForClubLinkName
   );
 
   router.patch(
-    "/:slug/progress",
+    "/:linkName/progress",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.updateProgressForClubSlug
+    controller.updateProgressForClubLinkName
   );
 
   router.post(
-    "/:slug/progress/next",
+    "/:linkName/progress/next",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.advanceProgressToNextMilestoneForClubSlug
+    controller.advanceProgressToNextMilestoneForClubLinkName
   );
 
   return router;

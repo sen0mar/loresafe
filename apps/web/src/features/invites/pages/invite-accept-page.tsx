@@ -91,7 +91,7 @@ const InviteSuccessCard = ({
     status: "accepted" | "already_member";
     club: {
       title: string;
-      slug: string;
+      linkName: string;
     };
   };
 }) => {
@@ -119,7 +119,7 @@ const InviteSuccessCard = ({
         </p>
         <div className="flex flex-wrap gap-3">
           <Button asChild>
-            <Link to={`/app/clubs/${result.club.slug}`}>
+            <Link to={`/app/clubs/${result.club.linkName}`}>
               <KeyRound />
               Open club
             </Link>

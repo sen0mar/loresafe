@@ -156,12 +156,12 @@ const NotificationRow = ({
   const isLocked = notification.visibility === "LOCKED";
   const targetPath =
     notification.type === "MODERATION_WARNING"
-      ? `/app/clubs/${notification.club.slug}`
+      ? `/app/clubs/${notification.club.linkName}`
       : notification.postId
     ? `/app/posts/${notification.postId}`
     : notification.type === "PROGRESS_UNLOCK"
-      ? `/app/clubs/${notification.club.slug}/recently-unlocked`
-    : `/app/clubs/${notification.club.slug}`;
+      ? `/app/clubs/${notification.club.linkName}/recently-unlocked`
+    : `/app/clubs/${notification.club.linkName}`;
 
   return (
     <article

@@ -124,7 +124,7 @@ export type CreateClubPostResponse = {
 
 type PostDetailClubDto = {
   id: string;
-  slug: string;
+  linkName: string;
 };
 
 export type PostDetailResponse = {

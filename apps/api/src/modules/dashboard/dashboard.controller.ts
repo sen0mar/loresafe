@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
-import { clubSlugParamsSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameParamsSchema } from "../clubs/clubs.schema.js";
 import {
   dashboardService,
   type DashboardService
@@ -28,7 +28,7 @@ export const createDashboardController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -39,7 +39,7 @@ export const createDashboardController = (
       }
 
       const response = await service.getClubStats(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id
       );
 
@@ -55,7 +55,7 @@ export const createDashboardController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
       const queryResult = popularDiscussionsQuerySchema.safeParse(req.query);
 
       if (!paramsResult.success || !queryResult.success) {
@@ -67,7 +67,7 @@ export const createDashboardController = (
       }
 
       const response = await service.getPopularDiscussions(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );
@@ -84,7 +84,7 @@ export const createDashboardController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success) {
         throw new HttpError(
@@ -95,7 +95,7 @@ export const createDashboardController = (
       }
 
       const response = await service.getProgressSummary(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id
       );
 
@@ -111,7 +111,7 @@ export const createDashboardController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubSlugParamsSchema.safeParse(req.params);
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
       const queryResult = recentlyUnlockedSummaryQuerySchema.safeParse(
         req.query
       );
@@ -125,7 +125,7 @@ export const createDashboardController = (
       }
 
       const response = await service.getRecentlyUnlockedSummary(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );

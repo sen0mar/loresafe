@@ -81,7 +81,7 @@ export const App = () => (
             }
           />
           <Route
-            path="/app/clubs/:slug/recently-unlocked"
+            path="/app/clubs/:linkName/recently-unlocked"
             element={
               <ProtectedRoute>
                 <RecentlyUnlockedPage />
@@ -89,7 +89,7 @@ export const App = () => (
             }
           />
           <Route
-            path="/app/clubs/:slug/settings/moderation"
+            path="/app/clubs/:linkName/settings/moderation"
             element={
               <ProtectedRoute>
                 <ClubModerationReportsPage />
@@ -97,7 +97,7 @@ export const App = () => (
             }
           />
           <Route
-            path="/app/clubs/:slug"
+            path="/app/clubs/:linkName"
             element={
               <ProtectedRoute>
                 <ClubDetailPage />

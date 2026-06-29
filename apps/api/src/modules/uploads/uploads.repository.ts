@@ -25,7 +25,7 @@ export type FileAssetRecord = {
 
 export type UploadClubRecord = {
   id: string;
-  slug: string;
+  linkName: string;
   currentUserRole: ClubMembershipRole | null;
   isCurrentUserBanned: boolean;
 };
@@ -44,8 +44,8 @@ export type CreateFileAssetInput = {
 export type UploadsRepository = {
   createPendingFileAsset: (input: CreateFileAssetInput) => Promise<FileAssetRecord>;
   findAssetById: (assetId: string) => Promise<FileAssetRecord | null>;
-  findClubBySlugForUser: (
-    slug: string,
+  findClubByLinkNameForUser: (
+    linkName: string,
     userId: string
   ) => Promise<UploadClubRecord | null>;
   markAssetFailed: (assetId: string) => Promise<FileAssetRecord | null>;
@@ -78,7 +78,7 @@ const clubUploadSelect = (userId: string) => {
 
   return {
     id: true,
-    slug: true,
+    linkName: true,
     bans: {
       where: {
         userId,
@@ -138,10 +138,10 @@ export const uploadsRepository: UploadsRepository = {
       select: fileAssetSelect
     }),
 
-  findClubBySlugForUser: async (slug, userId) => {
+  findClubByLinkNameForUser: async (linkName, userId) => {
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: clubUploadSelect(userId)
     });
@@ -152,7 +152,7 @@ export const uploadsRepository: UploadsRepository = {
 
     return {
       id: club.id,
-      slug: club.slug,
+      linkName: club.linkName,
       currentUserRole: club.memberships[0]?.role ?? null,
       isCurrentUserBanned: club.bans.length > 0
     };

@@ -13,28 +13,28 @@ export const createDashboardRouter = (
   const router = Router();
 
   router.get(
-    "/:slug/stats",
+    "/:linkName/stats",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.getClubStats
   );
 
   router.get(
-    "/:slug/popular-discussions",
+    "/:linkName/popular-discussions",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.getPopularDiscussions
   );
 
   router.get(
-    "/:slug/progress/summary",
+    "/:linkName/progress/summary",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.getProgressSummary
   );
 
   router.get(
-    "/:slug/recently-unlocked/summary",
+    "/:linkName/recently-unlocked/summary",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.getRecentlyUnlockedSummary

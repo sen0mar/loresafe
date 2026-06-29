@@ -36,47 +36,47 @@ export type ReportsService = {
     input: CreateReportRequest
   ) => Promise<CreateReportResponse>;
   listModerationReportsForClub: (
-    slug: string,
+    linkName: string,
     userId: string,
     query: ListModerationReportsQuery
   ) => Promise<ListModerationReportsResponse>;
   revealModerationReportForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string
   ) => Promise<RevealModerationReportResponse>;
   updateReportRequiredMilestoneForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportRequiredMilestoneRequest
   ) => Promise<ModerationReportActionResponse>;
   hideReportedContentForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportNoteRequest
   ) => Promise<ModerationReportActionResponse>;
   deleteReportedContentForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportNoteRequest
   ) => Promise<ModerationReportActionResponse>;
   warnReportedContentAuthorForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportNoteRequest
   ) => Promise<ModerationReportActionResponse>;
   banReportedContentAuthorForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportBanRequest
   ) => Promise<ModerationReportActionResponse>;
   resolveModerationReportForClub: (
-    slug: string,
+    linkName: string,
     reportId: string,
     userId: string,
     input: ModerationReportResolveRequest
@@ -109,8 +109,8 @@ export const createReportsService = (
     };
   },
 
-  listModerationReportsForClub: async (slug, userId, query) => {
-    const club = await repository.findClubAccessBySlug(slug, userId);
+  listModerationReportsForClub: async (linkName, userId, query) => {
+    const club = await repository.findClubAccessByLinkName(linkName, userId);
     const moderationClub = getAccessibleModerationClub(club);
 
     const result = await repository.listModerationReports(moderationClub.id, {
@@ -131,8 +131,8 @@ export const createReportsService = (
     };
   },
 
-  revealModerationReportForClub: async (slug, reportId, userId) => {
-    const club = await repository.findClubAccessBySlug(slug, userId);
+  revealModerationReportForClub: async (linkName, reportId, userId) => {
+    const club = await repository.findClubAccessByLinkName(linkName, userId);
     const moderationClub = getAccessibleModerationClub(club);
 
     const report = await repository.findModerationReportById(
@@ -149,33 +149,33 @@ export const createReportsService = (
     };
   },
 
-  updateReportRequiredMilestoneForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  updateReportRequiredMilestoneForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.updateReportRequiredMilestone(club.id, reportId, userId, input)
     ),
 
-  hideReportedContentForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  hideReportedContentForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.hideReportedContent(club.id, reportId, userId, input)
     ),
 
-  deleteReportedContentForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  deleteReportedContentForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.deleteReportedContent(club.id, reportId, userId, input)
     ),
 
-  warnReportedContentAuthorForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  warnReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.warnReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
-  banReportedContentAuthorForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  banReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.banReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
-  resolveModerationReportForClub: async (slug, reportId, userId, input) =>
-    runModerationAction(slug, reportId, userId, repository, eventPublisher, (club) =>
+  resolveModerationReportForClub: async (linkName, reportId, userId, input) =>
+    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
       repository.resolveModerationReport(club.id, reportId, userId, input)
     )
 });
@@ -218,7 +218,7 @@ const getAccessibleModerationClub = (
 };
 
 const runModerationAction = async (
-  slug: string,
+  linkName: string,
   reportId: string,
   userId: string,
   repository: ReportsRepository,
@@ -227,7 +227,7 @@ const runModerationAction = async (
     club: ModerationClubAccessRecord
   ) => ReturnType<ReportsRepository["hideReportedContent"]>
 ): Promise<ModerationReportActionResponse> => {
-  const club = await repository.findClubAccessBySlug(slug, userId);
+  const club = await repository.findClubAccessByLinkName(linkName, userId);
   const moderationClub = getAccessibleModerationClub(club);
   const result = await action(moderationClub);
 

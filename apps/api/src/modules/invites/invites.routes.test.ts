@@ -50,7 +50,7 @@ describe("invite routes", () => {
       });
       const club = repository.createClub({
         title: "Invite Arc Watch",
-        slug: "invite-arc-watch",
+        linkName: "invite-arc-watch",
         visibility: "INVITE_ONLY"
       });
       repository.createMembership(creator.id, club.id, role);
@@ -74,7 +74,7 @@ describe("invite routes", () => {
         club: {
           id: club.id,
           title: "Invite Arc Watch",
-          slug: "invite-arc-watch"
+          linkName: "invite-arc-watch"
         }
       });
       expect(response.body.invite.token).toHaveLength(43);
@@ -96,7 +96,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Default Invite Club",
-      slug: "default-invite-club",
+      linkName: "default-invite-club",
       visibility: "PRIVATE"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -120,7 +120,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Member Club",
-      slug: "member-club",
+      linkName: "member-club",
       visibility: "PUBLIC"
     });
     repository.createMembership(member.id, club.id, "MEMBER");
@@ -150,7 +150,7 @@ describe("invite routes", () => {
     });
     repository.createClub({
       title: "Hidden Club",
-      slug: "hidden-club",
+      linkName: "hidden-club",
       visibility: "PRIVATE"
     });
 
@@ -179,7 +179,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Invite Arc Watch",
-      slug: "invite-arc-watch",
+      linkName: "invite-arc-watch",
       visibility: "INVITE_ONLY"
     });
     const token = createTestToken("a");
@@ -200,7 +200,7 @@ describe("invite routes", () => {
       status: "accepted",
       club: {
         id: club.id,
-        slug: "invite-arc-watch",
+        linkName: "invite-arc-watch",
         currentUserRole: "MEMBER",
         membership: {
           isMember: true,
@@ -222,7 +222,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Existing Member Club",
-      slug: "existing-member-club",
+      linkName: "existing-member-club",
       visibility: "PRIVATE"
     });
     repository.createMembership(moderator.id, club.id, "MODERATOR");
@@ -296,7 +296,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: `${code} Club`,
-      slug: `${code.toLowerCase().replace("_", "-")}-club`,
+      linkName: `${code.toLowerCase().replace("_", "-")}-club`,
       visibility: "INVITE_ONLY"
     });
 
@@ -364,7 +364,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Banned Invite Club",
-      slug: "banned-invite-club",
+      linkName: "banned-invite-club",
       visibility: "INVITE_ONLY"
     });
     const token = createTestToken("b");
@@ -398,7 +398,7 @@ describe("invite routes", () => {
     });
     const club = repository.createClub({
       title: "Body Check Club",
-      slug: "body-check-club",
+      linkName: "body-check-club",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -472,7 +472,7 @@ const createInvitesTestApp = (
 type StoredClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   rules: string | null;
@@ -483,7 +483,7 @@ type StoredClub = {
 
 type CreateStoredClubInput = {
   title: string;
-  slug: string;
+  linkName: string;
   description?: string | null;
   category?: string | null;
   rules?: string | null;
@@ -579,7 +579,7 @@ class InMemoryInvitesRepository
 
   createClub = ({
     title,
-    slug,
+    linkName,
     description = null,
     category = null,
     rules = null,
@@ -589,7 +589,7 @@ class InMemoryInvitesRepository
     const club = {
       id: crypto.randomUUID(),
       title,
-      slug,
+      linkName,
       description,
       category,
       rules,
@@ -745,10 +745,10 @@ class InMemoryInvitesRepository
   };
 
   findClubForInviteCreation = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<ClubInviteCreationClubRecord | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
       return null;
@@ -757,15 +757,15 @@ class InMemoryInvitesRepository
     return {
       id: club.id,
       title: club.title,
-      slug: club.slug,
+      linkName: club.linkName,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
       isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 
-  private findStoredClubBySlug = (slug: string) => {
+  private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
-      if (club.slug === slug) {
+      if (club.linkName === linkName) {
         return club;
       }
     }
@@ -798,7 +798,7 @@ class InMemoryInvitesRepository
       club: {
         id: club.id,
         title: club.title,
-        slug: club.slug
+        linkName: club.linkName
       }
     };
   };

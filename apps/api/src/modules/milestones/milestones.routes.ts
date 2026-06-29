@@ -13,38 +13,38 @@ export const createMilestonesRouter = (
   const router = Router();
 
   router.post(
-    "/:slug/milestones/templates",
+    "/:linkName/milestones/templates",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.createMilestoneTemplateForClubSlug
+    controller.createMilestoneTemplateForClubLinkName
   );
 
   router.post(
-    "/:slug/milestones",
+    "/:linkName/milestones",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.createMilestoneForClubSlug
+    controller.createMilestoneForClubLinkName
   );
 
   router.patch(
-    "/:slug/milestones/:milestoneId",
+    "/:linkName/milestones/:milestoneId",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.updateMilestoneForClubSlug
+    controller.updateMilestoneForClubLinkName
   );
 
   router.post(
-    "/:slug/milestones/:milestoneId/move",
+    "/:linkName/milestones/:milestoneId/move",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.moveMilestoneForClubSlug
+    controller.moveMilestoneForClubLinkName
   );
 
   router.get(
-    "/:slug/milestones",
+    "/:linkName/milestones",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.listMilestonesByClubSlug
+    controller.listMilestonesByClubLinkName
   );
 
   return router;

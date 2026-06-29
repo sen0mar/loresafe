@@ -77,7 +77,7 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         purpose: "CLUB_COVER",
-        clubSlug: "story-room",
+        clubLinkName: "story-room",
         contentType: "image/png",
         sizeBytes: 5 * 1024 * 1024 + 1
       })
@@ -352,15 +352,15 @@ const validAvatarIntent = () => ({
   sizeBytes: 128
 });
 
-const validClubCoverIntent = (clubSlug: string) => ({
+const validClubCoverIntent = (clubLinkName: string) => ({
   purpose: "CLUB_COVER",
-  clubSlug,
+  clubLinkName,
   contentType: "image/webp",
   sizeBytes: 256
 });
 
-const validPostImageIntent = (clubSlug: string, safePreview = false) => ({
-  clubSlug,
+const validPostImageIntent = (clubLinkName: string, safePreview = false) => ({
+  clubLinkName,
   contentType: "image/jpeg",
   sizeBytes: 512,
   safePreview
@@ -403,7 +403,7 @@ type StoredUser = AuthUserCredentialsRecord & {
 
 type StoredClub = {
   id: string;
-  slug: string;
+  linkName: string;
   coverAssetId: string | null;
 };
 
@@ -447,10 +447,10 @@ class InMemoryUploadsRepository
   findActiveUserCredentialsByEmail = async (email: string) =>
     Array.from(this.users.values()).find((user) => user.email === email) ?? null;
 
-  createClub = (slug: string) => {
+  createClub = (linkName: string) => {
     const club = {
       id: randomUUID(),
-      slug,
+      linkName,
       coverAssetId: null
     };
 
@@ -497,12 +497,12 @@ class InMemoryUploadsRepository
   findAssetById = async (assetId: string) =>
     this.fileAssets.get(assetId) ?? null;
 
-  findClubBySlugForUser = async (
-    slug: string,
+  findClubByLinkNameForUser = async (
+    linkName: string,
     userId: string
   ): Promise<UploadClubRecord | null> => {
     const club =
-      Array.from(this.clubs.values()).find((candidate) => candidate.slug === slug) ??
+      Array.from(this.clubs.values()).find((candidate) => candidate.linkName === linkName) ??
       null;
 
     if (!club) {
@@ -511,7 +511,7 @@ class InMemoryUploadsRepository
 
     return {
 	      id: club.id,
-	      slug: club.slug,
+	      linkName: club.linkName,
 	      currentUserRole:
 	        this.memberships.find(
 	          (membership) =>

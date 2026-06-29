@@ -27,33 +27,33 @@ export type ClubsService = {
     userId: string,
     input: CreateClubRequest
   ) => Promise<ClubResponse>;
-  getVisibleClubBySlug: (
-    slug: string,
+  getVisibleClubByLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<ClubResponse>;
-  joinPublicClubBySlug: (
-    slug: string,
+  joinPublicClubByLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<ClubResponse>;
-  listClubMembersBySlug: (
-    slug: string,
+  listClubMembersByLinkName: (
+    linkName: string,
     userId: string,
     query: ListClubMembersQuery
   ) => Promise<ClubMembersResponse>;
   updateClubMemberRole: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     userId: string,
     role: "OWNER" | "MODERATOR" | "MEMBER"
   ) => Promise<ClubMemberResponse>;
   banClubMember: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     userId: string,
     input: BanClubMemberRequest
   ) => Promise<ClubMemberResponse>;
   unbanClubMember: (
-    slug: string,
+    linkName: string,
     membershipId: string,
     userId: string
   ) => Promise<ClubMemberResponse>;
@@ -67,10 +67,10 @@ export const createClubsService = (
   repository: ClubsRepository = clubsRepository
 ): ClubsService => ({
   createClub: async (userId, input) => {
-    const existingClub = await repository.findClubBySlug(input.slug);
+    const existingClub = await repository.findClubByLinkName(input.linkName);
 
     if (existingClub) {
-      throw duplicateSlugError();
+      throw duplicateLinkNameError();
     }
 
     try {
@@ -81,15 +81,15 @@ export const createClubsService = (
       };
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        throw duplicateSlugError();
+        throw duplicateLinkNameError();
       }
 
       throw error;
     }
   },
 
-  getVisibleClubBySlug: async (slug, userId) => {
-    const club = await repository.findVisibleClubBySlugForUser(slug, userId);
+  getVisibleClubByLinkName: async (linkName, userId) => {
+    const club = await repository.findVisibleClubByLinkNameForUser(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -104,8 +104,8 @@ export const createClubsService = (
     };
   },
 
-  joinPublicClubBySlug: async (slug, userId) => {
-    const result = await repository.joinPublicClubBySlug(slug, userId);
+  joinPublicClubByLinkName: async (linkName, userId) => {
+    const result = await repository.joinPublicClubByLinkName(linkName, userId);
 
     switch (result.status) {
       case "SUCCESS":
@@ -119,8 +119,8 @@ export const createClubsService = (
     }
   },
 
-  listClubMembersBySlug: async (slug, userId, query) => {
-    const result = await repository.listClubMembersBySlug(slug, userId, query);
+  listClubMembersByLinkName: async (linkName, userId, query) => {
+    const result = await repository.listClubMembersByLinkName(linkName, userId, query);
 
     if (!result.club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -145,9 +145,9 @@ export const createClubsService = (
     };
   },
 
-  updateClubMemberRole: async (slug, membershipId, userId, role) => {
+  updateClubMemberRole: async (linkName, membershipId, userId, role) => {
     const result = await repository.updateClubMemberRole(
-      slug,
+      linkName,
       membershipId,
       userId,
       role
@@ -156,9 +156,9 @@ export const createClubsService = (
     return toMemberMutationResponse(result);
   },
 
-  banClubMember: async (slug, membershipId, userId, input) => {
+  banClubMember: async (linkName, membershipId, userId, input) => {
     const result = await repository.banClubMember(
-      slug,
+      linkName,
       membershipId,
       userId,
       input
@@ -167,8 +167,8 @@ export const createClubsService = (
     return toMemberMutationResponse(result);
   },
 
-  unbanClubMember: async (slug, membershipId, userId) => {
-    const result = await repository.unbanClubMember(slug, membershipId, userId);
+  unbanClubMember: async (linkName, membershipId, userId) => {
+    const result = await repository.unbanClubMember(linkName, membershipId, userId);
 
     return toMemberMutationResponse(result);
   },
@@ -190,8 +190,8 @@ export const createClubsService = (
 
 export const clubsService = createClubsService();
 
-const duplicateSlugError = () =>
-  new HttpError(409, "CONFLICT", "That club slug is already taken.");
+const duplicateLinkNameError = () =>
+  new HttpError(409, "CONFLICT", "That club link name is already taken.");
 
 const toMemberMutationResponse = (
   result: ClubMemberMutationResult

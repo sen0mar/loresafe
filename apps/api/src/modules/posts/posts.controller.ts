@@ -12,8 +12,8 @@ import {
 import { postsService, type PostsService } from "./posts.service.js";
 
 export type PostsController = {
-  createClubPostForSlug: RequestHandler;
-  listClubPostsBySlug: RequestHandler;
+  createClubPostForLinkName: RequestHandler;
+  listClubPostsByLinkName: RequestHandler;
   getPostById: RequestHandler;
   revealPostById: RequestHandler;
   togglePostReactionById: RequestHandler;
@@ -23,7 +23,7 @@ export type PostsController = {
 export const createPostsController = (
   service: PostsService = postsService
 ): PostsController => ({
-  createClubPostForSlug: async (req, res, next) => {
+  createClubPostForLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
@@ -40,8 +40,8 @@ export const createPostsController = (
         );
       }
 
-      const response = await service.createClubPostForSlug(
-        paramsResult.data.slug,
+      const response = await service.createClubPostForLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         bodyResult.data
       );
@@ -52,7 +52,7 @@ export const createPostsController = (
     }
   },
 
-  listClubPostsBySlug: async (req, res, next) => {
+  listClubPostsByLinkName: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
@@ -69,8 +69,8 @@ export const createPostsController = (
         );
       }
 
-      const response = await service.listClubPostsBySlug(
-        paramsResult.data.slug,
+      const response = await service.listClubPostsByLinkName(
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );

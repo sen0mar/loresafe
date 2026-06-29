@@ -108,12 +108,12 @@ describe("search routes", () => {
     });
     const publicClub = repository.createClub({
       title: "Nebula Readers",
-      slug: "nebula-readers",
+      linkName: "nebula-readers",
       visibility: "PUBLIC"
     });
     const privateClub = repository.createClub({
       title: "Nebula Private",
-      slug: "nebula-private",
+      linkName: "nebula-private",
       visibility: "PRIVATE"
     });
     repository.createMembership(member.id, privateClub.id);
@@ -155,7 +155,7 @@ describe("search routes", () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub({
       title: "Spoiler Club",
-      slug: "spoiler-club",
+      linkName: "spoiler-club",
       visibility: "PUBLIC"
     });
     const opening = repository.createMilestone(club.id, 1, "Opening");
@@ -193,7 +193,7 @@ describe("search routes", () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub({
       title: "Safe Club",
-      slug: "safe-club",
+      linkName: "safe-club",
       visibility: "PUBLIC"
     });
     const milestone = repository.createMilestone(club.id, 1, "Opening");
@@ -226,7 +226,7 @@ describe("search routes", () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub({
       title: "Archive Club",
-      slug: "archive-club",
+      linkName: "archive-club",
       visibility: "PUBLIC"
     });
     const milestone = repository.createMilestone(club.id, 1, "Opening");
@@ -345,7 +345,7 @@ class InMemorySearchRepository
     const matches = Array.from(this.clubs.values())
       .filter((club) => this.canViewClub(club, userId))
       .filter((club) =>
-        [club.title, club.description, club.category, club.slug]
+        [club.title, club.description, club.category, club.linkName]
           .filter(Boolean)
           .some((value) => value?.toLowerCase().includes(query.toLowerCase()))
       );
@@ -409,11 +409,11 @@ class InMemorySearchRepository
   };
 
   createClub = ({
-    slug,
+    linkName,
     title,
     visibility
   }: {
-    slug: string;
+    linkName: string;
     title: string;
     visibility: StoredClub["visibility"];
   }) => {
@@ -421,7 +421,7 @@ class InMemorySearchRepository
     const club: StoredClub = {
       id: crypto.randomUUID(),
       title,
-      slug,
+      linkName,
       description: null,
       category: "Book",
       coverAsset: null,
@@ -566,7 +566,7 @@ class InMemorySearchRepository
 
     return {
       id: club.id,
-      slug: club.slug,
+      linkName: club.linkName,
       title: club.title,
       visibility: club.visibility,
       currentUserRole: membership?.role ?? null,

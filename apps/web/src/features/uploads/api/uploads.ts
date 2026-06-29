@@ -19,7 +19,7 @@ export type CreatePublicAssetUploadInput = {
   purpose: PublicAssetPurpose;
   contentType: string;
   sizeBytes: number;
-  clubSlug?: string;
+  clubLinkName?: string;
 };
 
 export type CreatePublicAssetUploadResponse = {
@@ -33,7 +33,7 @@ export type CreatePublicAssetUploadResponse = {
 };
 
 export type CreatePostImageUploadInput = {
-  clubSlug: string;
+  clubLinkName: string;
   contentType: string;
   sizeBytes: number;
   safePreview: boolean;

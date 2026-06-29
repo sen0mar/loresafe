@@ -400,7 +400,7 @@ describe("reports routes", () => {
     );
 
     const response = await request(app)
-      .get(`/api/clubs/${club.slug}/moderation/reports`)
+      .get(`/api/clubs/${club.linkName}/moderation/reports`)
       .set("Cookie", await createSessionCookie(member))
       .expect(403);
 
@@ -462,7 +462,7 @@ describe("reports routes", () => {
       );
 
       const response = await request(app)
-        .get(`/api/clubs/${club.slug}/moderation/reports`)
+        .get(`/api/clubs/${club.linkName}/moderation/reports`)
         .set("Cookie", await createSessionCookie(moderator))
         .expect(200);
 
@@ -529,7 +529,7 @@ describe("reports routes", () => {
     );
 
     const listResponse = await request(app)
-      .get(`/api/clubs/${ownClub.slug}/moderation/reports`)
+      .get(`/api/clubs/${ownClub.linkName}/moderation/reports`)
       .set("Cookie", await createSessionCookie(moderator))
       .expect(200);
 
@@ -537,7 +537,7 @@ describe("reports routes", () => {
 
     const revealResponse = await request(app)
       .post(
-        `/api/clubs/${ownClub.slug}/moderation/reports/${otherReport.id}/reveal`
+        `/api/clubs/${ownClub.linkName}/moderation/reports/${otherReport.id}/reveal`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .expect(404);
@@ -580,14 +580,14 @@ describe("reports routes", () => {
     );
 
     const safeResponse = await request(app)
-      .get(`/api/clubs/${club.slug}/moderation/reports`)
+      .get(`/api/clubs/${club.linkName}/moderation/reports`)
       .set("Cookie", await createSessionCookie(moderator))
       .expect(200);
 
     expect(JSON.stringify(safeResponse.body)).not.toContain("UNSAFE");
 
     const revealResponse = await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/reveal`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/reveal`)
       .set("Cookie", await createSessionCookie(moderator))
       .expect(200);
 
@@ -655,7 +655,7 @@ describe("reports routes", () => {
     };
 
     const response = await request(app)
-      .get(`/api/clubs/${club.slug}/moderation/reports`)
+      .get(`/api/clubs/${club.linkName}/moderation/reports`)
       .set("Cookie", await createSessionCookie(moderator))
       .expect(200);
 
@@ -711,32 +711,32 @@ describe("reports routes", () => {
     );
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/hide`)
       .send({})
       .expect(401);
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/hide`)
       .set("Cookie", await createSessionCookie(member))
       .send({})
       .expect(403);
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/hide`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/hide`)
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "" })
       .expect(400);
 
     await request(app)
       .patch(
-        `/api/clubs/${club.slug}/moderation/reports/${report.id}/required-milestone`
+        `/api/clubs/${club.linkName}/moderation/reports/${report.id}/required-milestone`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ requiredMilestoneId: crypto.randomUUID() })
       .expect(400);
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/ban`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/ban`)
       .set("Cookie", await createSessionCookie(moderator))
       .send({ expiresAt: "2020-01-01T00:00:00.000Z" })
       .expect(400);
@@ -776,7 +776,7 @@ describe("reports routes", () => {
 
     const response = await request(app)
       .patch(
-        `/api/clubs/${club.slug}/moderation/reports/${report.id}/required-milestone`
+        `/api/clubs/${club.linkName}/moderation/reports/${report.id}/required-milestone`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .send({
@@ -848,14 +848,14 @@ describe("reports routes", () => {
     );
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${postReport.id}/hide`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${postReport.id}/hide`)
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "Hide this" })
       .expect(200);
 
     await request(app)
       .post(
-        `/api/clubs/${club.slug}/moderation/reports/${commentReport.id}/delete`
+        `/api/clubs/${club.linkName}/moderation/reports/${commentReport.id}/delete`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "Delete this" })
@@ -904,7 +904,7 @@ describe("reports routes", () => {
     );
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${warnReport.id}/warn`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${warnReport.id}/warn`)
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "UNSAFE_INTERNAL_NOTE" })
       .expect(200);
@@ -917,7 +917,7 @@ describe("reports routes", () => {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${banReport.id}/ban`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${banReport.id}/ban`)
       .set("Cookie", await createSessionCookie(moderator))
       .send({ expiresAt, moderatorNote: "Repeated issue" })
       .expect(200);
@@ -984,7 +984,7 @@ describe("reports routes", () => {
     );
 
     const response = await request(app)
-      .post(`/api/clubs/${club.slug}/moderation/reports/${report.id}/ban`)
+      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/ban`)
       .set("Cookie", await createSessionCookie(actorModerator))
       .send({})
       .expect(403);
@@ -1024,7 +1024,7 @@ describe("reports routes", () => {
 
     await request(app)
       .patch(
-        `/api/clubs/${club.slug}/moderation/reports/${resolvedReport.id}/resolve`
+        `/api/clubs/${club.linkName}/moderation/reports/${resolvedReport.id}/resolve`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ status: "RESOLVED", moderatorNote: "Handled" })
@@ -1038,7 +1038,7 @@ describe("reports routes", () => {
 
     await request(app)
       .patch(
-        `/api/clubs/${club.slug}/moderation/reports/${dismissedReport.id}/resolve`
+        `/api/clubs/${club.linkName}/moderation/reports/${dismissedReport.id}/resolve`
       )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ status: "DISMISSED" })
@@ -1056,7 +1056,7 @@ describe("reports routes", () => {
 type StoredClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 };
 
@@ -1215,7 +1215,7 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       ({
         id: input.clubId ?? crypto.randomUUID(),
         title: `Club ${this.clubs.size + 1}`,
-        slug: `club-${this.clubs.size + 1}`,
+        linkName: `club-${this.clubs.size + 1}`,
         visibility: input.clubVisibility ?? "PUBLIC"
       } satisfies StoredClub);
     const requiredMilestone = this.createMilestoneFixture(
@@ -1438,12 +1438,12 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     return report;
   };
 
-  findClubAccessBySlug = async (
-    slug: string,
+  findClubAccessByLinkName = async (
+    linkName: string,
     userId: string
   ): Promise<ModerationClubAccessRecord | null> => {
     const club = [...this.clubs.values()].find(
-      (storedClub) => storedClub.slug === slug
+      (storedClub) => storedClub.linkName === linkName
     );
 
     if (!club) {
@@ -1671,7 +1671,7 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
         userId: notification.userId,
         club: {
           id: clubId,
-          slug: club?.slug ?? "unknown"
+          linkName: club?.linkName ?? "unknown"
         },
         postId: notification.postId,
         commentId: notification.commentId,

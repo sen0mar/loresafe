@@ -79,7 +79,7 @@ describe("events routes", () => {
       notificationId: crypto.randomUUID(),
       club: {
         id: crypto.randomUUID(),
-        slug: "safe-club"
+        linkName: "safe-club"
       },
       postId: crypto.randomUUID(),
       commentId: crypto.randomUUID(),
@@ -91,7 +91,7 @@ describe("events routes", () => {
     );
 
     expect(streamText).toContain("event: notification.created");
-    expect(streamText).toContain("\"slug\":\"safe-club\"");
+    expect(streamText).toContain("\"linkName\":\"safe-club\"");
     expect(streamText).not.toContain("safeText");
     expect(streamText).not.toContain("UNSAFE_STORY_CONTENT");
     expect(streamText).not.toContain("Milestone");

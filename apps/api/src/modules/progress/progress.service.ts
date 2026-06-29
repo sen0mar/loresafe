@@ -22,21 +22,21 @@ const membershipRequiredMessage =
   "Join this club before updating your progress.";
 
 export type ProgressService = {
-  advanceProgressToNextMilestoneForClubSlug: (
-    slug: string,
+  advanceProgressToNextMilestoneForClubLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<ClubProgressResponse>;
-  getProgressForClubSlug: (
-    slug: string,
+  getProgressForClubLinkName: (
+    linkName: string,
     userId: string
   ) => Promise<ClubProgressResponse>;
-  listRecentlyUnlockedForClubSlug: (
-    slug: string,
+  listRecentlyUnlockedForClubLinkName: (
+    linkName: string,
     userId: string,
     query: RecentlyUnlockedQuery
   ) => Promise<RecentlyUnlockedResponse>;
-  updateProgressForClubSlug: (
-    slug: string,
+  updateProgressForClubLinkName: (
+    linkName: string,
     userId: string,
     input: UpdateProgressRequest
   ) => Promise<ClubProgressResponse>;
@@ -46,8 +46,8 @@ export const createProgressService = (
   repository: ProgressRepository = progressRepository,
   storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): ProgressService => ({
-  advanceProgressToNextMilestoneForClubSlug: async (slug, userId) => {
-    const club = await repository.findClubForProgress(slug, userId);
+  advanceProgressToNextMilestoneForClubLinkName: async (linkName, userId) => {
+    const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -71,8 +71,8 @@ export const createProgressService = (
     };
   },
 
-  getProgressForClubSlug: async (slug, userId) => {
-    const club = await repository.findClubForProgress(slug, userId);
+  getProgressForClubLinkName: async (linkName, userId) => {
+    const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -93,8 +93,8 @@ export const createProgressService = (
     };
   },
 
-  listRecentlyUnlockedForClubSlug: async (slug, userId, query) => {
-    const club = await repository.findClubForProgress(slug, userId);
+  listRecentlyUnlockedForClubLinkName: async (linkName, userId, query) => {
+    const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -133,8 +133,8 @@ export const createProgressService = (
     );
   },
 
-  updateProgressForClubSlug: async (slug, userId, input) => {
-    const club = await repository.findClubForProgress(slug, userId);
+  updateProgressForClubLinkName: async (linkName, userId, input) => {
+    const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");

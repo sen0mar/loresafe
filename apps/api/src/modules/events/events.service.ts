@@ -4,7 +4,7 @@ export type NotificationEventPayload = {
   notificationId: string;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
   };
   postId: string | null;
   commentId: string | null;

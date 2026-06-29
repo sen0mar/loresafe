@@ -88,8 +88,8 @@ const formatDate = (value: string) =>
   }).format(new Date(value));
 
 export const ClubDetailPage = () => {
-  const { slug = "" } = useParams();
-  const clubQuery = useClubQuery(slug);
+  const { linkName = "" } = useParams();
+  const clubQuery = useClubQuery(linkName);
 
   return (
     <AuthenticatedAppShell>
@@ -118,7 +118,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
     club.settings.visibility === "PUBLIC" && !club.membership.isMember;
 
   const joinClub = () => {
-    joinClubMutation.mutate(club.slug, {
+    joinClubMutation.mutate(club.linkName, {
       onSuccess: () => {
         toast.success("Joined club");
       },
@@ -154,7 +154,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
             <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
               {club.title}
             </h1>
-            <p className="text-sm text-faint">/{club.slug}</p>
+            <p className="text-sm text-faint">/{club.linkName}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -257,7 +257,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                       </p>
                     </div>
                     <Button asChild variant="secondary" size="sm">
-                      <Link to={`/app/clubs/${club.slug}/settings/moderation`}>
+                      <Link to={`/app/clubs/${club.linkName}/settings/moderation`}>
                         Open queue
                       </Link>
                     </Button>
@@ -292,7 +292,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         </div>
 
         <ClubProgressPanel
-          slug={club.slug}
+          linkName={club.linkName}
           clubTitle={club.title}
           isMember={club.membership.isMember}
         />

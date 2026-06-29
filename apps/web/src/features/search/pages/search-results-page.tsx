@@ -137,7 +137,7 @@ const ClubResults = ({ clubs }: { clubs: SearchClub[] }) => (
       <SectionEmpty
         icon={<Building2 className="size-5" />}
         title="No matching clubs"
-        body="Try another title, category, or club slug."
+        body="Try another title, category, or club linkName."
       />
     ) : (
       <div className="grid gap-3 md:grid-cols-2">
@@ -186,7 +186,7 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
           <h2 className="truncate text-base font-semibold text-primary">
             <Link
               className="rounded-md transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              to={`/app/clubs/${club.slug}`}
+              to={`/app/clubs/${club.linkName}`}
             >
               {club.title}
             </Link>

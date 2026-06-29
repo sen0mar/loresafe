@@ -69,7 +69,7 @@ export type ListRecentlyUnlockedInput = {
 
 export type ProgressRepository = {
   findClubForProgress: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ProgressClubRecord | null>;
   advanceProgressToNextMilestoneForUserClub: (
@@ -175,11 +175,11 @@ const recentlyUnlockedPostSelect = {
 } as const;
 
 export const progressRepository: ProgressRepository = {
-  findClubForProgress: async (slug, userId) => {
+  findClubForProgress: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,

@@ -8,7 +8,7 @@ export type SearchScope = "all" | "clubs" | "posts";
 export type SearchClub = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;

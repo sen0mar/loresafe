@@ -15,7 +15,7 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 export type JoinedClubRecord = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   coverAsset?: {
     objectKey: string;
     status: "PENDING" | "READY" | "FAILED";
@@ -113,7 +113,7 @@ export const usersRepository: UsersRepository = {
             select: {
               id: true,
               title: true,
-              slug: true,
+              linkName: true,
               coverAsset: {
                 select: {
                   objectKey: true,
@@ -139,7 +139,7 @@ export const usersRepository: UsersRepository = {
       clubs: memberships.map((membership) => ({
         id: membership.club.id,
         title: membership.club.title,
-        slug: membership.club.slug,
+        linkName: membership.club.linkName,
         coverAsset: membership.club.coverAsset,
         visibility: membership.club.visibility,
         role: membership.role,

@@ -14,9 +14,9 @@ export const ClubCoverUploadPanel = ({ club }: { club: Club }) => {
   const canUploadCover = role === "OWNER" || role === "MODERATOR";
   const coverUpload = usePublicAssetUpload({
     purpose: "CLUB_COVER",
-    clubSlug: club.slug,
+    clubLinkName: club.linkName,
     onCompleted: async () => {
-      refreshClubAssetQueries(queryClient, club.slug);
+      refreshClubAssetQueries(queryClient, club.linkName);
       toast.success("Club cover updated");
     }
   });

@@ -89,12 +89,12 @@ describe("milestones routes", () => {
     });
   });
 
-  it("rejects invalid club slugs", async () => {
+  it("rejects invalid club link names", async () => {
     const user = await repository.createUser(validUserInput());
 
     const response = await request(app)
       .get("/api/clubs/not%20ok/milestones")
-      .set("x-request-id", "milestones-invalid-slug")
+      .set("x-request-id", "milestones-invalid-linkName")
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
 
@@ -102,7 +102,7 @@ describe("milestones routes", () => {
       error: {
         code: "BAD_REQUEST",
         message: "Check the club URL and try again.",
-        requestId: "milestones-invalid-slug"
+        requestId: "milestones-invalid-linkName"
       }
     });
   });
@@ -223,7 +223,7 @@ describe("milestones routes", () => {
     async (label, visibility) => {
       const reader = await repository.createUser(validUserInput());
       repository.createClub({
-        slug: `${label}-plot-room`,
+        linkName: `${label}-plot-room`,
         visibility
       });
 
@@ -257,7 +257,7 @@ describe("milestones routes", () => {
     async (label, visibility) => {
       const reader = await repository.createUser(validUserInput());
       repository.createClub({
-        slug: `${label}-plot-room`,
+        linkName: `${label}-plot-room`,
         visibility
       });
 
@@ -284,7 +284,7 @@ describe("milestones routes", () => {
   it("rejects milestone creation from regular club members", async () => {
     const member = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(member.id, club.id, "MEMBER");
@@ -311,7 +311,7 @@ describe("milestones routes", () => {
   it("rejects milestone template generation from regular club members", async () => {
     const member = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(member.id, club.id, "MEMBER");
@@ -377,7 +377,7 @@ describe("milestones routes", () => {
   it("rejects milestone updates from regular club members", async () => {
     const member = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(member.id, club.id, "MEMBER");
@@ -408,7 +408,7 @@ describe("milestones routes", () => {
   it("rejects milestone moves from regular club members", async () => {
     const member = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(member.id, club.id, "MEMBER");
@@ -444,7 +444,7 @@ describe("milestones routes", () => {
         displayName: `${role} manager`
       });
       const club = repository.createClub({
-        slug: "public-story-circle",
+        linkName: "public-story-circle",
         visibility: "PUBLIC"
       });
       repository.createMembership(manager.id, club.id, role);
@@ -491,11 +491,11 @@ describe("milestones routes", () => {
   it("does not update milestones from another club", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     const otherClub = repository.createClub({
-      slug: "other-story-circle",
+      linkName: "other-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -527,7 +527,7 @@ describe("milestones routes", () => {
   it("moves milestones with stable ids and gap-free positions", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -590,7 +590,7 @@ describe("milestones routes", () => {
   it("rejects boundary milestone moves", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -629,11 +629,11 @@ describe("milestones routes", () => {
   it("does not move milestones from another club", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     const otherClub = repository.createClub({
-      slug: "other-story-circle",
+      linkName: "other-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -676,7 +676,7 @@ describe("milestones routes", () => {
         displayName: role
       });
       const club = repository.createClub({
-        slug: "public-story-circle",
+        linkName: "public-story-circle",
         visibility: "PUBLIC"
       });
       repository.createMembership(creator.id, club.id, role);
@@ -715,7 +715,7 @@ describe("milestones routes", () => {
         displayName: role
       });
       const club = repository.createClub({
-        slug: "public-story-circle",
+        linkName: "public-story-circle",
         visibility: "PUBLIC"
       });
       repository.createMembership(creator.id, club.id, role);
@@ -766,7 +766,7 @@ describe("milestones routes", () => {
     async (template, expectedSafeTitles) => {
       const owner = await repository.createUser(validUserInput());
       const club = repository.createClub({
-        slug: "public-story-circle",
+        linkName: "public-story-circle",
         visibility: "PUBLIC"
       });
       repository.createMembership(owner.id, club.id, "OWNER");
@@ -808,7 +808,7 @@ describe("milestones routes", () => {
   it("does not generate template milestones over an existing timeline", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -845,7 +845,7 @@ describe("milestones routes", () => {
   it("returns narrow milestone DTO fields for generated templates", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -875,7 +875,7 @@ describe("milestones routes", () => {
   it("appends created milestones at the next position and lists them in order", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -926,7 +926,7 @@ describe("milestones routes", () => {
   it("persists unsafe full titles but redacts them from milestone creation responses", async () => {
     const owner = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -960,7 +960,7 @@ describe("milestones routes", () => {
   it("returns public club milestones ordered by position", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMilestone(club.id, {
@@ -997,7 +997,7 @@ describe("milestones routes", () => {
   it("paginates public club milestones", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMilestone(club.id, {
@@ -1036,7 +1036,7 @@ describe("milestones routes", () => {
     async (label, visibility) => {
       const reader = await repository.createUser(validUserInput());
       const club = repository.createClub({
-        slug: `${label}-plot-room`,
+        linkName: `${label}-plot-room`,
         visibility
       });
       repository.createMilestone(club.id, {
@@ -1065,7 +1065,7 @@ describe("milestones routes", () => {
   it("does not return unsafe milestone full titles", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMilestone(club.id, {
@@ -1098,7 +1098,7 @@ describe("milestones routes", () => {
   it("reveals spoiler milestone full titles after the user reaches them", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(user.id, club.id);
@@ -1145,7 +1145,7 @@ describe("milestones routes", () => {
   it("reveals all spoiler milestone full titles in Finished mode", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "finished-title-story-circle",
+      linkName: "finished-title-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMembership(user.id, club.id);
@@ -1185,7 +1185,7 @@ describe("milestones routes", () => {
   it("returns narrow milestone DTO fields", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
-      slug: "public-story-circle",
+      linkName: "public-story-circle",
       visibility: "PUBLIC"
     });
     repository.createMilestone(club.id, {
@@ -1238,12 +1238,12 @@ const createMilestonesTestApp = (
 
 type StoredClub = {
   id: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 };
 
 type CreateStoredClubInput = {
-  slug: string;
+  linkName: string;
   visibility: StoredClub["visibility"];
 };
 
@@ -1314,10 +1314,10 @@ class InMemoryMilestonesRepository
     return user;
   };
 
-  createClub = ({ slug, visibility }: CreateStoredClubInput) => {
+  createClub = ({ linkName, visibility }: CreateStoredClubInput) => {
     const club = {
       id: crypto.randomUUID(),
-      slug,
+      linkName,
       visibility
     };
 
@@ -1486,8 +1486,8 @@ class InMemoryMilestonesRepository
     );
   };
 
-  findClubForMilestoneCreation = async (slug: string, userId: string) => {
-    const club = this.findStoredClubBySlug(slug);
+  findClubForMilestoneCreation = async (linkName: string, userId: string) => {
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club || !this.canFindClubForMilestoneCreation(club, userId)) {
       return null;
@@ -1500,12 +1500,12 @@ class InMemoryMilestonesRepository
     };
   };
 
-  listVisibleMilestonesByClubSlug = async (
-    slug: string,
+  listVisibleMilestonesByClubLinkName = async (
+    linkName: string,
     userId: string,
     { page, limit }: { page: number; limit: number }
   ): Promise<ListMilestonesResult | null> => {
-    const club = this.findStoredClubBySlug(slug);
+    const club = this.findStoredClubByLinkName(linkName);
 
     if (!club || !this.canViewClubMilestones(club, userId)) {
       return null;
@@ -1535,9 +1535,9 @@ class InMemoryMilestonesRepository
     };
   };
 
-  private findStoredClubBySlug = (slug: string) => {
+  private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
-      if (club.slug === slug) {
+      if (club.linkName === linkName) {
         return club;
       }
     }

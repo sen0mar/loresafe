@@ -77,7 +77,7 @@ export const createReportsController = (
       }
 
       const response = await service.listModerationReportsForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         req.currentUser.id,
         queryResult.data
       );
@@ -107,7 +107,7 @@ export const createReportsController = (
       }
 
       const response = await service.revealModerationReportForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id
       );
@@ -139,7 +139,7 @@ export const createReportsController = (
       }
 
       const response = await service.updateReportRequiredMilestoneForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data
@@ -171,7 +171,7 @@ export const createReportsController = (
       }
 
       const response = await service.hideReportedContentForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data
@@ -203,7 +203,7 @@ export const createReportsController = (
       }
 
       const response = await service.deleteReportedContentForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data
@@ -235,7 +235,7 @@ export const createReportsController = (
       }
 
       const response = await service.warnReportedContentAuthorForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data
@@ -267,7 +267,7 @@ export const createReportsController = (
       }
 
       const response = await service.banReportedContentAuthorForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data
@@ -299,7 +299,7 @@ export const createReportsController = (
       }
 
       const response = await service.resolveModerationReportForClub(
-        paramsResult.data.slug,
+        paramsResult.data.linkName,
         paramsResult.data.reportId,
         req.currentUser.id,
         bodyResult.data

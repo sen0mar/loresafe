@@ -65,7 +65,7 @@ export const createNotificationsService = (
       notificationId: result.notification.id,
       club: {
         id: result.notification.club.id,
-        slug: result.notification.club.slug
+        linkName: result.notification.club.linkName
       },
       postId: result.notification.postId,
       commentId: result.notification.commentId,

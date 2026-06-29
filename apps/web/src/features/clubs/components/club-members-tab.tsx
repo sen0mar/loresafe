@@ -67,7 +67,7 @@ const formatDate = (value: string) =>
 export const ClubMembersTab = ({ club }: { club: Club }) => {
   const [page, setPage] = useState(1);
   const membersQuery = useClubMembersQuery(
-    club.slug,
+    club.linkName,
     page,
     club.membership.isMember
   );
@@ -198,9 +198,9 @@ const MemberControls = ({
   club: Club;
   member: ClubMember;
 }) => {
-  const updateRoleMutation = useUpdateClubMemberRoleMutation(club.slug);
-  const banMutation = useBanClubMemberMutation(club.slug);
-  const unbanMutation = useUnbanClubMemberMutation(club.slug);
+  const updateRoleMutation = useUpdateClubMemberRoleMutation(club.linkName);
+  const banMutation = useBanClubMemberMutation(club.linkName);
+  const unbanMutation = useUnbanClubMemberMutation(club.linkName);
   const isPending =
     updateRoleMutation.isPending ||
     banMutation.isPending ||

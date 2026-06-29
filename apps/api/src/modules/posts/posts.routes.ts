@@ -10,17 +10,17 @@ export const createPostsRouter = (
   const router = Router();
 
   router.post(
-    "/:slug/posts",
+    "/:linkName/posts",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.createClubPostForSlug
+    controller.createClubPostForLinkName
   );
 
   router.get(
-    "/:slug/posts",
+    "/:linkName/posts",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.listClubPostsBySlug
+    controller.listClubPostsByLinkName
   );
 
   return router;

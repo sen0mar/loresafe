@@ -200,11 +200,11 @@ describe("dashboard routes", () => {
       .expect(403);
   });
 
-  it("validates dashboard slugs and bounded limits", async () => {
+  it("validates dashboard link names and bounded limits", async () => {
     const user = repository.createStoredUser(validUserInput());
 
     await request(app)
-      .get("/api/clubs/Invalid Slug/stats")
+      .get("/api/clubs/Invalid Link Name/stats")
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
 
@@ -312,12 +312,12 @@ class InMemoryDashboardRepository
   };
 
   createClub = (
-    slug: string,
+    linkName: string,
     visibility: StoredClub["visibility"] = "PUBLIC"
   ) => {
     const club = {
       id: crypto.randomUUID(),
-      slug,
+      linkName,
       visibility
     };
 
@@ -451,11 +451,11 @@ class InMemoryDashboardRepository
   };
 
   findClubForDashboard = async (
-    slug: string,
+    linkName: string,
     userId: string
   ): Promise<DashboardClubRecord | null> => {
     const club = [...this.clubs.values()].find(
-      (storedClub) => storedClub.slug === slug
+      (storedClub) => storedClub.linkName === linkName
     );
 
     if (!club) {
@@ -701,7 +701,7 @@ class InMemoryDashboardRepository
 
 type StoredClub = {
   id: string;
-  slug: string;
+  linkName: string;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 };
 

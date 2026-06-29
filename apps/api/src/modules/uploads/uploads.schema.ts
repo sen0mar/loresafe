@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { clubSlugSchema } from "../clubs/clubs.schema.js";
+import { clubLinkNameSchema } from "../clubs/clubs.schema.js";
 
 export const publicAssetPurposeSchema = z.enum(["AVATAR", "CLUB_COVER"]);
 
@@ -24,7 +24,7 @@ export const createPublicAssetUploadRequestSchema = z
     purpose: publicAssetPurposeSchema,
     contentType: z.enum(allowedPublicAssetContentTypes),
     sizeBytes: z.number().int().positive(),
-    clubSlug: clubSlugSchema.optional()
+    clubLinkName: clubLinkNameSchema.optional()
   })
   .strict()
   .superRefine((value, context) => {
@@ -36,18 +36,18 @@ export const createPublicAssetUploadRequestSchema = z
       });
     }
 
-    if (value.purpose === "AVATAR" && value.clubSlug) {
+    if (value.purpose === "AVATAR" && value.clubLinkName) {
       context.addIssue({
         code: "custom",
-        path: ["clubSlug"],
+        path: ["clubLinkName"],
         message: "Avatar uploads do not accept a club."
       });
     }
 
-    if (value.purpose === "CLUB_COVER" && !value.clubSlug) {
+    if (value.purpose === "CLUB_COVER" && !value.clubLinkName) {
       context.addIssue({
         code: "custom",
-        path: ["clubSlug"],
+        path: ["clubLinkName"],
         message: "Club cover uploads require a club."
       });
     }
@@ -55,7 +55,7 @@ export const createPublicAssetUploadRequestSchema = z
 
 export const createPostImageUploadRequestSchema = z
   .object({
-    clubSlug: clubSlugSchema,
+    clubLinkName: clubLinkNameSchema,
     contentType: z.enum(allowedPostImageContentTypes),
     sizeBytes: z.number().int().positive().max(postImageMaxSizeBytes, {
       message: "File is too large."

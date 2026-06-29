@@ -4,7 +4,7 @@ import { r2Storage } from "../../core/storage/r2-storage.js";
 export type JoinedClubDto = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   coverUrl: string | null;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   role: "OWNER" | "MODERATOR" | "MEMBER";
@@ -25,7 +25,7 @@ export type JoinedClubsResponse = {
 export const toJoinedClubDto = (club: JoinedClubRecord): JoinedClubDto => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   coverUrl:
     club.coverAsset?.status === "READY"
       ? r2Storage.getPublicUrl(club.coverAsset.objectKey)

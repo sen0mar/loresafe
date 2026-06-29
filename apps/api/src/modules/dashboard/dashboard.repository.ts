@@ -56,7 +56,7 @@ type PopularDiscussionRankRow = {
 
 export type DashboardRepository = {
   findClubForDashboard: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<DashboardClubRecord | null>;
   getClubDashboardStats: (
@@ -80,11 +80,11 @@ export type DashboardRepository = {
 };
 
 export const dashboardRepository: DashboardRepository = {
-  findClubForDashboard: async (slug, userId) => {
+  findClubForDashboard: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,

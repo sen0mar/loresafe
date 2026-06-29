@@ -11,7 +11,7 @@ export type ClubMembershipRoleDto = "OWNER" | "MODERATOR" | "MEMBER";
 export type ClubDiscoveryDto = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;
@@ -24,7 +24,7 @@ export type ClubDiscoveryDto = {
 export type ClubDto = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverUrl: string | null;
@@ -96,7 +96,7 @@ export const toClubDiscoveryDto = (
 ): ClubDiscoveryDto => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   description: club.description,
   category: club.category,
   coverUrl: getReadyAssetUrl(club.coverAsset),
@@ -109,7 +109,7 @@ export const toClubDiscoveryDto = (
 export const toClubDto = (club: ClubDetailRecord): ClubDto => ({
   id: club.id,
   title: club.title,
-  slug: club.slug,
+  linkName: club.linkName,
   description: club.description,
   category: club.category,
   coverUrl: getReadyAssetUrl(club.coverAsset),

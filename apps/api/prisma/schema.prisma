@@ -167,7 +167,7 @@ model UserNameReservation {
 model Club {
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String         @db.VarChar(120)
-  slug        String         @db.VarChar(80)
+  linkName    String         @map("link_name") @db.VarChar(80)
   description String?        @db.VarChar(280)
   category    String?        @db.VarChar(60)
   rules       String?        @db.VarChar(2000)
@@ -189,7 +189,7 @@ model Club {
   fileAssets  FileAsset[]
   auditLogs   AuditLog[]
 
-  @@unique([slug], map: "clubs_slug_unique")
+  @@unique([linkName], map: "clubs_link_name_unique")
   @@index([visibility], map: "clubs_visibility_idx")
   @@index([visibility, createdAt, id], map: "clubs_visibility_created_at_id_idx")
   @@map("clubs")

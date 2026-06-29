@@ -15,7 +15,7 @@ type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 export type SearchClubRecord = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   coverAsset: {
@@ -32,7 +32,7 @@ export type SearchPostRecord = {
   post: ClubPostRecord;
   club: {
     id: string;
-    slug: string;
+    linkName: string;
     title: string;
     visibility: ClubVisibility;
     currentUserRole: ClubMembershipRole | null;
@@ -70,7 +70,7 @@ type SearchPageInput = {
 type SearchClubRow = {
   id: string;
   title: string;
-  slug: string;
+  linkName: string;
   description: string | null;
   category: string | null;
   visibility: ClubVisibility;
@@ -97,7 +97,7 @@ const searchPostSelect = (userId: string) => {
     club: {
       select: {
         id: true,
-        slug: true,
+        linkName: true,
         title: true,
         visibility: true,
         memberships: {
@@ -144,7 +144,7 @@ export const searchRepository: SearchRepository = {
       SELECT
         c."id",
         c."title",
-        c."slug",
+        c."link_name" AS "linkName",
         c."description",
         c."category",
         c."visibility"::text AS "visibility",
@@ -179,7 +179,7 @@ export const searchRepository: SearchRepository = {
         coalesce(c."title", '') || ' ' ||
         coalesce(c."description", '') || ' ' ||
         coalesce(c."category", '') || ' ' ||
-        coalesce(c."slug", '')
+        coalesce(c."link_name", '')
       ) @@ search.query
       GROUP BY c."id", cover."object_key", cover."status", search.query
       ORDER BY ts_rank_cd(
@@ -188,7 +188,7 @@ export const searchRepository: SearchRepository = {
           coalesce(c."title", '') || ' ' ||
           coalesce(c."description", '') || ' ' ||
           coalesce(c."category", '') || ' ' ||
-          coalesce(c."slug", '')
+          coalesce(c."link_name", '')
         ),
         search.query
       ) DESC, c."updated_at" DESC, c."id" ASC
@@ -272,7 +272,7 @@ export const searchRepository: SearchRepository = {
 const toSearchClubRecord = (row: SearchClubRow): SearchClubRecord => ({
   id: row.id,
   title: row.title,
-  slug: row.slug,
+  linkName: row.linkName,
   description: row.description,
   category: row.category,
   coverAsset:
@@ -298,7 +298,7 @@ const toSearchPostRecord = (
     post: toClubPostRecord(post, reactionMap),
     club: {
       id: post.club.id,
-      slug: post.club.slug,
+      linkName: post.club.linkName,
       title: post.club.title,
       visibility: post.club.visibility as ClubVisibility,
       currentUserRole: post.club.memberships[0]?.role ?? null,

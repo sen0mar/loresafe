@@ -104,7 +104,7 @@ export type ListClubPostsInput = {
 export type PostDetailRecord = {
   post: ClubPostRecord;
   club: ClubFeedRecord & {
-    slug: string;
+    linkName: string;
   };
 };
 
@@ -122,11 +122,11 @@ export type DeletePostResult = {
 
 export type PostsRepository = {
   findClubForFeed: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ClubFeedRecord | null>;
   findClubForPostCreation: (
-    slug: string,
+    linkName: string,
     userId: string
   ) => Promise<ClubPostCreationClubRecord | null>;
   createClubPost: (
@@ -212,11 +212,11 @@ export const postSelect = {
 } as const;
 
 export const postsRepository: PostsRepository = {
-  findClubForFeed: async (slug, userId) => {
+  findClubForFeed: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,
@@ -273,11 +273,11 @@ export const postsRepository: PostsRepository = {
     };
   },
 
-  findClubForPostCreation: async (slug, userId) => {
+  findClubForPostCreation: async (linkName, userId) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
-        slug
+        linkName
       },
       select: {
         id: true,
@@ -570,7 +570,7 @@ export const postsRepository: PostsRepository = {
         club: {
           select: {
             id: true,
-            slug: true,
+            linkName: true,
             visibility: true,
             memberships: {
               where: {
@@ -620,7 +620,7 @@ export const postsRepository: PostsRepository = {
       ),
       club: {
         id: post.club.id,
-        slug: post.club.slug,
+        linkName: post.club.linkName,
         visibility: post.club.visibility,
         currentUserRole: post.club.memberships[0]?.role ?? null,
         isCurrentUserBanned: post.club.bans.length > 0,

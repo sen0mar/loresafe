@@ -190,7 +190,7 @@ export const PostDetailPage = () => {
               </>
             )}
             <CommentsPanel
-              clubSlug={postQuery.data.club.slug}
+              clubLinkName={postQuery.data.club.linkName}
               comments={comments}
               error={commentsQuery.error}
               hasNextPage={commentsQuery.hasNextPage}
@@ -367,7 +367,7 @@ const RevealedPostCard = ({
 );
 
 const CommentsPanel = ({
-  clubSlug,
+  clubLinkName,
   comments,
   error,
   hasNextPage,
@@ -383,7 +383,7 @@ const CommentsPanel = ({
   revealedComments,
   revealingCommentId
 }: {
-  clubSlug: string;
+  clubLinkName: string;
   comments: Comment[];
   error: Error | null;
   hasNextPage: boolean;
@@ -402,7 +402,7 @@ const CommentsPanel = ({
   const [replyParentId, setReplyParentId] = useState<string | null>(null);
   const threads = useMemo(() => buildCommentThreads(comments), [comments]);
   const milestonesQuery = useClubMilestonesQuery(
-    clubSlug,
+    clubLinkName,
     1,
     post.visibility === "VISIBLE"
   );

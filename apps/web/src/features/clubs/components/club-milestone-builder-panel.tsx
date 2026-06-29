@@ -103,9 +103,9 @@ const templateOptions: Array<{
 export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
   const role = club.membership.role;
   const canCreateMilestone = role === "OWNER" || role === "MODERATOR";
-  const createMilestoneMutation = useCreateClubMilestoneMutation(club.slug);
+  const createMilestoneMutation = useCreateClubMilestoneMutation(club.linkName);
   const createTemplateMutation = useCreateClubMilestoneTemplateMutation(
-    club.slug
+    club.linkName
   );
   const [mode, setMode] = useState<BuilderMode>("manual");
   const [values, setValues] =

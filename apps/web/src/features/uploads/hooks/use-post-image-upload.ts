@@ -13,10 +13,10 @@ import { validatePostImageFile } from "../lib/public-asset-validation.js";
 type UploadStatus = "idle" | "requesting" | "uploading" | "completing";
 
 export const usePostImageUpload = ({
-  clubSlug,
+  clubLinkName,
   onCompleted
 }: {
-  clubSlug: string;
+  clubLinkName: string;
   onCompleted: (asset: FileAsset) => void | Promise<void>;
 }) => {
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -44,7 +44,7 @@ export const usePostImageUpload = ({
       setStatus("requesting");
 
       const intent = await createPostImageUpload({
-        clubSlug,
+        clubLinkName,
         contentType: file.type,
         sizeBytes: file.size,
         safePreview

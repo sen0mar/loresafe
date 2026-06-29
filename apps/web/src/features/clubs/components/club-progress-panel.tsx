@@ -38,7 +38,7 @@ import {
 } from "../api/clubs.js";
 
 type ClubProgressPanelProps = {
-  slug: string;
+  linkName: string;
   clubTitle?: string;
   isMember?: boolean;
 };
@@ -81,14 +81,14 @@ const formatDateTime = (value: string) =>
   }).format(new Date(value));
 
 export const ClubProgressPanel = ({
-  slug,
+  linkName,
   clubTitle,
   isMember = true
 }: ClubProgressPanelProps) => {
-  const progressQuery = useClubProgressQuery(slug, isMember);
-  const milestonesQuery = useClubMilestonesQuery(slug, 1);
-  const updateProgressMutation = useUpdateClubProgressMutation(slug);
-  const advanceProgressMutation = useAdvanceClubProgressMutation(slug);
+  const progressQuery = useClubProgressQuery(linkName, isMember);
+  const milestonesQuery = useClubMilestonesQuery(linkName, 1);
+  const updateProgressMutation = useUpdateClubProgressMutation(linkName);
+  const advanceProgressMutation = useAdvanceClubProgressMutation(linkName);
   const [selectedMilestoneId, setSelectedMilestoneId] =
     useState(notStartedValue);
   const [selectedMode, setSelectedMode] = useState<ProgressMode>("STRICT");
@@ -452,7 +452,7 @@ export const ClubProgressPanel = ({
               </p>
             </div>
             <Button className="w-full" variant="secondary" asChild>
-              <Link to={`/app/clubs/${slug}/recently-unlocked`}>
+              <Link to={`/app/clubs/${linkName}/recently-unlocked`}>
                 View unlocked
                 <ArrowRight />
               </Link>
