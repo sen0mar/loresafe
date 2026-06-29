@@ -191,6 +191,10 @@ export const CreateClubForm = () => {
             icon={<Sparkles className="size-4" />}
             error={fieldErrors.linkName}
           >
+            <p className="text-xs leading-5 text-muted" id="linkName-description">
+              This becomes the club's public link, like
+              /app/clubs/the-first-law-book-club.
+            </p>
             <Input
               id="linkName"
               type="text"
@@ -198,7 +202,11 @@ export const CreateClubForm = () => {
               onChange={updateField("linkName")}
               disabled={createClubMutation.isPending}
               aria-invalid={!!fieldErrors.linkName}
-              aria-describedby={fieldErrors.linkName ? "linkName-error" : undefined}
+              aria-describedby={
+                fieldErrors.linkName
+                  ? "linkName-description linkName-error"
+                  : "linkName-description"
+              }
               placeholder="the-first-law-book-club"
             />
           </CreateClubFormField>
