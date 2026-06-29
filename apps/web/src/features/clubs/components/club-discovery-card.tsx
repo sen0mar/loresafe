@@ -10,6 +10,8 @@ import {
   CardTitle
 } from "@/shared/components/ui/card";
 
+import { ClubAvatar } from "./club-avatar.js";
+
 type ClubDiscoveryCardProps = {
   club: ClubDiscoveryClub;
 };
@@ -25,9 +27,11 @@ export const ClubDiscoveryCard = ({ club }: ClubDiscoveryCardProps) => (
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-brand bg-active text-brand shadow-glow">
-            <Globe2 className="size-5" />
-          </span>
+          <ClubAvatar
+            title={club.title}
+            coverUrl={club.coverUrl}
+            className="size-10 border-brand shadow-glow"
+          />
           <Badge>
             <Globe2 className="size-3" />
             Public

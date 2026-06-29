@@ -12,6 +12,7 @@ import {
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import type { ClubPostCard } from "@/features/clubs/api/clubs";
+import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
@@ -180,18 +181,7 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
   <Card>
     <CardContent className="space-y-4 p-4">
       <div className="flex gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-default bg-inset text-brand">
-          {club.coverUrl ? (
-            <img
-              src={club.coverUrl}
-              alt=""
-              className="size-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <Building2 className="size-5" />
-          )}
-        </span>
+        <ClubAvatar title={club.title} coverUrl={club.coverUrl} />
         <div className="min-w-0 space-y-1">
           <h2 className="truncate text-base font-semibold text-primary">
             <Link

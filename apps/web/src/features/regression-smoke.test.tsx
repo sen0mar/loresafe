@@ -982,7 +982,7 @@ describe("frontend regression smoke", () => {
             slug: "public-story-club",
             description: "Public discussion.",
             category: "Books",
-            coverUrl: null,
+            coverUrl: "https://cdn.example/public-story-club.png",
             visibility: "PUBLIC",
             memberCount: 12,
             createdAt: now,
@@ -1002,6 +1002,10 @@ describe("frontend regression smoke", () => {
     });
 
     expect(await screen.findByText("Public Story Club")).toBeInTheDocument();
+    expect(screen.getByAltText("Public Story Club cover")).toHaveAttribute(
+      "src",
+      "https://cdn.example/public-story-club.png"
+    );
     expect(
       screen.getByRole("link", { name: /public story club/i })
     ).toHaveAttribute("href", "/app/clubs/public-story-club");
@@ -1022,7 +1026,7 @@ describe("frontend regression smoke", () => {
             slug: "public-nebula-club",
             description: "Visible result.",
             category: "Books",
-            coverUrl: null,
+            coverUrl: "https://cdn.example/public-nebula-club.png",
             visibility: "PUBLIC",
             memberCount: 7,
             createdAt: now,
@@ -1042,6 +1046,10 @@ describe("frontend regression smoke", () => {
     });
 
     expect(await screen.findByText("Public Nebula Club")).toBeInTheDocument();
+    expect(screen.getByAltText("Public Nebula Club cover")).toHaveAttribute(
+      "src",
+      "https://cdn.example/public-nebula-club.png"
+    );
     expect(screen.queryByText("PRIVATE_SEARCH_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
   });
 });
