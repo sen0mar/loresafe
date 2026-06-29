@@ -21,6 +21,8 @@ import type {
   CreatePostCommentInput,
   CommentPostRecord,
   CommentRecord,
+  DeleteCommentInput,
+  DeleteCommentResult,
   ListVisibleCommentsInput,
   ListVisibleCommentsResult,
   CommentsRepository
@@ -146,6 +148,152 @@ describe("comments routes", () => {
       code: "BAD_REQUEST",
       message: "Check the reaction request and try again."
     });
+  });
+
+  it("rejects comment deletion without a session and validates ids", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .post(`/api/comments/${crypto.randomUUID()}/delete`)
+      .set("x-request-id", "comment-delete-missing-session")
+      .expect(401);
+
+    const response = await request(app)
+      .post("/api/comments/not-a-uuid/delete")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Check the comment request and try again."
+    });
+  });
+
+  it("lets authors delete locked comments without leaking comment content", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 2);
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      futureMilestone,
+      {
+        body: "LOCKED_COMMENT_DELETE_BODY_SHOULD_NOT_LEAK"
+      }
+    );
+
+    const response = await request(app)
+      .post(`/api/comments/${comment.id}/delete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      comment: {
+        id: comment.id,
+        postId: post.id,
+        deletedAt: expect.any(String)
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_COMMENT_DELETE_BODY_SHOULD_NOT_LEAK"
+    );
+    expect(comment.deletedAt).toBeInstanceOf(Date);
+    expect(repository.auditLogs).toHaveLength(1);
+    expect(repository.auditLogs[0]).toMatchObject({
+      action: "COMMENT_DELETED",
+      actorId: user.id,
+      clubId: post.clubId,
+      postId: post.id,
+      commentId: comment.id,
+      targetUserId: user.id
+    });
+
+    const listResponse = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(listResponse.body.comments).toHaveLength(0);
+  });
+
+  it("allows owners to delete comments and denies unrelated members", async () => {
+    const author = repository.createStoredUser(validUserInput());
+    const owner = repository.createStoredUser({
+      ...validUserInput(),
+      email: "comment-owner@example.com"
+    });
+    const member = repository.createStoredUser({
+      ...validUserInput(),
+      email: "comment-member@example.com"
+    });
+    const post = repository.createPostFixture(author.id, {
+      membershipUserId: author.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    repository.createMembership(owner.id, post.clubId, "OWNER");
+    repository.createMembership(member.id, post.clubId);
+    repository.setProgress(owner.id, post.clubId, 1);
+    repository.setProgress(member.id, post.clubId, 1);
+    const comment = repository.createComment(
+      post.id,
+      author.id,
+      post.requiredMilestone,
+      {
+        body: "Owner can remove this."
+      }
+    );
+
+    await request(app)
+      .post(`/api/comments/${comment.id}/delete`)
+      .set("Cookie", await createSessionCookie(member))
+      .expect(403);
+    expect(comment.deletedAt).toBeNull();
+
+    await request(app)
+      .post(`/api/comments/${comment.id}/delete`)
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(comment.deletedAt).toBeInstanceOf(Date);
+    expect(repository.auditLogs[0]).toMatchObject({
+      actorId: owner.id,
+      targetUserId: author.id
+    });
+  });
+
+  it("rejects direct comment deletion from banned users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    repository.createBan(user.id, post.clubId);
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Cannot delete while banned."
+      }
+    );
+
+    const response = await request(app)
+      .post(`/api/comments/${comment.id}/delete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "BANNED",
+      message: "You are banned from this club."
+    });
+    expect(comment.deletedAt).toBeNull();
+    expect(repository.auditLogs).toHaveLength(0);
   });
 
   it("returns not found for missing, hidden, deleted, or inaccessible posts", async () => {
@@ -1126,6 +1274,20 @@ type StoredNotification = {
   createdAt: Date;
 };
 
+type StoredAuditLog = {
+  action: "COMMENT_DELETED";
+  actorId: string;
+  clubId: string;
+  commentId: string;
+  postId: string;
+  targetUserId: string;
+  metadata: {
+    previousDeletedAt: null;
+    deletedAt: string;
+    source: "DIRECT_DELETE";
+  };
+};
+
 class InMemoryCommentsRepository
   implements AuthUsersRepository, CommentsRepository
 {
@@ -1156,6 +1318,7 @@ class InMemoryCommentsRepository
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
   readonly notifications: StoredNotification[] = [];
   readonly enqueuedCommentNotificationJobs: Array<{ commentId: string }> = [];
+  readonly auditLogs: StoredAuditLog[] = [];
   readonly commentReactions: Array<{
     id: string;
     commentId: string;
@@ -1519,6 +1682,9 @@ class InMemoryCommentsRepository
     };
   };
 
+  findVisibleCommentForDeletion = async (commentId: string, userId: string) =>
+    this.findVisibleCommentForReaction(commentId, userId);
+
   createPostComment = async (
     postId: string,
     authorId: string,
@@ -1578,6 +1744,54 @@ class InMemoryCommentsRepository
     }
 
     return this.findVisibleCommentForReaction(commentId, userId);
+  };
+
+  softDeleteComment = async ({
+    actorId,
+    clubId,
+    commentId,
+    postId,
+    targetUserId
+  }: DeleteCommentInput): Promise<DeleteCommentResult | null> => {
+    const comment = this.comments.find(
+      (storedComment) =>
+        storedComment.id === commentId &&
+        storedComment.status === "VISIBLE" &&
+        storedComment.deletedAt === null
+    );
+    const post = this.posts.find(
+      (storedPost) =>
+        storedPost.id === postId &&
+        storedPost.status === "VISIBLE" &&
+        storedPost.deletedAt === null
+    );
+
+    if (!comment || !post) {
+      return null;
+    }
+
+    const deletedAt = new Date();
+
+    comment.deletedAt = deletedAt;
+    this.auditLogs.push({
+      action: "COMMENT_DELETED",
+      actorId,
+      clubId,
+      commentId,
+      postId,
+      targetUserId,
+      metadata: {
+        previousDeletedAt: null,
+        deletedAt: deletedAt.toISOString(),
+        source: "DIRECT_DELETE"
+      }
+    });
+
+    return {
+      id: commentId,
+      postId,
+      deletedAt
+    };
   };
 
   private findStoredUser = (id: string) => {

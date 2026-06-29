@@ -64,7 +64,11 @@ export const createDashboardService = (
 
     return toPopularDiscussionsResponse(
       discussions,
-      club.progress,
+      {
+        ...club.progress,
+        currentUserId: userId,
+        currentUserRole: club.currentUserRole
+      },
       query.limit,
       storage
     );
@@ -95,7 +99,16 @@ export const createDashboardService = (
       query.limit
     );
 
-    return toRecentlyUnlockedSummaryResponse(summary, query.limit, storage);
+    return toRecentlyUnlockedSummaryResponse(
+      summary,
+      {
+        ...summary.currentProgress,
+        currentUserId: userId,
+        currentUserRole: club.currentUserRole
+      },
+      query.limit,
+      storage
+    );
   }
 });
 

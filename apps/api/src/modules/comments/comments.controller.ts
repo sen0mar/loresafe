@@ -20,6 +20,7 @@ export type CommentsController = {
   createPostComment: RequestHandler;
   revealPostComment: RequestHandler;
   toggleCommentReactionById: RequestHandler;
+  deleteCommentById: RequestHandler;
 };
 
 export const createCommentsController = (
@@ -132,6 +133,33 @@ export const createCommentsController = (
         paramsResult.data.commentId,
         req.currentUser.id,
         bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteCommentById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = commentReactionParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the comment request and try again."
+        );
+      }
+
+      const response = await service.deleteCommentById(
+        paramsResult.data.commentId,
+        req.currentUser.id
       );
 
       res.status(200).json(response);

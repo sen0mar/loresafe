@@ -113,7 +113,12 @@ export const toProgressSummaryResponse = (
 
 export const toPopularDiscussionsResponse = async (
   records: PopularDiscussionRecord[],
-  context: { mode: ProgressMode; currentMilestonePosition: number | null },
+  context: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+    currentUserId: string;
+    currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
+  },
   limit: number,
   storage: Pick<ObjectStorage, "createPresignedRead">
 ): Promise<PopularDiscussionsResponse> => ({
@@ -130,6 +135,12 @@ export const toPopularDiscussionsResponse = async (
 
 export const toRecentlyUnlockedSummaryResponse = async (
   record: RecentlyUnlockedSummaryRecord,
+  context: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+    currentUserId: string;
+    currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
+  },
   limit: number,
   storage: Pick<ObjectStorage, "createPresignedRead">
 ): Promise<RecentlyUnlockedSummaryResponse> => ({
@@ -141,7 +152,7 @@ export const toRecentlyUnlockedSummaryResponse = async (
   },
   posts: await Promise.all(
     record.posts.map((post: ClubPostRecord) =>
-      toClubPostCardDto(post, record.currentProgress, storage)
+      toClubPostCardDto(post, context, storage)
     )
   ),
   pagination: {

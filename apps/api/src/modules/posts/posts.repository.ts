@@ -108,6 +108,18 @@ export type PostDetailRecord = {
   };
 };
 
+export type DeletePostInput = {
+  actorId: string;
+  clubId: string;
+  postId: string;
+  targetUserId: string;
+};
+
+export type DeletePostResult = {
+  id: string;
+  deletedAt: Date;
+};
+
 export type PostsRepository = {
   findClubForFeed: (
     slug: string,
@@ -135,6 +147,7 @@ export type PostsRepository = {
     userId: string,
     input: TogglePostReactionRequest
   ) => Promise<PostDetailRecord | null>;
+  softDeletePost: (input: DeletePostInput) => Promise<DeletePostResult | null>;
 };
 
 export const postSelect = {
@@ -654,7 +667,49 @@ export const postsRepository: PostsRepository = {
     });
 
     return postsRepository.findPostForDetail(postId, userId);
-  }
+  },
+
+  softDeletePost: async ({ actorId, clubId, postId, targetUserId }) =>
+    prisma.$transaction(async (transaction) => {
+      const deletedAt = new Date();
+      const updateResult = await transaction.post.updateMany({
+        where: {
+          id: postId,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        data: {
+          deletedAt
+        }
+      });
+
+      if (updateResult.count === 0) {
+        return null;
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          action: "POST_DELETED",
+          actorId,
+          clubId,
+          postId,
+          targetUserId,
+          metadata: {
+            previousDeletedAt: null,
+            deletedAt: deletedAt.toISOString(),
+            source: "DIRECT_DELETE"
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      return {
+        id: postId,
+        deletedAt
+      };
+    })
 };
 
 export type SelectedPost = Prisma.PostGetPayload<{

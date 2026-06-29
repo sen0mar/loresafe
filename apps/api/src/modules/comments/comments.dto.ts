@@ -2,6 +2,9 @@ import type { ProgressMode } from "../progress/progress.schema.js";
 import type { CommentReactionEmoji } from "./comments.schema.js";
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { CommentRecord } from "./comments.repository.js";
+import { canDeleteComment } from "./comments.policy.js";
+
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export type CommentStatusDto = "VISIBLE" | "HIDDEN";
 
@@ -9,6 +12,10 @@ type RequiredMilestoneDto = {
   id: string;
   position: number;
   label: string;
+};
+
+type ContentPermissionsDto = {
+  canDelete: boolean;
 };
 
 export type CommentReactionCountsDto = {
@@ -33,6 +40,7 @@ export type VisibleCommentDto = {
   parentId: string | null;
   requiredMilestone: RequiredMilestoneDto;
   counts: CommentReactionCountsDto;
+  permissions: ContentPermissionsDto;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,6 +52,7 @@ export type LockedCommentDto = {
   parentId: string | null;
   requiredMilestone: RequiredMilestoneDto;
   counts: CommentReactionCountsDto;
+  permissions: ContentPermissionsDto;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -76,9 +85,19 @@ export type ToggleCommentReactionResponse = {
   comment: CommentDto;
 };
 
+export type DeleteCommentResponse = {
+  comment: {
+    id: string;
+    postId: string;
+    deletedAt: string;
+  };
+};
+
 export type CommentVisibilityContext = {
   mode: ProgressMode;
   currentMilestonePosition: number | null;
+  currentUserId: string;
+  currentUserRole: ClubMembershipRole | null;
 };
 
 export const toCommentDto = (
@@ -95,6 +114,7 @@ export const toCommentDto = (
     status: comment.status,
     parentId: comment.parentId,
     requiredMilestone,
+    permissions: toCommentPermissionsDto(comment, context),
     counts: {
       reactionCount: comment.reactionCount,
       reactions: comment.reactions
@@ -129,7 +149,8 @@ export const toCommentDto = (
 };
 
 export const toRevealedCommentDto = (
-  comment: CommentRecord
+  comment: CommentRecord,
+  context: CommentVisibilityContext
 ): RevealedCommentDto => ({
   id: comment.id,
   visibility: "REVEALED",
@@ -146,10 +167,22 @@ export const toRevealedCommentDto = (
     position: comment.requiredMilestone.position,
     label: comment.requiredMilestone.safeTitle
   },
+  permissions: toCommentPermissionsDto(comment, context),
   counts: {
     reactionCount: comment.reactionCount,
     reactions: comment.reactions
   },
   createdAt: comment.createdAt.toISOString(),
   updatedAt: comment.updatedAt.toISOString()
+});
+
+const toCommentPermissionsDto = (
+  comment: CommentRecord,
+  context: CommentVisibilityContext
+): ContentPermissionsDto => ({
+  canDelete: canDeleteComment({
+    authorId: comment.author.id,
+    currentUserId: context.currentUserId,
+    currentUserRole: context.currentUserRole
+  })
 });

@@ -100,6 +100,12 @@ export const toClubProgressDto = (
 
 export const toRecentlyUnlockedResponse = async (
   record: RecentlyUnlockedRecord,
+  context: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+    currentUserId: string;
+    currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
+  },
   limit: number,
   nextCursor: string | null,
   storage: Pick<ObjectStorage, "createPresignedRead">
@@ -112,7 +118,7 @@ export const toRecentlyUnlockedResponse = async (
   },
   posts: await Promise.all(
     record.posts.map((post) =>
-      toClubPostCardDto(post, record.currentProgress, storage)
+      toClubPostCardDto(post, context, storage)
     )
   ),
   pagination: {

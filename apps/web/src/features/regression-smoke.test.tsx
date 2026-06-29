@@ -509,6 +509,73 @@ describe("frontend regression smoke", () => {
     });
   });
 
+  it("deletes posts from feed cards when permitted", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/posts", {
+        posts: [visiblePost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      {
+        method: "POST",
+        path: `/api/posts/${postId}/delete`,
+        response: {
+          post: {
+            id: postId,
+            deletedAt: now
+          }
+        }
+      }
+    ]);
+    renderWithProviders(<ClubFeedTab club={club} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Visible post title")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /^delete$/i
+      })
+    );
+
+    await waitFor(() =>
+      expect(findFetchCall(fetchMock, "POST", `/api/posts/${postId}/delete`))
+        .toBeTruthy()
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Visible post title")).not.toBeInTheDocument()
+    );
+    expect(await screen.findByText("No posts yet")).toBeInTheDocument();
+  });
+
+  it("hides post delete controls when the API denies delete permission", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/posts", {
+        posts: [
+          {
+            ...visiblePost,
+            permissions: {
+              canDelete: false
+            }
+          }
+        ],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+    renderWithProviders(<ClubFeedTab club={club} />);
+
+    expect(await screen.findByText("Visible post title")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
+  });
+
   it("shows spoiler-safe onboarding on an empty homepage without seeded club content", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -717,6 +784,84 @@ describe("frontend regression smoke", () => {
         )
       ).toBeTruthy()
     );
+  });
+
+  it("deletes comments without rendering locked comment bodies", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute(`/api/posts/${postId}`, {
+        post: {
+          ...visiblePost,
+          permissions: {
+            canDelete: false
+          }
+        },
+        club: {
+          id: club.id,
+          slug: club.slug
+        }
+      }),
+      shellRoute(`/api/posts/${postId}/comments`, {
+        comments: [
+          visibleComment,
+          {
+            ...lockedComment,
+            permissions: {
+              canDelete: false
+            }
+          }
+        ],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      {
+        method: "POST",
+        path: `/api/comments/${commentId}/delete`,
+        response: {
+          comment: {
+            id: commentId,
+            postId,
+            deletedAt: now
+          }
+        }
+      }
+    ]);
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/posts/:postId" element={<PostDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: [`/app/posts/${postId}`]
+      }
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Visible comment body")).toBeInTheDocument();
+    expect(await screen.findByText("Locked comment")).toBeInTheDocument();
+    expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /^delete$/i
+      })
+    );
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(fetchMock, "POST", `/api/comments/${commentId}/delete`)
+      ).toBeTruthy()
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Visible comment body")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
   });
 
   it("submits reports without rendering locked target content", async () => {
@@ -988,6 +1133,10 @@ const emptyCounts = {
   ]
 };
 
+const canDeletePermissions = {
+  canDelete: true
+};
+
 const visiblePost: ClubPostCard = {
   id: postId,
   visibility: "VISIBLE",
@@ -1009,6 +1158,7 @@ const visiblePost: ClubPostCard = {
     ...emptyCounts,
     commentCount: 2
   },
+  permissions: canDeletePermissions,
   createdAt: now,
   updatedAt: now
 };
@@ -1024,6 +1174,7 @@ const lockedPost: ClubPostCard = {
     label: "Twist-safe checkpoint"
   },
   counts: emptyCounts,
+  permissions: canDeletePermissions,
   lockReason: "Reach milestone 2 to unlock this discussion.",
   createdAt: now,
   updatedAt: now
@@ -1046,6 +1197,7 @@ const visibleComment: Comment = {
     label: "Opening"
   },
   counts: emptyCounts,
+  permissions: canDeletePermissions,
   createdAt: now,
   updatedAt: now
 };
@@ -1067,6 +1219,7 @@ const lockedComment: Comment = {
     label: "Twist-safe checkpoint"
   },
   counts: emptyCounts,
+  permissions: canDeletePermissions,
   lockReason: "Reach milestone 2 to unlock this comment.",
   createdAt: now,
   updatedAt: now

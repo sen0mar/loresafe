@@ -59,6 +59,7 @@ import { ReactionButtonGroup } from "./reaction-button-group.js";
 import { ReportDialog } from "./report-dialog.js";
 import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { DeletePostDialog } from "./delete-content-dialog.js";
 
 type ClubFeedTabProps = {
   club: Club;
@@ -671,12 +672,14 @@ const chooseRevealMilestoneId = ({
 
 export const PostCard = ({
   linked = false,
+  onDeleted,
   onOptimisticReaction,
   onReactionReconciled,
   onReactionRollback,
   post
 }: {
   linked?: boolean;
+  onDeleted?: (postId: string) => void;
   onOptimisticReaction?: (post: ClubPostCard) => void;
   onReactionReconciled?: (post: ClubPostCard) => void;
   onReactionRollback?: (post: ClubPostCard | null) => void;
@@ -685,24 +688,27 @@ export const PostCard = ({
   return post.visibility === "VISIBLE" ? (
     <VisiblePostCard
       linked={linked}
+      onDeleted={onDeleted}
       onOptimisticReaction={onOptimisticReaction}
       onReactionReconciled={onReactionReconciled}
       onReactionRollback={onReactionRollback}
       post={post}
     />
   ) : (
-    <LockedPostCard linked={linked} post={post} />
+    <LockedPostCard linked={linked} onDeleted={onDeleted} post={post} />
   );
 };
 
 const VisiblePostCard = ({
   linked,
+  onDeleted,
   onOptimisticReaction,
   onReactionReconciled,
   onReactionRollback,
   post
 }: {
   linked: boolean;
+  onDeleted?: (postId: string) => void;
   onOptimisticReaction?: (post: ClubPostCard) => void;
   onReactionReconciled?: (post: ClubPostCard) => void;
   onReactionRollback?: (post: ClubPostCard | null) => void;
@@ -739,6 +745,12 @@ const VisiblePostCard = ({
         <div className="flex flex-wrap items-center gap-3">
           <PostCounts post={post} />
           <ReportDialog targetId={post.id} targetType="POST" />
+          {post.permissions.canDelete ? (
+            <DeletePostDialog
+              postId={post.id}
+              onDeleted={() => onDeleted?.(post.id)}
+            />
+          ) : null}
           <PostReactionButtons
             counts={post.counts}
             onOptimisticReaction={onOptimisticReaction}
@@ -791,9 +803,11 @@ export const PredictionStateBadges = ({
 
 const LockedPostCard = ({
   linked,
+  onDeleted,
   post
 }: {
   linked: boolean;
+  onDeleted?: (postId: string) => void;
   post: Extract<ClubPostCard, { visibility: "LOCKED" }>;
 }) => (
   <Card>
@@ -816,6 +830,12 @@ const LockedPostCard = ({
         </span>
         <div className="flex flex-wrap items-center gap-3">
           <PostCounts post={post} />
+          {post.permissions.canDelete ? (
+            <DeletePostDialog
+              postId={post.id}
+              onDeleted={() => onDeleted?.(post.id)}
+            />
+          ) : null}
           {linked ? (
             <Button asChild size="sm" variant="secondary">
               <Link to={`/app/posts/${post.id}`}>Open</Link>

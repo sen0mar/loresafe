@@ -120,6 +120,11 @@ export const createProgressService = (
 
     return toRecentlyUnlockedResponse(
       result,
+      {
+        ...result.currentProgress,
+        currentUserId: userId,
+        currentUserRole: club.currentUserRole
+      },
       query.limit,
       result.nextCursor
         ? encodeRecentlyUnlockedCursor(result.nextCursor)

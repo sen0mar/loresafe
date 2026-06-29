@@ -51,6 +51,13 @@ export const createCommentReactionsRouter = (
     controller.toggleCommentReactionById
   );
 
+  router.post(
+    "/:commentId/delete",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deleteCommentById
+  );
+
   return router;
 };
 

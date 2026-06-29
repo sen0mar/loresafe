@@ -53,6 +53,13 @@ export const createPostDetailsRouter = (
     controller.togglePostReactionById
   );
 
+  router.post(
+    "/:postId/delete",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deletePostById
+  );
+
   return router;
 };
 

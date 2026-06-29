@@ -17,6 +17,7 @@ export type PostsController = {
   getPostById: RequestHandler;
   revealPostById: RequestHandler;
   togglePostReactionById: RequestHandler;
+  deletePostById: RequestHandler;
 };
 
 export const createPostsController = (
@@ -155,6 +156,33 @@ export const createPostsController = (
         paramsResult.data.postId,
         req.currentUser.id,
         bodyResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deletePostById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = postDetailParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the post request and try again."
+        );
+      }
+
+      const response = await service.deletePostById(
+        paramsResult.data.postId,
+        req.currentUser.id
       );
 
       res.status(200).json(response);

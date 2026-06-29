@@ -7,6 +7,7 @@ import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   type CommentDto,
   type CreatePostCommentResponse,
+  type DeleteCommentResponse,
   type PostCommentsResponse,
   type RevealCommentResponse,
   type ToggleCommentReactionResponse,
@@ -21,6 +22,7 @@ import {
   type CommentsRepository
 } from "./comments.repository.js";
 import {
+  canDeleteComment,
   canCreatePostComment,
   canToggleCommentReaction,
   canViewPostComments
@@ -52,6 +54,10 @@ export type CommentsService = {
     userId: string,
     input: ToggleCommentReactionRequest
   ) => Promise<ToggleCommentReactionResponse>;
+  deleteCommentById: (
+    commentId: string,
+    userId: string
+  ) => Promise<DeleteCommentResponse>;
 };
 
 export const createCommentsService = (
@@ -83,7 +89,7 @@ export const createCommentsService = (
 
     return {
       comments: result.comments.map((comment) =>
-        toCommentDto(comment, post.club.progress)
+        toCommentDto(comment, toCommentVisibilityContext(userId, post))
       ),
       pagination: {
         limit: query.limit,
@@ -161,7 +167,10 @@ export const createCommentsService = (
     }
 
     return {
-      comment: toCommentDto(comment, post.club.progress) as CommentDto
+      comment: toCommentDto(
+        comment,
+        toCommentVisibilityContext(userId, post)
+      ) as CommentDto
     };
   },
 
@@ -204,7 +213,10 @@ export const createCommentsService = (
     }
 
     return {
-      comment: toRevealedCommentDto(comment)
+      comment: toRevealedCommentDto(
+        comment,
+        toCommentVisibilityContext(userId, post)
+      )
     };
   },
 
@@ -270,8 +282,61 @@ export const createCommentsService = (
     return {
       comment: toCommentDto(
         toggledTarget.comment,
-        toggledTarget.post.club.progress
+        toCommentVisibilityContext(userId, toggledTarget.post)
       )
+    };
+  },
+
+  deleteCommentById: async (commentId, userId) => {
+    const target = await repository.findVisibleCommentForDeletion(
+      commentId,
+      userId
+    );
+
+    if (!target) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (target.post.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(target.post)) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    if (
+      !canDeleteComment({
+        authorId: target.comment.author.id,
+        currentUserId: userId,
+        currentUserRole: target.post.club.currentUserRole
+      })
+    ) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "You can delete only your own comments in this club."
+      );
+    }
+
+    const result = await repository.softDeleteComment({
+      actorId: userId,
+      clubId: target.post.clubId,
+      commentId: target.comment.id,
+      postId: target.post.id,
+      targetUserId: target.comment.author.id
+    });
+
+    if (!result) {
+      throw new HttpError(404, "NOT_FOUND", "Comment not found");
+    }
+
+    return {
+      comment: {
+        id: result.id,
+        postId: result.postId,
+        deletedAt: result.deletedAt.toISOString()
+      }
     };
   }
 });
@@ -386,3 +451,12 @@ const getCommentDeniedMessage = (
 
   return "You cannot comment on this post.";
 };
+
+const toCommentVisibilityContext = (
+  currentUserId: string,
+  post: CommentPostRecord
+) => ({
+  ...post.club.progress,
+  currentUserId,
+  currentUserRole: post.club.currentUserRole
+});

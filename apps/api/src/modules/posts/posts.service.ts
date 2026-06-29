@@ -2,15 +2,22 @@ import { HttpError } from "../../core/errors/http-error.js";
 import {
   type ClubPostsResponse,
   type CreateClubPostResponse,
+  type DeletePostResponse,
   type PostDetailResponse,
   type RevealPostResponse,
   type TogglePostReactionResponse,
   toClubPostCardDto,
   toRevealedClubPostDto
 } from "./posts.dto.js";
-import { canCreateClubPost, canViewClubFeed } from "./posts.policy.js";
 import {
+  canCreateClubPost,
+  canDeletePost,
+  canViewClubFeed
+} from "./posts.policy.js";
+import {
+  type ClubFeedRecord,
   type ClubPostsCursor,
+  type PostDetailRecord,
   postsRepository,
   type PostsRepository
 } from "./posts.repository.js";
@@ -47,6 +54,10 @@ export type PostsService = {
     userId: string,
     input: TogglePostReactionRequest
   ) => Promise<TogglePostReactionResponse>;
+  deletePostById: (
+    postId: string,
+    userId: string
+  ) => Promise<DeletePostResponse>;
 };
 
 export const createPostsService = (
@@ -83,7 +94,11 @@ export const createPostsService = (
     }
 
     return {
-      post: await toClubPostCardDto(post, club.progress, storage)
+      post: await toClubPostCardDto(
+        post,
+        toPostVisibilityContext(userId, club),
+        storage
+      )
     };
   },
 
@@ -115,7 +130,11 @@ export const createPostsService = (
     return {
       posts: await Promise.all(
         result.posts.map((post) =>
-          toClubPostCardDto(post, club.progress, storage)
+          toClubPostCardDto(
+            post,
+            toPostVisibilityContext(userId, club),
+            storage
+          )
         )
       ),
       pagination: {
@@ -144,7 +163,11 @@ export const createPostsService = (
     }
 
     return {
-      post: await toClubPostCardDto(detail.post, detail.club.progress, storage),
+      post: await toClubPostCardDto(
+        detail.post,
+        toPostVisibilityContext(userId, detail.club),
+        storage
+      ),
       club: {
         id: detail.club.id,
         slug: detail.club.slug
@@ -183,7 +206,11 @@ export const createPostsService = (
     }
 
     return {
-      post: await toRevealedClubPostDto(detail.post, storage),
+      post: await toRevealedClubPostDto(
+        detail.post,
+        toPostVisibilityContext(userId, detail.club),
+        storage
+      ),
       club: {
         id: detail.club.id,
         slug: detail.club.slug
@@ -242,9 +269,51 @@ export const createPostsService = (
     return {
       post: await toClubPostCardDto(
         toggledDetail.post,
-        toggledDetail.club.progress,
+        toPostVisibilityContext(userId, toggledDetail.club),
         storage
       )
+    };
+  },
+
+  deletePostById: async (postId, userId) => {
+    const detail = await repository.findPostForDetail(postId, userId);
+
+    if (!detail) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (detail.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewClubFeed(detail.club)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (!canDeletePost(toPostDeletePolicyInput(detail, userId))) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "You can delete only your own posts in this club."
+      );
+    }
+
+    const result = await repository.softDeletePost({
+      actorId: userId,
+      clubId: detail.club.id,
+      postId: detail.post.id,
+      targetUserId: detail.post.author.id
+    });
+
+    if (!result) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    return {
+      post: {
+        id: result.id,
+        deletedAt: result.deletedAt.toISOString()
+      }
     };
   }
 });
@@ -300,3 +369,21 @@ const decodeClubPostsCursor = (
     );
   }
 };
+
+const toPostVisibilityContext = (
+  currentUserId: string,
+  club: ClubFeedRecord
+) => ({
+  ...club.progress,
+  currentUserId,
+  currentUserRole: club.currentUserRole
+});
+
+const toPostDeletePolicyInput = (
+  detail: PostDetailRecord,
+  currentUserId: string
+) => ({
+  authorId: detail.post.author.id,
+  currentUserId,
+  currentUserRole: detail.club.currentUserRole
+});

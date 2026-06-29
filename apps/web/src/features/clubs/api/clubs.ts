@@ -187,6 +187,10 @@ export type CommentReactionCounts = {
   }>;
 };
 
+export type ContentPermissions = {
+  canDelete: boolean;
+};
+
 export type ClubPostRequiredMilestone = {
   id: string;
   position: number;
@@ -222,6 +226,7 @@ export type VisibleClubPostCard = {
   requiredMilestone: ClubPostRequiredMilestone;
   prediction?: ClubPostPrediction;
   media?: ClubPostMedia;
+  permissions: ContentPermissions;
   counts: ClubPostCounts;
   createdAt: string;
   updatedAt: string;
@@ -235,6 +240,7 @@ export type LockedClubPostCard = {
   requiredMilestone: ClubPostRequiredMilestone;
   counts: ClubPostCounts;
   media?: ClubPostMedia;
+  permissions: ContentPermissions;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -263,6 +269,7 @@ export type VisibleComment = {
   parentId: string | null;
   requiredMilestone: ClubPostRequiredMilestone;
   counts: CommentReactionCounts;
+  permissions: ContentPermissions;
   createdAt: string;
   updatedAt: string;
 };
@@ -274,6 +281,7 @@ export type LockedComment = {
   parentId: string | null;
   requiredMilestone: ClubPostRequiredMilestone;
   counts: CommentReactionCounts;
+  permissions: ContentPermissions;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -446,12 +454,27 @@ export type TogglePostReactionResponse = {
   post: ClubPostCard;
 };
 
+export type DeletePostResponse = {
+  post: {
+    id: string;
+    deletedAt: string;
+  };
+};
+
 export type ToggleCommentReactionInput = {
   emoji: CommentReactionEmoji;
 };
 
 export type ToggleCommentReactionResponse = {
   comment: Comment;
+};
+
+export type DeleteCommentResponse = {
+  comment: {
+    id: string;
+    postId: string;
+    deletedAt: string;
+  };
 };
 
 export type PostCommentsResponse = {
@@ -871,6 +894,9 @@ export const togglePostReaction = (
     input
   );
 
+export const deletePost = (postId: string) =>
+  apiPost<DeletePostResponse>(`/api/posts/${postId}/delete`);
+
 export const toggleCommentReaction = (
   commentId: string,
   input: ToggleCommentReactionInput
@@ -879,6 +905,9 @@ export const toggleCommentReaction = (
     `/api/comments/${commentId}/reactions/toggle`,
     input
   );
+
+export const deleteComment = (commentId: string) =>
+  apiPost<DeleteCommentResponse>(`/api/comments/${commentId}/delete`);
 
 export const revealPostComment = (postId: string, commentId: string) =>
   apiPost<RevealCommentResponse>(
@@ -1462,6 +1491,27 @@ export const useRevealPostMutation = (postId: string) =>
     mutationFn: () => revealPost(postId)
   });
 
+export const useDeletePostMutation = (postId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deletePost(postId),
+    onSuccess: () => {
+      removePostFromPostListQueries(queryClient, postId);
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.postsRoot
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.postDetail(postId)
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey.includes("dashboard")
+      });
+    }
+  });
+};
+
 export const useTogglePostReactionMutation = (
   postId: string,
   options: {
@@ -1624,6 +1674,32 @@ export const useToggleCommentReactionMutation = (
       void queryClient.invalidateQueries({
         predicate: (query) =>
           Array.isArray(query.queryKey) && query.queryKey.includes("dashboard")
+      });
+    }
+  });
+};
+
+export const useDeleteCommentMutation = (
+  postId: string,
+  commentId: string
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deleteComment(commentId),
+    onSuccess: () => {
+      queryClient.setQueryData<InfiniteData<PostCommentsResponse>>(
+        clubsQueryKeys.postComments(postId),
+        (currentData) => removeCommentFromInfiniteData(currentData, commentId)
+      );
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.postDetail(postId)
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          (query.queryKey.includes("feed") ||
+            query.queryKey.includes("dashboard"))
       });
     }
   });
@@ -1807,6 +1883,39 @@ const updatePostInInfiniteData = (
   };
 };
 
+const removePostFromPostListQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string
+) => {
+  queryClient.setQueriesData<InfiniteData<{ posts: ClubPostCard[] }>>(
+    {
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        (query.queryKey.includes("feed") ||
+          query.queryKey.includes("recently-unlocked") ||
+          query.queryKey.includes("search"))
+    },
+    (currentData) => removePostFromInfiniteData(currentData, postId)
+  );
+};
+
+const removePostFromInfiniteData = <TPage extends { posts: ClubPostCard[] }>(
+  currentData: InfiniteData<TPage> | undefined,
+  postId: string
+) => {
+  if (!currentData) {
+    return currentData;
+  }
+
+  return {
+    ...currentData,
+    pages: currentData.pages.map((page) => ({
+      ...page,
+      posts: page.posts.filter((post) => post.id !== postId)
+    }))
+  };
+};
+
 const updateCommentInInfiniteData = (
   currentData: InfiniteData<PostCommentsResponse> | undefined,
   updateComment: (comment: Comment) => Comment
@@ -1820,6 +1929,23 @@ const updateCommentInInfiniteData = (
     pages: currentData.pages.map((page) => ({
       ...page,
       comments: page.comments.map(updateComment)
+    }))
+  };
+};
+
+const removeCommentFromInfiniteData = (
+  currentData: InfiniteData<PostCommentsResponse> | undefined,
+  commentId: string
+) => {
+  if (!currentData) {
+    return currentData;
+  }
+
+  return {
+    ...currentData,
+    pages: currentData.pages.map((page) => ({
+      ...page,
+      comments: page.comments.filter((comment) => comment.id !== commentId)
     }))
   };
 };

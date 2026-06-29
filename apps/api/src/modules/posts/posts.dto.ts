@@ -3,6 +3,9 @@ import type { ClubPostRecord } from "./posts.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type { PostReactionEmoji } from "./posts.schema.js";
 import type { ObjectStorage } from "../../core/storage/r2-storage.js";
+import { canDeletePost } from "./posts.policy.js";
+
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export type PostTypeDto =
   | "DISCUSSION"
@@ -41,6 +44,10 @@ type RequiredMilestoneDto = {
   label: string;
 };
 
+type ContentPermissionsDto = {
+  canDelete: boolean;
+};
+
 type PredictionDto = {
   status: PredictionStatusDto;
   revealMilestone: RequiredMilestoneDto;
@@ -70,6 +77,7 @@ export type VisibleClubPostCardDto = {
   requiredMilestone: RequiredMilestoneDto;
   prediction?: PredictionDto;
   media?: PostMediaDto;
+  permissions: ContentPermissionsDto;
   counts: PostCountsDto;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +91,7 @@ export type LockedClubPostCardDto = {
   requiredMilestone: RequiredMilestoneDto;
   counts: PostCountsDto;
   media?: PostMediaDto;
+  permissions: ContentPermissionsDto;
   lockReason: string;
   createdAt: string;
   updatedAt: string;
@@ -132,9 +141,18 @@ export type TogglePostReactionResponse = {
   post: ClubPostCardDto;
 };
 
+export type DeletePostResponse = {
+  post: {
+    id: string;
+    deletedAt: string;
+  };
+};
+
 export type PostVisibilityContext = {
   mode: ProgressMode;
   currentMilestonePosition: number | null;
+  currentUserId: string;
+  currentUserRole: ClubMembershipRole | null;
 };
 
 export const toClubPostCardDto = (
@@ -152,6 +170,7 @@ export const toClubPostCardDto = (
     type: post.type,
     status: post.status,
     requiredMilestone,
+    permissions: toPostPermissionsDto(post, context),
     counts: {
       commentCount: post.commentCount,
       reactionCount: post.reactionCount,
@@ -187,6 +206,7 @@ export const toClubPostCardDto = (
 
 export const toRevealedClubPostDto = async (
   post: ClubPostRecord,
+  context: PostVisibilityContext,
   storage: Pick<ObjectStorage, "createPresignedRead">
 ): Promise<RevealedClubPostDto> => {
   const prediction = toPredictionDto(post);
@@ -211,6 +231,7 @@ export const toRevealedClubPostDto = async (
     },
     ...(prediction ? { prediction } : {}),
     ...(media ? { media } : {}),
+    permissions: toPostPermissionsDto(post, context),
     counts: {
       commentCount: post.commentCount,
       reactionCount: post.reactionCount,
@@ -310,6 +331,17 @@ const toPredictionDto = (post: ClubPostRecord): PredictionDto | null => {
     }
   };
 };
+
+const toPostPermissionsDto = (
+  post: ClubPostRecord,
+  context: PostVisibilityContext
+): ContentPermissionsDto => ({
+  canDelete: canDeletePost({
+    authorId: post.author.id,
+    currentUserId: context.currentUserId,
+    currentUserRole: context.currentUserRole
+  })
+});
 
 const toBodyPreview = (body: string) => {
   const compactBody = body.replace(/\s+/g, " ").trim();

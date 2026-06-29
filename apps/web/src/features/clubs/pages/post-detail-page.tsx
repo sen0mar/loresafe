@@ -18,6 +18,7 @@ import {
   Send,
   ShieldAlert,
   SlidersHorizontal,
+  Trash2,
   X,
   UserCircle
 } from "lucide-react";
@@ -52,6 +53,10 @@ import {
 import { ReactionButtonGroup } from "../components/reaction-button-group.js";
 import { ReportDialog } from "../components/report-dialog.js";
 import {
+  DeleteCommentDialog,
+  DeletePostDialog
+} from "../components/delete-content-dialog.js";
+import {
   createCommentSchema,
   type CreateCommentFormValues
 } from "../schemas/create-comment.schema.js";
@@ -69,20 +74,28 @@ export const PostDetailPage = () => {
   const [revealedPost, setRevealedPost] = useState<RevealedClubPost | null>(
     null
   );
+  const [isPostDeleted, setIsPostDeleted] = useState(false);
   const [revealedComments, setRevealedComments] = useState<
     Record<string, RevealedComment>
   >({});
+  const [deletedCommentIds, setDeletedCommentIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const postQuery = usePostQuery(postId);
   const commentsEnabled = postQuery.isSuccess;
   const commentsQuery = usePostCommentsQuery(postId, commentsEnabled);
   const comments =
-    commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [];
+    commentsQuery.data?.pages
+      .flatMap((page) => page.comments)
+      .filter((comment) => !deletedCommentIds.has(comment.id)) ?? [];
   const revealPostMutation = useRevealPostMutation(postId);
   const revealCommentMutation = useRevealPostCommentMutation(postId);
 
   useEffect(() => {
     setRevealedPost(null);
+    setIsPostDeleted(false);
     setRevealedComments({});
+    setDeletedCommentIds(new Set());
   }, [postId]);
 
   const handleRevealPost = () => {
@@ -120,6 +133,22 @@ export const PostDetailPage = () => {
     });
   };
 
+  const handleCommentDeleted = (commentId: string) => {
+    setDeletedCommentIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      nextIds.add(commentId);
+
+      return nextIds;
+    });
+    setRevealedComments((currentComments) => {
+      const { [commentId]: _removedComment, ...nextComments } =
+        currentComments;
+
+      return nextComments;
+    });
+  };
+
   return (
     <AuthenticatedAppShell>
       <div className="mx-auto max-w-3xl space-y-4">
@@ -137,13 +166,21 @@ export const PostDetailPage = () => {
             error={postQuery.error}
             onRetry={() => void postQuery.refetch()}
           />
+        ) : isPostDeleted ? (
+          <DeletedPostNotice />
         ) : (
           <>
             {revealedPost ? (
-              <RevealedPostCard post={revealedPost} />
+              <RevealedPostCard
+                post={revealedPost}
+                onDeleted={() => setIsPostDeleted(true)}
+              />
             ) : (
               <>
-                <PostCard post={postQuery.data.post} />
+                <PostCard
+                  post={postQuery.data.post}
+                  onDeleted={() => setIsPostDeleted(true)}
+                />
                 {postQuery.data.post.visibility === "LOCKED" ? (
                   <BraveRevealPostPanel
                     isRevealing={revealPostMutation.isPending}
@@ -165,6 +202,7 @@ export const PostDetailPage = () => {
               onRevealComment={handleRevealComment}
               post={postQuery.data.post}
               postId={postId}
+              onCommentDeleted={handleCommentDeleted}
               revealedComments={revealedComments}
               revealingCommentId={
                 revealCommentMutation.isPending
@@ -265,7 +303,29 @@ const BraveRevealPostPanel = ({
   </Card>
 );
 
-const RevealedPostCard = ({ post }: { post: RevealedClubPost }) => (
+const DeletedPostNotice = () => (
+  <Card>
+    <CardContent className="flex min-h-56 flex-col justify-center gap-3">
+      <span className="flex size-10 items-center justify-center rounded-lg border border-default bg-inset text-warning">
+        <Trash2 className="size-5" />
+      </span>
+      <div>
+        <h1 className="text-lg font-semibold text-primary">Post deleted</h1>
+        <p className="mt-1 max-w-lg text-sm leading-6 text-muted">
+          This discussion is no longer available in normal ThreadSync views.
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const RevealedPostCard = ({
+  onDeleted,
+  post
+}: {
+  onDeleted: () => void;
+  post: RevealedClubPost;
+}) => (
   <Card className="border-strong">
     <CardContent className="space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
@@ -293,9 +353,14 @@ const RevealedPostCard = ({ post }: { post: RevealedClubPost }) => (
           {post.author.displayName}
           {post.author.username ? ` / ${post.author.username}` : ""}
         </span>
-        <span>
-          {post.counts.commentCount} comments / {post.counts.reactionCount} reactions
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span>
+            {post.counts.commentCount} comments / {post.counts.reactionCount} reactions
+          </span>
+          {post.permissions.canDelete ? (
+            <DeletePostDialog postId={post.id} onDeleted={onDeleted} />
+          ) : null}
+        </div>
       </div>
     </CardContent>
   </Card>
@@ -310,6 +375,7 @@ const CommentsPanel = ({
   isFetchingNextPage,
   isLoading,
   onLoadMore,
+  onCommentDeleted,
   onRevealComment,
   onRetry,
   post,
@@ -325,6 +391,7 @@ const CommentsPanel = ({
   isFetchingNextPage: boolean;
   isLoading: boolean;
   onLoadMore: () => void;
+  onCommentDeleted: (commentId: string) => void;
   onRevealComment: (commentId: string) => void;
   onRetry: () => void;
   post: ClubPostCard;
@@ -389,6 +456,7 @@ const CommentsPanel = ({
                   milestones={milestones}
                   onReply={(commentId) => setReplyParentId(commentId)}
                   onReplyCancel={() => setReplyParentId(null)}
+                  onCommentDeleted={onCommentDeleted}
                   onRevealComment={onRevealComment}
                   postId={postId}
                   revealedComments={revealedComments}
@@ -676,6 +744,7 @@ const getSelectedMilestoneLabel = (
 
 const CommentThreadBlock = ({
   milestones,
+  onCommentDeleted,
   onReply,
   onReplyCancel,
   onRevealComment,
@@ -686,6 +755,7 @@ const CommentThreadBlock = ({
   thread
 }: {
   milestones: ClubMilestone[];
+  onCommentDeleted: (commentId: string) => void;
   onReply: (commentId: string) => void;
   onReplyCancel: () => void;
   onRevealComment: (commentId: string) => void;
@@ -699,6 +769,7 @@ const CommentThreadBlock = ({
     <CommentBlock
       comment={thread.parent}
       canReply={thread.parent.visibility === "VISIBLE"}
+      onDeleted={onCommentDeleted}
       onReply={() => onReply(thread.parent.id)}
       onReveal={onRevealComment}
       postId={postId}
@@ -727,6 +798,7 @@ const CommentThreadBlock = ({
             key={reply.id}
             comment={reply}
             canReply={false}
+            onDeleted={onCommentDeleted}
             onReveal={onRevealComment}
             postId={postId}
             revealedComment={revealedComments[reply.id]}
@@ -741,6 +813,7 @@ const CommentThreadBlock = ({
 const CommentBlock = ({
   canReply,
   comment,
+  onDeleted,
   onReply,
   onReveal,
   postId,
@@ -749,6 +822,7 @@ const CommentBlock = ({
 }: {
   canReply: boolean;
   comment: Comment;
+  onDeleted: (commentId: string) => void;
   onReply?: () => void;
   onReveal: (commentId: string) => void;
   postId: string;
@@ -756,13 +830,20 @@ const CommentBlock = ({
   revealingCommentId: string | null;
 }) => {
   if (revealedComment) {
-    return <RevealedCommentBlock comment={revealedComment} />;
+    return (
+      <RevealedCommentBlock
+        comment={revealedComment}
+        onDeleted={onDeleted}
+        postId={postId}
+      />
+    );
   }
 
   return comment.visibility === "VISIBLE" ? (
     <VisibleCommentBlock
       canReply={canReply}
       comment={comment}
+      onDeleted={onDeleted}
       onReply={onReply}
       postId={postId}
     />
@@ -770,7 +851,9 @@ const CommentBlock = ({
     <LockedCommentBlock
       comment={comment}
       isRevealing={revealingCommentId === comment.id}
+      onDeleted={onDeleted}
       onReveal={() => onReveal(comment.id)}
+      postId={postId}
     />
   );
 };
@@ -778,11 +861,13 @@ const CommentBlock = ({
 const VisibleCommentBlock = ({
   canReply,
   comment,
+  onDeleted,
   onReply,
   postId
 }: {
   canReply: boolean;
   comment: Extract<Comment, { visibility: "VISIBLE" }>;
+  onDeleted: (commentId: string) => void;
   onReply?: () => void;
   postId: string;
 }) => (
@@ -805,6 +890,13 @@ const VisibleCommentBlock = ({
       <CommentReactionButtons comment={comment} postId={postId} />
       <div className="flex flex-wrap items-center gap-2">
         <ReportDialog targetId={comment.id} targetType="COMMENT" />
+        {comment.permissions.canDelete ? (
+          <DeleteCommentDialog
+            commentId={comment.id}
+            postId={postId}
+            onDeleted={() => onDeleted(comment.id)}
+          />
+        ) : null}
         {canReply ? (
           <Button type="button" size="sm" variant="secondary" onClick={onReply}>
             <MessageCircleReply />
@@ -817,9 +909,13 @@ const VisibleCommentBlock = ({
 );
 
 const RevealedCommentBlock = ({
-  comment
+  comment,
+  onDeleted,
+  postId
 }: {
   comment: RevealedComment;
+  onDeleted: (commentId: string) => void;
+  postId: string;
 }) => (
   <div className="rounded-xl border border-strong bg-subtle p-4">
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-faint">
@@ -840,13 +936,20 @@ const RevealedCommentBlock = ({
       <Clock3 className="size-4" />
       {formatDateTime(comment.createdAt)}
     </p>
-    <div className="mt-3">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
       <ReactionButtonGroup
         ariaLabel="Comment reactions"
         disabled
         reactions={comment.counts.reactions}
         onToggle={() => undefined}
       />
+      {comment.permissions.canDelete ? (
+        <DeleteCommentDialog
+          commentId={comment.id}
+          postId={postId}
+          onDeleted={() => onDeleted(comment.id)}
+        />
+      ) : null}
     </div>
   </div>
 );
@@ -890,11 +993,15 @@ const CommentReactionButtons = ({
 const LockedCommentBlock = ({
   comment,
   isRevealing,
-  onReveal
+  onDeleted,
+  onReveal,
+  postId
 }: {
   comment: Extract<Comment, { visibility: "LOCKED" }>;
   isRevealing: boolean;
+  onDeleted: (commentId: string) => void;
   onReveal: () => void;
+  postId: string;
 }) => (
   <div className="rounded-xl border border-default bg-inset p-4">
     <span className="flex size-9 items-center justify-center rounded-lg border border-default bg-surface text-info">
@@ -911,17 +1018,26 @@ const LockedCommentBlock = ({
         <p className="text-xs leading-5 text-muted">
           Brave mode can reveal this comment for the current view only.
         </p>
-        <Button
-          className="w-full sm:w-fit"
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={isRevealing}
-          onClick={onReveal}
-        >
-          <Eye />
-          {isRevealing ? "Revealing..." : "Reveal once"}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {comment.permissions.canDelete ? (
+            <DeleteCommentDialog
+              commentId={comment.id}
+              postId={postId}
+              onDeleted={() => onDeleted(comment.id)}
+            />
+          ) : null}
+          <Button
+            className="w-full sm:w-fit"
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={isRevealing}
+            onClick={onReveal}
+          >
+            <Eye />
+            {isRevealing ? "Revealing..." : "Reveal once"}
+          </Button>
+        </div>
       </div>
     </div>
   </div>

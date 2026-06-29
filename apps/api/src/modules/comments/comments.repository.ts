@@ -82,6 +82,20 @@ export type CommentReactionTargetRecord = {
   post: CommentPostRecord;
 };
 
+export type DeleteCommentInput = {
+  actorId: string;
+  clubId: string;
+  commentId: string;
+  postId: string;
+  targetUserId: string;
+};
+
+export type DeleteCommentResult = {
+  id: string;
+  postId: string;
+  deletedAt: Date;
+};
+
 export type CommentsRepository = {
   findPostForComments: (
     postId: string,
@@ -104,6 +118,10 @@ export type CommentsRepository = {
     commentId: string,
     userId: string
   ) => Promise<CommentReactionTargetRecord | null>;
+  findVisibleCommentForDeletion: (
+    commentId: string,
+    userId: string
+  ) => Promise<CommentReactionTargetRecord | null>;
   createPostComment: (
     postId: string,
     authorId: string,
@@ -114,6 +132,9 @@ export type CommentsRepository = {
     userId: string,
     input: ToggleCommentReactionRequest
   ) => Promise<CommentReactionTargetRecord | null>;
+  softDeleteComment: (
+    input: DeleteCommentInput
+  ) => Promise<DeleteCommentResult | null>;
 };
 
 const commentSelect = {
@@ -476,6 +497,9 @@ export const commentsRepository: CommentsRepository = {
     };
   },
 
+  findVisibleCommentForDeletion: async (commentId, userId) =>
+    commentsRepository.findVisibleCommentForReaction(commentId, userId),
+
   createPostComment: async (postId, authorId, input) =>
     prisma.$transaction(async (transaction) => {
       if (input.parentId) {
@@ -548,7 +572,61 @@ export const commentsRepository: CommentsRepository = {
     });
 
     return commentsRepository.findVisibleCommentForReaction(commentId, userId);
-  }
+  },
+
+  softDeleteComment: async ({
+    actorId,
+    clubId,
+    commentId,
+    postId,
+    targetUserId
+  }) =>
+    prisma.$transaction(async (transaction) => {
+      const deletedAt = new Date();
+      const updateResult = await transaction.comment.updateMany({
+        where: {
+          id: commentId,
+          status: "VISIBLE",
+          deletedAt: null,
+          post: {
+            status: "VISIBLE",
+            deletedAt: null
+          }
+        },
+        data: {
+          deletedAt
+        }
+      });
+
+      if (updateResult.count === 0) {
+        return null;
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          action: "COMMENT_DELETED",
+          actorId,
+          clubId,
+          postId,
+          commentId,
+          targetUserId,
+          metadata: {
+            previousDeletedAt: null,
+            deletedAt: deletedAt.toISOString(),
+            source: "DIRECT_DELETE"
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      return {
+        id: commentId,
+        postId,
+        deletedAt
+      };
+    })
 };
 
 type ReactionMap = Map<

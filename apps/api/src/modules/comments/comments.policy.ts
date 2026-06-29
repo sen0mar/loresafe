@@ -2,6 +2,7 @@ import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import type { CommentPostRecord } from "./comments.repository.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
+type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export const canViewPostComments = (post: {
   club: {
@@ -27,3 +28,16 @@ export const canCreatePostComment = (
 
 export const canToggleCommentReaction = (post: CommentPostRecord) =>
   !post.club.isCurrentUserBanned;
+
+export const canDeleteComment = ({
+  authorId,
+  currentUserId,
+  currentUserRole
+}: {
+  authorId: string;
+  currentUserId: string;
+  currentUserRole: ClubMembershipRole | null;
+}) =>
+  authorId === currentUserId ||
+  currentUserRole === "OWNER" ||
+  currentUserRole === "MODERATOR";

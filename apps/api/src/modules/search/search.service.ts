@@ -50,7 +50,15 @@ export const createSearchService = (
       clubs: clubResult.records.map(toSearchClubDto),
       posts: await Promise.all(
         postResult.records.map((result) =>
-          toClubPostCardDto(result.post, result.club.progress, storage)
+          toClubPostCardDto(
+            result.post,
+            {
+              ...result.club.progress,
+              currentUserId: userId,
+              currentUserRole: result.club.currentUserRole
+            },
+            storage
+          )
         )
       ),
       pagination: {

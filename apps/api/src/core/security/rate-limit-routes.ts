@@ -59,9 +59,14 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     commentReactionToggleRateLimiter
   );
   app.post(
+    "/api/comments/:commentId/delete",
+    moderationActionRateLimiter
+  );
+  app.post(
     "/api/posts/:postId/reactions/toggle",
     postReactionToggleRateLimiter
   );
+  app.post("/api/posts/:postId/delete", moderationActionRateLimiter);
   app.post("/api/reports", reportCreateRateLimiter);
   app.get("/api/search", searchRateLimiter);
   app.patch(

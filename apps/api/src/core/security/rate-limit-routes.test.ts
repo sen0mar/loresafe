@@ -30,6 +30,14 @@ describe("registerRateLimiters", () => {
       "/api/search",
       expect.any(Function)
     );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/posts/:postId/delete",
+      expect.any(Function)
+    );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/comments/:commentId/delete",
+      expect.any(Function)
+    );
     expect(app.use).not.toHaveBeenCalledWith(
       "/api/clubs",
       expect.any(Function)

@@ -38,6 +38,8 @@ import type {
   ClubPostCreationClubRecord,
   ClubPostRecord,
   ClubPostsCursor,
+  DeletePostInput,
+  DeletePostResult,
   ListClubPostsInput,
   ListClubPostsResult,
   PostDetailRecord,
@@ -356,6 +358,148 @@ describe("posts routes", () => {
     });
   });
 
+  it("rejects post deletion without a session and validates ids", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    await request(app)
+      .post(`/api/posts/${crypto.randomUUID()}/delete`)
+      .set("x-request-id", "post-delete-missing-session")
+      .expect(401);
+
+    const response = await request(app)
+      .post("/api/posts/not-a-uuid/delete")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Check the post request and try again."
+    });
+  });
+
+  it("lets authors delete locked posts without leaking post content", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("author-delete-locked-post-club");
+    const openingMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const futureMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, openingMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, futureMilestone.id, {
+      title: "LOCKED_DELETE_TITLE_SHOULD_NOT_LEAK",
+      body: "LOCKED_DELETE_BODY_SHOULD_NOT_LEAK"
+    });
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/delete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      post: {
+        id: post.id,
+        deletedAt: expect.any(String)
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_DELETE_TITLE_SHOULD_NOT_LEAK"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "LOCKED_DELETE_BODY_SHOULD_NOT_LEAK"
+    );
+    expect(post.deletedAt).toBeInstanceOf(Date);
+    expect(repository.auditLogs).toHaveLength(1);
+    expect(repository.auditLogs[0]).toMatchObject({
+      action: "POST_DELETED",
+      actorId: user.id,
+      clubId: club.id,
+      postId: post.id,
+      targetUserId: user.id
+    });
+
+    await request(app)
+      .get(`/api/posts/${post.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(404);
+  });
+
+  it("allows moderators to delete posts and denies unrelated members", async () => {
+    const author = repository.createStoredUser(validUserInput());
+    const moderator = repository.createStoredUser({
+      ...validUserInput(),
+      email: "moderator@example.com"
+    });
+    const member = repository.createStoredUser({
+      ...validUserInput(),
+      email: "member@example.com"
+    });
+    const club = repository.createClub("moderator-delete-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(author.id, club.id);
+    repository.createMembership(moderator.id, club.id, "MODERATOR");
+    repository.createMembership(member.id, club.id);
+    repository.setProgress(author.id, club.id, milestone.id, "STRICT");
+    repository.setProgress(moderator.id, club.id, milestone.id, "STRICT");
+    repository.setProgress(member.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, author.id, milestone.id, {
+      title: "Moderator target",
+      body: "Moderator can remove this."
+    });
+
+    await request(app)
+      .post(`/api/posts/${post.id}/delete`)
+      .set("Cookie", await createSessionCookie(member))
+      .expect(403);
+    expect(post.deletedAt).toBeNull();
+
+    await request(app)
+      .post(`/api/posts/${post.id}/delete`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .expect(200);
+
+    expect(post.deletedAt).toBeInstanceOf(Date);
+    expect(repository.auditLogs[0]).toMatchObject({
+      actorId: moderator.id,
+      targetUserId: author.id
+    });
+  });
+
+  it("rejects direct post deletion from banned users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("banned-delete-post-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    repository.createBan(user.id, club.id);
+    const post = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Banned author",
+      body: "Cannot delete while banned."
+    });
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/delete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "BANNED",
+      message: "You are banned from this club."
+    });
+    expect(post.deletedAt).toBeNull();
+    expect(repository.auditLogs).toHaveLength(0);
+  });
+
   it("returns not found for missing, hidden, and deleted post details", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("unlisted-post-club");
@@ -510,6 +654,9 @@ describe("posts routes", () => {
         unreadCommentCount: 0,
         reactions: expectedEmptyReactions()
       },
+      permissions: {
+        canDelete: true
+      },
       lockReason: "Reach milestone 3: Finale to unlock this discussion.",
       createdAt: expect.any(String),
       updatedAt: expect.any(String)
@@ -634,6 +781,9 @@ describe("posts routes", () => {
         unreadCommentCount: 0,
         reactions: expectedEmptyReactions()
       },
+      permissions: {
+        canDelete: true
+      },
       lockReason:
         "Reach milestone 2: Spoiler-safe midpoint to unlock this discussion.",
       createdAt: expect.any(String),
@@ -754,6 +904,9 @@ describe("posts routes", () => {
         reactionCount: 0,
         unreadCommentCount: 0,
         reactions: expectedEmptyReactions()
+      },
+      permissions: {
+        canDelete: true
       },
       lockReason:
         "Reach milestone 2: Spoiler-safe midpoint to unlock this discussion.",
@@ -2340,6 +2493,19 @@ type StoredPostReaction = {
 
 type StoredPrediction = NonNullable<ClubPostRecord["prediction"]>;
 
+type StoredAuditLog = {
+  action: "POST_DELETED";
+  actorId: string;
+  clubId: string;
+  postId: string;
+  targetUserId: string;
+  metadata: {
+    previousDeletedAt: null;
+    deletedAt: string;
+    source: "DIRECT_DELETE";
+  };
+};
+
 class InMemoryPostsRepository
   implements AuthUsersRepository, PostsRepository, ProgressRepository
 {
@@ -2365,6 +2531,7 @@ class InMemoryPostsRepository
   readonly comments: StoredComment[] = [];
   readonly postReactions: StoredPostReaction[] = [];
   readonly predictions: Array<StoredPrediction & { postId: string }> = [];
+  readonly auditLogs: StoredAuditLog[] = [];
   readonly posts: Array<
     ClubPostRecord & {
       clubId: string;
@@ -2812,6 +2979,45 @@ class InMemoryPostsRepository
     }
 
     return this.findPostForDetail(postId, userId);
+  };
+
+  softDeletePost = async ({
+    actorId,
+    clubId,
+    postId,
+    targetUserId
+  }: DeletePostInput): Promise<DeletePostResult | null> => {
+    const post = this.posts.find(
+      (storedPost) =>
+        storedPost.id === postId &&
+        storedPost.status === "VISIBLE" &&
+        storedPost.deletedAt === null
+    );
+
+    if (!post) {
+      return null;
+    }
+
+    const deletedAt = new Date();
+
+    post.deletedAt = deletedAt;
+    this.auditLogs.push({
+      action: "POST_DELETED",
+      actorId,
+      clubId,
+      postId,
+      targetUserId,
+      metadata: {
+        previousDeletedAt: null,
+        deletedAt: deletedAt.toISOString(),
+        source: "DIRECT_DELETE"
+      }
+    });
+
+    return {
+      id: postId,
+      deletedAt
+    };
   };
 
   findClubForProgress = async (
