@@ -10,6 +10,8 @@ const maxAttempts = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_ATTEM
 const baseDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS, 5_000);
 const maxDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_RETRY_DELAY_MS, 30_000);
 const outputLimit = 20_000;
+const advisoryLockFallbackEnabled =
+  process.env.PRISMA_MIGRATE_DEPLOY_DISABLE_LOCK_FALLBACK !== "false";
 
 const sleep = (delayMs) =>
   new Promise((resolve) => {
@@ -31,10 +33,15 @@ const isAdvisoryLockTimeout = (output) => {
   );
 };
 
-const runMigrateDeploy = () =>
+const runMigrateDeploy = ({ disableAdvisoryLock = false } = {}) =>
   new Promise((resolve) => {
     const child = spawn("pnpm", ["exec", "prisma", "migrate", "deploy"], {
-      env: process.env,
+      env: disableAdvisoryLock
+        ? {
+            ...process.env,
+            PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK: "true"
+          }
+        : process.env,
       shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -63,6 +70,9 @@ const runMigrateDeploy = () =>
     });
   });
 
+let lastAdvisoryLockOutput = "";
+let lastAdvisoryLockExitCode = 1;
+
 for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   const { exitCode, output } = await runMigrateDeploy();
 
@@ -70,8 +80,15 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     process.exit(0);
   }
 
-  if (!isAdvisoryLockTimeout(output) || attempt === maxAttempts) {
+  if (!isAdvisoryLockTimeout(output)) {
     process.exit(exitCode);
+  }
+
+  lastAdvisoryLockOutput = output;
+  lastAdvisoryLockExitCode = exitCode;
+
+  if (attempt === maxAttempts) {
+    break;
   }
 
   const delayMs = Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
@@ -82,3 +99,20 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   );
   await sleep(delayMs);
 }
+
+if (!advisoryLockFallbackEnabled) {
+  process.exit(lastAdvisoryLockExitCode);
+}
+
+process.stderr.write(
+  "Prisma migrate deploy kept timing out on the advisory lock. " +
+    "Running one final deploy with PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true.\n"
+);
+
+const fallbackResult = await runMigrateDeploy({ disableAdvisoryLock: true });
+
+if (fallbackResult.exitCode !== 0 && !fallbackResult.output) {
+  process.stderr.write(lastAdvisoryLockOutput);
+}
+
+process.exit(fallbackResult.exitCode);
