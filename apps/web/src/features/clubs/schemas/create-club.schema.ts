@@ -25,12 +25,14 @@ export const createClubFormSchema = z.object({
   title: z
     .string()
     .trim()
+    .min(1, "Enter a club title.")
     .min(2, "Title must be at least 2 characters.")
     .max(120, "Title must be 120 characters or fewer."),
   linkName: z
     .string()
     .trim()
     .toLowerCase()
+    .min(1, "Enter a link name.")
     .min(3, "Link name must be at least 3 characters.")
     .max(80, "Link name must be 80 characters or fewer.")
     .regex(
