@@ -272,7 +272,33 @@ describe("frontend regression smoke", () => {
     await user.type(screen.getByLabelText("Title"), "Nebula Readers");
     await user.type(screen.getByLabelText("Link name"), "nebula-readers");
     await user.type(screen.getByLabelText("Description"), "Spoiler-safe space.");
-    await user.type(screen.getByLabelText("Category"), "Books");
+    const categorySelect = screen.getByLabelText("Category");
+    expect(categorySelect).toHaveValue("");
+    expect(
+      within(categorySelect).getAllByRole("option").map((option) => ({
+        label: option.textContent,
+        value: option.getAttribute("value")
+      }))
+    ).toEqual([
+      { label: "Choose a category", value: "" },
+      { label: "Books", value: "BOOKS" },
+      { label: "TV Shows", value: "TV_SHOWS" },
+      { label: "Anime", value: "ANIME" },
+      { label: "Manga", value: "MANGA" },
+      { label: "Movies", value: "MOVIES" },
+      { label: "Games", value: "GAMES" },
+      { label: "Podcasts", value: "PODCASTS" },
+      { label: "Courses", value: "COURSES" },
+      {
+        label: "Comics & Graphic Novels",
+        value: "COMICS_GRAPHIC_NOVELS"
+      },
+      { label: "Web Serials", value: "WEB_SERIALS" },
+      { label: "Custom Timeline", value: "CUSTOM_TIMELINE" }
+    ]);
+    expect(within(categorySelect).queryByRole("option", { name: "Other" }))
+      .not.toBeInTheDocument();
+    await user.selectOptions(categorySelect, "BOOKS");
     await user.click(screen.getByRole("radio", { name: /private/i }));
     await user.click(screen.getByRole("button", { name: /create club/i }));
 
@@ -282,6 +308,7 @@ describe("frontend regression smoke", () => {
     expect(getJsonRequestBody(fetchMock.mock.calls[0])).toMatchObject({
       title: "Nebula Readers",
       linkName: "nebula-readers",
+      category: "BOOKS",
       visibility: "PRIVATE"
     });
   });
@@ -981,7 +1008,7 @@ describe("frontend regression smoke", () => {
             title: "Public Story Club",
             linkName: "public-story-club",
             description: "Public discussion.",
-            category: "Books",
+            category: "BOOKS",
             coverUrl: "https://cdn.example/public-story-club.png",
             visibility: "PUBLIC",
             memberCount: 12,
@@ -1025,7 +1052,7 @@ describe("frontend regression smoke", () => {
             title: "Public Nebula Club",
             linkName: "public-nebula-club",
             description: "Visible result.",
-            category: "Books",
+            category: "BOOKS",
             coverUrl: "https://cdn.example/public-nebula-club.png",
             visibility: "PUBLIC",
             memberCount: 7,
@@ -1070,7 +1097,7 @@ const club: Club = {
   title: "Safe Club",
   linkName: "safe-club",
   description: "Spoiler-safe space.",
-  category: "Books",
+  category: "BOOKS",
   coverUrl: null,
   rules: null,
   visibility: "PUBLIC",

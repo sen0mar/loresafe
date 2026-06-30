@@ -16,6 +16,7 @@ import {
 } from "../auth/auth.repository.js";
 import { createAuthService } from "../auth/auth.service.js";
 import type { ClubDetailRecord } from "../clubs/clubs.repository.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 import { createInvitesController } from "./invites.controller.js";
 import {
   type AcceptInviteRecord,
@@ -474,7 +475,7 @@ type StoredClub = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   rules: string | null;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   createdAt: Date;
@@ -485,7 +486,7 @@ type CreateStoredClubInput = {
   title: string;
   linkName: string;
   description?: string | null;
-  category?: string | null;
+  category?: ClubCategory;
   rules?: string | null;
   visibility: StoredClub["visibility"];
   createdAt?: Date;
@@ -581,7 +582,7 @@ class InMemoryInvitesRepository
     title,
     linkName,
     description = null,
-    category = null,
+    category = "CUSTOM_TIMELINE",
     rules = null,
     visibility,
     createdAt = new Date()

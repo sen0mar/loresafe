@@ -12,6 +12,19 @@ export type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
 export type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
+export type ClubCategory =
+  | "BOOKS"
+  | "TV_SHOWS"
+  | "ANIME"
+  | "MANGA"
+  | "MOVIES"
+  | "GAMES"
+  | "PODCASTS"
+  | "COURSES"
+  | "COMICS_GRAPHIC_NOVELS"
+  | "WEB_SERIALS"
+  | "CUSTOM_TIMELINE";
+
 export type ProgressMode = "STRICT" | "SOFT" | "BRAVE" | "FINISHED";
 
 export type PostType =
@@ -68,7 +81,7 @@ export type ClubDiscoveryClub = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   visibility: "PUBLIC";
   memberCount: number;
@@ -81,7 +94,7 @@ export type Club = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   rules: string | null;
   visibility: ClubVisibility;
@@ -661,7 +674,7 @@ export type CreateClubInput = {
   title: string;
   linkName: string;
   description?: string | null;
-  category?: string | null;
+  category: ClubCategory;
   visibility: ClubVisibility;
   rules?: string | null;
 };

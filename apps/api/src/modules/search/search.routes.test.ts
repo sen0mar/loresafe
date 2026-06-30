@@ -423,7 +423,7 @@ class InMemorySearchRepository
       title,
       linkName,
       description: null,
-      category: "Book",
+      category: "BOOKS",
       coverAsset: null,
       visibility,
       memberCount: 0,

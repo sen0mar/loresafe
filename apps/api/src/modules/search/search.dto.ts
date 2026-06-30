@@ -1,4 +1,5 @@
 import { r2Storage } from "../../core/storage/r2-storage.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ClubPostCardDto } from "../posts/posts.dto.js";
 import type { SearchClubRecord } from "./search.repository.js";
 
@@ -7,7 +8,7 @@ export type SearchClubDto = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   memberCount: number;

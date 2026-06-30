@@ -2,6 +2,7 @@ import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type {
   BanClubMemberRequest,
+  ClubCategory,
   CreateClubRequest,
   ListClubMembersQuery,
   ListClubsQuery
@@ -20,7 +21,7 @@ export type ClubDiscoveryRecord = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverAsset?: {
     objectKey: string;
     status: "PENDING" | "READY" | "FAILED";
@@ -36,7 +37,7 @@ export type ClubDetailRecord = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverAsset?: {
     objectKey: string;
     status: "PENDING" | "READY" | "FAILED";
@@ -906,7 +907,7 @@ const toClubDetailRecord = (club: {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverAsset: {
     objectKey: string;
     status: "PENDING" | "READY" | "FAILED";

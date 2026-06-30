@@ -61,7 +61,7 @@ Normal discussion spaces rely on manual spoiler tags. ThreadSync makes spoiler s
 
 ### Clubs and Membership
 
-- Create public, private, and invite-only clubs.
+- Create public, private, and invite-only clubs with a fixed media-type category.
 - Join public clubs or private clubs through invite links.
 - Roles: owner, moderator, member.
 - Basic club settings and rules.
