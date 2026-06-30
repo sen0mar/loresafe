@@ -248,6 +248,21 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
+  it("shows clear required-field messages when creating a club", async () => {
+    const fetchMock = mockFetchRoutes([]);
+    renderWithProviders(<CreateClubForm />, {
+      initialEntries: ["/app/clubs/new"]
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /create club/i }));
+
+    expect(screen.getByText("Enter a club title.")).toBeVisible();
+    expect(screen.getByText("Enter a link name.")).toBeVisible();
+    expect(screen.getByText("Choose a category.")).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("submits club creation and navigates to the new club", async () => {
     const fetchMock = mockFetchRoutes([
       {

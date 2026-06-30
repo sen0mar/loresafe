@@ -79,6 +79,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 73: Explore club avatars — Added shared club cover thumbnails for Explore and search club cards, preserving fallback icons and adding focused frontend regression coverage.
 - Feature 74: Club link name rename — Renamed the club URL identifier from slug to link name across Prisma, backend API contracts, frontend routes/types, uploads, events, search, notifications, and tests with a committed column-rename migration.
 - Feature 75: Fixed club categories — Added a required ClubCategory enum with a committed migration for legacy category normalization, replaced freeform club creation categories with a fixed dropdown, preserved readable category display/search text, and added focused backend/frontend regression coverage.
+- Feature 76: Clear club creation errors — Added explicit missing-title and missing-link-name validation messages in the create-club form, preserved existing category guidance, and added focused frontend regression coverage.
 
 ## Entry Format
 
