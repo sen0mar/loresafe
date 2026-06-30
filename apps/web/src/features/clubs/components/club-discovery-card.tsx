@@ -11,6 +11,7 @@ import {
 } from "@/shared/components/ui/card";
 
 import { ClubAvatar } from "./club-avatar.js";
+import { formatClubCategory } from "../lib/club-categories.js";
 
 type ClubDiscoveryCardProps = {
   club: ClubDiscoveryClub;
@@ -54,12 +55,10 @@ export const ClubDiscoveryCard = ({ club }: ClubDiscoveryCardProps) => (
             {memberFormatter.format(club.memberCount)}{" "}
             {club.memberCount === 1 ? "member" : "members"}
           </span>
-          {club.category ? (
-            <span className="inline-flex items-center gap-2">
-              <Sparkles className="size-4 text-faint" />
-              {club.category}
-            </span>
-          ) : null}
+          <span className="inline-flex items-center gap-2">
+            <Sparkles className="size-4 text-faint" />
+            {formatClubCategory(club.category)}
+          </span>
         </div>
       </CardContent>
     </Link>

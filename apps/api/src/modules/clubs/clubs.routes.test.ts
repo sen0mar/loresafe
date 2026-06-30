@@ -25,7 +25,7 @@ import type {
 import { createClubsController } from "./clubs.controller.js";
 import { createClubsRouter } from "./clubs.routes.js";
 import { createClubsService } from "./clubs.service.js";
-import type { CreateClubRequest } from "./clubs.schema.js";
+import type { ClubCategory, CreateClubRequest } from "./clubs.schema.js";
 
 describe("clubs routes", () => {
   let repository: InMemoryClubsRepository;
@@ -66,7 +66,7 @@ describe("clubs routes", () => {
         title: "  New Story Circle  ",
         linkName: " New-Story-Circle ",
         description: "  Spoiler-safe theories.  ",
-        category: "  Books  ",
+        category: "BOOKS",
         visibility: "PUBLIC",
         rules: "  Keep future chapters out of early discussions.  "
       })
@@ -78,7 +78,7 @@ describe("clubs routes", () => {
         title: "New Story Circle",
         linkName: "new-story-circle",
         description: "Spoiler-safe theories.",
-        category: "Books",
+        category: "BOOKS",
         coverUrl: null,
         rules: "Keep future chapters out of early discussions.",
         visibility: "PUBLIC",
@@ -103,6 +103,39 @@ describe("clubs routes", () => {
         role: "OWNER"
       }
     ]);
+  });
+
+  it.each([
+    "BOOKS",
+    "TV_SHOWS",
+    "ANIME",
+    "MANGA",
+    "MOVIES",
+    "GAMES",
+    "PODCASTS",
+    "COURSES",
+    "COMICS_GRAPHIC_NOVELS",
+    "WEB_SERIALS",
+    "CUSTOM_TIMELINE"
+  ] satisfies ClubCategory[])("creates clubs with %s category", async (category) => {
+    const user = await repository.createUser({
+      email: `${category.toLowerCase()}@example.com`,
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .post("/api/clubs")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        ...validCreateClubPayload(),
+        title: `${category} Club`,
+        linkName: `${category.toLowerCase().replaceAll("_", "-")}-club`,
+        category
+      })
+      .expect(201);
+
+    expect(response.body.club.category).toBe(category);
   });
 
   it("rejects duplicate club link names cleanly", async () => {
@@ -142,7 +175,10 @@ describe("clubs routes", () => {
     ["title", { title: "x" }],
     ["linkName", { linkName: "not ok" }],
     ["description", { description: "x".repeat(281) }],
-    ["category", { category: "x".repeat(61) }],
+    ["category", { category: "NOT_A_CATEGORY" }],
+    ["category", { category: "" }],
+    ["category", { category: null }],
+    ["category", { category: undefined }],
     ["visibility", { visibility: "FRIENDS_ONLY" }],
     ["rules", { rules: "x".repeat(2001) }]
   ])("rejects invalid club %s fields", async (_field, override) => {
@@ -260,7 +296,7 @@ describe("clubs routes", () => {
       title: "Invite Arc Watch",
       linkName: "invite-arc-watch",
       description: "Hidden invite-only discussion.",
-      category: "Anime",
+      category: "ANIME",
       visibility: "INVITE_ONLY"
     });
     repository.createMembership(owner.id, club.id, "OWNER");
@@ -291,7 +327,7 @@ describe("clubs routes", () => {
       title: "Public Story Circle",
       linkName: "public-story-circle",
       description: "Safe public discussion.",
-      category: "Books",
+      category: "BOOKS",
       rules: "Keep future chapters out of early discussions.",
       visibility: "PUBLIC"
     });
@@ -329,7 +365,7 @@ describe("clubs routes", () => {
       title: "Public Story Circle",
       linkName: "public-story-circle",
       description: "Safe public discussion.",
-      category: "Books",
+      category: "BOOKS",
       visibility: "PUBLIC"
     });
 
@@ -767,21 +803,21 @@ describe("clubs routes", () => {
       title: "Public Story Circle",
       linkName: "public-story-circle",
       description: "Safe public discussion.",
-      category: "Books",
+      category: "BOOKS",
       visibility: "PUBLIC"
     });
     const privateClub = repository.createClub({
       title: "Private Plot Room",
       linkName: "private-plot-room",
       description: "Hidden private discussion.",
-      category: "Shows",
+      category: "TV_SHOWS",
       visibility: "PRIVATE"
     });
     const inviteOnlyClub = repository.createClub({
       title: "Invite Arc Watch",
       linkName: "invite-arc-watch",
       description: "Hidden invite-only discussion.",
-      category: "Anime",
+      category: "ANIME",
       visibility: "INVITE_ONLY"
     });
 
@@ -801,7 +837,7 @@ describe("clubs routes", () => {
           title: "Public Story Circle",
           linkName: "public-story-circle",
           description: "Safe public discussion.",
-          category: "Books",
+          category: "BOOKS",
           coverUrl: null,
           visibility: "PUBLIC",
           memberCount: 1,
@@ -831,7 +867,7 @@ describe("clubs routes", () => {
       title: "Public Story Circle",
       linkName: "public-story-circle",
       description: null,
-      category: null,
+      category: "CUSTOM_TIMELINE",
       visibility: "PUBLIC"
     });
 
@@ -867,7 +903,7 @@ describe("clubs routes", () => {
       title: "Public Story Circle",
       linkName: "public-story-circle",
       description: null,
-      category: null,
+      category: "CUSTOM_TIMELINE",
       rules: "Mind the spoiler line.",
       visibility: "PUBLIC"
     });
@@ -996,7 +1032,7 @@ type CreateStoredClubInput = {
   title: string;
   linkName: string;
   description?: string | null;
-  category?: string | null;
+  category?: ClubCategory;
   rules?: string | null;
   visibility: StoredClub["visibility"];
   createdAt?: Date;
@@ -1075,7 +1111,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     title,
     linkName,
     description = null,
-    category = null,
+    category = "CUSTOM_TIMELINE",
     rules = null,
     visibility,
     createdAt = new Date()
@@ -1619,7 +1655,7 @@ const validCreateClubPayload = () => ({
   title: "New Story Circle",
   linkName: "new-story-circle",
   description: "Spoiler-safe theories.",
-  category: "Books",
+  category: "BOOKS",
   visibility: "PUBLIC",
   rules: "Keep future chapters out of early discussions."
 });

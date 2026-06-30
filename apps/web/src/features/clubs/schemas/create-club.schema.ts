@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { ClubCategory, ClubVisibility } from "../api/clubs.js";
+import { clubCategoryOptions } from "../lib/club-categories.js";
 
 const optionalTrimmedText = (maxLength: number, message: string) =>
   z
@@ -7,6 +9,17 @@ const optionalTrimmedText = (maxLength: number, message: string) =>
     .max(maxLength, message)
     .transform((value) => (value.length > 0 ? value : null))
     .optional();
+
+const clubCategoryValues = clubCategoryOptions.map((option) => option.value) as [
+  ClubCategory,
+  ...ClubCategory[]
+];
+
+const clubCategoryFormSchema = z
+  .union([z.enum(clubCategoryValues), z.literal("")])
+  .refine((category): category is ClubCategory => category !== "", {
+    message: "Choose a category."
+  });
 
 export const createClubFormSchema = z.object({
   title: z
@@ -28,10 +41,17 @@ export const createClubFormSchema = z.object({
     280,
     "Description must be 280 characters or fewer."
   ),
-  category: optionalTrimmedText(60, "Category must be 60 characters or fewer."),
+  category: clubCategoryFormSchema,
   visibility: z.enum(["PUBLIC", "PRIVATE", "INVITE_ONLY"]),
   rules: optionalTrimmedText(2000, "Rules must be 2000 characters or fewer.")
 });
 
-export type CreateClubFormValues = z.input<typeof createClubFormSchema>;
+export type CreateClubFormValues = {
+  title: string;
+  linkName: string;
+  description: string;
+  category: ClubCategory | "";
+  visibility: ClubVisibility;
+  rules: string;
+};
 export type CreateClubFormPayload = z.output<typeof createClubFormSchema>;

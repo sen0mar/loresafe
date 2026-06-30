@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import {
   postSelect,
@@ -17,7 +18,7 @@ export type SearchClubRecord = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverAsset: {
     objectKey: string;
     status: "PENDING" | "READY" | "FAILED";
@@ -72,7 +73,7 @@ type SearchClubRow = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   visibility: ClubVisibility;
   coverObjectKey: string | null;
   coverStatus: "PENDING" | "READY" | "FAILED" | null;
@@ -178,7 +179,19 @@ export const searchRepository: SearchRepository = {
         'english',
         coalesce(c."title", '') || ' ' ||
         coalesce(c."description", '') || ' ' ||
-        coalesce(c."category", '') || ' ' ||
+        CASE c."category"
+          WHEN 'BOOKS' THEN 'Books'
+          WHEN 'TV_SHOWS' THEN 'TV Shows'
+          WHEN 'ANIME' THEN 'Anime'
+          WHEN 'MANGA' THEN 'Manga'
+          WHEN 'MOVIES' THEN 'Movies'
+          WHEN 'GAMES' THEN 'Games'
+          WHEN 'PODCASTS' THEN 'Podcasts'
+          WHEN 'COURSES' THEN 'Courses'
+          WHEN 'COMICS_GRAPHIC_NOVELS' THEN 'Comics Graphic Novels'
+          WHEN 'WEB_SERIALS' THEN 'Web Serials'
+          WHEN 'CUSTOM_TIMELINE' THEN 'Custom Timeline'
+        END || ' ' ||
         coalesce(c."link_name", '')
       ) @@ search.query
       GROUP BY c."id", cover."object_key", cover."status", search.query
@@ -187,7 +200,19 @@ export const searchRepository: SearchRepository = {
           'english',
           coalesce(c."title", '') || ' ' ||
           coalesce(c."description", '') || ' ' ||
-          coalesce(c."category", '') || ' ' ||
+          CASE c."category"
+            WHEN 'BOOKS' THEN 'Books'
+            WHEN 'TV_SHOWS' THEN 'TV Shows'
+            WHEN 'ANIME' THEN 'Anime'
+            WHEN 'MANGA' THEN 'Manga'
+            WHEN 'MOVIES' THEN 'Movies'
+            WHEN 'GAMES' THEN 'Games'
+            WHEN 'PODCASTS' THEN 'Podcasts'
+            WHEN 'COURSES' THEN 'Courses'
+            WHEN 'COMICS_GRAPHIC_NOVELS' THEN 'Comics Graphic Novels'
+            WHEN 'WEB_SERIALS' THEN 'Web Serials'
+            WHEN 'CUSTOM_TIMELINE' THEN 'Custom Timeline'
+          END || ' ' ||
           coalesce(c."link_name", '')
         ),
         search.query

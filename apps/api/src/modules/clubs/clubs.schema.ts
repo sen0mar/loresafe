@@ -2,6 +2,19 @@ import { z } from "zod";
 
 const clubVisibilitySchema = z.enum(["PUBLIC", "PRIVATE", "INVITE_ONLY"]);
 const clubMembershipRoleSchema = z.enum(["OWNER", "MODERATOR", "MEMBER"]);
+export const clubCategorySchema = z.enum([
+  "BOOKS",
+  "TV_SHOWS",
+  "ANIME",
+  "MANGA",
+  "MOVIES",
+  "GAMES",
+  "PODCASTS",
+  "COURSES",
+  "COMICS_GRAPHIC_NOVELS",
+  "WEB_SERIALS",
+  "CUSTOM_TIMELINE"
+]);
 
 const optionalTrimmedText = (maxLength: number) =>
   z
@@ -38,7 +51,7 @@ export const createClubRequestSchema = z
     title: z.string().trim().min(2).max(120),
     linkName: clubLinkNameSchema,
     description: optionalTrimmedText(280),
-    category: optionalTrimmedText(60),
+    category: clubCategorySchema,
     visibility: clubVisibilitySchema,
     rules: optionalTrimmedText(2000)
   })
@@ -83,6 +96,7 @@ export const banClubMemberRequestSchema = z
 
 export type ListClubsQuery = z.infer<typeof listClubsQuerySchema>;
 export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
+export type ClubCategory = z.infer<typeof clubCategorySchema>;
 export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
 export type ClubLinkNameParams = z.infer<typeof clubLinkNameParamsSchema>;
 export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;

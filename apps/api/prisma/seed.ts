@@ -69,14 +69,14 @@ const seedDemoClub = async (ownerId: string) => {
     update: {
       title: "The First Law Book Club",
       description: "Abercrombie fans discussing the books one chapter at a time.",
-      category: "Fantasy",
+      category: "BOOKS",
       visibility: "PUBLIC"
     },
     create: {
       title: "The First Law Book Club",
       linkName: "the-first-law-book-club",
       description: "Abercrombie fans discussing the books one chapter at a time.",
-      category: "Fantasy",
+      category: "BOOKS",
       visibility: "PUBLIC"
     },
     select: {

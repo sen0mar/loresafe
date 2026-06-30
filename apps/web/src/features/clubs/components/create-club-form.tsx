@@ -27,9 +27,11 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 
 import {
+  type ClubCategory,
   type ClubVisibility,
   useCreateClubMutation
 } from "../api/clubs.js";
+import { clubCategoryOptions } from "../lib/club-categories.js";
 import {
   createClubFormSchema,
   type CreateClubFormValues
@@ -81,7 +83,11 @@ export const CreateClubForm = () => {
 
   const updateField =
     (field: keyof CreateClubFormValues) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (
+      event: ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
       setValues((currentValues) => ({
         ...currentValues,
         [field]: event.target.value
@@ -101,6 +107,18 @@ export const CreateClubForm = () => {
     setFieldErrors((currentErrors) => ({
       ...currentErrors,
       visibility: undefined
+    }));
+    setFormError(null);
+  };
+
+  const updateCategory = (event: ChangeEvent<HTMLSelectElement>) => {
+    setValues((currentValues) => ({
+      ...currentValues,
+      category: event.target.value as ClubCategory | ""
+    }));
+    setFieldErrors((currentErrors) => ({
+      ...currentErrors,
+      category: undefined
     }));
     setFormError(null);
   };
@@ -236,18 +254,24 @@ export const CreateClubForm = () => {
             icon={<Sparkles className="size-4" />}
             error={fieldErrors.category}
           >
-            <Input
+            <select
+              className="flex h-10 w-full rounded-md border border-subtle bg-inset px-3 py-2 text-sm text-primary outline-none transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-faint hover:border-strong focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
               id="category"
-              type="text"
               value={values.category ?? ""}
-              onChange={updateField("category")}
+              onChange={updateCategory}
               disabled={createClubMutation.isPending}
               aria-invalid={!!fieldErrors.category}
               aria-describedby={
                 fieldErrors.category ? "category-error" : undefined
               }
-              placeholder="Books, Shows, Games..."
-            />
+            >
+              <option value="">Choose a category</option>
+              {clubCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </CreateClubFormField>
 
           <fieldset className="grid gap-2">

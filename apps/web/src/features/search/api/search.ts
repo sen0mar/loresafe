@@ -1,7 +1,11 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { apiGet } from "@/shared/api/api-client";
-import type { ClubPostCard, ClubVisibility } from "@/features/clubs/api/clubs";
+import type {
+  ClubCategory,
+  ClubPostCard,
+  ClubVisibility
+} from "@/features/clubs/api/clubs";
 
 export type SearchScope = "all" | "clubs" | "posts";
 
@@ -10,7 +14,7 @@ export type SearchClub = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   visibility: ClubVisibility;
   memberCount: number;

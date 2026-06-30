@@ -2,6 +2,7 @@ import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeBanWhere, activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubDetailRecord } from "../clubs/clubs.repository.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
@@ -374,7 +375,7 @@ const toClubDetailRecord = (club: {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   rules: string | null;
   visibility: ClubVisibility;
   createdAt: Date;

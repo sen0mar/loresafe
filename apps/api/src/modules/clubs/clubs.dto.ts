@@ -4,6 +4,7 @@ import type {
   ClubMemberRecord
 } from "./clubs.repository.js";
 import { r2Storage } from "../../core/storage/r2-storage.js";
+import type { ClubCategory } from "./clubs.schema.js";
 
 export type ClubVisibilityDto = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 export type ClubMembershipRoleDto = "OWNER" | "MODERATOR" | "MEMBER";
@@ -13,7 +14,7 @@ export type ClubDiscoveryDto = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   visibility: "PUBLIC";
   memberCount: number;
@@ -26,7 +27,7 @@ export type ClubDto = {
   title: string;
   linkName: string;
   description: string | null;
-  category: string | null;
+  category: ClubCategory;
   coverUrl: string | null;
   rules: string | null;
   visibility: ClubVisibilityDto;

@@ -14,6 +14,7 @@ import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-
 import type { ClubPostCard } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
+import { formatClubCategory } from "@/features/clubs/lib/club-categories";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -192,7 +193,7 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
             </Link>
           </h2>
           <p className="text-xs text-faint">
-            {club.category ?? "Uncategorized"} /{" "}
+            {formatClubCategory(club.category)} /{" "}
             {countFormatter.format(club.memberCount)} members
           </p>
         </div>

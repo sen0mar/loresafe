@@ -65,7 +65,7 @@ const seedPerfData = async () => {
     title: `ThreadSync Perf Club ${index}`,
     linkName: `${PERF_PREFIX}-club-${index}`,
     description: `Volume club ${index} for feed search moderation checks.`,
-    category: index % 2 === 0 ? "Fantasy" : "Sci-Fi",
+    category: index % 2 === 0 ? "BOOKS" : "GAMES",
     visibility: index < 6 ? ("PUBLIC" as const) : ("PRIVATE" as const),
     createdAt: new Date(now.getTime() - index * 60_000),
     updatedAt: now
