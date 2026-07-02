@@ -729,6 +729,45 @@ describe("frontend regression smoke", () => {
     );
   });
 
+  it("searches joined clubs from the My Clubs page search bar", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      {
+        method: "GET",
+        path: "/api/users/me/clubs",
+        response: ({ searchParams }: { searchParams: URLSearchParams }) =>
+          searchParams.get("q") === "older"
+            ? {
+                clubs: [twoJoinedClubsResponse.clubs[1]],
+                pagination: {
+                  page: 1,
+                  limit: 20,
+                  total: 1,
+                  pageCount: 1
+                }
+              }
+            : twoJoinedClubsResponse
+      },
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+    const user = userEvent.setup();
+    const pathChanges: string[] = [];
+
+    renderWithProviders(<JoinedClubsPage />, {
+      initialEntries: ["/app/clubs"],
+      routeObserver: (path) => pathChanges.push(path)
+    });
+    const main = within(await screen.findByRole("main"));
+
+    expect(await main.findByText("Newest Club")).toBeVisible();
+
+    await user.type(main.getByLabelText("Search My Clubs"), "older");
+
+    await waitFor(() => expect(pathChanges.at(-1)).toBe("/app/clubs?q=older"));
+    expect(await main.findByText("Older Club")).toBeVisible();
+    expect(main.queryByText("Newest Club")).not.toBeInTheDocument();
+  });
+
   it("loads more joined clubs from the joined clubs page", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
