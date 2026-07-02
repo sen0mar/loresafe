@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronDown,
@@ -7,6 +7,7 @@ import {
   KeyRound,
   LockKeyhole,
   RefreshCw,
+  Search,
   SearchX,
   ShieldCheck,
   Users
@@ -22,6 +23,7 @@ import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 const joinedClubsPageSize = 20;
@@ -33,8 +35,9 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export const JoinedClubsPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
+  const [searchValue, setSearchValue] = useState(query);
   const joinedClubsQuery = useJoinedClubsInfiniteQuery({
     q: query,
     limit: joinedClubsPageSize
@@ -44,35 +47,76 @@ export const JoinedClubsPage = () => {
   const total = joinedClubsQuery.data?.pages[0]?.pagination.total ?? 0;
   const hasQuery = query.length > 0;
 
+  useEffect(() => {
+    setSearchValue(query);
+  }, [query]);
+
+  const updateQuery = (nextQuery: string) => {
+    setSearchValue(nextQuery);
+    setSearchParams(() => {
+      const nextParams = new URLSearchParams();
+      const normalizedQuery = nextQuery.trim();
+
+      if (normalizedQuery) {
+        nextParams.set("q", normalizedQuery);
+      }
+
+      return nextParams;
+    });
+  };
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    updateQuery(searchValue);
+  };
+
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
-        <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
-          <div className="min-w-0 space-y-2">
-            <p className="flex items-center gap-2 text-sm font-medium text-brand">
-              <Users className="size-4" />
-              Clubs
-            </p>
-            <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
-              {hasQuery ? `Joined clubs matching "${query}"` : "Joined clubs"}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted">
-              Browse the clubs you already belong to. Search here stays inside
-              your memberships.
-            </p>
+        <section className="space-y-4 border-b border-default pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 space-y-2">
+              <p className="flex items-center gap-2 text-sm font-medium text-brand">
+                <Users className="size-4" />
+                Clubs
+              </p>
+              <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
+                {hasQuery ? `Joined clubs matching "${query}"` : "Joined clubs"}
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-muted">
+                Browse the clubs you already belong to. Search here stays inside
+                your memberships.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">
+                <ShieldCheck className="size-3" />
+                Member-only
+              </Badge>
+              <Button asChild variant="secondary">
+                <Link to="/app/explore">
+                  <Compass />
+                  Explore
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              <ShieldCheck className="size-3" />
-              Member-only
-            </Badge>
-            <Button asChild variant="secondary">
-              <Link to="/app/explore">
-                <Compass />
-                Explore
-              </Link>
-            </Button>
-          </div>
+
+          <form
+            className="relative"
+            role="search"
+            onSubmit={handleSearchSubmit}
+          >
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
+            <Input
+              type="search"
+              aria-label="Search My Clubs"
+              placeholder="Search your joined clubs..."
+              className="h-10 pl-9"
+              value={searchValue}
+              onChange={(event) => updateQuery(event.target.value)}
+            />
+          </form>
         </section>
 
         {joinedClubsQuery.isPending ? (
