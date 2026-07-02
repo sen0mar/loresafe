@@ -8,6 +8,7 @@ import type {
 } from "@/features/clubs/api/clubs";
 
 export type SearchScope = "all" | "clubs" | "posts";
+export type SearchFilter = "safe" | "spoiler" | "clubs" | "posts";
 
 export type SearchClub = {
   id: string;
@@ -25,8 +26,9 @@ export type SearchClub = {
 export type SearchResponse = {
   query: string;
   scope: SearchScope;
+  filters: SearchFilter[];
   clubs: SearchClub[];
-  posts: ClubPostCard[];
+  posts: SearchPost[];
   pagination: {
     limit: number;
     nextCursor: string | null;
@@ -34,10 +36,30 @@ export type SearchResponse = {
   };
 };
 
-export const searchScopes: Array<{ value: SearchScope; label: string }> = [
+export type SearchPost = {
+  post: ClubPostCard;
+  club: {
+    id: string;
+    title: string;
+    linkName: string;
+  };
+};
+
+export const defaultSearchFilters: SearchFilter[] = [
+  "safe",
+  "spoiler",
+  "clubs",
+  "posts"
+];
+
+export const searchFilters: Array<{ value: SearchFilter; label: string }> = [
   {
-    value: "all",
-    label: "All"
+    value: "safe",
+    label: "Safe"
+  },
+  {
+    value: "spoiler",
+    label: "Spoiler"
   },
   {
     value: "clubs",
@@ -45,30 +67,33 @@ export const searchScopes: Array<{ value: SearchScope; label: string }> = [
   },
   {
     value: "posts",
-    label: "Discussions"
+    label: "Posts"
   }
 ];
 
 export const searchQueryKeys = {
   root: ["search"] as const,
-  results: (query: string, scope: SearchScope) =>
-    ["search", "results", query, scope] as const
+  results: (query: string, filters: SearchFilter[]) =>
+    ["search", "results", query, filters.join(",")] as const
 };
 
 export const getSearchResults = ({
   cursor,
-  query,
-  scope
+  filters,
+  query
 }: {
   cursor: string | null;
+  filters: SearchFilter[];
   query: string;
-  scope: SearchScope;
 }) => {
   const params = new URLSearchParams({
     q: query,
-    scope,
     limit: "10"
   });
+
+  if (filters.length > 0) {
+    params.set("filters", filters.join(","));
+  }
 
   if (cursor) {
     params.set("cursor", cursor);
@@ -79,14 +104,14 @@ export const getSearchResults = ({
 
 export const useSearchResultsInfiniteQuery = (
   query: string,
-  scope: SearchScope
+  filters: SearchFilter[]
 ) =>
   useInfiniteQuery({
-    queryKey: searchQueryKeys.results(query, scope),
+    queryKey: searchQueryKeys.results(query, filters),
     queryFn: ({ pageParam }) =>
       getSearchResults({
         query,
-        scope,
+        filters,
         cursor: pageParam
       }),
     enabled: query.trim().length > 0,
