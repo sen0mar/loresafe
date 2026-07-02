@@ -90,6 +90,29 @@ describe("search routes", () => {
     expect(response.body).toEqual({
       query: "",
       scope: "all",
+      filters: ["safe", "spoiler", "clubs", "posts"],
+      clubs: [],
+      posts: [],
+      pagination: {
+        limit: 10,
+        nextCursor: null,
+        hasMore: false
+      }
+    });
+  });
+
+  it("returns an empty response for no matching accessible results", async () => {
+    const user = repository.createStoredUser(validUserInput());
+
+    const response = await request(app)
+      .get("/api/search?q=missing&filters=safe,spoiler,clubs,posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      query: "missing",
+      scope: "all",
+      filters: ["safe", "spoiler", "clubs", "posts"],
       clubs: [],
       posts: [],
       pagination: {
@@ -151,6 +174,35 @@ describe("search routes", () => {
     );
   });
 
+  it("returns only clubs when filtered to clubs", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    repository.createClub({
+      title: "Lantern Club",
+      linkName: "lantern-club",
+      visibility: "PUBLIC"
+    });
+    const postClub = repository.createClub({
+      title: "Post Club",
+      linkName: "post-club",
+      visibility: "PUBLIC"
+    });
+    const milestone = repository.createMilestone(postClub.id, 1, "Opening");
+    repository.setProgress(user.id, postClub.id, milestone.id, "STRICT");
+    repository.createPost(postClub.id, user.id, milestone.id, {
+      title: "Lantern discussion",
+      body: "Lantern details."
+    });
+
+    const response = await request(app)
+      .get("/api/search?q=lantern&filters=clubs")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.filters).toEqual(["clubs"]);
+    expect(response.body.clubs).toHaveLength(1);
+    expect(response.body.posts).toEqual([]);
+  });
+
   it("returns locked post results without future content snippets", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub({
@@ -173,16 +225,23 @@ describe("search routes", () => {
 
     expect(response.body.posts).toHaveLength(1);
     expect(response.body.posts[0]).toMatchObject({
+      club: {
+        id: club.id,
+        title: "Spoiler Club",
+        linkName: "spoiler-club"
+      },
+      post: {
       visibility: "LOCKED",
       requiredMilestone: {
         id: future.id,
         position: 2,
         label: "Future checkpoint"
       }
+      }
     });
-    expect(response.body.posts[0]).not.toHaveProperty("title");
-    expect(response.body.posts[0]).not.toHaveProperty("bodyPreview");
-    expect(response.body.posts[0]).not.toHaveProperty("author");
+    expect(response.body.posts[0].post).not.toHaveProperty("title");
+    expect(response.body.posts[0].post).not.toHaveProperty("bodyPreview");
+    expect(response.body.posts[0].post).not.toHaveProperty("author");
     expect(JSON.stringify(response.body.posts)).not.toContain("Late twist title");
     expect(JSON.stringify(response.body.posts)).not.toContain(
       "Future phrase hidden"
@@ -210,16 +269,149 @@ describe("search routes", () => {
 
     expect(response.body.posts).toEqual([
       expect.objectContaining({
-        id: post.id,
-        visibility: "VISIBLE",
-        title: "Lantern theory",
-        bodyPreview: "The lantern matters here.",
-        author: expect.objectContaining({
-          id: user.id,
-          displayName: "Reader"
+        club: {
+          id: club.id,
+          title: "Safe Club",
+          linkName: "safe-club"
+        },
+        post: expect.objectContaining({
+          id: post.id,
+          visibility: "VISIBLE",
+          title: "Lantern theory",
+          bodyPreview: "The lantern matters here.",
+          author: expect.objectContaining({
+            id: user.id,
+            displayName: "Reader"
+          })
         })
       })
     ]);
+  });
+
+  it("filters post results to safe or spoiler visibility", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub({
+      title: "Mixed Club",
+      linkName: "mixed-club",
+      visibility: "PUBLIC"
+    });
+    const opening = repository.createMilestone(club.id, 1, "Opening");
+    const future = repository.createMilestone(club.id, 2, "Future checkpoint");
+    repository.setProgress(user.id, club.id, opening.id, "STRICT");
+    const safePost = repository.createPost(club.id, user.id, opening.id, {
+      title: "Archive safe",
+      body: "Archive discussion."
+    });
+    repository.createPost(club.id, user.id, future.id, {
+      title: "Archive future",
+      body: "Archive spoiler discussion."
+    });
+
+    const safeResponse = await request(app)
+      .get("/api/search?q=archive&filters=posts,safe")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(safeResponse.body.filters).toEqual(["safe", "posts"]);
+    expect(safeResponse.body.clubs).toEqual([]);
+    expect(safeResponse.body.posts).toEqual([
+      expect.objectContaining({
+        post: expect.objectContaining({
+          id: safePost.id,
+          visibility: "VISIBLE",
+          title: "Archive safe"
+        })
+      })
+    ]);
+
+    const spoilerResponse = await request(app)
+      .get("/api/search?q=archive&filters=posts,spoiler")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(spoilerResponse.body.filters).toEqual(["spoiler", "posts"]);
+    expect(spoilerResponse.body.clubs).toEqual([]);
+    expect(spoilerResponse.body.posts).toHaveLength(1);
+    expect(spoilerResponse.body.posts[0].post).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        id: future.id,
+        position: 2,
+        label: "Future checkpoint"
+      }
+    });
+    expect(JSON.stringify(spoilerResponse.body.posts)).not.toContain(
+      "Archive future"
+    );
+  });
+
+  it("treats safe or spoiler filters as post result filters", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub({
+      title: "Focused Club",
+      linkName: "focused-club",
+      visibility: "PUBLIC"
+    });
+    const opening = repository.createMilestone(club.id, 1, "Opening");
+    const future = repository.createMilestone(club.id, 2, "Future checkpoint");
+    repository.setProgress(user.id, club.id, opening.id, "STRICT");
+    const safePost = repository.createPost(club.id, user.id, opening.id, {
+      title: "Solo safe",
+      body: "Solo archive discussion."
+    });
+    repository.createPost(club.id, user.id, future.id, {
+      title: "Solo future",
+      body: "Solo future archive discussion."
+    });
+
+    const response = await request(app)
+      .get("/api/search?q=solo&filters=safe")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.filters).toEqual(["safe", "posts"]);
+    expect(response.body.clubs).toEqual([]);
+    expect(response.body.posts).toEqual([
+      expect.objectContaining({
+        post: expect.objectContaining({
+          id: safePost.id,
+          visibility: "VISIBLE"
+        })
+      })
+    ]);
+  });
+
+  it("keeps legacy scope filters working when filters are absent", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub({
+      title: "Legacy Club",
+      linkName: "legacy-club",
+      visibility: "PUBLIC"
+    });
+    const milestone = repository.createMilestone(club.id, 1, "Opening");
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    repository.createPost(club.id, user.id, milestone.id, {
+      title: "Legacy post",
+      body: "Legacy search body."
+    });
+
+    const clubsResponse = await request(app)
+      .get("/api/search?q=legacy&scope=clubs")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(clubsResponse.body.filters).toEqual(["clubs"]);
+    expect(clubsResponse.body.clubs).toHaveLength(1);
+    expect(clubsResponse.body.posts).toEqual([]);
+
+    const postsResponse = await request(app)
+      .get("/api/search?q=legacy&scope=posts")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(postsResponse.body.filters).toEqual(["safe", "spoiler", "posts"]);
+    expect(postsResponse.body.clubs).toEqual([]);
+    expect(postsResponse.body.posts).toHaveLength(1);
   });
 
   it("excludes hidden and deleted posts", async () => {
@@ -360,7 +552,17 @@ class InMemorySearchRepository
   searchPosts = async (
     query: string,
     userId: string,
-    { limit, offset }: { limit: number; offset: number }
+    {
+      includeSafe,
+      includeSpoiler,
+      limit,
+      offset
+    }: {
+      includeSafe: boolean;
+      includeSpoiler: boolean;
+      limit: number;
+      offset: number;
+    }
   ): Promise<SearchResult<SearchPostRecord>> => {
     const matches = this.posts
       .filter((post) => post.status === "VISIBLE" && !post.deletedAt)
@@ -373,6 +575,12 @@ class InMemorySearchRepository
         [post.title, post.body].some((value) =>
           value.toLowerCase().includes(query.toLowerCase())
         )
+      )
+      .filter((post) =>
+        this.matchesPostVisibilityFilter(post, userId, {
+          includeSafe,
+          includeSpoiler
+        })
       );
     const page = matches.slice(offset, offset + limit + 1);
 
@@ -540,6 +748,36 @@ class InMemorySearchRepository
       (membership) =>
         membership.clubId === club.id && membership.userId === userId
     );
+
+  private matchesPostVisibilityFilter = (
+    post: StoredPost,
+    userId: string,
+    {
+      includeSafe,
+      includeSpoiler
+    }: {
+      includeSafe: boolean;
+      includeSpoiler: boolean;
+    }
+  ) => {
+    if (includeSafe && includeSpoiler) {
+      return true;
+    }
+
+    const progress = this.progressRows.find(
+      (currentProgress) =>
+        currentProgress.clubId === post.clubId &&
+        currentProgress.userId === userId
+    );
+    const currentMilestone = progress?.milestoneId
+      ? this.milestones.get(progress.milestoneId)
+      : null;
+    const isSafe =
+      progress?.mode === "FINISHED" ||
+      post.requiredMilestone.position <= (currentMilestone?.position ?? 0);
+
+    return includeSafe ? isSafe : !isSafe;
+  };
 
   private toSearchPostClub = (
     clubId: string,

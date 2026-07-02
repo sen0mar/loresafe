@@ -1,7 +1,8 @@
 import { r2Storage } from "../../core/storage/r2-storage.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ClubPostCardDto } from "../posts/posts.dto.js";
-import type { SearchClubRecord } from "./search.repository.js";
+import type { SearchClubRecord, SearchPostRecord } from "./search.repository.js";
+import type { SearchFilter } from "./search.schema.js";
 
 export type SearchClubDto = {
   id: string;
@@ -19,12 +20,22 @@ export type SearchClubDto = {
 export type SearchResponse = {
   query: string;
   scope: "all" | "clubs" | "posts";
+  filters: SearchFilter[];
   clubs: SearchClubDto[];
-  posts: ClubPostCardDto[];
+  posts: SearchPostDto[];
   pagination: {
     limit: number;
     nextCursor: string | null;
     hasMore: boolean;
+  };
+};
+
+export type SearchPostDto = {
+  post: ClubPostCardDto;
+  club: {
+    id: string;
+    title: string;
+    linkName: string;
   };
 };
 
@@ -42,4 +53,16 @@ export const toSearchClubDto = (club: SearchClubRecord): SearchClubDto => ({
   memberCount: club.memberCount,
   createdAt: club.createdAt.toISOString(),
   updatedAt: club.updatedAt.toISOString()
+});
+
+export const toSearchPostDto = (
+  result: SearchPostRecord,
+  post: ClubPostCardDto
+): SearchPostDto => ({
+  post,
+  club: {
+    id: result.club.id,
+    title: result.club.title,
+    linkName: result.club.linkName
+  }
 });

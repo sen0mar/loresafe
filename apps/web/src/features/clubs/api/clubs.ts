@@ -1148,10 +1148,11 @@ export const updateClubProgress = (
 export const advanceClubProgressToNextMilestone = (linkName: string) =>
   apiPost<ClubProgressResponse>(`/api/clubs/${linkName}/progress/next`);
 
-export const usePublicClubsQuery = () =>
+export const usePublicClubsQuery = (enabled = true) =>
   useQuery({
     queryKey: clubsQueryKeys.discovery,
-    queryFn: getPublicClubs
+    queryFn: getPublicClubs,
+    enabled
   });
 
 export const useClubQuery = (linkName: string) =>

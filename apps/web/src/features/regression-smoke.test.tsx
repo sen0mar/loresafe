@@ -17,7 +17,6 @@ import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
 import { HomePage } from "@/features/home/pages/home-page";
 import { ProfileSettingsForm } from "@/features/profile/components/profile-settings-form";
 import { ProfileSettingsPage } from "@/features/profile/pages/profile-settings-page";
-import { SearchResultsPage } from "@/features/search/pages/search-results-page";
 import {
   getJsonRequestBody,
   mockFetchRoutes,
@@ -1178,6 +1177,7 @@ describe("frontend regression smoke", () => {
       shellRoute("/api/search", {
         query: "nebula",
         scope: "clubs",
+        filters: ["clubs"],
         clubs: [
           {
             id: clubId,
@@ -1200,8 +1200,8 @@ describe("frontend regression smoke", () => {
         }
       })
     ]);
-    renderWithProviders(<SearchResultsPage />, {
-      initialEntries: ["/app/search?q=nebula&scope=clubs"]
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?q=nebula&filters=clubs"]
     });
 
     expect(await screen.findByText("Public Nebula Club")).toBeInTheDocument();
@@ -1210,6 +1210,223 @@ describe("frontend regression smoke", () => {
       "https://cdn.example/public-nebula-club.png"
     );
     expect(screen.queryByText("PRIVATE_SEARCH_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state for search queries with no matches", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/search", {
+        query: "zzzz",
+        scope: "all",
+        filters: ["safe", "spoiler", "clubs", "posts"],
+        clubs: [],
+        posts: [],
+        pagination: {
+          limit: 10,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?q=zzzz"]
+    });
+
+    expect(await screen.findByText("No results found")).toBeVisible();
+    expect(screen.getByText(/nothing matched "zzzz"/i)).toBeVisible();
+  });
+
+  it("searches from Explore and replaces discovery clubs with an empty state", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs", {
+        clubs: [
+          {
+            id: clubId,
+            title: "Public Story Club",
+            linkName: "public-story-club",
+            description: "Public discussion.",
+            category: "BOOKS",
+            coverUrl: null,
+            visibility: "PUBLIC",
+            memberCount: 12,
+            createdAt: now,
+            updatedAt: now
+          }
+        ],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          pageCount: 1
+        }
+      }),
+      shellRoute("/api/search", {
+        query: "x",
+        scope: "all",
+        filters: ["safe", "spoiler", "clubs", "posts"],
+        clubs: [],
+        posts: [],
+        pagination: {
+          limit: 10,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore"]
+    });
+
+    expect(await screen.findByText("Public Story Club")).toBeVisible();
+
+    await user.type(screen.getByLabelText("Search Explore"), "x");
+
+    expect(await screen.findByText("No results found")).toBeVisible();
+    expect(screen.queryByText("Public Story Club")).not.toBeInTheDocument();
+  });
+
+  it("keeps Explore filter selections as a saved dropdown draft", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/search", {
+        query: "visible",
+        scope: "all",
+        filters: ["safe", "spoiler", "clubs", "posts"],
+        clubs: [],
+        posts: [
+          {
+            post: visiblePost,
+            club: {
+              id: club.id,
+              title: club.title,
+              linkName: club.linkName
+            }
+          }
+        ],
+        pagination: {
+          limit: 10,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+    const user = userEvent.setup();
+    const pathChanges: string[] = [];
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?q=visible"],
+      routeObserver: (path) => pathChanges.push(path)
+    });
+
+    expect(await screen.findByText("Visible post title")).toBeVisible();
+    expect(screen.getByRole("button", { name: /add filters0/i })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /add filters/i }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Safe" }));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeVisible();
+    expect(pathChanges.at(-1)).toBe("/app/explore?q=visible");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(pathChanges.at(-1)).toBe("/app/explore?q=visible&filters=safe")
+    );
+    expect(
+      screen.getByRole("button", { name: /add filters1/i })
+    ).toBeVisible();
+  });
+
+  it("shows posts-only search results with the containing club name", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/search", {
+        query: "visible",
+        scope: "all",
+        filters: ["safe", "posts"],
+        clubs: [],
+        posts: [
+          {
+            post: visiblePost,
+            club: {
+              id: club.id,
+              title: club.title,
+              linkName: club.linkName
+            }
+          }
+        ],
+        pagination: {
+          limit: 10,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?q=visible&filters=posts,safe"]
+    });
+
+    expect(await screen.findByText("Visible post title")).toBeVisible();
+    expect(screen.getByRole("link", { name: /in safe club/i })).toHaveAttribute(
+      "href",
+      "/app/clubs/safe-club"
+    );
+    expect(screen.queryByRole("heading", { name: "Clubs" })).not.toBeInTheDocument();
+  });
+
+  it("shows clubs-only search results without discussions", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/search", {
+        query: "safe",
+        scope: "all",
+        filters: ["clubs"],
+        clubs: [
+          {
+            id: clubId,
+            title: "Safe Club",
+            linkName: "safe-club",
+            description: "Visible result.",
+            category: "BOOKS",
+            coverUrl: null,
+            visibility: "PUBLIC",
+            memberCount: 7,
+            createdAt: now,
+            updatedAt: now
+          }
+        ],
+        posts: [],
+        pagination: {
+          limit: 10,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?q=safe&filters=clubs"]
+    });
+    const main = within(await screen.findByRole("main"));
+
+    expect(await main.findByText("Safe Club")).toBeVisible();
+    expect(main.queryByRole("heading", { name: "Discussions" })).not.toBeInTheDocument();
+    expect(main.queryByText("Visible post title")).not.toBeInTheDocument();
   });
 });
 

@@ -1,5 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
-import type { Prisma } from "../../generated/prisma/client.js";
+import { Prisma } from "../../generated/prisma/client.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
@@ -59,13 +59,18 @@ export type SearchRepository = {
   searchPosts: (
     query: string,
     userId: string,
-    input: SearchPageInput
+    input: SearchPostPageInput
   ) => Promise<SearchResult<SearchPostRecord>>;
 };
 
 type SearchPageInput = {
   offset: number;
   limit: number;
+};
+
+type SearchPostPageInput = SearchPageInput & {
+  includeSafe: boolean;
+  includeSpoiler: boolean;
 };
 
 type SearchClubRow = {
@@ -228,7 +233,15 @@ export const searchRepository: SearchRepository = {
     };
   },
 
-  searchPosts: async (query, userId, { limit, offset }) => {
+  searchPosts: async (
+    query,
+    userId,
+    { includeSafe, includeSpoiler, limit, offset }
+  ) => {
+    const visibilityCondition = searchPostVisibilityCondition({
+      includeSafe,
+      includeSpoiler
+    });
     const rows = await prisma.$queryRaw<SearchPostRow[]>`
       WITH search AS (
         SELECT websearch_to_tsquery('english', ${query}) AS query
@@ -237,9 +250,16 @@ export const searchRepository: SearchRepository = {
       FROM "posts" p
       CROSS JOIN search
       INNER JOIN "clubs" c ON c."id" = p."club_id"
+      INNER JOIN "milestones" required_milestone
+        ON required_milestone."id" = p."required_milestone_id"
       LEFT JOIN "club_memberships" current_member
         ON current_member."club_id" = c."id"
         AND current_member."user_id" = ${userId}::uuid
+      LEFT JOIN "club_progress" current_progress
+        ON current_progress."club_id" = c."id"
+        AND current_progress."user_id" = ${userId}::uuid
+      LEFT JOIN "milestones" current_milestone
+        ON current_milestone."id" = current_progress."current_milestone_id"
       LEFT JOIN "club_bans" current_ban
         ON current_ban."club_id" = c."id"
         AND current_ban."user_id" = ${userId}::uuid
@@ -255,6 +275,7 @@ export const searchRepository: SearchRepository = {
         OR current_member."user_id" IS NOT NULL
       )
       AND current_ban."id" IS NULL
+      ${visibilityCondition}
       AND to_tsvector(
         'english',
         coalesce(p."title", '') || ' ' || coalesce(p."body", '')
@@ -292,6 +313,29 @@ export const searchRepository: SearchRepository = {
       hasMore: rows.length > limit
     };
   }
+};
+
+const searchPostVisibilityCondition = ({
+  includeSafe,
+  includeSpoiler
+}: {
+  includeSafe: boolean;
+  includeSpoiler: boolean;
+}) => {
+  if (includeSafe && includeSpoiler) {
+    return Prisma.empty;
+  }
+
+  const safeCondition = Prisma.sql`(
+    current_progress."mode" = 'FINISHED'
+    OR required_milestone."position" <= coalesce(current_milestone."position", 0)
+  )`;
+
+  if (includeSafe) {
+    return Prisma.sql`AND ${safeCondition}`;
+  }
+
+  return Prisma.sql`AND NOT ${safeCondition}`;
 };
 
 const toSearchClubRecord = (row: SearchClubRow): SearchClubRecord => ({

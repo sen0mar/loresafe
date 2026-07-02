@@ -125,41 +125,16 @@ describe("AppShell layout", () => {
     );
   });
 
-  it("submits top-bar search in place on the joined clubs page", async () => {
-    const user = userEvent.setup();
-    const pathChanges: string[] = [];
-
+  it("does not render a global search bar in the app shell", () => {
     renderWithProviders(
       <AppShell currentUser={currentUser}>
         <div data-testid="page-content">Page content</div>
       </AppShell>,
       {
-        initialEntries: ["/app/clubs"],
-        routeObserver: (path) => pathChanges.push(path)
+        initialEntries: ["/app/explore"]
       }
     );
 
-    await user.type(screen.getByLabelText("Search"), "nebula{Enter}");
-
-    expect(pathChanges.at(-1)).toBe("/app/clubs?q=nebula");
-  });
-
-  it("keeps top-bar search global outside the joined clubs page", async () => {
-    const user = userEvent.setup();
-    const pathChanges: string[] = [];
-
-    renderWithProviders(
-      <AppShell currentUser={currentUser}>
-        <div data-testid="page-content">Page content</div>
-      </AppShell>,
-      {
-        initialEntries: ["/app/explore"],
-        routeObserver: (path) => pathChanges.push(path)
-      }
-    );
-
-    await user.type(screen.getByLabelText("Search"), "nebula{Enter}");
-
-    expect(pathChanges.at(-1)).toBe("/app/search?scope=all&q=nebula");
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
   });
 });

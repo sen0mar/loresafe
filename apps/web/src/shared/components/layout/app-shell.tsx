@@ -1,10 +1,9 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import { Bell, Search } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { type ReactNode } from "react";
+import { Bell } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
 import { cn } from "@/shared/lib/utils";
 
 import {
@@ -46,50 +45,6 @@ export const AppShell = ({
   onRetryJoinedClubs,
   rightRail
 }: AppShellProps) => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [searchValue, setSearchValue] = useState("");
-  const isJoinedClubsRoute = location.pathname === "/app/clubs";
-  const isSearchRoute = location.pathname === "/app/search";
-
-  useEffect(() => {
-    if (!isSearchRoute && !isJoinedClubsRoute) {
-      setSearchValue("");
-      return;
-    }
-
-    setSearchValue(new URLSearchParams(location.search).get("q") ?? "");
-  }, [isJoinedClubsRoute, isSearchRoute, location.search]);
-
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const query = searchValue.trim();
-
-    if (isJoinedClubsRoute) {
-      const params = new URLSearchParams();
-
-      if (query) {
-        params.set("q", query);
-      }
-
-      const queryString = params.toString();
-
-      navigate(queryString ? `/app/clubs?${queryString}` : "/app/clubs");
-      return;
-    }
-
-    const params = new URLSearchParams({
-      scope: "all"
-    });
-
-    if (query) {
-      params.set("q", query);
-    }
-
-    navigate(`/app/search?${params.toString()}`);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-app text-primary">
       <div className="mx-auto flex min-h-screen w-full max-w-[112rem] p-2 lg:p-3">
@@ -112,21 +67,7 @@ export const AppShell = ({
               onRetryJoinedClubs={onRetryJoinedClubs}
               notificationUnreadCount={notificationUnreadCount}
             />
-            <form
-              className="relative min-w-0 flex-1"
-              role="search"
-              onSubmit={handleSearchSubmit}
-            >
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
-              <Input
-                type="search"
-                aria-label="Search"
-                placeholder="Search clubs or discussions..."
-                className="h-9 pl-9"
-                value={searchValue}
-                onChange={(event) => setSearchValue(event.target.value)}
-              />
-            </form>
+            <div className="min-w-0 flex-1" />
             <Button
               asChild
               variant="ghost"

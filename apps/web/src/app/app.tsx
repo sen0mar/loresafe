@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation
+} from "react-router-dom";
 
 import { RouteErrorBoundary } from "./route-error-boundary.js";
 import { Sentry } from "./sentry.js";
@@ -22,7 +28,6 @@ import { InviteAcceptPage } from "../features/invites/pages/invite-accept-page.j
 import { LandingPage } from "../features/landing/pages/landing-page.js";
 import { NotificationsPage } from "../features/notifications/pages/notifications-page.js";
 import { ProfileSettingsPage } from "../features/profile/pages/profile-settings-page.js";
-import { SearchResultsPage } from "../features/search/pages/search-results-page.js";
 import { Toaster } from "../shared/components/ui/sonner.js";
 import { AUTHENTICATED_HOME_PATH } from "./routes.js";
 
@@ -125,7 +130,7 @@ export const App = () => (
             path="/app/search"
             element={
               <ProtectedRoute>
-                <SearchResultsPage />
+                <SearchRedirect />
               </ProtectedRoute>
             }
           />
@@ -189,3 +194,9 @@ export const App = () => (
     </BrowserRouter>
   </QueryClientProvider>
 );
+
+const SearchRedirect = () => {
+  const location = useLocation();
+
+  return <Navigate to={`/app/explore${location.search}`} replace />;
+};

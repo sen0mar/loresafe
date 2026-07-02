@@ -1,12 +1,16 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 import { toClubPostCardDto } from "../posts/posts.dto.js";
-import { toSearchClubDto, type SearchResponse } from "./search.dto.js";
+import {
+  toSearchClubDto,
+  toSearchPostDto,
+  type SearchResponse
+} from "./search.dto.js";
 import {
   searchRepository,
   type SearchRepository
 } from "./search.repository.js";
-import type { SearchQuery } from "./search.schema.js";
+import type { SearchFilter, SearchQuery } from "./search.schema.js";
 
 export type SearchService = {
   search: (userId: string, query: SearchQuery) => Promise<SearchResponse>;
@@ -22,9 +26,10 @@ export const createSearchService = (
 ): SearchService => ({
   search: async (userId, query) => {
     const normalizedQuery = query.q.trim();
+    const filters = normalizeSearchFilters(query);
 
     if (!normalizedQuery) {
-      return emptySearchResponse(query);
+      return emptySearchResponse(query, filters);
     }
 
     const cursor = decodeSearchCursor(query.cursor);
@@ -32,25 +37,26 @@ export const createSearchService = (
       offset: cursor?.offset ?? 0,
       limit: query.limit
     };
-    const includeClubs = query.scope === "all" || query.scope === "clubs";
-    const includePosts = query.scope === "all" || query.scope === "posts";
+    const includeClubs = filters.includes("clubs");
+    const includePosts = filters.includes("posts");
     const [clubResult, postResult] = await Promise.all([
       includeClubs
         ? repository.searchClubs(normalizedQuery, userId, pageInput)
         : Promise.resolve({ records: [], hasMore: false }),
       includePosts
-        ? repository.searchPosts(normalizedQuery, userId, pageInput)
+        ? repository.searchPosts(normalizedQuery, userId, {
+            ...pageInput,
+            includeSafe: filters.includes("safe"),
+            includeSpoiler: filters.includes("spoiler")
+          })
         : Promise.resolve({ records: [], hasMore: false })
     ]);
     const hasMore = clubResult.hasMore || postResult.hasMore;
-
-    return {
-      query: normalizedQuery,
-      scope: query.scope,
-      clubs: clubResult.records.map(toSearchClubDto),
-      posts: await Promise.all(
-        postResult.records.map((result) =>
-          toClubPostCardDto(
+    const posts = await Promise.all(
+      postResult.records.map(async (result) =>
+        toSearchPostDto(
+          result,
+          await toClubPostCardDto(
             result.post,
             {
               ...result.club.progress,
@@ -60,7 +66,15 @@ export const createSearchService = (
             storage
           )
         )
-      ),
+      )
+    );
+
+    return {
+      query: normalizedQuery,
+      scope: query.scope,
+      filters,
+      clubs: clubResult.records.map(toSearchClubDto),
+      posts,
       pagination: {
         limit: query.limit,
         nextCursor: hasMore
@@ -74,9 +88,13 @@ export const createSearchService = (
 
 export const searchService = createSearchService();
 
-const emptySearchResponse = (query: SearchQuery): SearchResponse => ({
+const emptySearchResponse = (
+  query: SearchQuery,
+  filters: SearchFilter[]
+): SearchResponse => ({
   query: "",
   scope: query.scope,
+  filters,
   clubs: [],
   posts: [],
   pagination: {
@@ -85,6 +103,46 @@ const emptySearchResponse = (query: SearchQuery): SearchResponse => ({
     hasMore: false
   }
 });
+
+const defaultSearchFilters: SearchFilter[] = [
+  "safe",
+  "spoiler",
+  "clubs",
+  "posts"
+];
+
+const normalizeSearchFilters = (query: SearchQuery): SearchFilter[] => {
+  const filters = query.filters
+    ? uniqueSearchFilters(query.filters.split(",") as SearchFilter[])
+    : filtersFromLegacyScope(query.scope);
+  const hasSafetyFilter =
+    filters.includes("safe") || filters.includes("spoiler");
+
+  if (hasSafetyFilter && !filters.includes("posts")) {
+    return uniqueSearchFilters([...filters, "posts"]);
+  }
+
+  if (filters.includes("posts") && !hasSafetyFilter) {
+    return [...filters, "safe", "spoiler"];
+  }
+
+  return filters;
+};
+
+const filtersFromLegacyScope = (scope: SearchQuery["scope"]): SearchFilter[] => {
+  if (scope === "clubs") {
+    return ["clubs"];
+  }
+
+  if (scope === "posts") {
+    return ["safe", "spoiler", "posts"];
+  }
+
+  return defaultSearchFilters;
+};
+
+const uniqueSearchFilters = (filters: SearchFilter[]) =>
+  defaultSearchFilters.filter((filter) => filters.includes(filter));
 
 const encodeSearchCursor = ({ offset }: SearchCursor) =>
   Buffer.from(JSON.stringify({ offset })).toString("base64url");

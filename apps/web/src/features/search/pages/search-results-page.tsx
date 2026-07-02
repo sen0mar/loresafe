@@ -1,17 +1,16 @@
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Building2,
   ChevronDown,
+  Filter,
   LockKeyhole,
-  MessageSquareText,
   RefreshCw,
   Search,
   SearchX
 } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import type { ClubPostCard } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
@@ -19,33 +18,54 @@ import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/shared/components/ui/dropdown-menu";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 import {
-  searchScopes,
+  defaultSearchFilters,
+  searchFilters,
   type SearchClub,
-  type SearchScope,
+  type SearchFilter,
+  type SearchPost,
   useSearchResultsInfiniteQuery
 } from "../api/search.js";
 
 const countFormatter = new Intl.NumberFormat();
+export const typeFilters: SearchFilter[] = ["clubs", "posts"];
+const validSearchFilters = new Set<SearchFilter>(defaultSearchFilters);
+const filterLabelByValue = Object.fromEntries(
+  searchFilters.map((filter) => [filter.value, filter.label])
+) as Record<SearchFilter, string>;
 
 export const SearchResultsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
-  const scope = parseScope(searchParams.get("scope"));
-  const searchQuery = useSearchResultsInfiniteQuery(query, scope);
+  const filters = parseFilters(searchParams);
+  const effectiveFilters = toEffectiveSearchFilters(filters);
+  const searchQuery = useSearchResultsInfiniteQuery(query, filters);
   const clubs = searchQuery.data?.pages.flatMap((page) => page.clubs) ?? [];
   const posts = searchQuery.data?.pages.flatMap((page) => page.posts) ?? [];
   const hasQuery = query.length > 0;
   const hasResults = clubs.length > 0 || posts.length > 0;
 
-  const updateScope = (nextScope: string) => {
+  const saveFilters = (nextFilters: SearchFilter[]) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
 
-      nextParams.set("scope", parseScope(nextScope));
+      nextParams.delete("scope");
+
+      if (nextFilters.length > 0) {
+        nextParams.set("filters", nextFilters.join(","));
+      } else {
+        nextParams.delete("filters");
+      }
 
       if (query) {
         nextParams.set("q", query);
@@ -71,36 +91,32 @@ export const SearchResultsPage = () => {
               Results respect club access and your current spoiler progress.
             </p>
           </div>
-          <Tabs
-            className="min-w-0 max-w-full"
-            value={scope}
-            onValueChange={updateScope}
-          >
-            <TabsList className="w-full sm:w-fit">
-              {searchScopes.map((searchScope) => (
-                <TabsTrigger key={searchScope.value} value={searchScope.value}>
-                  {searchScope.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <SearchFilterMenu filters={filters} onFiltersSave={saveFilters} />
         </section>
+
+        {hasQuery && filters.length > 0 ? (
+          <ActiveFilterBadges filters={filters} />
+        ) : null}
 
         {!hasQuery ? (
           <SearchPrompt />
         ) : searchQuery.isPending ? (
-          <SearchLoading scope={scope} />
+          <SearchLoading filters={effectiveFilters} />
         ) : searchQuery.isError ? (
           <SearchError
             error={searchQuery.error}
             onRetry={() => void searchQuery.refetch()}
           />
         ) : !hasResults ? (
-          <SearchEmpty query={query} />
+          <SearchEmpty filters={effectiveFilters} query={query} />
         ) : (
           <div className="space-y-5">
-            {scope !== "posts" ? <ClubResults clubs={clubs} /> : null}
-            {scope !== "clubs" ? <PostResults posts={posts} /> : null}
+            {effectiveFilters.includes("clubs") ? (
+              <ClubResults clubs={clubs} />
+            ) : null}
+            {effectiveFilters.includes("posts") ? (
+              <PostResults posts={posts} />
+            ) : null}
             {searchQuery.hasNextPage ? (
               <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted">
@@ -126,56 +142,145 @@ export const SearchResultsPage = () => {
   );
 };
 
-const ClubResults = ({ clubs }: { clubs: SearchClub[] }) => (
-  <section className="space-y-3">
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base font-semibold text-primary">Clubs</h2>
-      <Badge variant="secondary">
-        {countFormatter.format(clubs.length)} shown
+export const SearchFilterMenu = ({
+  filters,
+  onFiltersSave
+}: {
+  filters: SearchFilter[];
+  onFiltersSave: (filters: SearchFilter[]) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<SearchFilter[]>(filters);
+
+  useEffect(() => {
+    if (!open) {
+      setDraftFilters(filters);
+    }
+  }, [filters, open]);
+
+  const updateDraftFilter = (filter: SearchFilter, checked: boolean) => {
+    setDraftFilters((currentFilters) =>
+      toggleSearchFilter(currentFilters, filter, checked)
+    );
+  };
+
+  const saveFilters = () => {
+    onFiltersSave(draftFilters);
+    setOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary">
+          <Filter />
+          Add filters
+          <Badge variant="outline">{filters.length}</Badge>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Search filters</DropdownMenuLabel>
+        {searchFilters.slice(0, 2).map((filter) => (
+          <DropdownMenuCheckboxItem
+            key={filter.value}
+            checked={draftFilters.includes(filter.value)}
+            onCheckedChange={(checked) =>
+              updateDraftFilter(filter.value, checked === true)
+            }
+            onSelect={(event) => event.preventDefault()}
+          >
+            {filter.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        {searchFilters.slice(2).map((filter) => (
+          <DropdownMenuCheckboxItem
+            key={filter.value}
+            checked={draftFilters.includes(filter.value)}
+            onCheckedChange={(checked) =>
+              updateDraftFilter(filter.value, checked === true)
+            }
+            onSelect={(event) => event.preventDefault()}
+          >
+            {filter.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        <div className="p-1">
+          <Button className="w-full" size="sm" type="button" onClick={saveFilters}>
+            Save
+          </Button>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export const ActiveFilterBadges = ({ filters }: { filters: SearchFilter[] }) => (
+  <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
+    {filters.map((filter) => (
+      <Badge key={filter} variant="secondary">
+        {filterLabelByValue[filter]}
       </Badge>
-    </div>
-    {clubs.length === 0 ? (
-      <SectionEmpty
-        icon={<Building2 className="size-5" />}
-        title="No matching clubs"
-        body="Try another title, category, or club linkName."
-      />
-    ) : (
+    ))}
+  </div>
+);
+
+export const ClubResults = ({ clubs }: { clubs: SearchClub[] }) => {
+  if (clubs.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-primary">Clubs</h2>
+        <Badge variant="secondary">
+          {countFormatter.format(clubs.length)} shown
+        </Badge>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {clubs.map((club) => (
           <SearchClubCard key={club.id} club={club} />
         ))}
       </div>
-    )}
-  </section>
-);
+    </section>
+  );
+};
 
-const PostResults = ({
-  posts
-}: {
-  posts: ClubPostCard[];
-}) => (
-  <section className="space-y-3">
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base font-semibold text-primary">Discussions</h2>
-      <Badge variant="secondary">
-        {countFormatter.format(posts.length)} shown
-      </Badge>
-    </div>
-    {posts.length === 0 ? (
-      <SectionEmpty
-        icon={<MessageSquareText className="size-5" />}
-        title="No matching discussions"
-        body="Discussions you can access will appear here."
-      />
-    ) : (
+export const PostResults = ({ posts }: { posts: SearchPost[] }) => {
+  if (posts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-primary">Discussions</h2>
+        <Badge variant="secondary">
+          {countFormatter.format(posts.length)} shown
+        </Badge>
+      </div>
       <div className="space-y-3">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} linked />
+        {posts.map((result) => (
+          <SearchPostResult key={result.post.id} result={result} />
         ))}
       </div>
-    )}
-  </section>
+    </section>
+  );
+};
+
+const SearchPostResult = ({ result }: { result: SearchPost }) => (
+  <div className="space-y-2">
+    <Link
+      className="inline-flex w-fit items-center gap-2 rounded-md text-xs text-faint transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      to={`/app/clubs/${result.club.linkName}`}
+    >
+      <Building2 className="size-3.5" />
+      In {result.club.title}
+    </Link>
+    <PostCard post={result.post} linked />
+  </div>
 );
 
 const SearchClubCard = ({ club }: { club: SearchClub }) => (
@@ -236,7 +341,13 @@ const SearchPrompt = () => (
   </Card>
 );
 
-const SearchEmpty = ({ query }: { query: string }) => (
+export const SearchEmpty = ({
+  filters,
+  query
+}: {
+  filters: SearchFilter[];
+  query: string;
+}) => (
   <Card>
     <CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">
       <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-faint">
@@ -245,16 +356,16 @@ const SearchEmpty = ({ query }: { query: string }) => (
       <div>
         <h2 className="text-lg font-semibold text-primary">No results found</h2>
         <p className="mt-1 max-w-md text-sm leading-6 text-muted">
-          Nothing matched "{query}" in clubs or discussions you can access.
+          Nothing matched "{query}" with {formatFiltersForEmpty(filters)}.
         </p>
       </div>
     </CardContent>
   </Card>
 );
 
-const SearchLoading = ({ scope }: { scope: SearchScope }) => (
+export const SearchLoading = ({ filters }: { filters: SearchFilter[] }) => (
   <div className="space-y-5">
-    {scope !== "posts" ? (
+    {filters.includes("clubs") ? (
       <div className="grid gap-3 md:grid-cols-2">
         {Array.from({ length: 2 }, (_, index) => (
           <Card key={index}>
@@ -267,7 +378,7 @@ const SearchLoading = ({ scope }: { scope: SearchScope }) => (
         ))}
       </div>
     ) : null}
-    {scope !== "clubs" ? (
+    {filters.includes("posts") ? (
       <div className="space-y-3">
         {Array.from({ length: 3 }, (_, index) => (
           <Card key={index}>
@@ -325,28 +436,81 @@ const SearchError = ({
   );
 };
 
-const SectionEmpty = ({
-  body,
-  icon,
-  title
-}: {
-  body: string;
-  icon: ReactNode;
-  title: string;
-}) => (
-  <Card>
-    <CardContent className="flex min-h-36 flex-col justify-center gap-2">
-      <span className="flex size-10 items-center justify-center rounded-lg border border-default bg-inset text-faint">
-        {icon}
-      </span>
-      <h3 className="text-base font-semibold text-primary">{title}</h3>
-      <p className="max-w-lg text-sm leading-6 text-muted">{body}</p>
-    </CardContent>
-  </Card>
-);
+export const parseFilters = (searchParams: URLSearchParams): SearchFilter[] => {
+  const filters = searchParams.get("filters");
 
-const parseScope = (value: string | null): SearchScope =>
-  value === "clubs" || value === "posts" ? value : "all";
+  if (filters) {
+    return normalizeFilters(filters.split(","));
+  }
+
+  const legacyScope = searchParams.get("scope");
+
+  if (legacyScope === "clubs") {
+    return ["clubs"];
+  }
+
+  if (legacyScope === "posts") {
+    return ["safe", "spoiler", "posts"];
+  }
+
+  return [];
+};
+
+const normalizeFilters = (filters: string[]): SearchFilter[] => {
+  return defaultSearchFilters.filter(
+    (filter) => filters.includes(filter) && validSearchFilters.has(filter)
+  );
+};
+
+export const toggleSearchFilter = (
+  currentFilters: SearchFilter[],
+  filter: SearchFilter,
+  checked: boolean
+) => {
+  const nextFilters = checked
+    ? [...currentFilters, filter]
+    : currentFilters.filter((currentFilter) => currentFilter !== filter);
+  const normalized = defaultSearchFilters.filter((currentFilter) =>
+    nextFilters.includes(currentFilter)
+  );
+
+  return normalized;
+};
+
+export const toEffectiveSearchFilters = (filters: SearchFilter[]) => {
+  if (filters.length === 0) {
+    return defaultSearchFilters;
+  }
+
+  const hasSafetyFilter =
+    filters.includes("safe") || filters.includes("spoiler");
+
+  if (hasSafetyFilter && !filters.includes("posts")) {
+    return defaultSearchFilters.filter((filter) =>
+      [...filters, "posts"].includes(filter)
+    );
+  }
+
+  if (filters.includes("posts") && !hasSafetyFilter) {
+    return defaultSearchFilters.filter((filter) =>
+      [...filters, "safe", "spoiler"].includes(filter)
+    );
+  }
+
+  return filters;
+};
+
+const formatFiltersForEmpty = (filters: SearchFilter[]) => {
+  const labels = filters.map((filter) =>
+    filterLabelByValue[filter].toLowerCase()
+  );
+
+  if (labels.length <= 1) {
+    return `${labels[0] ?? "the selected"} filter`;
+  }
+
+  return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)} filters`;
+};
 
 const formatVisibility = (visibility: SearchClub["visibility"]) =>
   visibility === "INVITE_ONLY"
