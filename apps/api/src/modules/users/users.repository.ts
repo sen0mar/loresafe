@@ -1,7 +1,9 @@
 import { prisma } from "../../core/prisma/client.js";
+import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 export type UpdateCurrentUserProfileInput = {
@@ -81,17 +83,28 @@ export const usersRepository: UsersRepository = {
     return reservation?.user ?? null;
   },
 
-  listJoinedClubsForUser: async (userId, { page, limit }) => {
+  listJoinedClubsForUser: async (userId, { page, limit, q }) => {
     const skip = (page - 1) * limit;
     const now = new Date();
+    const clubSearchWhere = buildJoinedClubSearchWhere(q);
+    const roleSearchWhere = buildJoinedClubRoleSearchWhere(q);
+    const searchOr = [
+      ...(clubSearchWhere ? [{ club: clubSearchWhere }] : []),
+      ...(roleSearchWhere ? [{ role: roleSearchWhere }] : [])
+    ];
     const membershipWhere = {
       userId,
       club: {
         bans: {
           none: activeUserBanWhere(userId, now)
         }
-      }
-    };
+      },
+      ...(searchOr.length > 0
+        ? {
+            OR: searchOr
+          }
+        : {})
+    } satisfies Prisma.ClubMembershipWhereInput;
 
     const [memberships, total] = await prisma.$transaction([
       prisma.clubMembership.findMany({
@@ -233,3 +246,112 @@ export const isUniqueConstraintError = (error: unknown) =>
   typeof error === "object" &&
   "code" in error &&
   (error as { code: unknown }).code === "P2002";
+
+const joinedClubCategoryLabels = {
+  BOOKS: "books",
+  TV_SHOWS: "tv shows television shows",
+  ANIME: "anime",
+  MANGA: "manga",
+  MOVIES: "movies films",
+  GAMES: "games",
+  PODCASTS: "podcasts",
+  COURSES: "courses",
+  COMICS_GRAPHIC_NOVELS: "comics graphic novels",
+  WEB_SERIALS: "web serials",
+  CUSTOM_TIMELINE: "custom timeline"
+} satisfies Record<ClubCategory, string>;
+
+const joinedClubVisibilityLabels = {
+  PUBLIC: "public",
+  PRIVATE: "private",
+  INVITE_ONLY: "invite only invite-only"
+} satisfies Record<ClubVisibility, string>;
+
+const joinedClubRoleLabels = {
+  OWNER: "owner",
+  MODERATOR: "moderator mod",
+  MEMBER: "member"
+} satisfies Record<ClubMembershipRole, string>;
+
+const buildJoinedClubSearchWhere = (
+  searchQuery: string
+): Prisma.ClubWhereInput | undefined => {
+  const normalizedQuery = normalizeSearchText(searchQuery);
+
+  if (!normalizedQuery) {
+    return undefined;
+  }
+
+  const categoryMatches = (
+    Object.keys(joinedClubCategoryLabels) as ClubCategory[]
+  ).filter((category) =>
+    joinedClubCategoryLabels[category].includes(normalizedQuery)
+  );
+  const visibilityMatches = (
+    Object.keys(joinedClubVisibilityLabels) as ClubVisibility[]
+  ).filter((visibility) =>
+    joinedClubVisibilityLabels[visibility].includes(normalizedQuery)
+  );
+
+  return {
+    OR: [
+      {
+        title: {
+          contains: searchQuery,
+          mode: "insensitive"
+        }
+      },
+      {
+        linkName: {
+          contains: normalizedQuery.replaceAll(" ", "-"),
+          mode: "insensitive"
+        }
+      },
+      ...(categoryMatches.length > 0
+        ? [
+            {
+              category: {
+                in: categoryMatches
+              }
+            }
+          ]
+        : []),
+      ...(visibilityMatches.length > 0
+        ? [
+            {
+              visibility: {
+                in: visibilityMatches
+              }
+            }
+          ]
+        : [])
+    ]
+  };
+};
+
+const buildJoinedClubRoleSearchWhere = (
+  searchQuery: string
+): Prisma.EnumClubMembershipRoleFilter | undefined => {
+  const normalizedQuery = normalizeSearchText(searchQuery);
+
+  if (!normalizedQuery) {
+    return undefined;
+  }
+
+  const roleMatches = (
+    Object.keys(joinedClubRoleLabels) as ClubMembershipRole[]
+  ).filter((role) => joinedClubRoleLabels[role].includes(normalizedQuery));
+
+  return roleMatches.length > 0
+    ? {
+        in: roleMatches
+      }
+    : undefined;
+};
+
+const normalizeSearchText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ");

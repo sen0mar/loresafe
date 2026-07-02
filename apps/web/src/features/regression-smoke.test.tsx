@@ -12,6 +12,7 @@ import { ReportDialog } from "@/features/clubs/components/report-dialog";
 import { ClubDetailPage } from "@/features/clubs/pages/club-detail-page";
 import { ClubModerationReportsPage } from "@/features/clubs/pages/club-moderation-reports-page";
 import { ExplorePage } from "@/features/clubs/pages/explore-page";
+import { JoinedClubsPage } from "@/features/clubs/pages/joined-clubs-page";
 import { PostDetailPage } from "@/features/clubs/pages/post-detail-page";
 import { HomePage } from "@/features/home/pages/home-page";
 import { ProfileSettingsForm } from "@/features/profile/components/profile-settings-form";
@@ -678,6 +679,109 @@ describe("frontend regression smoke", () => {
     expect(screen.getByRole("link", { name: "Open club" })).toHaveAttribute(
       "href",
       "/app/clubs/newest-club"
+    );
+  });
+
+  it("shows only matching joined clubs on the joined clubs page", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      {
+        method: "GET",
+        path: "/api/users/me/clubs",
+        response: ({ searchParams }: { searchParams: URLSearchParams }) =>
+          searchParams.get("q") === "older"
+            ? {
+                clubs: [twoJoinedClubsResponse.clubs[1]],
+                pagination: {
+                  page: 1,
+                  limit: 20,
+                  total: 1,
+                  pageCount: 1
+                }
+              }
+            : twoJoinedClubsResponse
+      },
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<JoinedClubsPage />, {
+      initialEntries: ["/app/clubs?q=older"]
+    });
+    const main = within(await screen.findByRole("main"));
+
+    expect(await main.findByText("Older Club")).toBeVisible();
+    expect(main.queryByText("Newest Club")).not.toBeInTheDocument();
+    expect(main.getByRole("link", { name: /open older club/i })).toHaveAttribute(
+      "href",
+      "/app/clubs/older-club"
+    );
+  });
+
+  it("loads more joined clubs from the joined clubs page", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      {
+        method: "GET",
+        path: "/api/users/me/clubs",
+        response: ({ searchParams }: { searchParams: URLSearchParams }) => {
+          const page = searchParams.get("page") ?? "1";
+
+          if (searchParams.has("page")) {
+            return {
+              clubs:
+                page === "1"
+                  ? [twoJoinedClubsResponse.clubs[0]]
+                  : [twoJoinedClubsResponse.clubs[1]],
+              pagination: {
+                page: Number(page),
+                limit: 1,
+                total: 2,
+                pageCount: 2
+              }
+            };
+          }
+
+          return twoJoinedClubsResponse;
+        }
+      },
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<JoinedClubsPage />, {
+      initialEntries: ["/app/clubs"]
+    });
+    const main = within(await screen.findByRole("main"));
+
+    expect(await main.findByText("Newest Club")).toBeVisible();
+    expect(main.queryByText("Older Club")).not.toBeInTheDocument();
+
+    await user.click(main.getByRole("button", { name: /load more/i }));
+
+    expect(await main.findByText("Older Club")).toBeVisible();
+  });
+
+  it("shows a no-match state for joined club search", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      {
+        method: "GET",
+        path: "/api/users/me/clubs",
+        response: ({ searchParams }: { searchParams: URLSearchParams }) =>
+          searchParams.has("q") ? emptyJoinedClubsResponse : joinedClubsResponse
+      },
+      shellRoute("/api/notifications", notificationsResponse)
+    ]);
+
+    renderWithProviders(<JoinedClubsPage />, {
+      initialEntries: ["/app/clubs?q=missing"]
+    });
+    const main = within(await screen.findByRole("main"));
+
+    expect(await main.findByText("No joined clubs match")).toBeVisible();
+    expect(main.getByRole("link", { name: /clear search/i })).toHaveAttribute(
+      "href",
+      "/app/clubs"
     );
   });
 

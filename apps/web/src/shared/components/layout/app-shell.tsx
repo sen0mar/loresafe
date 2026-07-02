@@ -49,19 +49,36 @@ export const AppShell = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState("");
+  const isJoinedClubsRoute = location.pathname === "/app/clubs";
+  const isSearchRoute = location.pathname === "/app/search";
 
   useEffect(() => {
-    if (location.pathname !== "/app/search") {
+    if (!isSearchRoute && !isJoinedClubsRoute) {
+      setSearchValue("");
       return;
     }
 
     setSearchValue(new URLSearchParams(location.search).get("q") ?? "");
-  }, [location.pathname, location.search]);
+  }, [isJoinedClubsRoute, isSearchRoute, location.search]);
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const query = searchValue.trim();
+
+    if (isJoinedClubsRoute) {
+      const params = new URLSearchParams();
+
+      if (query) {
+        params.set("q", query);
+      }
+
+      const queryString = params.toString();
+
+      navigate(queryString ? `/app/clubs?${queryString}` : "/app/clubs");
+      return;
+    }
+
     const params = new URLSearchParams({
       scope: "all"
     });

@@ -13,6 +13,7 @@ import { ClubDetailPage } from "../features/clubs/pages/club-detail-page.js";
 import { ClubModerationReportsPage } from "../features/clubs/pages/club-moderation-reports-page.js";
 import { CreateClubPage } from "../features/clubs/pages/create-club-page.js";
 import { ExplorePage } from "../features/clubs/pages/explore-page.js";
+import { JoinedClubsPage } from "../features/clubs/pages/joined-clubs-page.js";
 import { PostDetailPage } from "../features/clubs/pages/post-detail-page.js";
 import { RecentlyUnlockedPage } from "../features/clubs/pages/recently-unlocked-page.js";
 import { DebugSentryErrorPage } from "../features/debug/pages/debug-sentry-error-page.js";
@@ -61,6 +62,14 @@ export const App = () => (
             element={
               <ProtectedRoute>
                 <Navigate to={AUTHENTICATED_HOME_PATH} replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/clubs"
+            element={
+              <ProtectedRoute>
+                <JoinedClubsPage />
               </ProtectedRoute>
             }
           />

@@ -59,6 +59,7 @@ type NavItem = {
 
 const primaryNavItems: NavItem[] = [
   { label: "Home", icon: Home, path: AUTHENTICATED_HOME_PATH },
+  { label: "My Clubs", icon: Users, path: "/app/clubs" },
   { label: "My Progress", icon: TrendingUp },
   { label: "Notifications", icon: Bell, path: "/app/notifications" },
   { label: "Explore", icon: Compass, path: "/app/explore" },

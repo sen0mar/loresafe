@@ -18,6 +18,7 @@ import {
 } from "../auth/auth.repository.js";
 import { createAuthRouter } from "../auth/auth.routes.js";
 import { createAuthService } from "../auth/auth.service.js";
+import type { ClubCategory } from "../clubs/clubs.schema.js";
 import {
   type JoinedClubRecord,
   type UpdateCurrentUserProfileInput,
@@ -214,6 +215,174 @@ describe("users routes", () => {
       limit: 2,
       total: 3,
       pageCount: 2
+    });
+  });
+
+  it("searches only the current user's joined clubs", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherUser = await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const privateClub = repository.createClub({
+      title: "Nebula Private Room",
+      linkName: "nebula-private-room",
+      visibility: "PRIVATE",
+      category: "BOOKS"
+    });
+    const inviteClub = repository.createClub({
+      title: "Invite Arc Watch",
+      linkName: "invite-arc-watch",
+      visibility: "INVITE_ONLY",
+      category: "ANIME"
+    });
+    const unjoinedClub = repository.createClub({
+      title: "Nebula Unjoined Room",
+      linkName: "nebula-unjoined-room",
+      visibility: "PRIVATE",
+      category: "BOOKS"
+    });
+
+    repository.createMembership(
+      user.id,
+      privateClub.id,
+      "OWNER",
+      new Date("2026-01-03T00:00:00.000Z")
+    );
+    repository.createMembership(
+      user.id,
+      inviteClub.id,
+      "MEMBER",
+      new Date("2026-01-02T00:00:00.000Z")
+    );
+    repository.createMembership(otherUser.id, unjoinedClub.id);
+
+    const response = await request(app)
+      .get("/api/users/me/clubs?q=nebula")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
+      "Nebula Private Room"
+    ]);
+    expect(JSON.stringify(response.body)).not.toContain("Nebula Unjoined Room");
+  });
+
+  it("searches joined clubs by safe metadata and paginates filtered results", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const oldestAnime = repository.createClub({
+      title: "First Anime Room",
+      linkName: "first-anime-room",
+      visibility: "PUBLIC",
+      category: "ANIME"
+    });
+    const newestAnime = repository.createClub({
+      title: "Second Anime Room",
+      linkName: "second-anime-room",
+      visibility: "INVITE_ONLY",
+      category: "ANIME"
+    });
+    const bookClub = repository.createClub({
+      title: "Book Room",
+      linkName: "book-room",
+      visibility: "PRIVATE",
+      category: "BOOKS"
+    });
+
+    repository.createMembership(
+      user.id,
+      oldestAnime.id,
+      "MEMBER",
+      new Date("2026-01-01T00:00:00.000Z")
+    );
+    repository.createMembership(
+      user.id,
+      newestAnime.id,
+      "MODERATOR",
+      new Date("2026-01-03T00:00:00.000Z")
+    );
+    repository.createMembership(
+      user.id,
+      bookClub.id,
+      "OWNER",
+      new Date("2026-01-02T00:00:00.000Z")
+    );
+
+    const response = await request(app)
+      .get("/api/users/me/clubs?q=anime&page=2&limit=1")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
+      "First Anime Room"
+    ]);
+    expect(response.body.pagination).toEqual({
+      page: 2,
+      limit: 1,
+      total: 2,
+      pageCount: 2
+    });
+  });
+
+  it("keeps active club bans out of joined club search results", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const visibleClub = repository.createClub({
+      title: "Nebula Safe Room",
+      linkName: "nebula-safe-room",
+      visibility: "PUBLIC"
+    });
+    const bannedClub = repository.createClub({
+      title: "Nebula Banned Room",
+      linkName: "nebula-banned-room",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(user.id, visibleClub.id);
+    repository.createMembership(user.id, bannedClub.id);
+    repository.createActiveBan(user.id, bannedClub.id);
+
+    const response = await request(app)
+      .get("/api/users/me/clubs?q=nebula")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
+      "Nebula Safe Room"
+    ]);
+  });
+
+  it("rejects invalid joined club search queries", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .get(`/api/users/me/clubs?q=${"x".repeat(121)}`)
+      .set("x-request-id", "joined-clubs-invalid-query")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the joined clubs query and try again.",
+        requestId: "joined-clubs-invalid-query"
+      }
     });
   });
 
@@ -510,6 +679,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   readonly nameReservations = new Map<string, string>();
   readonly clubs = new Map<string, StoredClub>();
   readonly memberships: StoredMembership[] = [];
+  readonly activeBans: StoredClubBan[] = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -573,6 +743,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   };
 
   createClub = ({
+    category = "BOOKS",
     title,
     linkName,
     visibility,
@@ -582,6 +753,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
       id: crypto.randomUUID(),
       title,
       linkName,
+      category,
       visibility,
       createdAt,
       updatedAt: createdAt
@@ -607,12 +779,26 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     });
   };
 
+  createActiveBan = (userId: string, clubId: string) => {
+    this.activeBans.push({
+      userId,
+      clubId
+    });
+  };
+
   listJoinedClubsForUser = async (
     userId: string,
-    { page, limit }: ListCurrentUserClubsQuery
+    { page, limit, q }: ListCurrentUserClubsQuery
   ) => {
     const joinedMemberships = this.memberships
       .filter((membership) => membership.userId === userId)
+      .filter(
+        (membership) =>
+          !this.activeBans.some(
+            (ban) => ban.userId === userId && ban.clubId === membership.clubId
+          )
+      )
+      .filter((membership) => this.matchesJoinedClubSearch(membership, q))
       .sort(
         (leftMembership, rightMembership) =>
           rightMembership.createdAt.getTime() -
@@ -646,6 +832,36 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
       clubs,
       total: joinedMemberships.length
     };
+  };
+
+  private matchesJoinedClubSearch = (
+    membership: StoredMembership,
+    searchQuery: string
+  ) => {
+    const normalizedQuery = normalizeSearchText(searchQuery);
+
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const club = this.clubs.get(membership.clubId);
+
+    if (!club) {
+      return false;
+    }
+
+    const searchableFields = [
+      club.title,
+      club.linkName.replaceAll("-", " "),
+      club.visibility.replaceAll("_", " "),
+      clubCategoryLabels[club.category],
+      membership.role,
+      membership.role === "MODERATOR" ? "mod" : ""
+    ];
+
+    return searchableFields.some((field) =>
+      normalizeSearchText(field).includes(normalizedQuery)
+    );
   };
 
   updateActiveUserProfile = async (
@@ -722,6 +938,7 @@ type StoredClub = {
   id: string;
   title: string;
   linkName: string;
+  category: ClubCategory;
   visibility: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
   createdAt: Date;
   updatedAt: Date;
@@ -730,6 +947,7 @@ type StoredClub = {
 type CreateStoredClubInput = {
   title: string;
   linkName: string;
+  category?: ClubCategory;
   visibility: StoredClub["visibility"];
   createdAt?: Date;
 };
@@ -741,6 +959,33 @@ type StoredMembership = {
   role: "OWNER" | "MODERATOR" | "MEMBER";
   createdAt: Date;
 };
+
+type StoredClubBan = {
+  userId: string;
+  clubId: string;
+};
+
+const clubCategoryLabels = {
+  BOOKS: "books",
+  TV_SHOWS: "tv shows television shows",
+  ANIME: "anime",
+  MANGA: "manga",
+  MOVIES: "movies films",
+  GAMES: "games",
+  PODCASTS: "podcasts",
+  COURSES: "courses",
+  COMICS_GRAPHIC_NOVELS: "comics graphic novels",
+  WEB_SERIALS: "web serials",
+  CUSTOM_TIMELINE: "custom timeline"
+} satisfies Record<ClubCategory, string>;
+
+const normalizeSearchText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replaceAll("-", " ")
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ");
 
 const createSessionCookie = async (user: AuthUserRecord) => {
   const sessionToken = await createSessionToken({

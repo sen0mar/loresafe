@@ -693,6 +693,16 @@ export type BanClubMemberInput = {
   expiresAt?: string;
 };
 
+export type JoinedClubsQueryInput = {
+  q?: string;
+  page?: number;
+  limit?: number;
+};
+
+type JoinedClubsQueryOptions = JoinedClubsQueryInput & {
+  enabled?: boolean;
+};
+
 export const refreshClubAssetQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
   linkName: string
@@ -776,6 +786,8 @@ const reconcileModerationReportMutation = (
 export const clubsQueryKeys = {
   discovery: ["clubs", "discovery"] as const,
   joined: ["users", "me", "clubs"] as const,
+  joinedList: ({ limit, page, q }: JoinedClubsQueryInput) =>
+    ["users", "me", "clubs", { limit, page, q: q?.trim() ?? "" }] as const,
   detail: (linkName: string) => ["clubs", "detail", linkName] as const,
   milestonesRoot: (linkName: string) =>
     ["clubs", "detail", linkName, "milestones"] as const,
@@ -927,8 +939,28 @@ export const revealPostComment = (postId: string, commentId: string) =>
     `/api/posts/${postId}/comments/${commentId}/reveal`
   );
 
-export const getJoinedClubs = () =>
-  apiGet<JoinedClubsResponse>("/api/users/me/clubs");
+export const getJoinedClubs = (input: JoinedClubsQueryInput = {}) => {
+  const params = new URLSearchParams();
+  const query = input.q?.trim();
+
+  if (query) {
+    params.set("q", query);
+  }
+
+  if (input.page) {
+    params.set("page", String(input.page));
+  }
+
+  if (input.limit) {
+    params.set("limit", String(input.limit));
+  }
+
+  const queryString = params.toString();
+
+  return apiGet<JoinedClubsResponse>(
+    queryString ? `/api/users/me/clubs?${queryString}` : "/api/users/me/clubs"
+  );
+};
 
 export const createClub = (input: CreateClubInput) =>
   apiPost<ClubResponse, CreateClubInput>("/api/clubs", input);
@@ -1226,11 +1258,48 @@ export const usePostCommentsQuery = (postId: string, enabled = true) =>
     enabled: enabled && postId.length > 0
   });
 
-export const useJoinedClubsQuery = (enabled = true) =>
-  useQuery({
-    queryKey: clubsQueryKeys.joined,
-    queryFn: getJoinedClubs,
-    enabled
+export const useJoinedClubsQuery = (
+  options: boolean | JoinedClubsQueryOptions = true
+) => {
+  const queryOptions =
+    typeof options === "boolean" ? { enabled: options } : options;
+  const queryInput = {
+    q: queryOptions.q,
+    page: queryOptions.page,
+    limit: queryOptions.limit
+  };
+  const hasCustomQuery =
+    Boolean(queryInput.q?.trim()) || queryInput.page || queryInput.limit;
+
+  return useQuery({
+    queryKey: hasCustomQuery
+      ? clubsQueryKeys.joinedList(queryInput)
+      : clubsQueryKeys.joined,
+    queryFn: () => getJoinedClubs(queryInput),
+    enabled: queryOptions.enabled ?? true
+  });
+};
+
+export const useJoinedClubsInfiniteQuery = (
+  options: Omit<JoinedClubsQueryOptions, "page"> = {}
+) =>
+  useInfiniteQuery({
+    queryKey: clubsQueryKeys.joinedList({
+      q: options.q,
+      limit: options.limit
+    }),
+    queryFn: ({ pageParam }) =>
+      getJoinedClubs({
+        q: options.q,
+        limit: options.limit,
+        page: pageParam
+      }),
+    enabled: options.enabled ?? true,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.page < lastPage.pagination.pageCount
+        ? lastPage.pagination.page + 1
+        : undefined
   });
 
 export const useCreateClubMutation = () => {

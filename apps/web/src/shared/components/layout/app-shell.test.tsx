@@ -85,6 +85,22 @@ describe("AppShell layout", () => {
     expect(homeLink).not.toHaveClass("border-brand");
   });
 
+  it("routes desktop My Clubs navigation to the joined clubs page", () => {
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>,
+      {
+        initialEntries: ["/app/clubs"]
+      }
+    );
+
+    const clubsLink = screen.getByRole("link", { name: /^My Clubs$/ });
+
+    expect(clubsLink).toHaveAttribute("href", "/app/clubs");
+    expect(clubsLink).toHaveClass("border-brand");
+  });
+
   it("routes mobile Home navigation to the authenticated homepage", async () => {
     const user = userEvent.setup();
 
@@ -103,5 +119,47 @@ describe("AppShell layout", () => {
       "href",
       "/app"
     );
+    expect(screen.getByRole("menuitem", { name: /^My Clubs$/ })).toHaveAttribute(
+      "href",
+      "/app/clubs"
+    );
+  });
+
+  it("submits top-bar search in place on the joined clubs page", async () => {
+    const user = userEvent.setup();
+    const pathChanges: string[] = [];
+
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>,
+      {
+        initialEntries: ["/app/clubs"],
+        routeObserver: (path) => pathChanges.push(path)
+      }
+    );
+
+    await user.type(screen.getByLabelText("Search"), "nebula{Enter}");
+
+    expect(pathChanges.at(-1)).toBe("/app/clubs?q=nebula");
+  });
+
+  it("keeps top-bar search global outside the joined clubs page", async () => {
+    const user = userEvent.setup();
+    const pathChanges: string[] = [];
+
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>,
+      {
+        initialEntries: ["/app/explore"],
+        routeObserver: (path) => pathChanges.push(path)
+      }
+    );
+
+    await user.type(screen.getByLabelText("Search"), "nebula{Enter}");
+
+    expect(pathChanges.at(-1)).toBe("/app/search?scope=all&q=nebula");
   });
 });
