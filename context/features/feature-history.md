@@ -81,6 +81,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 75: Fixed club categories — Added a required ClubCategory enum with a committed migration for legacy category normalization, replaced freeform club creation categories with a fixed dropdown, preserved readable category display/search text, and added focused backend/frontend regression coverage.
 - Feature 76: Clear club creation errors — Added explicit missing-title and missing-link-name validation messages in the create-club form, preserved existing category guidance, and added focused frontend regression coverage.
 - Feature 77: Joined clubs search page — Added a protected My Clubs page with joined-only club search, route-aware top-bar search, bounded API filtering that preserves ban exclusions, and focused backend/frontend regression coverage.
+- Feature 78: Milestone progress checkpoints — Replaced plain progress bars in club progress summaries with compact connected milestone checkpoints using reached/current/future states, preserving spoiler-safe milestone counts and adding focused frontend regression coverage.
 
 ## Entry Format
 

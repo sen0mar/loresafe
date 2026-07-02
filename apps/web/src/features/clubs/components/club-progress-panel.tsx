@@ -36,6 +36,7 @@ import {
   useClubProgressQuery,
   useUpdateClubProgressMutation
 } from "../api/clubs.js";
+import { MilestoneProgressDots } from "./milestone-progress-dots.js";
 
 type ClubProgressPanelProps = {
   linkName: string;
@@ -299,12 +300,11 @@ export const ClubProgressPanel = ({
                 {progress.percentage}%
               </span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-inset">
-              <div
-                className="h-full rounded-full bg-brand transition-all"
-                style={{ width: `${progress.percentage}%` }}
-              />
-            </div>
+            <MilestoneProgressDots
+              className="mt-2"
+              completedMilestones={progress.completedMilestones}
+              totalMilestones={progress.totalMilestones}
+            />
             <p className="mt-2 text-xs text-faint">
               {progress.completedMilestones} of {progress.totalMilestones}{" "}
               milestones complete

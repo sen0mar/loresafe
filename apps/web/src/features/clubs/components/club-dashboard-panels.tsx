@@ -26,6 +26,7 @@ import {
   useRecentlyUnlockedSummaryQuery
 } from "../api/clubs.js";
 import { PostCard } from "./club-feed-tab.js";
+import { MilestoneProgressDots } from "./milestone-progress-dots.js";
 
 type ClubDashboardPanelsProps = {
   club: Club;
@@ -190,12 +191,11 @@ const ProgressSummaryPanel = ({
               {progress.percentage}%
             </span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-inset">
-            <div
-              className="h-full rounded-full bg-brand"
-              style={{ width: `${progress.percentage}%` }}
-            />
-          </div>
+          <MilestoneProgressDots
+            className="mt-2"
+            completedMilestones={progress.completedMilestones}
+            totalMilestones={progress.totalMilestones}
+          />
         </div>
         <p className="text-sm text-muted">
           {progress.completedMilestones} of {progress.totalMilestones} milestones complete

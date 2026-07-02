@@ -370,6 +370,19 @@ describe("frontend regression smoke", () => {
 
     expect(await screen.findByText("Locked discussion")).toBeInTheDocument();
     expect(screen.queryByText("LOCKED_POST_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    const checkpointDots = screen
+      .getByLabelText("1 of 2 milestone checkpoints reached")
+      .querySelectorAll("[data-checkpoint-state]");
+
+    expect(checkpointDots).toHaveLength(2);
+    expect(checkpointDots[0]).toHaveAttribute(
+      "data-checkpoint-state",
+      "current"
+    );
+    expect(checkpointDots[1]).toHaveAttribute(
+      "data-checkpoint-state",
+      "future"
+    );
 
     await user.selectOptions(
       screen.getByLabelText("Current milestone"),

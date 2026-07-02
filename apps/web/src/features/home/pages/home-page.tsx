@@ -31,6 +31,7 @@ import {
   useRecentlyUnlockedSummaryQuery
 } from "@/features/clubs/api/clubs";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
+import { MilestoneProgressDots } from "@/features/clubs/components/milestone-progress-dots";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -397,12 +398,11 @@ const ClubRightRail = ({ club }: { club: JoinedClub }) => {
                   {progress.percentage}%
                 </span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-inset">
-                <div
-                  className="h-full rounded-full bg-brand"
-                  style={{ width: `${progress.percentage}%` }}
-                />
-              </div>
+              <MilestoneProgressDots
+                className="mt-2"
+                completedMilestones={progress.completedMilestones}
+                totalMilestones={progress.totalMilestones}
+              />
               <p className="mt-2 text-xs text-faint">
                 {progress.completedMilestones} of {progress.totalMilestones}{" "}
                 milestones complete
