@@ -549,7 +549,7 @@ const CreatePostDialog = ({
           </div>
 
           {values.type === "PREDICTION" ? (
-            <div className="grid gap-3 rounded-lg border border-default bg-inset p-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="rounded-lg border border-default bg-inset p-3">
               <PostFormField
                 id="post-prediction-reveal-milestone"
                 label="Reveal milestone"
@@ -576,9 +576,6 @@ const CreatePostDialog = ({
                   ))}
                 </select>
               </PostFormField>
-              <div className="rounded-md border border-subtle bg-surface px-3 py-2 text-xs text-muted">
-                Status: Unresolved
-              </div>
             </div>
           ) : null}
 
