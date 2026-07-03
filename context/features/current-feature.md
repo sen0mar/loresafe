@@ -6,48 +6,44 @@ After implementation is complete and the user asks to commit/merge into `main`, 
 
 ## Current Phase
 
-- IN_PROGRESS
+- NOT_STARTED
 
 ## Current Goal
 
-- Add a My Clubs-local search bar.
+- TBD
 
 ## Active Feature
 
-- Feature 80: My Clubs page search bar
+- TBD
 
 ## Scope
 
-- Add an in-page search bar to My Clubs.
-- Keep search scoped to joined clubs only.
-- Preserve existing joined-club empty, no-match, loading, and pagination behavior.
+- TBD
 
 ## Out of Scope
 
-- Global app-shell search restoration.
-- Explore search/filter behavior changes.
-- Backend API changes.
+- TBD
 
 ## Implementation Checklist
 
-- [x] Requirements are clear.
-- [x] Data model impact is understood.
-- [x] API changes are defined.
-- [x] Frontend changes are defined.
-- [x] Auth, authorization, and progress/spoiler policies are defined.
-- [x] Performance and pagination risks are considered.
-- [x] Error, empty, loading, and denied states are considered.
-- [x] Audit/logging requirements are considered.
-- [x] Tests or verification steps are defined.
-- [x] Context docs are updated where needed.
+- [ ] Requirements are clear.
+- [ ] Data model impact is understood.
+- [ ] API changes are defined.
+- [ ] Frontend changes are defined.
+- [ ] Auth, authorization, and progress/spoiler policies are defined.
+- [ ] Performance and pagination risks are considered.
+- [ ] Error, empty, loading, and denied states are considered.
+- [ ] Audit/logging requirements are considered.
+- [ ] Tests or verification steps are defined.
+- [ ] Context docs are updated where needed.
 
 ## In Progress
 
-- My Clubs search UI.
+- TBD
 
 ## Next Up
 
-- Implement and verify frontend search behavior.
+- Define the next feature scope with the user.
 
 ## Open Questions
 
@@ -55,8 +51,8 @@ After implementation is complete and the user asks to commit/merge into `main`, 
 
 ## Assumptions
 
-- The existing `/api/users/me/clubs?q=` joined-club filtering remains the source of truth.
+- TBD
 
 ## Session Notes
 
-- User requested the same local search bar pattern on My Clubs, adapted to joined clubs.
+- TBD

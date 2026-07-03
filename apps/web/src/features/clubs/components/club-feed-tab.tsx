@@ -735,14 +735,20 @@ const VisiblePostCard = ({
   post: Extract<ClubPostCard, { visibility: "VISIBLE" }>;
   returnState?: PostDetailLinkState;
 }) => (
-  <Card>
+  <Card
+    className={
+      linked
+        ? "group relative transition-colors hover:border-strong focus-within:border-strong"
+        : undefined
+    }
+  >
     <CardContent className="space-y-4 p-4">
       <PostMetaRow post={post} />
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-normal text-primary">
           {linked ? (
             <Link
-              className="rounded-md transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="rounded-md transition-colors before:absolute before:inset-0 before:rounded-xl before:content-[''] group-hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:before:ring-2 focus-visible:before:ring-brand"
               to={`/app/posts/${post.id}`}
               state={returnState}
             >
@@ -764,7 +770,7 @@ const VisiblePostCard = ({
           {post.author.displayName}
           {post.author.username ? ` / ${post.author.username}` : ""}
         </span>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-3">
           <PostCounts post={post} />
           <ReportDialog targetId={post.id} targetType="POST" />
           {post.permissions.canDelete ? (
@@ -834,7 +840,13 @@ const LockedPostCard = ({
   post: Extract<ClubPostCard, { visibility: "LOCKED" }>;
   returnState?: PostDetailLinkState;
 }) => (
-  <Card>
+  <Card
+    className={
+      linked
+        ? "group relative transition-colors hover:border-strong focus-within:border-strong"
+        : undefined
+    }
+  >
     <CardContent className="space-y-4 p-4">
       <PostMetaRow post={post} />
       <div className="rounded-lg border border-default bg-inset p-4">
@@ -842,7 +854,17 @@ const LockedPostCard = ({
           <LockKeyhole className="size-5" />
         </span>
         <h2 className="mt-3 text-base font-semibold text-primary">
-          Locked discussion
+          {linked ? (
+            <Link
+              className="rounded-md transition-colors before:absolute before:inset-0 before:rounded-xl before:content-[''] group-hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:before:ring-2 focus-visible:before:ring-brand"
+              to={`/app/posts/${post.id}`}
+              state={returnState}
+            >
+              Locked discussion
+            </Link>
+          ) : (
+            "Locked discussion"
+          )}
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
@@ -852,20 +874,13 @@ const LockedPostCard = ({
           <Clock3 className="size-4" />
           {formatDateTime(post.createdAt)}
         </span>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-3">
           <PostCounts post={post} />
           {post.permissions.canDelete ? (
             <DeletePostDialog
               postId={post.id}
               onDeleted={() => onDeleted?.(post.id)}
             />
-          ) : null}
-          {linked ? (
-            <Button asChild size="sm" variant="secondary">
-              <Link to={`/app/posts/${post.id}`} state={returnState}>
-                Open
-              </Link>
-            </Button>
           ) : null}
         </div>
       </div>

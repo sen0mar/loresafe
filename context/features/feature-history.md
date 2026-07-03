@@ -83,6 +83,9 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 77: Joined clubs search page — Added a protected My Clubs page with joined-only club search, route-aware top-bar search, bounded API filtering that preserves ban exclusions, and focused backend/frontend regression coverage.
 - Feature 78: Milestone progress checkpoints — Replaced plain progress bars in club progress summaries with compact connected milestone checkpoints using reached/current/future states, preserving spoiler-safe milestone counts and adding focused frontend regression coverage.
 - Feature 79: Explore search filters — Moved global search into Explore with saved Safe/Spoiler/Clubs/Posts filters, empty default-as-all behavior, spoiler-safe club-labelled discussion results, no-match empty states, and focused backend/frontend regression coverage.
+- Feature 80: My Clubs page search bar — Added an in-page search bar for joined clubs, preserving existing joined-club empty, no-match, loading, and pagination behavior.
+- Feature 81: Feed post return navigation — Preserved the club feed return target when opening a feed post detail view so the Feed breadcrumb returns to the originating club feed tab.
+- Feature 82: Clickable feed cards — Made linked visible and locked feed cards open from the whole card surface while preserving nested report, delete, and reaction controls.
 
 ## Entry Format
 
