@@ -3,6 +3,7 @@ import {
   type FormEvent,
   type ReactNode,
   useEffect,
+  useMemo,
   useState
 } from "react";
 import { Link } from "react-router-dom";
@@ -11,6 +12,7 @@ import {
   Clock3,
   Image,
   LockKeyhole,
+  LockKeyholeOpen,
   MessageSquareText,
   PlusCircle,
   RefreshCw,
@@ -36,6 +38,7 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { cn } from "@/shared/lib/utils";
 
 import {
   type Club,
@@ -48,9 +51,11 @@ import {
   postReactionEmojis,
   useClubMilestonesQuery,
   useClubPostsInfiniteQuery,
+  useClubProgressQuery,
   useCreateClubPostMutation,
   useTogglePostReactionMutation
 } from "../api/clubs.js";
+import { usePostUnlockAnimation } from "../hooks/use-post-unlock-animation.js";
 import {
   createPostSchema,
   type CreatePostFormValues
@@ -137,6 +142,18 @@ const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
 export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
   const [activeTab, setActiveTab] = useState<ClubFeedTabValue>("all");
   const postsQuery = useClubPostsInfiniteQuery(club.linkName, activeTab);
+  const progressQuery = useClubProgressQuery(
+    club.linkName,
+    club.membership.isMember
+  );
+  const posts = useMemo(
+    () => postsQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+    [postsQuery.data]
+  );
+  const unlockingPostIds = usePostUnlockAnimation({
+    posts,
+    progress: progressQuery.data?.progress
+  });
   const createPostAction = club.membership.isMember ? (
     <CreatePostDialog club={club} />
   ) : null;
@@ -167,8 +184,6 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
     );
   }
 
-  const posts = postsQuery.data.pages.flatMap((page) => page.posts);
-
   return (
     <div className="space-y-3">
       <FeedToolbar
@@ -184,6 +199,7 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
           {posts.map((post) => (
             <PostCard
               key={post.id}
+              isUnlocking={unlockingPostIds.has(post.id)}
               post={post}
               linked
               returnState={postReturnState}
@@ -683,6 +699,7 @@ const chooseRevealMilestoneId = ({
 
 export const PostCard = ({
   linked = false,
+  isUnlocking = false,
   onDeleted,
   onOptimisticReaction,
   onReactionReconciled,
@@ -691,6 +708,7 @@ export const PostCard = ({
   returnState
 }: {
   linked?: boolean;
+  isUnlocking?: boolean;
   onDeleted?: (postId: string) => void;
   onOptimisticReaction?: (post: ClubPostCard) => void;
   onReactionReconciled?: (post: ClubPostCard) => void;
@@ -701,6 +719,7 @@ export const PostCard = ({
   return post.visibility === "VISIBLE" ? (
     <VisiblePostCard
       linked={linked}
+      isUnlocking={isUnlocking}
       onDeleted={onDeleted}
       onOptimisticReaction={onOptimisticReaction}
       onReactionReconciled={onReactionReconciled}
@@ -719,6 +738,7 @@ export const PostCard = ({
 };
 
 const VisiblePostCard = ({
+  isUnlocking,
   linked,
   onDeleted,
   onOptimisticReaction,
@@ -727,6 +747,7 @@ const VisiblePostCard = ({
   post,
   returnState
 }: {
+  isUnlocking: boolean;
   linked: boolean;
   onDeleted?: (postId: string) => void;
   onOptimisticReaction?: (post: ClubPostCard) => void;
@@ -736,13 +757,19 @@ const VisiblePostCard = ({
   returnState?: PostDetailLinkState;
 }) => (
   <Card
-    className={
+    className={cn(
       linked
         ? "group relative transition-colors hover:border-strong focus-within:border-strong"
-        : undefined
-    }
+        : undefined,
+      isUnlocking ? "post-unlock-card" : undefined
+    )}
   >
-    <CardContent className="space-y-4 p-4">
+    <CardContent
+      className={cn(
+        "space-y-4 p-4",
+        isUnlocking ? "post-unlock-content" : undefined
+      )}
+    >
       <PostMetaRow post={post} />
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-normal text-primary">
@@ -789,7 +816,16 @@ const VisiblePostCard = ({
         </div>
       </div>
     </CardContent>
+    {isUnlocking ? <PostUnlockOverlay /> : null}
   </Card>
+);
+
+const PostUnlockOverlay = () => (
+  <div aria-hidden="true" className="post-unlock-overlay">
+    <span className="post-unlock-icon">
+      <LockKeyholeOpen className="size-5" />
+    </span>
+  </div>
 );
 
 const PostMediaPreview = ({

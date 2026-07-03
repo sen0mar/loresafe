@@ -29,6 +29,7 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
 import {
+  type ClubProgress,
   type ClubMilestone,
   type ProgressMode,
   useAdvanceClubProgressMutation,
@@ -99,15 +100,18 @@ export const ClubProgressPanel = ({
     () => milestonesQuery.data?.milestones ?? [],
     [milestonesQuery.data?.milestones]
   );
+  const finalMilestone = milestones.at(-1) ?? null;
 
   useEffect(() => {
     if (!progress) {
       return;
     }
 
-    setSelectedMilestoneId(progress.currentMilestone?.id ?? notStartedValue);
+    setSelectedMilestoneId(
+      getProgressSelectionMilestoneId(progress, finalMilestone)
+    );
     setSelectedMode(progress.mode);
-  }, [progress]);
+  }, [finalMilestone, progress]);
 
   if (!isMember) {
     return <ProgressMembershipRequired />;
@@ -176,21 +180,33 @@ export const ClubProgressPanel = ({
     isRewindSelection &&
     (progress.mode === "FINISHED" || selectedMode === "FINISHED");
   const modeToSave = shouldSaveRewindAsStrict ? "STRICT" : selectedMode;
+  const milestoneToSave =
+    modeToSave === "FINISHED" && finalMilestone
+      ? finalMilestone
+      : selectedMilestone;
+  const savedMilestoneId =
+    progress.mode === "FINISHED"
+      ? finalMilestone?.id ?? progress.currentMilestone?.id ?? null
+      : progress.currentMilestone?.id ?? null;
   const previousMilestone = getPreviousMilestone(
     milestones,
     currentSafePosition
   );
   const hasChanges =
-    progress.currentMilestone?.id !==
-      (selectedMilestone?.id ?? null) || progress.mode !== modeToSave;
+    savedMilestoneId !== (selectedMilestone?.id ?? null) ||
+    progress.mode !== modeToSave;
   const activeMode = progressModeOptions.find(
     (mode) => mode.value === progress.mode
   );
   const latestUnlock = getLatestForwardUnlock(progress);
-  const finalMilestonePosition = milestones.at(-1)?.position ?? null;
+  const finalMilestonePosition = finalMilestone?.position ?? null;
   const isFinalMilestoneComplete =
     finalMilestonePosition !== null &&
-    progress.currentMilestone?.position === finalMilestonePosition;
+    currentSafePosition >= finalMilestonePosition;
+  const displayedProgressMilestone =
+    progress.mode === "FINISHED"
+      ? finalMilestone ?? progress.currentMilestone
+      : progress.currentMilestone;
   const isProgressSaving =
     updateProgressMutation.isPending || advanceProgressMutation.isPending;
   const canRewindProgress = currentSafePosition > 0 && !isProgressSaving;
@@ -213,7 +229,7 @@ export const ClubProgressPanel = ({
   const saveProgress = () => {
     updateProgressMutation.mutate(
       {
-        currentMilestoneId: selectedMilestone?.id ?? null,
+        currentMilestoneId: milestoneToSave?.id ?? null,
         mode: modeToSave
       },
       {
@@ -294,7 +310,7 @@ export const ClubProgressPanel = ({
           <div>
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="truncate text-muted">
-                {getProgressLabel(progress.currentMilestone)}
+                {getProgressLabel(displayedProgressMilestone)}
               </span>
               <span className="font-mono text-primary">
                 {progress.percentage}%
@@ -554,6 +570,19 @@ const getSelectedMilestonePosition = (
   return (
     milestones.find((milestone) => milestone.id === milestoneId)?.position ?? 0
   );
+};
+
+const getProgressSelectionMilestoneId = (
+  progress: ClubProgress,
+  finalMilestone: ClubMilestone | null
+) => {
+  if (progress.mode === "FINISHED") {
+    return (
+      finalMilestone?.id ?? progress.currentMilestone?.id ?? notStartedValue
+    );
+  }
+
+  return progress.currentMilestone?.id ?? notStartedValue;
 };
 
 const getPreviousMilestone = (

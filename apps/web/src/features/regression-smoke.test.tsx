@@ -480,6 +480,174 @@ describe("frontend regression smoke", () => {
     });
   });
 
+  it("selects the final milestone after finished progress is saved", async () => {
+    let hasSavedFinishedProgress = false;
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", () => ({
+        progress: hasSavedFinishedProgress
+          ? {
+              ...progress,
+              mode: "FINISHED",
+              currentMilestone: milestoneTwo,
+              completedMilestones: 2,
+              percentage: 100,
+              updatedAt: now
+            }
+          : progress
+      })),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      {
+        method: "PATCH",
+        path: "/api/clubs/safe-club/progress",
+        response: () => {
+          hasSavedFinishedProgress = true;
+
+          return {
+            progress: {
+              ...progress,
+              mode: "FINISHED",
+              currentMilestone: milestoneTwo,
+              completedMilestones: 2,
+              percentage: 100,
+              updatedAt: now
+            }
+          };
+        }
+      }
+    ]);
+    renderWithProviders(
+      <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
+    );
+    const user = userEvent.setup();
+    const milestoneSelect = await screen.findByLabelText("Current milestone");
+
+    expect(milestoneSelect).toHaveValue(firstMilestoneId);
+
+    await user.click(screen.getByRole("button", { name: /finished/i }));
+
+    expect(milestoneSelect).toHaveValue(firstMilestoneId);
+
+    await user.click(screen.getByRole("button", { name: /save progress/i }));
+
+    await waitFor(() =>
+      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
+        .toBeTruthy()
+    );
+    expect(
+      getJsonRequestBody(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")!
+      )
+    ).toEqual({
+      currentMilestoneId: secondMilestoneId,
+      mode: "FINISHED"
+    });
+    await waitFor(() => expect(milestoneSelect).toHaveValue(secondMilestoneId));
+  });
+
+  it("selects the final milestone when saved progress is already finished", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress: {
+          ...progress,
+          mode: "FINISHED",
+          currentMilestone: milestoneTwo,
+          completedMilestones: 2,
+          percentage: 100,
+          updatedAt: now
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse)
+    ]);
+    renderWithProviders(
+      <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
+    );
+    const milestoneSelect = await screen.findByLabelText("Current milestone");
+
+    expect(milestoneSelect).toHaveValue(secondMilestoneId);
+  });
+
+  it("animates feed posts that become visible after forward progress", async () => {
+    let hasAdvancedProgress = false;
+    const visiblePostFixture = visiblePost as Extract<
+      ClubPostCard,
+      { visibility: "VISIBLE" }
+    >;
+    const unlockedPost: ClubPostCard = {
+      ...visiblePostFixture,
+      id: lockedPost.id,
+      title: "Unlocked twist discussion",
+      bodyPreview: "Freshly safe body preview.",
+      requiredMilestone: lockedPost.requiredMilestone
+    };
+    const advancedProgress: ClubProgress = {
+      ...progress,
+      currentMilestone: milestoneTwo,
+      completedMilestones: 2,
+      percentage: 100,
+      updatedAt: now,
+      history: [
+        {
+          id: "00000000-0000-4000-8000-000000000052",
+          fromMode: "STRICT",
+          toMode: "STRICT",
+          fromMilestone: milestoneOne,
+          toMilestone: milestoneTwo,
+          createdAt: now
+        }
+      ]
+    };
+
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", () => ({
+        progress: hasAdvancedProgress ? advancedProgress : progress
+      })),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute("/api/clubs/safe-club/posts", () => ({
+        posts: [hasAdvancedProgress ? unlockedPost : lockedPost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      })),
+      {
+        method: "PATCH",
+        path: "/api/clubs/safe-club/progress",
+        response: () => {
+          hasAdvancedProgress = true;
+
+          return {
+            progress: advancedProgress
+          };
+        }
+      }
+    ]);
+    renderWithProviders(
+      <Fragment>
+        <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
+        <ClubFeedTab club={club} />
+      </Fragment>
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Locked discussion")).toBeInTheDocument();
+    expect(screen.queryByText("Freshly safe body preview.")).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByLabelText("Current milestone"),
+      secondMilestoneId
+    );
+    await user.click(screen.getByRole("button", { name: /save progress/i }));
+
+    const unlockedTitle = await screen.findByText("Unlocked twist discussion");
+    const unlockedCard = unlockedTitle.closest('[data-slot="card"]');
+
+    expect(unlockedCard).toHaveClass("post-unlock-card");
+    expect(
+      within(unlockedCard as HTMLElement).getByText("Freshly safe body preview.")
+    ).toBeInTheDocument();
+  });
+
   it("rewinds Finished progress and refetches open spoiler content as locked", async () => {
     let hasRewound = false;
     const postDetailPath = `/api/posts/${postId}`;
