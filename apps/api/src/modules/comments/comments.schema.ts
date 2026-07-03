@@ -36,7 +36,7 @@ export const commentReactionParamsSchema = z
 
 export const createPostCommentRequestSchema = z
   .object({
-    body: z.string().trim().min(1).max(8000),
+    body: z.string().trim().min(1, "Write a comment before posting.").max(8000),
     parentId: z.uuid().optional(),
     requiredMilestoneId: z.uuid().optional()
   })
