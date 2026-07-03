@@ -86,6 +86,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 80: My Clubs page search bar — Added an in-page search bar for joined clubs, preserving existing joined-club empty, no-match, loading, and pagination behavior.
 - Feature 81: Feed post return navigation — Preserved the club feed return target when opening a feed post detail view so the Feed breadcrumb returns to the originating club feed tab.
 - Feature 82: Clickable feed cards — Made linked visible and locked feed cards open from the whole card surface while preserving nested report, delete, and reaction controls.
+- Feature 83: Instant reaction feedback — Made post and comment reaction feedback immediate with non-blocking optimistic cache writes, guarded duplicate pending toggles, motion-safe emoji click animation, and focused frontend regression coverage.
 
 ## Entry Format
 

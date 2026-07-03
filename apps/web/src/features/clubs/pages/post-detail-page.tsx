@@ -1006,6 +1006,10 @@ const CommentReactionButtons = ({
   const reactionMutation = useToggleCommentReactionMutation(postId, comment.id);
 
   const handleReactionToggle = (emoji: (typeof comment.counts.reactions)[number]["emoji"]) => {
+    if (reactionMutation.isPending) {
+      return;
+    }
+
     reactionMutation.mutate(
       {
         emoji
@@ -1025,7 +1029,6 @@ const CommentReactionButtons = ({
   return (
     <ReactionButtonGroup
       ariaLabel="Comment reactions"
-      disabled={reactionMutation.isPending}
       reactions={comment.counts.reactions}
       onToggle={handleReactionToggle}
     />
