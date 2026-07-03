@@ -1,15 +1,24 @@
 import userEvent from "@testing-library/user-event";
+import { useQuery } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
+import { vi } from "vitest";
 
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
+import { PostReactionButtons } from "@/features/clubs/components/club-feed-tab";
 import { ReactionButtonGroup } from "@/features/clubs/components/reaction-button-group";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
+import {
+  clubsQueryKeys,
+  useTogglePostReactionMutation
+} from "@/features/clubs/api/clubs";
 import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import {
   mockFetchRoutes,
   renderWithProviders
 } from "@/test/render";
+
+import type { PostDetailResponse } from "@/features/clubs/api/clubs";
 
 const now = "2026-01-01T12:00:00.000Z";
 
@@ -106,6 +115,118 @@ describe("frontend accessibility regressions", () => {
     expect(unpressedReaction).toBeDisabled();
   });
 
+  it("keeps visible post reaction controls enabled without duplicate pending toggles", async () => {
+    const user = userEvent.setup();
+    const pendingFetch = vi.fn(
+      () => new Promise<Response>(() => undefined)
+    );
+
+    vi.stubGlobal("fetch", pendingFetch);
+
+    renderWithProviders(
+      <PostReactionButtons
+        postId="post-1"
+        counts={{
+          commentCount: 0,
+          reactionCount: 2,
+          unreadCommentCount: 0,
+          reactions: [
+            {
+              emoji: "👍",
+              count: 2,
+              reactedByMe: false
+            },
+            {
+              emoji: "❤️",
+              count: 0,
+              reactedByMe: false
+            },
+            {
+              emoji: "😂",
+              count: 0,
+              reactedByMe: false
+            },
+            {
+              emoji: "😮",
+              count: 0,
+              reactedByMe: false
+            },
+            {
+              emoji: "👀",
+              count: 0,
+              reactedByMe: false
+            }
+          ]
+        }}
+      />
+    );
+
+    const reaction = screen.getByRole("button", { name: /add 👍 reaction/i });
+
+    await user.click(reaction);
+    await user.click(reaction);
+
+    expect(pendingFetch).toHaveBeenCalledWith(
+      "/api/posts/post-1/reactions/toggle",
+      expect.objectContaining({
+        credentials: "include",
+        method: "POST"
+      })
+    );
+    expect(pendingFetch).toHaveBeenCalledTimes(1);
+    expect(reaction).toBeEnabled();
+  });
+
+  it("animates the clicked reaction emoji", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <ReactionButtonGroup
+        ariaLabel="Post reactions"
+        reactions={[
+          {
+            emoji: "👍",
+            count: 0,
+            reactedByMe: false
+          },
+          {
+            emoji: "👀",
+            count: 0,
+            reactedByMe: false
+          }
+        ]}
+        onToggle={() => undefined}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /add 👍 reaction/i }));
+
+    expect(screen.getByText("👍")).toHaveAttribute("data-popping", "true");
+    expect(screen.getByText("👀")).toHaveAttribute("data-popping", "false");
+  });
+
+  it("applies post reaction optimistic feedback before the request resolves", async () => {
+    const user = userEvent.setup();
+    const pendingFetch = vi.fn(
+      () => new Promise<Response>(() => undefined)
+    );
+
+    vi.stubGlobal("fetch", pendingFetch);
+
+    renderWithProviders(<OptimisticReactionProbe />);
+
+    const reaction = screen.getByRole("button", {
+      name: "Toggle reaction"
+    });
+
+    expect(reaction).toHaveTextContent("0:false");
+
+    await user.click(reaction);
+
+    await waitFor(() => expect(reaction).toHaveTextContent("1:true"));
+    expect(pendingFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("states why progress cannot advance when no milestones exist", async () => {
     mockFetchRoutes([
       {
@@ -151,3 +272,70 @@ describe("frontend accessibility regressions", () => {
     ).toBeInTheDocument();
   });
 });
+
+const OptimisticReactionProbe = () => {
+  const postQuery = useQuery({
+    queryKey: clubsQueryKeys.postDetail("post-1"),
+    queryFn: () => new Promise<PostDetailResponse>(() => undefined),
+    initialData: optimisticPostDetail,
+    staleTime: Infinity
+  });
+  const mutation = useTogglePostReactionMutation("post-1");
+  const reaction = postQuery.data.post.counts.reactions[0];
+
+  return (
+    <button
+      type="button"
+      aria-label="Toggle reaction"
+      onClick={() =>
+        mutation.mutate({
+          emoji: "👍"
+        })
+      }
+    >
+      {reaction.count}:{String(reaction.reactedByMe)}
+    </button>
+  );
+};
+
+const optimisticPostDetail: PostDetailResponse = {
+  club: {
+    id: "club-1",
+    linkName: "safe-club"
+  },
+  post: {
+    id: "post-1",
+    visibility: "VISIBLE",
+    type: "DISCUSSION",
+    status: "VISIBLE",
+    title: "Visible post title",
+    bodyPreview: "Visible post body.",
+    author: {
+      id: "user-1",
+      displayName: "Reader",
+      username: null
+    },
+    requiredMilestone: {
+      id: "milestone-1",
+      position: 1,
+      label: "Opening"
+    },
+    counts: {
+      commentCount: 0,
+      reactionCount: 0,
+      unreadCommentCount: 0,
+      reactions: [
+        { emoji: "👍", count: 0, reactedByMe: false },
+        { emoji: "❤️", count: 0, reactedByMe: false },
+        { emoji: "😂", count: 0, reactedByMe: false },
+        { emoji: "😮", count: 0, reactedByMe: false },
+        { emoji: "👀", count: 0, reactedByMe: false }
+      ]
+    },
+    permissions: {
+      canDelete: false
+    },
+    createdAt: now,
+    updatedAt: now
+  }
+};

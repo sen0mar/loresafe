@@ -935,6 +935,10 @@ export const PostReactionButtons = ({
 
   const handleReactionToggle =
     (emoji: (typeof postReactionEmojis)[number]) => () => {
+      if (reactionMutation.isPending) {
+        return;
+      }
+
       reactionMutation.mutate(
         {
           emoji
@@ -954,7 +958,6 @@ export const PostReactionButtons = ({
   return (
     <ReactionButtonGroup
       ariaLabel="Reactions"
-      disabled={reactionMutation.isPending}
       reactions={counts.reactions}
       onToggle={(emoji) => handleReactionToggle(emoji)()}
     />

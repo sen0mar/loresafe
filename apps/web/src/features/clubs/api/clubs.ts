@@ -1608,15 +1608,7 @@ export const useTogglePostReactionMutation = (
   return useMutation({
     mutationFn: (input: TogglePostReactionInput) =>
       togglePostReaction(postId, input),
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({
-        queryKey: clubsQueryKeys.postDetail(postId)
-      });
-      await queryClient.cancelQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) && query.queryKey.includes("feed")
-      });
-
+    onMutate: (input) => {
       const previousPostDetail =
         queryClient.getQueryData<PostDetailResponse>(
           clubsQueryKeys.postDetail(postId)
@@ -1653,6 +1645,24 @@ export const useTogglePostReactionMutation = (
               ? togglePostReactionOnCard(post, input.emoji)
               : post
           )
+      );
+
+      void queryClient.cancelQueries(
+        {
+          queryKey: clubsQueryKeys.postDetail(postId)
+        },
+        {
+          revert: false
+        }
+      );
+      void queryClient.cancelQueries(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey.includes("feed")
+        },
+        {
+          revert: false
+        }
       );
 
       return {
@@ -1714,11 +1724,7 @@ export const useToggleCommentReactionMutation = (
   return useMutation({
     mutationFn: (input: ToggleCommentReactionInput) =>
       toggleCommentReaction(commentId, input),
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({
-        queryKey: clubsQueryKeys.postComments(postId)
-      });
-
+    onMutate: (input) => {
       const previousComments =
         queryClient.getQueryData<InfiniteData<PostCommentsResponse>>(
           clubsQueryKeys.postComments(postId)
@@ -1732,6 +1738,15 @@ export const useToggleCommentReactionMutation = (
               ? toggleCommentReactionOnComment(comment, input.emoji)
               : comment
           )
+      );
+
+      void queryClient.cancelQueries(
+        {
+          queryKey: clubsQueryKeys.postComments(postId)
+        },
+        {
+          revert: false
+        }
       );
 
       return {
