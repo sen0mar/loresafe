@@ -317,3 +317,179 @@
     color: var(--text-primary);
   }
 }
+
+@layer components {
+  .post-unlock-card {
+    position: relative;
+    overflow: hidden;
+    border-color: var(--border-brand);
+    animation: post-unlock-card-pulse 1500ms ease-out both;
+  }
+
+  .post-unlock-content {
+    animation: post-unlock-content-reveal 1200ms ease-out both;
+  }
+
+  .post-unlock-overlay {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--bg-overlay) 94%, transparent),
+        color-mix(in srgb, var(--bg-active) 76%, transparent) 56%,
+        transparent
+      );
+    backdrop-filter: blur(10px);
+    animation: post-unlock-veil 1300ms ease-out both;
+  }
+
+  .post-unlock-overlay::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background-image:
+      radial-gradient(
+        circle at 18% 30%,
+        var(--accent-primary-bright) 0 1px,
+        transparent 2px
+      ),
+      radial-gradient(
+        circle at 42% 70%,
+        var(--state-success) 0 1px,
+        transparent 2px
+      ),
+      radial-gradient(
+        circle at 78% 42%,
+        var(--accent-primary-text) 0 1px,
+        transparent 2px
+      );
+    background-size:
+      32px 32px,
+      42px 42px,
+      54px 54px;
+    opacity: 0.62;
+    animation: post-unlock-shards 1250ms ease-out both;
+  }
+
+  .post-unlock-icon {
+    z-index: 1;
+    display: flex;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-brand);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    color: var(--accent-primary-bright);
+    animation: post-unlock-lock 1100ms ease-out both;
+  }
+}
+
+@keyframes post-unlock-card-pulse {
+  0%,
+  70% {
+    border-color: var(--border-brand);
+  }
+
+  100% {
+    border-color: var(--border-default);
+  }
+}
+
+@keyframes post-unlock-content-reveal {
+  0% {
+    opacity: 0.56;
+    filter: blur(10px);
+    transform: translateY(3px);
+  }
+
+  58% {
+    opacity: 0.86;
+    filter: blur(4px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes post-unlock-veil {
+  0% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    backdrop-filter: blur(10px);
+  }
+
+  62% {
+    opacity: 0.9;
+    clip-path: inset(0 0 0 48%);
+  }
+
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes post-unlock-shards {
+  0% {
+    opacity: 0.62;
+    transform: translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(28%) scale(1.08);
+  }
+}
+
+@keyframes post-unlock-lock {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92) rotate(0deg);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  58% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(-7deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.82) rotate(-18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-unlock-card,
+  .post-unlock-content,
+  .post-unlock-overlay,
+  .post-unlock-overlay::before,
+  .post-unlock-icon {
+    animation: none;
+  }
+
+  .post-unlock-content {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .post-unlock-overlay {
+    display: none;
+  }
+}

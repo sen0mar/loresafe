@@ -87,6 +87,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 81: Feed post return navigation — Preserved the club feed return target when opening a feed post detail view so the Feed breadcrumb returns to the originating club feed tab.
 - Feature 82: Clickable feed cards — Made linked visible and locked feed cards open from the whole card surface while preserving nested report, delete, and reaction controls.
 - Feature 83: Instant reaction feedback — Made post and comment reaction feedback immediate with non-blocking optimistic cache writes, guarded duplicate pending toggles, motion-safe emoji click animation, and focused frontend regression coverage.
+- Feature 84: Post unlock reveal animation — Added a motion-safe lock-opening reveal for newly visible feed posts after progress updates, kept reveals tied to authorized refetched content, fixed Finished-mode milestone select refresh after save, and added focused frontend regression coverage.
 
 ## Entry Format
 
