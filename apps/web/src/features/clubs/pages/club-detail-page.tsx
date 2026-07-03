@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BookOpen,
@@ -80,6 +80,21 @@ const roleLabels: Record<ClubMembershipRole, string> = {
   MEMBER: "Member"
 };
 
+type ClubDetailTab = "overview" | "settings" | "timeline" | "members" | "feed";
+
+const clubDetailTabs = new Set<ClubDetailTab>([
+  "overview",
+  "settings",
+  "timeline",
+  "members",
+  "feed"
+]);
+
+const getClubDetailTab = (value: string | null): ClubDetailTab =>
+  value && clubDetailTabs.has(value as ClubDetailTab)
+    ? (value as ClubDetailTab)
+    : "overview";
+
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat(undefined, {
     month: "short",
@@ -110,12 +125,27 @@ export const ClubDetailPage = () => {
 };
 
 const ClubDetailContent = ({ club }: { club: Club }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
   const joinClubMutation = useJoinClubMutation();
   const role = club.membership.role;
   const canModerate = role === "OWNER" || role === "MODERATOR";
   const canJoin =
     club.settings.visibility === "PUBLIC" && !club.membership.isMember;
+  const activeTab = getClubDetailTab(searchParams.get("tab"));
+
+  const handleTabChange = (tab: string) => {
+    const nextTab = getClubDetailTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextTab === "overview") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", nextTab);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const joinClub = () => {
     joinClubMutation.mutate(club.linkName, {
@@ -184,7 +214,11 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
-          <Tabs defaultValue="overview" className="min-w-0 max-w-full">
+          <Tabs
+            className="min-w-0 max-w-full"
+            value={activeTab}
+            onValueChange={handleTabChange}
+          >
             <TabsList className="w-full overflow-x-auto sm:w-fit">
               <TabsTrigger value="overview">
                 <BookOpen className="mr-2 size-4" />

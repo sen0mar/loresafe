@@ -248,6 +248,83 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
+  it("opens the club feed tab from the tab query parameter", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/posts", {
+        posts: [visiblePost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute("/api/clubs/safe-club/stats", {
+        stats: {
+          memberCount: 3,
+          milestoneCount: 2,
+          visiblePostCount: 1,
+          visibleCommentCount: 0,
+          postReactionCount: 0,
+          safePostCount: 1,
+          lockedPostCount: 0
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/progress/summary", {
+        progress: {
+          mode: progress.mode,
+          currentMilestone: progress.currentMilestone,
+          totalMilestones: progress.totalMilestones,
+          completedMilestones: progress.completedMilestones,
+          percentage: progress.percentage,
+          updatedAt: progress.updatedAt
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/popular-discussions", {
+        discussions: [],
+        pagination: {
+          limit: 5
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/recently-unlocked/summary", {
+        unlock: {
+          historyId: null,
+          fromPosition: 0,
+          toPosition: 0,
+          unlockedAt: null
+        },
+        posts: [],
+        pagination: {
+          limit: 3
+        }
+      })
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=feed"]
+      }
+    );
+
+    expect(await screen.findByRole("tab", { name: /feed/i })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(await screen.findByText("Visible post title")).toBeVisible();
+  });
+
   it("shows clear required-field messages when creating a club", async () => {
     const fetchMock = mockFetchRoutes([]);
     renderWithProviders(<CreateClubForm />, {
@@ -562,6 +639,68 @@ describe("frontend regression smoke", () => {
       body: "This is safe to discuss.",
       requiredMilestoneId: firstMilestoneId
     });
+  });
+
+  it("returns from a feed post detail view to the club feed", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club/posts", {
+        posts: [visiblePost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute(`/api/posts/${postId}`, {
+        post: visiblePost,
+        club: {
+          id: club.id,
+          linkName: club.linkName
+        }
+      }),
+      shellRoute(`/api/posts/${postId}/comments`, {
+        comments: [],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse)
+    ]);
+    const pathChanges: string[] = [];
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/app/clubs/:linkName"
+          element={<ClubFeedTab club={club} />}
+        />
+        <Route path="/app/posts/:postId" element={<PostDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=feed"],
+        routeObserver: (path) => pathChanges.push(path)
+      }
+    );
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("link", { name: "Visible post title" })
+    );
+
+    await waitFor(() => expect(pathChanges.at(-1)).toBe(`/app/posts/${postId}`));
+    const feedLink = await screen.findByRole("link", { name: "Feed" });
+
+    expect(feedLink).toHaveAttribute("href", "/app/clubs/safe-club?tab=feed");
+
+    await user.click(feedLink);
+
+    await waitFor(() =>
+      expect(pathChanges.at(-1)).toBe("/app/clubs/safe-club?tab=feed")
+    );
   });
 
   it("deletes posts from feed cards when permitted", async () => {

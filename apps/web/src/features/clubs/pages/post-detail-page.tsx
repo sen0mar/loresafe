@@ -5,7 +5,7 @@ import {
   useMemo,
   useState
 } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronDown,
@@ -69,8 +69,46 @@ const formatDateTime = (value: string) =>
     minute: "2-digit"
   }).format(new Date(value));
 
+type PostDetailReturnState = {
+  returnLabel?: unknown;
+  returnTo?: unknown;
+};
+
+const getSafeReturnTarget = (
+  state: unknown,
+  clubLinkName?: string
+): { label: string; to: string } => {
+  const returnState = state as PostDetailReturnState | null;
+
+  if (
+    typeof returnState?.returnTo === "string" &&
+    returnState.returnTo.startsWith("/app/") &&
+    !returnState.returnTo.startsWith("/app/posts/") &&
+    typeof returnState.returnLabel === "string" &&
+    returnState.returnLabel.trim().length > 0
+  ) {
+    return {
+      label: returnState.returnLabel,
+      to: returnState.returnTo
+    };
+  }
+
+  if (clubLinkName) {
+    return {
+      label: "Feed",
+      to: `/app/clubs/${clubLinkName}?tab=feed`
+    };
+  }
+
+  return {
+    label: "Explore",
+    to: "/app/explore"
+  };
+};
+
 export const PostDetailPage = () => {
   const { postId = "" } = useParams();
+  const location = useLocation();
   const [revealedPost, setRevealedPost] = useState<RevealedClubPost | null>(
     null
   );
@@ -90,6 +128,10 @@ export const PostDetailPage = () => {
       .filter((comment) => !deletedCommentIds.has(comment.id)) ?? [];
   const revealPostMutation = useRevealPostMutation(postId);
   const revealCommentMutation = useRevealPostCommentMutation(postId);
+  const returnTarget = getSafeReturnTarget(
+    location.state,
+    postQuery.data?.club.linkName
+  );
 
   useEffect(() => {
     setRevealedPost(null);
@@ -153,9 +195,9 @@ export const PostDetailPage = () => {
     <AuthenticatedAppShell>
       <div className="mx-auto max-w-3xl space-y-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/app/explore">
+          <Link to={returnTarget.to}>
             <ArrowLeft />
-            Explore
+            {returnTarget.label}
           </Link>
         </Button>
 
