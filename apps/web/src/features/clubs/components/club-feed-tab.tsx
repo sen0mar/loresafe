@@ -65,6 +65,11 @@ type ClubFeedTabProps = {
   club: Club;
 };
 
+type PostDetailLinkState = {
+  returnLabel: string;
+  returnTo: string;
+};
+
 const postTypeLabels: Record<PostType, string> = {
   DISCUSSION: "Discussion",
   QUESTION: "Question",
@@ -135,6 +140,10 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
   const createPostAction = club.membership.isMember ? (
     <CreatePostDialog club={club} />
   ) : null;
+  const postReturnState: PostDetailLinkState = {
+    returnLabel: "Feed",
+    returnTo: `/app/clubs/${club.linkName}?tab=feed`
+  };
 
   if (postsQuery.isPending) {
     return (
@@ -173,7 +182,12 @@ export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} linked />
+            <PostCard
+              key={post.id}
+              post={post}
+              linked
+              returnState={postReturnState}
+            />
           ))}
         </div>
       )}
@@ -673,7 +687,8 @@ export const PostCard = ({
   onOptimisticReaction,
   onReactionReconciled,
   onReactionRollback,
-  post
+  post,
+  returnState
 }: {
   linked?: boolean;
   onDeleted?: (postId: string) => void;
@@ -681,6 +696,7 @@ export const PostCard = ({
   onReactionReconciled?: (post: ClubPostCard) => void;
   onReactionRollback?: (post: ClubPostCard | null) => void;
   post: ClubPostCard;
+  returnState?: PostDetailLinkState;
 }) => {
   return post.visibility === "VISIBLE" ? (
     <VisiblePostCard
@@ -690,9 +706,15 @@ export const PostCard = ({
       onReactionReconciled={onReactionReconciled}
       onReactionRollback={onReactionRollback}
       post={post}
+      returnState={returnState}
     />
   ) : (
-    <LockedPostCard linked={linked} onDeleted={onDeleted} post={post} />
+    <LockedPostCard
+      linked={linked}
+      onDeleted={onDeleted}
+      post={post}
+      returnState={returnState}
+    />
   );
 };
 
@@ -702,7 +724,8 @@ const VisiblePostCard = ({
   onOptimisticReaction,
   onReactionReconciled,
   onReactionRollback,
-  post
+  post,
+  returnState
 }: {
   linked: boolean;
   onDeleted?: (postId: string) => void;
@@ -710,6 +733,7 @@ const VisiblePostCard = ({
   onReactionReconciled?: (post: ClubPostCard) => void;
   onReactionRollback?: (post: ClubPostCard | null) => void;
   post: Extract<ClubPostCard, { visibility: "VISIBLE" }>;
+  returnState?: PostDetailLinkState;
 }) => (
   <Card>
     <CardContent className="space-y-4 p-4">
@@ -720,6 +744,7 @@ const VisiblePostCard = ({
             <Link
               className="rounded-md transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               to={`/app/posts/${post.id}`}
+              state={returnState}
             >
               {post.title}
             </Link>
@@ -801,11 +826,13 @@ export const PredictionStateBadges = ({
 const LockedPostCard = ({
   linked,
   onDeleted,
-  post
+  post,
+  returnState
 }: {
   linked: boolean;
   onDeleted?: (postId: string) => void;
   post: Extract<ClubPostCard, { visibility: "LOCKED" }>;
+  returnState?: PostDetailLinkState;
 }) => (
   <Card>
     <CardContent className="space-y-4 p-4">
@@ -835,7 +862,9 @@ const LockedPostCard = ({
           ) : null}
           {linked ? (
             <Button asChild size="sm" variant="secondary">
-              <Link to={`/app/posts/${post.id}`}>Open</Link>
+              <Link to={`/app/posts/${post.id}`} state={returnState}>
+                Open
+              </Link>
             </Button>
           ) : null}
         </div>
