@@ -22,7 +22,7 @@ export const FeedPreview = () => (
       <CardContent className="space-y-3">
         <PostCard
           author="Miri"
-          mode="Soft mode"
+          mode="Strict mode"
           title="Thoughts on Glokta's first visit to the Low Places"
           body="His perspective in these chapters is fascinating. You start to see how survival shapes people in unexpected ways."
         />

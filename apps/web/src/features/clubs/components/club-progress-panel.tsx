@@ -54,11 +54,6 @@ const progressModeOptions: Array<{
     description: "Show only discussions up to my saved checkpoint."
   },
   {
-    value: "SOFT",
-    label: "Soft",
-    description: "Let me browse a little more freely while staying careful."
-  },
-  {
     value: "BRAVE",
     label: "Brave",
     description: "Same as Strict, but lets me manually reveal locked posts when I choose."

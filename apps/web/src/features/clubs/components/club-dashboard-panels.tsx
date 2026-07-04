@@ -26,7 +26,6 @@ const numberFormatter = new Intl.NumberFormat();
 
 const progressModeLabels: Record<ProgressMode, string> = {
   STRICT: "Strict",
-  SOFT: "Soft",
   BRAVE: "Brave",
   FINISHED: "Finished"
 };

@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const progressModeSchema = z.enum([
   "STRICT",
-  "SOFT",
   "BRAVE",
   "FINISHED"
 ]);

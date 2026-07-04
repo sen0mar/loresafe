@@ -25,7 +25,7 @@ export type ClubCategory =
   | "WEB_SERIALS"
   | "CUSTOM_TIMELINE";
 
-export type ProgressMode = "STRICT" | "SOFT" | "BRAVE" | "FINISHED";
+export type ProgressMode = "STRICT" | "BRAVE" | "FINISHED";
 
 export type PostType =
   | "DISCUSSION"

@@ -112,7 +112,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(firstUser))
       .send({
         currentMilestoneId: firstMilestone.id,
-        mode: "SOFT"
+        mode: "STRICT"
       })
       .expect(200);
     await request(app)
@@ -138,7 +138,7 @@ describe("progress routes", () => {
       .expect(200);
 
     expect(firstUserFirstClub.body.progress).toMatchObject({
-      mode: "SOFT",
+      mode: "STRICT",
       currentMilestone: {
         id: firstMilestone.id,
         safeTitle: "First opening"
@@ -175,7 +175,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         currentMilestoneId: firstMilestone.id,
-        mode: "SOFT"
+        mode: "BRAVE"
       })
       .expect(200);
     await request(app)
@@ -183,7 +183,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         currentMilestoneId: firstMilestone.id,
-        mode: "SOFT"
+        mode: "BRAVE"
       })
       .expect(200);
     const response = await request(app)
@@ -191,7 +191,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         currentMilestoneId: secondMilestone.id,
-        mode: "SOFT"
+        mode: "BRAVE"
       })
       .expect(200);
 
@@ -206,8 +206,8 @@ describe("progress routes", () => {
     ]);
     expect(response.body.progress.history).toHaveLength(2);
     expect(response.body.progress.history[0]).toMatchObject({
-      fromMode: "SOFT",
-      toMode: "SOFT",
+      fromMode: "BRAVE",
+      toMode: "BRAVE",
       fromMilestone: {
         id: firstMilestone.id,
         safeTitle: "Opening"
@@ -272,7 +272,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         currentMilestoneId: firstMilestone.id,
-        mode: "SOFT"
+        mode: "BRAVE"
       })
       .expect(200);
     const response = await request(app)
@@ -281,7 +281,7 @@ describe("progress routes", () => {
       .expect(200);
 
     expect(response.body.progress).toMatchObject({
-      mode: "SOFT",
+      mode: "BRAVE",
       currentMilestone: {
         id: secondMilestone.id,
         safeTitle: "Middle"
@@ -290,8 +290,8 @@ describe("progress routes", () => {
     expect(repository.history).toHaveLength(2);
     expect(repository.enqueuedProgressUnlockNotificationJobs).toHaveLength(2);
     expect(repository.history[0]).toMatchObject({
-      fromMode: "SOFT",
-      toMode: "SOFT",
+      fromMode: "BRAVE",
+      toMode: "BRAVE",
       fromMilestone: {
         id: firstMilestone.id
       },
@@ -397,7 +397,7 @@ describe("progress routes", () => {
       .set("x-request-id", "progress-nonmember")
       .send({
         currentMilestoneId: milestone.id,
-        mode: "SOFT"
+        mode: "STRICT"
       })
       .expect(403);
 
@@ -470,7 +470,7 @@ describe("progress routes", () => {
       .set("x-request-id", "progress-wrong-milestone")
       .send({
         currentMilestoneId: otherMilestone.id,
-        mode: "SOFT"
+        mode: "STRICT"
       })
       .expect(400);
 
@@ -499,6 +499,15 @@ describe("progress routes", () => {
         mode: "FAST"
       })
       .expect(400);
+
+    await request(app)
+      .patch("/api/clubs/public-story-circle/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: null,
+        mode: "SOFT"
+      })
+      .expect(400);
   });
 
   it("returns narrow spoiler-safe progress DTO fields", async () => {
@@ -517,7 +526,7 @@ describe("progress routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send({
         currentMilestoneId: milestone.id,
-        mode: "SOFT"
+        mode: "STRICT"
       })
       .expect(200);
 

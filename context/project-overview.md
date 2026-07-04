@@ -72,7 +72,7 @@ Normal discussion spaces rely on manual spoiler tags. ThreadSync makes spoiler s
 - Basic templates for books, shows, movies, games, podcasts/courses, and custom timelines.
 - Manual progress update and quick “next milestone complete”.
 - Progress history.
-- Modes: Strict, Soft, Brave, Finished.
+- Modes: Strict, Brave, Finished.
 
 ### Spoiler-Safe Discussion
 

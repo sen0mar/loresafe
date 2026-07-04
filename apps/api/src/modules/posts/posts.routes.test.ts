@@ -1484,49 +1484,42 @@ describe("posts routes", () => {
     });
   });
 
-  it("rejects Strict and Soft behind-progress post reveals", async () => {
-    for (const mode of ["STRICT", "SOFT"] as const) {
-      const user = repository.createStoredUser({
-        ...validUserInput(),
-        email: `${mode.toLowerCase()}-reveal@example.com`
-      });
-      const club = repository.createClub(`${mode.toLowerCase()}-reveal-club`);
-      const firstMilestone = repository.createMilestone(club.id, {
-        position: 1,
-        safeTitle: "Opening"
-      });
-      const secondMilestone = repository.createMilestone(club.id, {
-        position: 2,
-        safeTitle: "Future"
-      });
-      repository.createMembership(user.id, club.id);
-      repository.setProgress(user.id, club.id, firstMilestone.id, mode);
-      const post = repository.createPost(
-        club.id,
-        user.id,
-        secondMilestone.id,
-        {
-          title: `${mode}_TITLE_SHOULD_NOT_REVEAL`,
-          body: `${mode}_BODY_SHOULD_NOT_REVEAL`
-        }
-      );
+  it("rejects Strict behind-progress post reveals", async () => {
+    const user = repository.createStoredUser({
+      ...validUserInput(),
+      email: "strict-reveal@example.com"
+    });
+    const club = repository.createClub("strict-reveal-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const secondMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Future"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, secondMilestone.id, {
+      title: "STRICT_TITLE_SHOULD_NOT_REVEAL",
+      body: "STRICT_BODY_SHOULD_NOT_REVEAL"
+    });
 
-      const response = await request(app)
-        .post(`/api/posts/${post.id}/reveal`)
-        .set("Cookie", await createSessionCookie(user))
-        .expect(403);
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/reveal`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(403);
 
-      expect(response.body.error).toMatchObject({
-        code: "FORBIDDEN",
-        message: "Switch to Brave mode before revealing this discussion."
-      });
-      expect(JSON.stringify(response.body)).not.toContain(
-        `${mode}_TITLE_SHOULD_NOT_REVEAL`
-      );
-      expect(JSON.stringify(response.body)).not.toContain(
-        `${mode}_BODY_SHOULD_NOT_REVEAL`
-      );
-    }
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Switch to Brave mode before revealing this discussion."
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "STRICT_TITLE_SHOULD_NOT_REVEAL"
+    );
+    expect(JSON.stringify(response.body)).not.toContain(
+      "STRICT_BODY_SHOULD_NOT_REVEAL"
+    );
   });
 
   it("returns future posts through normal endpoints for Finished users", async () => {

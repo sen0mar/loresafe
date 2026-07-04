@@ -845,41 +845,39 @@ describe("comments routes", () => {
     });
   });
 
-  it("rejects Strict and Soft behind-progress comment reveals", async () => {
-    for (const mode of ["STRICT", "SOFT"] as const) {
-      const user = repository.createStoredUser({
-        ...validUserInput(),
-        email: `${mode.toLowerCase()}-comment-reveal@example.com`
-      });
-      const post = repository.createPostFixture(user.id, {
-        membershipUserId: user.id,
-        progressPosition: 1,
-        postMilestonePosition: 1
-      });
-      const futureMilestone = repository.createMilestone(post.clubId, 2);
-      repository.setProgress(user.id, post.clubId, 1, mode);
-      const comment = repository.createComment(
-        post.id,
-        user.id,
-        futureMilestone,
-        {
-          body: `${mode}_COMMENT_BODY_SHOULD_NOT_REVEAL`
-        }
-      );
+  it("rejects Strict behind-progress comment reveals", async () => {
+    const user = repository.createStoredUser({
+      ...validUserInput(),
+      email: "strict-comment-reveal@example.com"
+    });
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const futureMilestone = repository.createMilestone(post.clubId, 2);
+    repository.setProgress(user.id, post.clubId, 1, "STRICT");
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      futureMilestone,
+      {
+        body: "STRICT_COMMENT_BODY_SHOULD_NOT_REVEAL"
+      }
+    );
 
-      const response = await request(app)
-        .post(`/api/posts/${post.id}/comments/${comment.id}/reveal`)
-        .set("Cookie", await createSessionCookie(user))
-        .expect(403);
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/comments/${comment.id}/reveal`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(403);
 
-      expect(response.body.error).toMatchObject({
-        code: "FORBIDDEN",
-        message: "Switch to Brave mode before revealing this comment."
-      });
-      expect(JSON.stringify(response.body)).not.toContain(
-        `${mode}_COMMENT_BODY_SHOULD_NOT_REVEAL`
-      );
-    }
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Switch to Brave mode before revealing this comment."
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "STRICT_COMMENT_BODY_SHOULD_NOT_REVEAL"
+    );
   });
 
   it("returns future comments through normal endpoints for Finished users", async () => {
