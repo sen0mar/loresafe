@@ -9,6 +9,7 @@ import {
   CardTitle
 } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { cn } from "@/shared/lib/utils";
 
 import {
   type Club,
@@ -58,7 +59,7 @@ export const ClubDashboardPanels = ({ club }: ClubDashboardPanelsProps) => {
         isPending={statsQuery.isPending}
         stats={statsQuery.data?.stats}
       />
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-4">
         <StatsPanel
           isError={statsQuery.isError}
           isPending={statsQuery.isPending}
@@ -157,14 +158,15 @@ const MyOverviewPanel = ({
         {clubDescription ?? "No description yet."}
       </p>
       {isPending ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-16 w-full" />
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-14 w-full" />
           ))}
         </div>
       ) : isError || !stats ? null : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <Metric
+            density="compact"
             label="Joined"
             value={
               stats.viewer.joinedAt
@@ -172,16 +174,23 @@ const MyOverviewPanel = ({
                 : "Not joined"
             }
           />
-          <Metric label="My posts" value={formatCount(stats.viewer.postCount)} />
           <Metric
+            density="compact"
+            label="My posts"
+            value={formatCount(stats.viewer.postCount)}
+          />
+          <Metric
+            density="compact"
             label="My comments"
             value={formatCount(stats.viewer.commentCount)}
           />
           <Metric
+            density="compact"
             label="Safe"
             value={formatCount(stats.safePostCount)}
           />
           <Metric
+            density="compact"
             label="Locked"
             value={formatCount(stats.lockedPostCount)}
           />
@@ -218,7 +227,7 @@ const ProgressSummaryPanel = ({
   }
 
   return (
-    <Card>
+    <Card className="h-fit">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="size-5 text-brand" />
@@ -252,12 +261,36 @@ const ProgressSummaryPanel = ({
   );
 };
 
-const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg border border-default bg-inset p-3">
-    <p className="text-xs text-faint">{label}</p>
-    <p className="mt-1 text-sm font-medium text-primary">{value}</p>
-  </div>
-);
+const Metric = ({
+  density = "default",
+  label,
+  value
+}: {
+  density?: "default" | "compact";
+  label: string;
+  value: string;
+}) => {
+  const isCompact = density === "compact";
+
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-lg border border-default bg-inset",
+        isCompact ? "p-2.5" : "p-3"
+      )}
+    >
+      <p className="text-xs text-faint">{label}</p>
+      <p
+        className={cn(
+          "mt-1 truncate font-medium text-primary",
+          isCompact ? "text-xs" : "text-sm"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+};
 
 const DashboardCardSkeleton = () => (
   <Card>

@@ -9,6 +9,7 @@ import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
+import { MilestoneProgressDots } from "@/features/clubs/components/milestone-progress-dots";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
 import { ClubDetailPage } from "@/features/clubs/pages/club-detail-page";
 import { ClubModerationReportsPage } from "@/features/clubs/pages/club-moderation-reports-page";
@@ -580,6 +581,35 @@ describe("frontend regression smoke", () => {
         "/api/clubs/safe-club/popular-discussions"
       )
     ).toBeUndefined();
+  });
+
+  it("wraps long milestone checkpoint summaries onto new rows", () => {
+    renderWithProviders(
+      <MilestoneProgressDots completedMilestones={9} totalMilestones={17} />
+    );
+
+    const progressDots = screen.getByLabelText(
+      "9 of 17 milestone checkpoints reached"
+    );
+    const checkpointRows = progressDots.querySelectorAll(
+      "[data-checkpoint-row]"
+    );
+    const checkpointDots = progressDots.querySelectorAll(
+      "[data-checkpoint-state]"
+    );
+
+    expect(checkpointRows).toHaveLength(2);
+    expect(checkpointRows[0].querySelectorAll("[data-checkpoint-state]"))
+      .toHaveLength(12);
+    expect(checkpointDots).toHaveLength(17);
+    expect(checkpointDots[7]).toHaveAttribute(
+      "data-checkpoint-state",
+      "reached"
+    );
+    expect(checkpointDots[8]).toHaveAttribute(
+      "data-checkpoint-state",
+      "current"
+    );
   });
 
   it("shows clear required-field messages when creating a club", async () => {

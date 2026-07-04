@@ -6,6 +6,8 @@ type MilestoneProgressDotsProps = {
   className?: string;
 };
 
+const checkpointsPerRow = 12;
+
 export const MilestoneProgressDots = ({
   className,
   completedMilestones,
@@ -16,12 +18,7 @@ export const MilestoneProgressDots = ({
     Math.max(0, completedMilestones),
     checkpointCount
   );
-  const progressWidth =
-    checkpointCount <= 1
-      ? reachedCount > 0
-        ? 100
-        : 0
-      : Math.max(0, ((reachedCount - 1) / (checkpointCount - 1)) * 100);
+  const checkpointRows = getCheckpointRows(checkpointCount);
 
   if (checkpointCount === 0) {
     return null;
@@ -30,7 +27,33 @@ export const MilestoneProgressDots = ({
   return (
     <div
       aria-label={`${reachedCount} of ${checkpointCount} milestone checkpoints reached`}
-      className={cn("relative h-7 px-2.5", className)}
+      className={cn("flex max-w-full flex-col gap-1.5", className)}
+    >
+      {checkpointRows.map((row, rowIndex) => (
+        <CheckpointRow
+          key={rowIndex}
+          reachedCount={reachedCount}
+          row={row}
+        />
+      ))}
+    </div>
+  );
+};
+
+const CheckpointRow = ({
+  reachedCount,
+  row
+}: {
+  reachedCount: number;
+  row: number[];
+}) => {
+  const progressWidth = getRowProgressWidth(row, reachedCount);
+
+  return (
+    <div
+      aria-hidden="true"
+      className="relative h-7 px-2.5"
+      data-checkpoint-row
     >
       <span
         aria-hidden="true"
@@ -45,8 +68,7 @@ export const MilestoneProgressDots = ({
         aria-hidden="true"
         className="relative z-10 flex h-full items-center justify-between"
       >
-        {Array.from({ length: checkpointCount }, (_, index) => {
-          const checkpointNumber = index + 1;
+        {row.map((checkpointNumber) => {
           const isReached = checkpointNumber < reachedCount;
           const isCurrent = checkpointNumber === reachedCount;
 
@@ -61,7 +83,7 @@ export const MilestoneProgressDots = ({
               data-checkpoint-state={
                 isCurrent ? "current" : isReached ? "reached" : "future"
               }
-              key={index}
+              key={checkpointNumber}
             >
               {isCurrent ? (
                 <span className="size-2 rounded-full bg-foreground" />
@@ -73,3 +95,37 @@ export const MilestoneProgressDots = ({
     </div>
   );
 };
+
+const getRowProgressWidth = (row: number[], reachedCount: number) => {
+  const rowStart = row[0] ?? 0;
+  const rowEnd = row.at(-1) ?? 0;
+
+  if (row.length <= 1) {
+    return reachedCount >= rowStart ? 100 : 0;
+  }
+
+  if (reachedCount <= rowStart) {
+    return 0;
+  }
+
+  if (reachedCount >= rowEnd) {
+    return 100;
+  }
+
+  return ((reachedCount - rowStart) / (row.length - 1)) * 100;
+};
+
+const getCheckpointRows = (checkpointCount: number) =>
+  Array.from(
+    { length: Math.ceil(checkpointCount / checkpointsPerRow) },
+    (_, rowIndex) =>
+      Array.from(
+        {
+          length: Math.min(
+            checkpointsPerRow,
+            checkpointCount - rowIndex * checkpointsPerRow
+          )
+        },
+        (_, checkpointIndex) => rowIndex * checkpointsPerRow + checkpointIndex + 1
+      )
+  );
