@@ -153,26 +153,28 @@ export const ProfileSettingsForm = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 rounded-lg border border-default bg-inset p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
-                <ImageUp className="size-4 text-brand" />
-                Avatar
-              </h2>
-              <p className="mt-1 text-sm text-muted">JPEG, PNG, or WebP up to 2 MB.</p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={avatarUpload.isUploading}
-              asChild
+        <div className="mb-4 flex flex-col gap-4 rounded-lg border border-default bg-inset p-4 sm:flex-row sm:items-center">
+          <div className="relative size-24 shrink-0">
+            <label
+              htmlFor="avatar-upload"
+              className="group flex size-24 cursor-pointer items-center justify-center rounded-full border border-default bg-active transition hover:border-brand focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-base"
+              aria-label="Choose avatar image"
             >
-              <label htmlFor="avatar-upload">
-                <ImageUp />
-                {avatarUpload.isUploading ? "Uploading..." : "Choose image"}
-              </label>
-            </Button>
+              <Avatar className="size-full border-0">
+                {currentUser.avatarUrl ? (
+                  <AvatarImage
+                    src={currentUser.avatarUrl}
+                    alt={`${currentUser.displayName} avatar`}
+                  />
+                ) : null}
+                <AvatarFallback className="text-2xl">
+                  {getUserInitials(values.displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-1 right-1 flex size-8 items-center justify-center rounded-full border border-default bg-surface text-brand transition group-hover:border-brand">
+                <ImageUp className="size-4" aria-hidden="true" />
+              </span>
+            </label>
             <input
               id="avatar-upload"
               className="sr-only"
@@ -182,14 +184,30 @@ export const ProfileSettingsForm = ({
               onChange={uploadAvatar}
             />
           </div>
-          {avatarUpload.isUploading ? (
-            <UploadProgress progress={avatarUpload.progress} />
-          ) : null}
-          {avatarUpload.error ? (
-            <p className="mt-3 text-sm text-error" role="alert">
-              {avatarUpload.error}
-            </p>
-          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <ImageUp className="size-4 text-brand" />
+                  Avatar
+                </h2>
+                <p className="mt-1 text-sm text-muted">
+                  JPEG, PNG, or WebP up to 2 MB.
+                </p>
+              </div>
+              <p className="text-sm text-faint" aria-live="polite">
+                {avatarUpload.isUploading ? "Uploading..." : "Choose image"}
+              </p>
+            </div>
+            {avatarUpload.isUploading ? (
+              <UploadProgress progress={avatarUpload.progress} />
+            ) : null}
+            {avatarUpload.error ? (
+              <p className="mt-3 text-sm text-error" role="alert">
+                {avatarUpload.error}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <form className="grid gap-4" onSubmit={submitProfile} noValidate>
