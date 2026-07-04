@@ -433,6 +433,11 @@ export type ClubDashboardStatsResponse = {
     postReactionCount: number;
     safePostCount: number;
     lockedPostCount: number;
+    viewer: {
+      joinedAt: string | null;
+      postCount: number;
+      commentCount: number;
+    };
   };
 };
 

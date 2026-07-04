@@ -1,10 +1,4 @@
-import {
-  BarChart3,
-  LockKeyhole,
-  MessageSquareText,
-  Sparkles,
-  TrendingUp
-} from "lucide-react";
+import { BarChart3, TrendingUp } from "lucide-react";
 
 import { ApiError } from "@/shared/api/api-client";
 import {
@@ -18,14 +12,10 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import {
   type Club,
-  type ClubPostCard,
   type ProgressMode,
   useClubDashboardStatsQuery,
-  useClubProgressSummaryQuery,
-  usePopularDiscussionsQuery,
-  useRecentlyUnlockedSummaryQuery
+  useClubProgressSummaryQuery
 } from "../api/clubs.js";
-import { PostCard } from "./club-feed-tab.js";
 import { MilestoneProgressDots } from "./milestone-progress-dots.js";
 
 type ClubDashboardPanelsProps = {
@@ -42,6 +32,12 @@ const progressModeLabels: Record<ProgressMode, string> = {
 };
 
 const formatCount = (count: number) => numberFormatter.format(count);
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
 
 const isHiddenPanelError = (error: Error | null) =>
   error instanceof ApiError &&
@@ -54,19 +50,21 @@ export const ClubDashboardPanels = ({ club }: ClubDashboardPanelsProps) => {
     club.linkName,
     isMember
   );
-  const popularDiscussionsQuery = usePopularDiscussionsQuery(club.linkName);
-  const recentlyUnlockedSummaryQuery = useRecentlyUnlockedSummaryQuery(
-    club.linkName,
-    isMember
-  );
 
   return (
     <div className="space-y-4">
+      <MyOverviewPanel
+        clubDescription={club.description}
+        isError={statsQuery.isError}
+        isPending={statsQuery.isPending}
+        stats={statsQuery.data?.stats}
+      />
       <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
         <StatsPanel
           isError={statsQuery.isError}
           isPending={statsQuery.isPending}
           stats={statsQuery.data?.stats}
+          createdAt={club.createdAt}
         />
         <ProgressSummaryPanel
           error={progressSummaryQuery.error}
@@ -75,20 +73,6 @@ export const ClubDashboardPanels = ({ club }: ClubDashboardPanelsProps) => {
           progress={progressSummaryQuery.data?.progress}
         />
       </div>
-
-      <RecentlyUnlockedSummaryPanel
-        error={recentlyUnlockedSummaryQuery.error}
-        isError={recentlyUnlockedSummaryQuery.isError}
-        isPending={recentlyUnlockedSummaryQuery.isPending && isMember}
-        posts={recentlyUnlockedSummaryQuery.data?.posts}
-        unlockedAt={recentlyUnlockedSummaryQuery.data?.unlock.unlockedAt}
-      />
-
-      <PopularDiscussionsPanel
-        discussions={popularDiscussionsQuery.data?.discussions}
-        isError={popularDiscussionsQuery.isError}
-        isPending={popularDiscussionsQuery.isPending}
-      />
     </div>
   );
 };
@@ -96,10 +80,12 @@ export const ClubDashboardPanels = ({ club }: ClubDashboardPanelsProps) => {
 const StatsPanel = ({
   isError,
   isPending,
-  stats
+  stats,
+  createdAt
 }: {
   isError: boolean;
   isPending: boolean;
+  createdAt: string;
   stats?: {
     memberCount: number;
     milestoneCount: number;
@@ -108,6 +94,11 @@ const StatsPanel = ({
     postReactionCount: number;
     safePostCount: number;
     lockedPostCount: number;
+    viewer: {
+      joinedAt: string | null;
+      postCount: number;
+      commentCount: number;
+    };
   };
 }) => {
   if (isPending) {
@@ -129,20 +120,77 @@ const StatsPanel = ({
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
         <Metric label="Members" value={formatCount(stats.memberCount)} />
+        <Metric label="Created" value={formatDate(createdAt)} />
         <Metric label="Milestones" value={formatCount(stats.milestoneCount)} />
         <Metric label="Discussions" value={formatCount(stats.visiblePostCount)} />
         <Metric label="Comments" value={formatCount(stats.visibleCommentCount)} />
         <Metric label="Reactions" value={formatCount(stats.postReactionCount)} />
-        <Metric
-          label="Safe / locked"
-          value={`${formatCount(stats.safePostCount)} / ${formatCount(
-            stats.lockedPostCount
-          )}`}
-        />
       </CardContent>
     </Card>
   );
 };
+
+const MyOverviewPanel = ({
+  clubDescription,
+  isError,
+  isPending,
+  stats
+}: {
+  clubDescription: string | null;
+  isError: boolean;
+  isPending: boolean;
+  stats?: {
+    safePostCount: number;
+    lockedPostCount: number;
+    viewer: {
+      joinedAt: string | null;
+      postCount: number;
+      commentCount: number;
+    };
+  };
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>My overview</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <p className="text-sm leading-6 text-muted">
+        {clubDescription ?? "No description yet."}
+      </p>
+      {isPending ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : isError || !stats ? null : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric
+            label="Joined"
+            value={
+              stats.viewer.joinedAt
+                ? formatDate(stats.viewer.joinedAt)
+                : "Not joined"
+            }
+          />
+          <Metric label="My posts" value={formatCount(stats.viewer.postCount)} />
+          <Metric
+            label="My comments"
+            value={formatCount(stats.viewer.commentCount)}
+          />
+          <Metric
+            label="Safe"
+            value={formatCount(stats.safePostCount)}
+          />
+          <Metric
+            label="Locked"
+            value={formatCount(stats.lockedPostCount)}
+          />
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
 
 const ProgressSummaryPanel = ({
   error,
@@ -205,95 +253,6 @@ const ProgressSummaryPanel = ({
   );
 };
 
-const RecentlyUnlockedSummaryPanel = ({
-  error,
-  isError,
-  isPending,
-  posts,
-  unlockedAt
-}: {
-  error: Error | null;
-  isError: boolean;
-  isPending: boolean;
-  posts?: ClubPostCard[];
-  unlockedAt?: string | null;
-}) => {
-  if (isPending) {
-    return <PostListSkeleton title="Recently unlocked" />;
-  }
-
-  if (isHiddenPanelError(error) || isError || !posts || posts.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
-            <Sparkles className="size-5 text-brand" />
-            Recently unlocked
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            {unlockedAt
-              ? `Unlocked ${formatDateTime(unlockedAt)}`
-              : "Newly safe discussions"}
-          </p>
-        </div>
-      </div>
-      <div className="grid gap-3">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} linked />
-        ))}
-      </div>
-    </section>
-  );
-};
-
-const PopularDiscussionsPanel = ({
-  discussions,
-  isError,
-  isPending
-}: {
-  discussions?: Array<{
-    post: ClubPostCard;
-    engagementScore: number;
-  }>;
-  isError: boolean;
-  isPending: boolean;
-}) => {
-  if (isPending) {
-    return <PostListSkeleton title="Popular discussions" />;
-  }
-
-  if (isError || !discussions || discussions.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
-          <MessageSquareText className="size-5 text-brand" />
-          Popular discussions
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Ranked by visible comments and reactions
-        </p>
-      </div>
-      <div className="grid gap-3">
-        {discussions.map((discussion) => (
-          <PostCard
-            key={discussion.post.id}
-            post={discussion.post}
-            linked
-          />
-        ))}
-      </div>
-    </section>
-  );
-};
-
 const Metric = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-lg border border-default bg-inset p-3">
     <p className="text-xs text-faint">{label}</p>
@@ -314,34 +273,3 @@ const DashboardCardSkeleton = () => (
     </CardContent>
   </Card>
 );
-
-const PostListSkeleton = ({ title }: { title: string }) => (
-  <section className="space-y-3">
-    <div>
-      <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
-        <LockKeyhole className="size-5 text-faint" />
-        {title}
-      </h2>
-      <Skeleton className="mt-2 h-4 w-48" />
-    </div>
-    <div className="grid gap-3">
-      {Array.from({ length: 2 }).map((_, index) => (
-        <Card key={index}>
-          <CardContent className="space-y-3 p-4">
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </section>
-);
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));

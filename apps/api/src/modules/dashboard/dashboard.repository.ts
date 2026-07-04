@@ -26,6 +26,11 @@ export type ClubDashboardStatsRecord = {
   postReactionCount: number;
   safePostCount: number;
   lockedPostCount: number;
+  viewer: {
+    joinedAt: Date | null;
+    postCount: number;
+    commentCount: number;
+  };
 };
 
 export type ProgressSummaryRecord = {
@@ -143,7 +148,7 @@ export const dashboardRepository: DashboardRepository = {
     };
   },
 
-  getClubDashboardStats: async (_userId, club) => {
+  getClubDashboardStats: async (userId, club) => {
     const progressPosition = club.progress.currentMilestonePosition ?? 0;
     const safePostWhere: Prisma.PostWhereInput =
       club.progress.mode === "FINISHED"
@@ -156,13 +161,27 @@ export const dashboardRepository: DashboardRepository = {
             }
           };
     const [
+      membership,
       memberCount,
       milestoneCount,
       visiblePostCount,
       visibleCommentCount,
       postReactionCount,
-      safePostCount
+      safePostCount,
+      viewerPostCount,
+      viewerCommentCount
     ] = await prisma.$transaction([
+      prisma.clubMembership.findUnique({
+        where: {
+          userId_clubId: {
+            userId,
+            clubId: club.id
+          }
+        },
+        select: {
+          createdAt: true
+        }
+      }),
       prisma.clubMembership.count({
         where: {
           clubId: club.id
@@ -193,6 +212,20 @@ export const dashboardRepository: DashboardRepository = {
           ...visiblePostWhere(club.id),
           ...safePostWhere
         }
+      }),
+      prisma.post.count({
+        where: {
+          ...visiblePostWhere(club.id),
+          authorId: userId
+        }
+      }),
+      prisma.comment.count({
+        where: {
+          authorId: userId,
+          status: "VISIBLE",
+          deletedAt: null,
+          post: visiblePostWhere(club.id)
+        }
       })
     ]);
 
@@ -203,7 +236,12 @@ export const dashboardRepository: DashboardRepository = {
       visibleCommentCount,
       postReactionCount,
       safePostCount,
-      lockedPostCount: Math.max(0, visiblePostCount - safePostCount)
+      lockedPostCount: Math.max(0, visiblePostCount - safePostCount),
+      viewer: {
+        joinedAt: membership?.createdAt ?? null,
+        postCount: viewerPostCount,
+        commentCount: viewerCommentCount
+      }
     };
   },
 

@@ -91,6 +91,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 85: Ban removes membership — Added ban-time role metadata with a committed migration, removed club membership on direct and report bans, added active-ban list/unban APIs, optional same-club authored post cleanup with audit logs, and focused backend/frontend regression coverage.
 - Feature 86: Ban cleanup confirmation choices — Replaced pre-ban cleanup checkboxes with Ban-triggered confirmation dialogs that let moderators choose ban-only or ban-and-delete-posts in member management and report queues, with focused frontend regression coverage.
 - Feature 87: Fixed tab section overflow — Made shared tab lists wrap without creating two-axis scroll boxes, removed tab overflow overrides, and added focused frontend regression coverage.
+- Feature 88: Club overview tab cleanup — Isolated club tab content, removed overview-only unlocked and popular sections, added a viewer-specific My overview card with joined/post/comment/safe/locked metrics, and extended dashboard stats coverage.
 
 ## Entry Format
 

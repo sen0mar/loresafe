@@ -52,13 +52,21 @@ describe("dashboard routes", () => {
 
   it("returns real club stats from visible records only", async () => {
     const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser(
+      {
+        ...validUserInput(),
+        email: "other@example.com",
+        displayName: "Other Reader"
+      }
+    );
     const club = repository.createClub("stats-story-circle");
     const firstMilestone = repository.createMilestone(club.id, 1, "Opening");
     const secondMilestone = repository.createMilestone(club.id, 2, "Midpoint");
-    repository.createMembership(user.id, club.id);
+    const membership = repository.createMembership(user.id, club.id);
     repository.setProgress(user.id, club.id, firstMilestone.id, "STRICT");
     const safePost = repository.createPost(club.id, user.id, firstMilestone);
     const lockedPost = repository.createPost(club.id, user.id, secondMilestone);
+    repository.createPost(club.id, otherUser.id, firstMilestone);
     repository.createPost(club.id, user.id, firstMilestone, {
       status: "HIDDEN"
     });
@@ -67,6 +75,7 @@ describe("dashboard routes", () => {
     });
     repository.createComment(safePost.id, user.id);
     repository.createComment(lockedPost.id, user.id);
+    repository.createComment(safePost.id, otherUser.id);
     repository.createComment(safePost.id, user.id, { status: "HIDDEN" });
     repository.createPostReaction(safePost.id, user.id, "👍");
     repository.createPostReaction(lockedPost.id, user.id, "❤️");
@@ -79,11 +88,16 @@ describe("dashboard routes", () => {
     expect(response.body.stats).toEqual({
       memberCount: 1,
       milestoneCount: 2,
-      visiblePostCount: 2,
-      visibleCommentCount: 2,
+      visiblePostCount: 3,
+      visibleCommentCount: 3,
       postReactionCount: 2,
-      safePostCount: 1,
-      lockedPostCount: 1
+      safePostCount: 2,
+      lockedPostCount: 1,
+      viewer: {
+        joinedAt: membership.createdAt.toISOString(),
+        postCount: 2,
+        commentCount: 2
+      }
     });
   });
 
@@ -331,12 +345,17 @@ class InMemoryDashboardRepository
     clubId: string,
     role: StoredMembership["role"] = "MEMBER"
   ) => {
-    this.memberships.push({
+    const membership = {
       id: crypto.randomUUID(),
       userId,
       clubId,
-      role
-    });
+      role,
+      createdAt: new Date()
+    };
+
+    this.memberships.push(membership);
+
+    return membership;
   };
 
   createMilestone = (clubId: string, position: number, safeTitle: string) => {
@@ -480,7 +499,7 @@ class InMemoryDashboardRepository
   };
 
   getClubDashboardStats = async (
-    _userId: string,
+    userId: string,
     club: DashboardClubRecord
   ): Promise<ClubDashboardStatsRecord> => {
     const visiblePosts = this.visiblePostsForClub(club.id);
@@ -493,6 +512,7 @@ class InMemoryDashboardRepository
               (club.progress.currentMilestonePosition ?? 0)
           ).length;
     const visiblePostIds = new Set(visiblePosts.map((post) => post.id));
+    const viewerMembership = this.findMembership(userId, club.id);
 
     return {
       memberCount: this.memberships.filter(
@@ -512,7 +532,18 @@ class InMemoryDashboardRepository
         visiblePostIds.has(reaction.postId)
       ).length,
       safePostCount,
-      lockedPostCount: visiblePosts.length - safePostCount
+      lockedPostCount: visiblePosts.length - safePostCount,
+      viewer: {
+        joinedAt: viewerMembership?.createdAt ?? null,
+        postCount: visiblePosts.filter((post) => post.authorId === userId).length,
+        commentCount: this.comments.filter(
+          (comment) =>
+            comment.authorId === userId &&
+            visiblePostIds.has(comment.postId) &&
+            comment.status === "VISIBLE" &&
+            !comment.deletedAt
+        ).length
+      }
     };
   };
 
@@ -710,6 +741,7 @@ type StoredMembership = {
   userId: string;
   clubId: string;
   role: "OWNER" | "MODERATOR" | "MEMBER";
+  createdAt: Date;
 };
 
 type StoredMilestone = {
