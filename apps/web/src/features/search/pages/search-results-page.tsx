@@ -370,7 +370,7 @@ export const SearchLoading = ({ filters }: { filters: SearchFilter[] }) => (
         {Array.from({ length: 2 }, (_, index) => (
           <Card key={index}>
             <CardHeader className="space-y-3">
-              <Skeleton className="size-11 rounded-lg" />
+              <Skeleton className="size-11 rounded-full" />
               <Skeleton className="h-5 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
             </CardHeader>

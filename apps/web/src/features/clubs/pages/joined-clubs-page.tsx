@@ -231,7 +231,7 @@ const JoinedClubsLoading = () => (
     {Array.from({ length: 6 }, (_, index) => (
       <Card key={index}>
         <CardHeader className="space-y-3">
-          <Skeleton className="size-10 rounded-lg" />
+          <Skeleton className="size-10 rounded-full" />
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-4 w-1/2" />
         </CardHeader>

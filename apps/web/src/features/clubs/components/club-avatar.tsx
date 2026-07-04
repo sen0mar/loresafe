@@ -17,14 +17,14 @@ export const ClubAvatar = ({
 }: ClubAvatarProps) => (
   <span
     className={cn(
-      "flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-default bg-inset text-brand",
+      "flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-default bg-inset text-brand",
       className
     )}
   >
     {coverUrl ? (
       <img
         alt={`${title} cover`}
-        className="size-full object-cover"
+        className="size-full rounded-full object-cover"
         loading="lazy"
         src={coverUrl}
       />

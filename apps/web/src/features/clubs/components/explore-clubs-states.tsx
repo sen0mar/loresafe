@@ -14,7 +14,7 @@ export const ExploreClubsLoading = () => (
       <Card key={index}>
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
-            <Skeleton className="size-10 rounded-lg" />
+            <Skeleton className="size-10 rounded-full" />
             <Skeleton className="h-6 w-20" />
           </div>
           <div className="space-y-2">
