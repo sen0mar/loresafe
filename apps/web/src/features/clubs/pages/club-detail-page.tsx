@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   RefreshCw,
   ShieldCheck,
+  TrendingUp,
   UserPlus,
   Users,
   type LucideIcon
@@ -77,14 +78,21 @@ const roleLabels: Record<ClubMembershipRole, string> = {
   MEMBER: "Member"
 };
 
-type ClubDetailTab = "overview" | "settings" | "timeline" | "members" | "feed";
+type ClubDetailTab =
+  | "feed"
+  | "progress"
+  | "overview"
+  | "members"
+  | "timeline"
+  | "settings";
 
 const clubDetailTabs = new Set<ClubDetailTab>([
+  "feed",
+  "progress",
   "overview",
-  "settings",
-  "timeline",
   "members",
-  "feed"
+  "timeline",
+  "settings"
 ]);
 
 const getClubDetailTab = (value: string | null): ClubDetailTab =>
@@ -202,104 +210,106 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-4">
-          <Tabs
-            className="min-w-0 max-w-full"
-            value={activeTab}
-            onValueChange={handleTabChange}
-          >
-            <TabsList className="w-full sm:w-fit">
-              <TabsTrigger value="overview">
-                <BookOpen className="mr-2 size-4" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="settings">
-                <ShieldCheck className="mr-2 size-4" />
-                Settings
-              </TabsTrigger>
-              <TabsTrigger value="timeline">
-                <ListChecks className="mr-2 size-4" />
-                Timeline
-              </TabsTrigger>
-              <TabsTrigger value="members">
-                <Users className="mr-2 size-4" />
-                Members
-              </TabsTrigger>
-              <TabsTrigger value="feed">
-                <MessageSquareText className="mr-2 size-4" />
-                Feed
-              </TabsTrigger>
-            </TabsList>
+      <Tabs
+        className="min-w-0 max-w-full"
+        value={activeTab}
+        onValueChange={handleTabChange}
+      >
+        <TabsList className="w-full sm:w-fit">
+          <TabsTrigger value="feed">
+            <MessageSquareText className="mr-2 size-4" />
+            Feed
+          </TabsTrigger>
+          <TabsTrigger value="progress">
+            <TrendingUp className="mr-2 size-4" />
+            Progress
+          </TabsTrigger>
+          <TabsTrigger value="overview">
+            <BookOpen className="mr-2 size-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="members">
+            <Users className="mr-2 size-4" />
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="timeline">
+            <ListChecks className="mr-2 size-4" />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <ShieldCheck className="mr-2 size-4" />
+            Settings
+          </TabsTrigger>
+        </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
-              <ClubDashboardPanels club={club} />
-            </TabsContent>
+        <TabsContent value="feed">
+          <ClubFeedTab club={club} />
+        </TabsContent>
 
-            <TabsContent value="settings">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Safe settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ClubMetric
-                    icon={VisibilityIcon}
-                    label="Visibility"
-                    value={visibilityMeta[club.settings.visibility].label}
-                  />
-                  <ClubCoverUploadPanel club={club} />
-                  {canModerate ? (
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
-                      <div className="min-w-0">
-                        <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
-                          <FileWarning className="size-4 text-warning" />
-                          Moderation reports
-                        </h2>
-                        <p className="mt-1 text-sm leading-6 text-muted">
-                          Review open reports without revealing unsafe content by default.
-                        </p>
-                      </div>
-                      <Button asChild variant="secondary" size="sm">
-                        <Link
-                          to={`/app/clubs/${club.linkName}/settings/moderation`}
-                        >
-                          Open queue
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : null}
-                  <div className="rounded-lg border border-default bg-inset p-4">
-                    <h2 className="text-sm font-medium text-primary">Rules</h2>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
-                      {club.settings.rules ?? "No rules posted yet."}
+        <TabsContent value="progress">
+          <ClubProgressPanel
+            linkName={club.linkName}
+            clubTitle={club.title}
+            isMember={club.membership.isMember}
+          />
+        </TabsContent>
+
+        <TabsContent value="overview" className="space-y-4">
+          <ClubDashboardPanels club={club} />
+        </TabsContent>
+
+        <TabsContent value="members">
+          <ClubMembersTab club={club} />
+        </TabsContent>
+
+        <TabsContent value="timeline">
+          <ClubTimelineTab club={club} />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle>Safe settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ClubMetric
+                icon={VisibilityIcon}
+                label="Visibility"
+                value={visibilityMeta[club.settings.visibility].label}
+              />
+              <ClubCoverUploadPanel club={club} />
+              {canModerate ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
+                  <div className="min-w-0">
+                    <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+                      <FileWarning className="size-4 text-warning" />
+                      Moderation reports
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-muted">
+                      Review open reports without revealing unsafe content by default.
                     </p>
                   </div>
-                  <ClubMilestoneBuilderPanel club={club} />
-                  <ClubInviteSection club={club} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="timeline">
-              <ClubTimelineTab club={club} />
-            </TabsContent>
-
-            <TabsContent value="members">
-              <ClubMembersTab club={club} />
-            </TabsContent>
-
-            <TabsContent value="feed">
-              <ClubFeedTab club={club} />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <ClubProgressPanel
-          linkName={club.linkName}
-          clubTitle={club.title}
-          isMember={club.membership.isMember}
-        />
-      </div>
+                  <Button asChild variant="secondary" size="sm">
+                    <Link
+                      to={`/app/clubs/${club.linkName}/settings/moderation`}
+                    >
+                      Open queue
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
+              <div className="rounded-lg border border-default bg-inset p-4">
+                <h2 className="text-sm font-medium text-primary">Rules</h2>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
+                  {club.settings.rules ?? "No rules posted yet."}
+                </p>
+              </div>
+              <ClubMilestoneBuilderPanel club={club} />
+              <ClubInviteSection club={club} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </>
   );
 };
@@ -329,27 +339,16 @@ const ClubDetailLoading = () => (
       <Skeleton className="h-5 w-72" />
       <Skeleton className="h-4 w-32" />
     </section>
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-10 w-72" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-24 w-full" />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-28" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-24" />
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-10 w-72" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-24 w-full" />
+      </CardContent>
+    </Card>
   </div>
 );
 

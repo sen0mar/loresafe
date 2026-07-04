@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   CircleDot,
-  History,
   ListChecks,
   LockKeyhole,
   RefreshCw,
@@ -70,14 +69,6 @@ const progressModeOptions: Array<{
     description: "Treat the full timeline as complete."
   }
 ];
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
 
 export const ClubProgressPanel = ({
   linkName,
@@ -297,6 +288,19 @@ export const ClubProgressPanel = ({
     <div className="space-y-4">
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CircleDot className="size-5 text-brand" />
+            Current mode
+          </CardTitle>
+          <CardDescription>{activeMode?.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Badge>{activeMode?.label ?? progress.mode}</Badge>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Progress</CardTitle>
           <CardDescription>
             {clubTitle ?? "Your spoiler-safe checkpoint"}
@@ -434,51 +438,6 @@ export const ClubProgressPanel = ({
           </Button>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CircleDot className="size-5 text-brand" />
-            Current mode
-          </CardTitle>
-          <CardDescription>{activeMode?.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Badge>{activeMode?.label ?? progress.mode}</Badge>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="size-5 text-faint" />
-            Recent changes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {progress.history.length === 0 ? (
-            <p className="text-sm leading-6 text-muted">
-              No progress changes recorded yet.
-            </p>
-          ) : (
-            progress.history.map((historyRow) => (
-              <div
-                key={historyRow.id}
-                className="rounded-lg border border-default bg-inset p-3"
-              >
-                <p className="text-sm text-primary">
-                  {getProgressLabel(historyRow.toMilestone)}
-                </p>
-                <p className="mt-1 text-xs text-faint">
-                  {formatMode(historyRow.fromMode)} to{" "}
-                  {formatMode(historyRow.toMode)} ·{" "}
-                  {formatDateTime(historyRow.createdAt)}
-                </p>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
@@ -576,9 +535,6 @@ const getMilestoneDisplayTitle = (milestone: {
   safeTitle: string;
   fullTitle?: string | null;
 }) => milestone.fullTitle ?? milestone.safeTitle;
-
-const formatMode = (mode: ProgressMode) =>
-  progressModeOptions.find((option) => option.value === mode)?.label ?? mode;
 
 const getSafeProgressPosition = ({
   milestonePosition,

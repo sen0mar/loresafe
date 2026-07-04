@@ -419,6 +419,48 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Visible post title")).toBeVisible();
   });
 
+  it("opens progress controls in the club progress tab", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse)
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=progress"]
+      }
+    );
+
+    expect(
+      await screen.findByRole("tab", { name: /progress/i })
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getAllByRole("tab").map((tab) => tab.textContent?.trim())
+    ).toEqual(["Feed", "Progress", "Overview", "Members", "Timeline", "Settings"]);
+    expect(await screen.findByLabelText("Current milestone")).toBeVisible();
+    expect(screen.getByText("Reading mode")).toBeVisible();
+    expect(screen.getByText("Current mode")).toBeVisible();
+    expect(
+      screen.getByText("Current mode").compareDocumentPosition(
+        screen.getByText("Progress", {
+          selector: '[data-slot="card-title"]'
+        })
+      )
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
+  });
+
   it("shows only member content on the club members tab", async () => {
     const fetchMock = mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
