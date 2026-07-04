@@ -169,7 +169,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
           {club.coverUrl ? (
             <img
-              className="h-28 w-full rounded-xl border border-default object-cover sm:w-44"
+              className="size-28 shrink-0 rounded-full border border-default object-cover"
               src={club.coverUrl}
               alt={`${club.title} cover`}
             />

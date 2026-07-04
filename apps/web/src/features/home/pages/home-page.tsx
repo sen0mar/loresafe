@@ -169,12 +169,12 @@ const JoinedHomeDashboard = ({ club }: { club: JoinedClub }) => (
 const FeaturedClubPanel = ({ club }: { club: JoinedClub }) => (
   <Card>
     <CardContent className="grid gap-4 p-4 md:grid-cols-[5.5rem_minmax(0,1fr)_auto] md:items-center">
-      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-default bg-active text-brand">
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-full border border-default bg-active text-brand">
         {club.coverUrl ? (
           <img
             src={club.coverUrl}
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full rounded-full object-cover"
           />
         ) : (
           <ShieldCheck className="size-10" />
@@ -576,7 +576,7 @@ const HomeLoading = () => (
   <div className="space-y-4">
     <Card>
       <CardContent className="grid gap-4 p-4 md:grid-cols-[5.5rem_minmax(0,1fr)_8rem] md:items-center">
-        <Skeleton className="aspect-square rounded-xl" />
+        <Skeleton className="aspect-square rounded-full" />
         <div className="space-y-2">
           <Skeleton className="h-6 w-2/3" />
           <Skeleton className="h-4 w-1/2" />
