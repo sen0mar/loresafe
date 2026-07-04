@@ -9,6 +9,7 @@ import {
   activeUserBanWhere,
   canActorBanTarget
 } from "../clubs/club-bans.js";
+import { softDeleteAuthoredPostsForBan } from "../clubs/club-ban-cleanup.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   CreateReportRequest,
@@ -127,6 +128,7 @@ export type ModerationActionRepositoryResult =
   | {
       status: "SUCCESS";
       report: ModerationReportRecord;
+      deletedPostCount?: number;
       notification?: CreateNotificationResult;
     }
   | {
@@ -862,7 +864,8 @@ export const reportsRepository: ReportsRepository = {
             },
             data: {
               expiresAt,
-              reason: "Moderation action"
+              reason: "Moderation action",
+              roleAtBan: banContext.targetRole
             },
             select: {
               id: true
@@ -873,12 +876,34 @@ export const reportsRepository: ReportsRepository = {
               clubId,
               userId: target.authorId,
               expiresAt,
-              reason: "Moderation action"
+              reason: "Moderation action",
+              roleAtBan: banContext.targetRole
             },
             select: {
               id: true
             }
           });
+      const deletedPostCount = input.deleteAuthoredPosts
+        ? await softDeleteAuthoredPostsForBan(transaction, {
+            actorId,
+            banId: ban.id,
+            clubId,
+            moderatorNote: input.moderatorNote,
+            reportId: report.id,
+            targetUserId: target.authorId
+          })
+        : 0;
+
+      if (banContext.targetMembershipId) {
+        await transaction.clubMembership.delete({
+          where: {
+            id: banContext.targetMembershipId
+          },
+          select: {
+            id: true
+          }
+        });
+      }
 
       await resolveReportInTransaction(transaction, report.id);
       await createAuditLogInTransaction(transaction, {
@@ -893,12 +918,17 @@ export const reportsRepository: ReportsRepository = {
         metadata: {
           banId: ban.id,
           expiresAt: expiresAt?.toISOString() ?? null,
+          deletedPostCount,
+          deleteAuthoredPosts: Boolean(input.deleteAuthoredPosts),
+          membershipId: banContext.targetMembershipId,
+          roleAtBan: banContext.targetRole,
           targetType: target.targetType
         }
       });
 
       return {
-        status: "SUCCESS"
+        status: "SUCCESS",
+        deletedPostCount
       };
     }),
 
@@ -1032,7 +1062,11 @@ const runContentActionTransaction = (
     target: ActionTarget;
     transaction: TransactionClient;
   }) => Promise<
-    | { status: "SUCCESS"; notification?: CreateNotificationResult }
+    | {
+        status: "SUCCESS";
+        deletedPostCount?: number;
+        notification?: CreateNotificationResult;
+      }
     | { status: "MILESTONE_NOT_FOUND" }
     | { status: "TARGET_PROTECTED" }
     | { status: "LAST_OWNER" }
@@ -1080,6 +1114,9 @@ const runContentActionTransaction = (
     return {
       status: "SUCCESS",
       report: toModerationReportRecord(updatedReport),
+      ...(result.deletedPostCount !== undefined
+        ? { deletedPostCount: result.deletedPostCount }
+        : {}),
       ...(result.notification ? { notification: result.notification } : {})
     };
   });
@@ -1157,6 +1194,7 @@ const findReportBanContext = async (
         }
       },
       select: {
+        id: true,
         role: true
       }
     }),
@@ -1170,6 +1208,7 @@ const findReportBanContext = async (
 
   return {
     actorRole: actorMembership?.role ?? null,
+    targetMembershipId: targetMembership?.id ?? null,
     targetRole: targetMembership?.role ?? null,
     ownerCount
   };

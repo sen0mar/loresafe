@@ -6,6 +6,7 @@ import { Route, Routes } from "react-router-dom";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { SignupForm } from "@/features/auth/components/signup-form";
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
+import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
@@ -25,6 +26,8 @@ import {
 
 import type {
   Club,
+  ClubBan,
+  ClubMember,
   ClubPostCard,
   ClubProgress,
   ClubMilestone,
@@ -246,6 +249,88 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("You're banned from this club")).toBeVisible();
     expect(screen.getByText("You are banned from this club.")).toBeVisible();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+  });
+
+  it("submits member bans with optional cleanup and unbans by ban id", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/members", {
+        members: [moderatedClubMember],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          pageCount: 1
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/bans", {
+        bans: [clubBan],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          pageCount: 1
+        }
+      }),
+      {
+        method: "POST",
+        path: `/api/clubs/safe-club/members/${moderatedClubMember.id}/ban`,
+        response: {
+          ban: clubBan,
+          deletedPostCount: 2
+        }
+      },
+      {
+        method: "POST",
+        path: `/api/clubs/safe-club/bans/${clubBan.id}/unban`,
+        response: {
+          ban: {
+            ...clubBan,
+            revokedAt: now
+          },
+          deletedPostCount: 0
+        }
+      }
+    ]);
+    renderWithProviders(<ClubMembersTab club={moderationClub} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Target Member")).toBeVisible();
+    expect(await screen.findByText("Banned users")).toBeVisible();
+    expect(screen.getByText("Previously Banned")).toBeVisible();
+
+    await user.click(screen.getByLabelText("Delete posts"));
+    await user.click(screen.getByRole("button", { name: /^ban$/i }));
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(
+          fetchMock,
+          "POST",
+          `/api/clubs/safe-club/members/${moderatedClubMember.id}/ban`
+        )
+      ).toBeTruthy()
+    );
+    const banCall = findFetchCall(
+      fetchMock,
+      "POST",
+      `/api/clubs/safe-club/members/${moderatedClubMember.id}/ban`
+    );
+
+    expect(getJsonRequestBody(banCall!)).toEqual({
+      deleteAuthoredPosts: true
+    });
+
+    await user.click(screen.getByRole("button", { name: /^unban$/i }));
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(
+          fetchMock,
+          "POST",
+          `/api/clubs/safe-club/bans/${clubBan.id}/unban`
+        )
+      ).toBeTruthy()
+    );
   });
 
   it("opens the club feed tab from the tab query parameter", async () => {
@@ -1473,6 +1558,74 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
   });
 
+  it("submits report bans with optional authored post cleanup", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club: moderationClub
+      }),
+      shellRoute("/api/clubs/safe-club/moderation/reports", {
+        reports: [moderationReport],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      {
+        method: "POST",
+        path: `/api/clubs/safe-club/moderation/reports/${moderationReport.id}/ban`,
+        response: {
+          report: {
+            ...moderationReport,
+            status: "RESOLVED"
+          },
+          deletedPostCount: 2
+        }
+      }
+    ]);
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/app/clubs/:linkName/settings/moderation"
+          element={<ClubModerationReportsPage />}
+        />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club/settings/moderation"]
+      }
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /open report/i }));
+    await user.click(
+      screen.getByLabelText("Delete this user's posts in this club")
+    );
+    await user.click(screen.getByRole("button", { name: /^ban$/i }));
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(
+          fetchMock,
+          "POST",
+          `/api/clubs/safe-club/moderation/reports/${moderationReport.id}/ban`
+        )
+      ).toBeTruthy()
+    );
+    const banCall = findFetchCall(
+      fetchMock,
+      "POST",
+      `/api/clubs/safe-club/moderation/reports/${moderationReport.id}/ban`
+    );
+
+    expect(getJsonRequestBody(banCall!)).toEqual({
+      deleteAuthoredPosts: true
+    });
+  });
+
   it("keeps private clubs out of discovery and non-member search results", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -1817,6 +1970,36 @@ const moderationClub: Club = {
     isMember: true,
     role: "OWNER"
   }
+};
+
+const moderatedClubMember: ClubMember = {
+  id: "00000000-0000-4000-8000-000000000060",
+  role: "MEMBER",
+  user: {
+    id: "00000000-0000-4000-8000-000000000061",
+    displayName: "Target Member",
+    username: "target",
+    avatarUrl: null
+  },
+  activeBan: null,
+  joinedAt: now,
+  updatedAt: now
+};
+
+const clubBan: ClubBan = {
+  id: "00000000-0000-4000-8000-000000000062",
+  roleAtBan: "MEMBER",
+  user: {
+    id: "00000000-0000-4000-8000-000000000063",
+    displayName: "Previously Banned",
+    username: "banned",
+    avatarUrl: null
+  },
+  reason: "Repeated spoilers",
+  expiresAt: null,
+  revokedAt: null,
+  createdAt: now,
+  updatedAt: now
 };
 
 const milestoneOne: ClubMilestone = {

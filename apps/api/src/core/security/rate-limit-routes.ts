@@ -44,7 +44,7 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     clubMemberManagementRateLimiter
   );
   app.post(
-    "/api/clubs/:linkName/members/:membershipId/unban",
+    "/api/clubs/:linkName/bans/:banId/unban",
     clubMemberManagementRateLimiter
   );
   app.post("/api/clubs/:linkName/milestones", clubMilestoneCreateRateLimiter);

@@ -4,14 +4,17 @@ import type {
   BanClubMemberRequest,
   ClubCategory,
   CreateClubRequest,
+  ListClubBansQuery,
   ListClubMembersQuery,
   ListClubsQuery
 } from "./clubs.schema.js";
 import {
   activeBanWhere,
   activeUserBanWhere,
-  canActorBanTarget
+  canActorBanTarget,
+  canActorUnbanRole
 } from "./club-bans.js";
+import { softDeleteAuthoredPostsForBan } from "./club-ban-cleanup.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -78,6 +81,25 @@ export type ClubMemberRecord = {
   updatedAt: Date;
 };
 
+export type ClubBanRecord = {
+  id: string;
+  roleAtBan: ClubMembershipRole | null;
+  user: {
+    id: string;
+    displayName: string;
+    username: string | null;
+    avatarAsset?: {
+      objectKey: string;
+      status: "PENDING" | "READY" | "FAILED";
+    } | null | undefined;
+  };
+  reason: string | null;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type ListClubMembersResult = {
   club: {
     id: string;
@@ -85,6 +107,16 @@ export type ListClubMembersResult = {
     isCurrentUserBanned: boolean;
   } | null;
   members: ClubMemberRecord[];
+  total: number;
+};
+
+export type ListClubBansResult = {
+  club: {
+    id: string;
+    currentUserRole: ClubMembershipRole | null;
+    isCurrentUserBanned: boolean;
+  } | null;
+  bans: ClubBanRecord[];
   total: number;
 };
 
@@ -97,6 +129,22 @@ export type ClubMemberMutationResult =
       status:
         | "ACTOR_BANNED"
         | "ACTOR_NOT_ALLOWED"
+        | "CLUB_NOT_FOUND"
+        | "LAST_OWNER"
+        | "MEMBER_NOT_FOUND";
+    };
+
+export type ClubBanMutationResult =
+  | {
+      status: "SUCCESS";
+      ban: ClubBanRecord;
+      deletedPostCount: number;
+    }
+  | {
+      status:
+        | "ACTOR_BANNED"
+        | "ACTOR_NOT_ALLOWED"
+        | "BAN_NOT_FOUND"
         | "CLUB_NOT_FOUND"
         | "LAST_OWNER"
         | "MEMBER_NOT_FOUND";
@@ -130,6 +178,11 @@ export type ClubsRepository = {
     userId: string,
     input: ListClubMembersQuery
   ) => Promise<ListClubMembersResult>;
+  listClubBansByLinkName: (
+    linkName: string,
+    userId: string,
+    input: ListClubBansQuery
+  ) => Promise<ListClubBansResult>;
   updateClubMemberRole: (
     linkName: string,
     membershipId: string,
@@ -141,12 +194,12 @@ export type ClubsRepository = {
     membershipId: string,
     actorId: string,
     input: BanClubMemberRequest
-  ) => Promise<ClubMemberMutationResult>;
-  unbanClubMember: (
+  ) => Promise<ClubBanMutationResult>;
+  unbanClubBan: (
     linkName: string,
-    membershipId: string,
+    banId: string,
     actorId: string
-  ) => Promise<ClubMemberMutationResult>;
+  ) => Promise<ClubBanMutationResult>;
   listPublicClubs: (
     userId: string,
     input: ListClubsQuery
@@ -254,6 +307,29 @@ const clubMemberSelect = (clubId: string, now: Date) =>
       }
     }
   }) as const;
+
+const clubBanSelect = {
+  id: true,
+  roleAtBan: true,
+  reason: true,
+  expiresAt: true,
+  revokedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      id: true,
+      displayName: true,
+      username: true,
+      avatarAsset: {
+        select: {
+          objectKey: true,
+          status: true
+        }
+      }
+    }
+  }
+} as const;
 
 export const clubsRepository: ClubsRepository = {
   createClubWithOwnerMembership: async (userId, input) =>
@@ -482,6 +558,96 @@ export const clubsRepository: ClubsRepository = {
     };
   },
 
+  listClubBansByLinkName: async (linkName, userId, { page, limit }) => {
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const club = await prisma.club.findUnique({
+      where: {
+        linkName
+      },
+      select: {
+        id: true,
+        memberships: {
+          where: {
+            userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
+        },
+        bans: {
+          where: activeUserBanWhere(userId, now),
+          select: {
+            id: true
+          },
+          take: 1
+        }
+      }
+    });
+
+    if (!club) {
+      return {
+        club: null,
+        bans: [],
+        total: 0
+      };
+    }
+
+    const currentUserRole = club.memberships[0]?.role ?? null;
+    const isCurrentUserBanned = club.bans.length > 0;
+
+    if (
+      !currentUserRole ||
+      isCurrentUserBanned ||
+      !canManageClubBans(currentUserRole)
+    ) {
+      return {
+        club: {
+          id: club.id,
+          currentUserRole,
+          isCurrentUserBanned
+        },
+        bans: [],
+        total: 0
+      };
+    }
+
+    const activeBanWhereInput = {
+      clubId: club.id,
+      ...activeBanWhere(now)
+    } satisfies Prisma.ClubBanWhereInput;
+    const [bans, total] = await prisma.$transaction([
+      prisma.clubBan.findMany({
+        where: activeBanWhereInput,
+        orderBy: [
+          {
+            createdAt: "desc"
+          },
+          {
+            id: "asc"
+          }
+        ],
+        skip,
+        take: limit,
+        select: clubBanSelect
+      }),
+      prisma.clubBan.count({
+        where: activeBanWhereInput
+      })
+    ]);
+
+    return {
+      club: {
+        id: club.id,
+        currentUserRole,
+        isCurrentUserBanned
+      },
+      bans: bans.map(toClubBanRecord),
+      total
+    };
+  },
+
   updateClubMemberRole: (linkName, membershipId, actorId, role) =>
     prisma.$transaction(async (transaction) => {
       const context = await findMemberManagementContext(
@@ -625,23 +791,38 @@ export const clubsRepository: ClubsRepository = {
             },
             data: {
               reason: input.reason ?? null,
-              expiresAt
+              expiresAt,
+              roleAtBan: context.member.role
             },
-            select: {
-              id: true
-            }
+            select: clubBanSelect
           })
         : await transaction.clubBan.create({
             data: {
               clubId: context.club.id,
               userId: context.member.userId,
               reason: input.reason ?? null,
+              roleAtBan: context.member.role,
               expiresAt
             },
-            select: {
-              id: true
-            }
+            select: clubBanSelect
           });
+      const deletedPostCount = input.deleteAuthoredPosts
+        ? await softDeleteAuthoredPostsForBan(transaction, {
+            actorId,
+            banId: ban.id,
+            clubId: context.club.id,
+            targetUserId: context.member.userId
+          })
+        : 0;
+
+      await transaction.clubMembership.delete({
+        where: {
+          id: membershipId
+        },
+        select: {
+          id: true
+        }
+      });
 
       await createAuditLogInTransaction(transaction, {
         action: "USER_BANNED",
@@ -651,24 +832,28 @@ export const clubsRepository: ClubsRepository = {
         metadata: {
           banId: ban.id,
           expiresAt: expiresAt?.toISOString() ?? null,
+          deletedPostCount,
+          deleteAuthoredPosts: Boolean(input.deleteAuthoredPosts),
           membershipId,
+          roleAtBan: context.member.role,
           source: "club_members"
         }
       });
 
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId, context.club.id)
+        ban: toClubBanRecord(ban),
+        deletedPostCount
       };
     }),
 
-  unbanClubMember: (linkName, membershipId, actorId) =>
+  unbanClubBan: (linkName, banId, actorId) =>
     prisma.$transaction(async (transaction) => {
-      const context = await findMemberManagementContext(
+      const context = await findBanManagementContext(
         transaction,
         linkName,
         actorId,
-        membershipId
+        banId
       );
 
       if (!context.club) {
@@ -689,13 +874,13 @@ export const clubsRepository: ClubsRepository = {
         };
       }
 
-      if (!context.member) {
+      if (!context.ban) {
         return {
-          status: "MEMBER_NOT_FOUND"
+          status: "BAN_NOT_FOUND"
         };
       }
 
-      if (!canActorBanTarget(context.actorRole, context.member.role)) {
+      if (!canActorUnbanRole(context.actorRole, context.ban.roleAtBan)) {
         return {
           status: "ACTOR_NOT_ALLOWED"
         };
@@ -705,7 +890,7 @@ export const clubsRepository: ClubsRepository = {
       const updateResult = await transaction.clubBan.updateMany({
         where: {
           clubId: context.club.id,
-          userId: context.member.userId,
+          userId: context.ban.user.id,
           ...activeBanWhere(now)
         },
         data: {
@@ -718,18 +903,27 @@ export const clubsRepository: ClubsRepository = {
           action: "USER_UNBANNED",
           actorId,
           clubId: context.club.id,
-          targetUserId: context.member.userId,
+          targetUserId: context.ban.user.id,
           metadata: {
+            banId,
             revokedBanCount: updateResult.count,
-            membershipId,
-            source: "club_members"
+            roleAtBan: context.ban.roleAtBan,
+            source: "club_bans"
           }
         });
       }
 
+      const revokedBan = await transaction.clubBan.findUniqueOrThrow({
+        where: {
+          id: banId
+        },
+        select: clubBanSelect
+      });
+
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId, context.club.id)
+        ban: toClubBanRecord(revokedBan),
+        deletedPostCount: 0
       };
     }),
 
@@ -859,6 +1053,66 @@ const findMemberManagementContext = async (
   };
 };
 
+const findBanManagementContext = async (
+  transaction: TransactionClient,
+  linkName: string,
+  actorId: string,
+  banId: string
+) => {
+  const now = new Date();
+  const club = await transaction.club.findUnique({
+    where: {
+      linkName
+    },
+    select: {
+      id: true,
+      memberships: {
+        where: {
+          userId: actorId
+        },
+        select: {
+          role: true
+        },
+        take: 1
+      },
+      bans: {
+        where: activeUserBanWhere(actorId, now),
+        select: {
+          id: true
+        },
+        take: 1
+      }
+    }
+  });
+
+  if (!club) {
+    return {
+      club: null,
+      actorRole: null,
+      isActorBanned: false,
+      ban: null
+    };
+  }
+
+  const ban = await transaction.clubBan.findFirst({
+    where: {
+      id: banId,
+      clubId: club.id,
+      ...activeBanWhere(now)
+    },
+    select: clubBanSelect
+  });
+
+  return {
+    club: {
+      id: club.id
+    },
+    actorRole: club.memberships[0]?.role ?? null,
+    isActorBanned: club.bans.length > 0,
+    ban: ban ? toClubBanRecord(ban) : null
+  };
+};
+
 const findMemberRecord = async (
   transaction: TransactionClient,
   membershipId: string,
@@ -901,6 +1155,9 @@ const createAuditLogInTransaction = (
       id: true
     }
   });
+
+const canManageClubBans = (role: ClubMembershipRole) =>
+  role === "OWNER" || role === "MODERATOR";
 
 const toClubDetailRecord = (club: {
   id: string;
@@ -969,3 +1226,31 @@ const toClubMemberRecord = (member: {
     updatedAt: member.updatedAt
   };
 };
+
+const toClubBanRecord = (ban: {
+  id: string;
+  roleAtBan: ClubMembershipRole | null;
+  user: {
+    id: string;
+    displayName: string;
+    username: string | null;
+    avatarAsset: {
+      objectKey: string;
+      status: "PENDING" | "READY" | "FAILED";
+    } | null | undefined;
+  };
+  reason: string | null;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): ClubBanRecord => ({
+  id: ban.id,
+  roleAtBan: ban.roleAtBan,
+  user: ban.user,
+  reason: ban.reason,
+  expiresAt: ban.expiresAt,
+  revokedAt: ban.revokedAt,
+  createdAt: ban.createdAt,
+  updatedAt: ban.updatedAt
+});

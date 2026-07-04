@@ -36,11 +36,13 @@ import { getUserInitials } from "@/shared/lib/user-display";
 
 import {
   type Club,
+  type ClubBan,
   type ClubMember,
   type ClubMembershipRole,
   useBanClubMemberMutation,
+  useClubBansQuery,
   useClubMembersQuery,
-  useUnbanClubMemberMutation,
+  useUnbanClubBanMutation,
   useUpdateClubMemberRoleMutation
 } from "../api/clubs.js";
 
@@ -64,6 +66,19 @@ const formatDate = (value: string) =>
     year: "numeric"
   }).format(new Date(value));
 
+const formatBanExpiry = (value: string | null) =>
+  value ? `Expires ${formatDate(value)}` : "Permanent ban";
+
+const formatDeletedPostToast = (deletedPostCount: number) =>
+  deletedPostCount === 0
+    ? "Member banned."
+    : `Member banned. ${deletedPostCount} ${
+        deletedPostCount === 1 ? "post" : "posts"
+      } deleted.`;
+
+const canManageBans = (role: ClubMembershipRole | null) =>
+  role === "OWNER" || role === "MODERATOR";
+
 export const ClubMembersTab = ({ club }: { club: Club }) => {
   const [page, setPage] = useState(1);
   const membersQuery = useClubMembersQuery(
@@ -74,66 +89,71 @@ export const ClubMembersTab = ({ club }: { club: Club }) => {
   const pagination = membersQuery.data?.pagination;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2">
-          <Users className="size-5 text-brand" />
-          Members
-        </CardTitle>
-        <Badge variant="secondary">{club.memberCount} total</Badge>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {membersQuery.isPending ? (
-          <MembersLoading />
-        ) : membersQuery.isError ? (
-          <MembersError
-            error={membersQuery.error}
-            onRetry={() => void membersQuery.refetch()}
-          />
-        ) : membersQuery.data.members.length === 0 ? (
-          <MembersEmpty />
-        ) : (
-          <>
-            <div className="space-y-3">
-              {membersQuery.data.members.map((member) => (
-                <MemberRow key={member.id} club={club} member={member} />
-              ))}
-            </div>
-            {pagination && pagination.pageCount > 1 ? (
-              <div className="flex flex-col gap-3 rounded-lg border border-default bg-inset p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted">
-                  Page {pagination.page} of {pagination.pageCount}
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:flex">
-                  <Button
-                    className="w-full sm:w-fit"
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={page <= 1 || membersQuery.isFetching}
-                    onClick={() => setPage((currentPage) => currentPage - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    className="w-full sm:w-fit"
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={
-                      page >= pagination.pageCount || membersQuery.isFetching
-                    }
-                    onClick={() => setPage((currentPage) => currentPage + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="size-5 text-brand" />
+            Members
+          </CardTitle>
+          <Badge variant="secondary">{club.memberCount} total</Badge>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {membersQuery.isPending ? (
+            <MembersLoading />
+          ) : membersQuery.isError ? (
+            <MembersError
+              error={membersQuery.error}
+              onRetry={() => void membersQuery.refetch()}
+            />
+          ) : membersQuery.data.members.length === 0 ? (
+            <MembersEmpty />
+          ) : (
+            <>
+              <div className="space-y-3">
+                {membersQuery.data.members.map((member) => (
+                  <MemberRow key={member.id} club={club} member={member} />
+                ))}
               </div>
-            ) : null}
-          </>
-        )}
-      </CardContent>
-    </Card>
+              {pagination && pagination.pageCount > 1 ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-default bg-inset p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted">
+                    Page {pagination.page} of {pagination.pageCount}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <Button
+                      className="w-full sm:w-fit"
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={page <= 1 || membersQuery.isFetching}
+                      onClick={() => setPage((currentPage) => currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      className="w-full sm:w-fit"
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={
+                        page >= pagination.pageCount || membersQuery.isFetching
+                      }
+                      onClick={() => setPage((currentPage) => currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </CardContent>
+      </Card>
+      {canManageBans(club.membership.role) ? (
+        <BannedUsersPanel club={club} />
+      ) : null}
+    </div>
   );
 };
 
@@ -162,9 +182,7 @@ const MemberRow = ({ club, member }: { club: Club; member: ClubMember }) => {
             <h3 className="truncate text-sm font-medium text-primary">
               {member.user.displayName}
             </h3>
-            <Badge variant={member.activeBan ? "destructive" : "secondary"}>
-              {member.activeBan ? "Banned" : roleLabels[member.role]}
-            </Badge>
+            <Badge variant="secondary">{roleLabels[member.role]}</Badge>
           </div>
           <p className="mt-1 text-xs text-faint">
             {member.user.username
@@ -198,13 +216,10 @@ const MemberControls = ({
   club: Club;
   member: ClubMember;
 }) => {
+  const [deleteAuthoredPosts, setDeleteAuthoredPosts] = useState(false);
   const updateRoleMutation = useUpdateClubMemberRoleMutation(club.linkName);
   const banMutation = useBanClubMemberMutation(club.linkName);
-  const unbanMutation = useUnbanClubMemberMutation(club.linkName);
-  const isPending =
-    updateRoleMutation.isPending ||
-    banMutation.isPending ||
-    unbanMutation.isPending;
+  const isPending = updateRoleMutation.isPending || banMutation.isPending;
 
   const showError = (error: unknown, fallback: string) => {
     toast.error(error instanceof ApiError ? error.message : fallback);
@@ -228,20 +243,19 @@ const MemberControls = ({
   const banMember = () => {
     banMutation.mutate(
       {
-        membershipId: member.id
+        membershipId: member.id,
+        input: {
+          deleteAuthoredPosts
+        }
       },
       {
-        onSuccess: () => toast.success("Member banned."),
+        onSuccess: (response) => {
+          toast.success(formatDeletedPostToast(response.deletedPostCount));
+          setDeleteAuthoredPosts(false);
+        },
         onError: (error) => showError(error, "Could not ban member.")
       }
     );
-  };
-
-  const unbanMember = () => {
-    unbanMutation.mutate(member.id, {
-      onSuccess: () => toast.success("Member unbanned."),
-      onError: (error) => showError(error, "Could not unban member.")
-    });
   };
 
   return (
@@ -278,19 +292,17 @@ const MemberControls = ({
         </DropdownMenu>
       ) : null}
       {canBan ? (
-        member.activeBan ? (
-          <Button
-            className="w-full sm:w-fit"
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={isPending}
-            onClick={unbanMember}
-          >
-            <RefreshCw />
-            Unban
-          </Button>
-        ) : (
+        <>
+          <label className="flex min-h-9 items-center gap-2 rounded-md border border-subtle bg-surface px-3 text-xs text-muted">
+            <input
+              className="size-4 rounded border border-default bg-inset accent-[var(--accent-primary)]"
+              type="checkbox"
+              checked={deleteAuthoredPosts}
+              disabled={isPending}
+              onChange={(event) => setDeleteAuthoredPosts(event.target.checked)}
+            />
+            Delete posts
+          </label>
           <Button
             className="w-full sm:w-fit"
             type="button"
@@ -302,7 +314,147 @@ const MemberControls = ({
             <Ban />
             Ban
           </Button>
-        )
+        </>
+      ) : null}
+    </div>
+  );
+};
+
+const BannedUsersPanel = ({ club }: { club: Club }) => {
+  const [page, setPage] = useState(1);
+  const bansQuery = useClubBansQuery(
+    club.linkName,
+    page,
+    canManageBans(club.membership.role)
+  );
+  const pagination = bansQuery.data?.pagination;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <Ban className="size-5 text-warning" />
+          Banned users
+        </CardTitle>
+        <Badge variant="secondary">{pagination?.total ?? 0} active</Badge>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {bansQuery.isPending ? (
+          <MembersLoading />
+        ) : bansQuery.isError ? (
+          <BansError
+            error={bansQuery.error}
+            onRetry={() => void bansQuery.refetch()}
+          />
+        ) : bansQuery.data.bans.length === 0 ? (
+          <BansEmpty />
+        ) : (
+          <>
+            <div className="space-y-3">
+              {bansQuery.data.bans.map((ban) => (
+                <BannedUserRow key={ban.id} ban={ban} club={club} />
+              ))}
+            </div>
+            {pagination && pagination.pageCount > 1 ? (
+              <div className="flex flex-col gap-3 rounded-lg border border-default bg-inset p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted">
+                  Page {pagination.page} of {pagination.pageCount}
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:flex">
+                  <Button
+                    className="w-full sm:w-fit"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={page <= 1 || bansQuery.isFetching}
+                    onClick={() => setPage((currentPage) => currentPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    className="w-full sm:w-fit"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={
+                      page >= pagination.pageCount || bansQuery.isFetching
+                    }
+                    onClick={() => setPage((currentPage) => currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const BannedUserRow = ({ ban, club }: { ban: ClubBan; club: Club }) => {
+  const unbanMutation = useUnbanClubBanMutation(club.linkName);
+  const canUnban =
+    club.membership.role === "OWNER" ||
+    (club.membership.role === "MODERATOR" && ban.roleAtBan === "MEMBER");
+
+  const unbanUser = () => {
+    unbanMutation.mutate(ban.id, {
+      onSuccess: () => toast.success("User unbanned."),
+      onError: (error) => {
+        toast.error(
+          error instanceof ApiError ? error.message : "Could not unban user."
+        );
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-default bg-inset p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar>
+          {ban.user.avatarUrl ? (
+            <AvatarImage
+              src={ban.user.avatarUrl}
+              alt={`${ban.user.displayName} avatar`}
+            />
+          ) : null}
+          <AvatarFallback>
+            {getUserInitials(ban.user.displayName)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-medium text-primary">
+              {ban.user.displayName}
+            </h3>
+            <Badge variant="destructive">Banned</Badge>
+            {ban.roleAtBan ? (
+              <Badge variant="secondary">{roleLabels[ban.roleAtBan]}</Badge>
+            ) : null}
+          </div>
+          <p className="mt-1 text-xs text-faint">
+            {ban.user.username ? `/${ban.user.username}` : "No username"} -{" "}
+            {formatBanExpiry(ban.expiresAt)}
+          </p>
+          {ban.reason ? (
+            <p className="mt-1 line-clamp-2 text-xs text-muted">{ban.reason}</p>
+          ) : null}
+        </div>
+      </div>
+      {canUnban ? (
+        <Button
+          className="w-full sm:w-fit"
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={unbanMutation.isPending}
+          onClick={unbanUser}
+        >
+          <RefreshCw />
+          Unban
+        </Button>
       ) : null}
     </div>
   );
@@ -356,11 +508,54 @@ const MembersError = ({
   );
 };
 
+const BansError = ({
+  error,
+  onRetry
+}: {
+  error: Error;
+  onRetry: () => void;
+}) => {
+  const isForbidden = error instanceof ApiError && error.statusCode === 403;
+
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center gap-4 rounded-lg border border-default bg-inset p-6 text-center">
+      <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-active text-warning">
+        <Ban className="size-6" />
+      </span>
+      <div>
+        <h3 className="text-base font-semibold text-primary">
+          {isForbidden ? "Bans unavailable" : "Could not load bans"}
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          {isForbidden
+            ? "This ban list is unavailable from your account."
+            : "Refresh the ban list and try again."}
+        </p>
+      </div>
+      {isForbidden ? null : (
+        <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
+          <RefreshCw />
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+};
+
 const MembersEmpty = () => (
   <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-default bg-inset p-6 text-center">
     <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-active text-brand">
       <Users className="size-6" />
     </span>
     <h3 className="text-base font-semibold text-primary">No members yet</h3>
+  </div>
+);
+
+const BansEmpty = () => (
+  <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-default bg-inset p-6 text-center">
+    <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-active text-brand">
+      <ShieldCheck className="size-6" />
+    </span>
+    <h3 className="text-base font-semibold text-primary">No active bans</h3>
   </div>
 );

@@ -131,6 +131,22 @@ export type ClubMember = {
   updatedAt: string;
 };
 
+export type ClubBan = {
+  id: string;
+  roleAtBan: ClubMembershipRole | null;
+  user: {
+    id: string;
+    displayName: string;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+  reason: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type JoinedClub = {
   id: string;
   title: string;
@@ -330,8 +346,23 @@ export type ClubMembersResponse = {
   };
 };
 
+export type ClubBansResponse = {
+  bans: ClubBan[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
 export type ClubMemberResponse = {
   member: ClubMember;
+};
+
+export type ClubBanResponse = {
+  ban: ClubBan;
+  deletedPostCount: number;
 };
 
 export type JoinedClubsResponse = {
@@ -604,6 +635,7 @@ export type RevealModerationReportResponse = {
 
 export type ModerationReportActionResponse = {
   report: ModerationReport;
+  deletedPostCount?: number;
 };
 
 export type ModerationReportNoteInput = {
@@ -617,6 +649,7 @@ export type UpdateReportRequiredMilestoneInput =
 
 export type BanReportedContentAuthorInput = ModerationReportNoteInput & {
   expiresAt?: string;
+  deleteAuthoredPosts?: boolean;
 };
 
 export type ResolveModerationReportInput = ModerationReportNoteInput & {
@@ -691,6 +724,7 @@ export type UpdateClubMemberRoleInput = {
 export type BanClubMemberInput = {
   reason?: string | null;
   expiresAt?: string;
+  deleteAuthoredPosts?: boolean;
 };
 
 export type JoinedClubsQueryInput = {
@@ -729,10 +763,16 @@ export const refreshClubMemberManagementQueries = (
     queryKey: clubsQueryKeys.membersRoot(linkName)
   });
   void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.bansRoot(linkName)
+  });
+  void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.feedRoot(linkName)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.dashboardRoot(linkName)
   });
   void queryClient.invalidateQueries({
     predicate: (query) =>
@@ -798,6 +838,10 @@ export const clubsQueryKeys = {
     ["clubs", "detail", linkName, "members"] as const,
   members: (linkName: string, page: number) =>
     ["clubs", "detail", linkName, "members", page] as const,
+  bansRoot: (linkName: string) =>
+    ["clubs", "detail", linkName, "bans"] as const,
+  bans: (linkName: string, page: number) =>
+    ["clubs", "detail", linkName, "bans", page] as const,
   feedRoot: (linkName: string) => ["clubs", "detail", linkName, "feed"] as const,
   feed: (linkName: string, tab: ClubFeedTab) =>
     ["clubs", "detail", linkName, "feed", tab] as const,
@@ -831,6 +875,9 @@ export const getClubMembers = (linkName: string, page = 1) =>
   apiGet<ClubMembersResponse>(
     `/api/clubs/${linkName}/members?page=${page}&limit=20`
   );
+
+export const getClubBans = (linkName: string, page = 1) =>
+  apiGet<ClubBansResponse>(`/api/clubs/${linkName}/bans?page=${page}&limit=20`);
 
 export const getClubMilestones = (linkName: string, page = 1) =>
   apiGet<ClubMilestonesResponse>(
@@ -998,15 +1045,13 @@ export const banClubMember = (
   membershipId: string,
   input: BanClubMemberInput = {}
 ) =>
-  apiPost<ClubMemberResponse, BanClubMemberInput>(
+  apiPost<ClubBanResponse, BanClubMemberInput>(
     `/api/clubs/${linkName}/members/${membershipId}/ban`,
     input
   );
 
-export const unbanClubMember = (linkName: string, membershipId: string) =>
-  apiPost<ClubMemberResponse>(
-    `/api/clubs/${linkName}/members/${membershipId}/unban`
-  );
+export const unbanClubBan = (linkName: string, banId: string) =>
+  apiPost<ClubBanResponse>(`/api/clubs/${linkName}/bans/${banId}/unban`);
 
 export const getModerationReports = (
   linkName: string,
@@ -1188,6 +1233,17 @@ export const useClubMembersQuery = (
   useQuery({
     queryKey: clubsQueryKeys.members(linkName, page),
     queryFn: () => getClubMembers(linkName, page),
+    enabled: enabled && linkName.length > 0
+  });
+
+export const useClubBansQuery = (
+  linkName: string,
+  page: number,
+  enabled = true
+) =>
+  useQuery({
+    queryKey: clubsQueryKeys.bans(linkName, page),
+    queryFn: () => getClubBans(linkName, page),
     enabled: enabled && linkName.length > 0
   });
 
@@ -1439,11 +1495,11 @@ export const useBanClubMemberMutation = (linkName: string) => {
   });
 };
 
-export const useUnbanClubMemberMutation = (linkName: string) => {
+export const useUnbanClubBanMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (membershipId: string) => unbanClubMember(linkName, membershipId),
+    mutationFn: (banId: string) => unbanClubBan(linkName, banId),
     onSuccess: () => {
       refreshClubMemberManagementQueries(queryClient, linkName);
     }
@@ -1548,6 +1604,7 @@ export const useBanReportedContentAuthorMutation = (linkName: string) => {
     }) => banReportedContentAuthor(linkName, reportId, input),
     onSuccess: (response) => {
       reconcileModerationReportMutation(queryClient, linkName, response.report);
+      refreshClubMemberManagementQueries(queryClient, linkName);
     }
   });
 };

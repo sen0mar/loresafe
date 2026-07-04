@@ -30,3 +30,8 @@ export const canActorBanTarget = (
 ) =>
   actorRole === "OWNER" ||
   (actorRole === "MODERATOR" && targetRole === "MEMBER");
+
+export const canActorUnbanRole = (
+  actorRole: "OWNER" | "MODERATOR" | "MEMBER",
+  targetRole: "OWNER" | "MODERATOR" | "MEMBER" | null
+) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");

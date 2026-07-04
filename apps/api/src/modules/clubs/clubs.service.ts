@@ -1,14 +1,18 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import {
+  type ClubBanResponse,
+  type ClubBansResponse,
   type ClubResponse,
   type ClubMemberResponse,
   type ClubMembersResponse,
   type ClubsDiscoveryResponse,
+  toClubBanDto,
   toClubDto,
   toClubDiscoveryDto,
   toClubMemberDto
 } from "./clubs.dto.js";
 import {
+  type ClubBanMutationResult,
   clubsRepository,
   type ClubMemberMutationResult,
   isUniqueConstraintError,
@@ -18,6 +22,7 @@ import { bannedFromClubError } from "./club-bans.js";
 import type {
   BanClubMemberRequest,
   CreateClubRequest,
+  ListClubBansQuery,
   ListClubMembersQuery,
   ListClubsQuery
 } from "./clubs.schema.js";
@@ -40,6 +45,11 @@ export type ClubsService = {
     userId: string,
     query: ListClubMembersQuery
   ) => Promise<ClubMembersResponse>;
+  listClubBansByLinkName: (
+    linkName: string,
+    userId: string,
+    query: ListClubBansQuery
+  ) => Promise<ClubBansResponse>;
   updateClubMemberRole: (
     linkName: string,
     membershipId: string,
@@ -51,12 +61,12 @@ export type ClubsService = {
     membershipId: string,
     userId: string,
     input: BanClubMemberRequest
-  ) => Promise<ClubMemberResponse>;
-  unbanClubMember: (
+  ) => Promise<ClubBanResponse>;
+  unbanClubBan: (
     linkName: string,
-    membershipId: string,
+    banId: string,
     userId: string
-  ) => Promise<ClubMemberResponse>;
+  ) => Promise<ClubBanResponse>;
   listPublicClubs: (
     userId: string,
     query: ListClubsQuery
@@ -145,6 +155,40 @@ export const createClubsService = (
     };
   },
 
+  listClubBansByLinkName: async (linkName, userId, query) => {
+    const result = await repository.listClubBansByLinkName(linkName, userId, query);
+
+    if (!result.club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (result.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!result.club.currentUserRole) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (!canManageClubBans(result.club.currentUserRole)) {
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Only club owners and moderators can manage bans."
+      );
+    }
+
+    return {
+      bans: result.bans.map(toClubBanDto),
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: result.total,
+        pageCount: Math.ceil(result.total / query.limit)
+      }
+    };
+  },
+
   updateClubMemberRole: async (linkName, membershipId, userId, role) => {
     const result = await repository.updateClubMemberRole(
       linkName,
@@ -164,13 +208,13 @@ export const createClubsService = (
       input
     );
 
-    return toMemberMutationResponse(result);
+    return toBanMutationResponse(result);
   },
 
-  unbanClubMember: async (linkName, membershipId, userId) => {
-    const result = await repository.unbanClubMember(linkName, membershipId, userId);
+  unbanClubBan: async (linkName, banId, userId) => {
+    const result = await repository.unbanClubBan(linkName, banId, userId);
 
-    return toMemberMutationResponse(result);
+    return toBanMutationResponse(result);
   },
 
   listPublicClubs: async (userId, query) => {
@@ -220,3 +264,36 @@ const toMemberMutationResponse = (
       );
   }
 };
+
+const toBanMutationResponse = (
+  result: ClubBanMutationResult
+): ClubBanResponse => {
+  switch (result.status) {
+    case "SUCCESS":
+      return {
+        ban: toClubBanDto(result.ban),
+        deletedPostCount: result.deletedPostCount
+      };
+    case "CLUB_NOT_FOUND":
+    case "MEMBER_NOT_FOUND":
+    case "BAN_NOT_FOUND":
+      throw new HttpError(404, "NOT_FOUND", "Club ban not found");
+    case "ACTOR_BANNED":
+      throw bannedFromClubError();
+    case "ACTOR_NOT_ALLOWED":
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "You cannot manage this club ban."
+      );
+    case "LAST_OWNER":
+      throw new HttpError(
+        409,
+        "CONFLICT",
+        "This club must keep at least one owner."
+      );
+  }
+};
+
+const canManageClubBans = (role: "OWNER" | "MODERATOR" | "MEMBER") =>
+  role === "OWNER" || role === "MODERATOR";

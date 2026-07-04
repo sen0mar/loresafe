@@ -89,6 +89,7 @@ export type RevealModerationReportResponse = {
 
 export type ModerationReportActionResponse = {
   report: ModerationReportDto;
+  deletedPostCount?: number;
 };
 
 export const toReportDto = (report: ReportRecord): ReportDto => ({

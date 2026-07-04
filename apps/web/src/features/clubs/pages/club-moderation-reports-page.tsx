@@ -77,6 +77,13 @@ const formatDateTime = (value: string) =>
 const formatUser = (user: { displayName: string; username: string | null }) =>
   user.username ? `${user.displayName} / ${user.username}` : user.displayName;
 
+const formatBanSuccess = (deletedPostCount = 0) =>
+  deletedPostCount === 0
+    ? "User banned."
+    : `User banned. ${deletedPostCount} ${
+        deletedPostCount === 1 ? "post" : "posts"
+      } deleted.`;
+
 export const ClubModerationReportsPage = () => {
   const { linkName = "" } = useParams();
   const clubQuery = useClubQuery(linkName);
@@ -334,6 +341,7 @@ const ModerationActionControls = ({
     report.target.requiredMilestone?.id ?? ""
   );
   const [banExpiresAt, setBanExpiresAt] = useState("");
+  const [deleteAuthoredPosts, setDeleteAuthoredPosts] = useState(false);
   const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(linkName);
   const hideMutation = useHideReportedContentMutation(linkName);
   const deleteMutation = useDeleteReportedContentMutation(linkName);
@@ -421,11 +429,15 @@ const ModerationActionControls = ({
             ? {
                 expiresAt: new Date(banExpiresAt).toISOString()
               }
-            : {})
+            : {}),
+          deleteAuthoredPosts
         }
       },
       {
-        onSuccess: () => showActionSuccess("User banned."),
+        onSuccess: (response) => {
+          showActionSuccess(formatBanSuccess(response.deletedPostCount));
+          setDeleteAuthoredPosts(false);
+        },
         onError: showActionError
       }
     );
@@ -496,6 +508,17 @@ const ModerationActionControls = ({
           />
         </div>
       </div>
+
+      <label className="flex min-h-10 items-center gap-2 rounded-md border border-subtle bg-surface px-3 text-xs text-muted">
+        <input
+          className="size-4 rounded border border-default bg-inset accent-[var(--accent-primary)]"
+          type="checkbox"
+          checked={deleteAuthoredPosts}
+          disabled={isWorking}
+          onChange={(event) => setDeleteAuthoredPosts(event.target.checked)}
+        />
+        Delete this user's posts in this club
+      </label>
 
       <div className="space-y-2">
         <label

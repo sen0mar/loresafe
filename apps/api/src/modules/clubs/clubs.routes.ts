@@ -37,6 +37,13 @@ export const createClubsRouter = (
     controller.listClubMembers
   );
 
+  router.get(
+    "/:linkName/bans",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.listClubBans
+  );
+
   router.patch(
     "/:linkName/members/:membershipId/role",
     middleware.loadCurrentUser,
@@ -52,10 +59,10 @@ export const createClubsRouter = (
   );
 
   router.post(
-    "/:linkName/members/:membershipId/unban",
+    "/:linkName/bans/:banId/unban",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.unbanClubMember
+    controller.unbanClubBan
   );
 
   router.get(

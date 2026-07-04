@@ -4,9 +4,11 @@ import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
   banClubMemberRequestSchema,
+  clubBanParamsSchema,
   clubMemberParamsSchema,
   clubLinkNameParamsSchema,
   createClubRequestSchema,
+  listClubBansQuerySchema,
   listClubMembersQuerySchema,
   listClubsQuerySchema,
   updateClubMemberRoleRequestSchema
@@ -18,9 +20,10 @@ export type ClubsController = {
   createClub: RequestHandler;
   getClubByLinkName: RequestHandler;
   joinPublicClubByLinkName: RequestHandler;
+  listClubBans: RequestHandler;
   listClubMembers: RequestHandler;
   listClubs: RequestHandler;
-  unbanClubMember: RequestHandler;
+  unbanClubBan: RequestHandler;
   updateClubMemberRole: RequestHandler;
 };
 
@@ -145,6 +148,35 @@ export const createClubsController = (
     }
   },
 
+  listClubBans: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
+      const queryResult = listClubBansQuerySchema.safeParse(req.query);
+
+      if (!paramsResult.success || !queryResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club bans request and try again."
+        );
+      }
+
+      const response = await service.listClubBansByLinkName(
+        paramsResult.data.linkName,
+        req.currentUser.id,
+        queryResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   updateClubMemberRole: async (req, res, next) => {
     try {
       if (!req.currentUser) {
@@ -205,25 +237,25 @@ export const createClubsController = (
     }
   },
 
-  unbanClubMember: async (req, res, next) => {
+  unbanClubBan: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = clubMemberParamsSchema.safeParse(req.params);
+      const paramsResult = clubBanParamsSchema.safeParse(req.params);
 
       if (!paramsResult.success || (req.body && Object.keys(req.body).length > 0)) {
         throw new HttpError(
           400,
           "BAD_REQUEST",
-          "Check the club member unban request and try again."
+          "Check the club ban unban request and try again."
         );
       }
 
-      const response = await service.unbanClubMember(
+      const response = await service.unbanClubBan(
         paramsResult.data.linkName,
-        paramsResult.data.membershipId,
+        paramsResult.data.banId,
         req.currentUser.id
       );
 

@@ -897,6 +897,15 @@ describe("reports routes", () => {
 
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     repository.createMembership(bystander.id, post.clubId, "MEMBER");
+    const secondReporterPost = repository.createPostFixture(reporter.id, {
+      clubId: post.clubId
+    });
+    const bystanderPost = repository.createPostFixture(bystander.id, {
+      clubId: post.clubId
+    });
+    const reporterComment = repository.createCommentFixture(post.id, {
+      authorId: reporter.id
+    });
     const warnReport = await repository.createReport(
       reporter.id,
       (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
@@ -916,12 +925,17 @@ describe("reports routes", () => {
     );
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-    await request(app)
+    const banResponse = await request(app)
       .post(`/api/clubs/${club.linkName}/moderation/reports/${banReport.id}/ban`)
       .set("Cookie", await createSessionCookie(moderator))
-      .send({ expiresAt, moderatorNote: "Repeated issue" })
+      .send({
+        expiresAt,
+        moderatorNote: "Repeated issue",
+        deleteAuthoredPosts: true
+      })
       .expect(200);
 
+    expect(banResponse.body.deletedPostCount).toBe(2);
     expect(repository.notifications).toHaveLength(1);
     expect(repository.notifications[0]).toMatchObject({
       userId: reporter.id,
@@ -932,8 +946,19 @@ describe("reports routes", () => {
     expect(repository.bans).toHaveLength(1);
     expect(repository.bans[0]).toMatchObject({
       userId: reporter.id,
-      clubId: post.clubId
+      clubId: post.clubId,
+      roleAtBan: "MEMBER"
     });
+    expect(
+      repository.memberships.some(
+        (membership) =>
+          membership.userId === reporter.id && membership.clubId === post.clubId
+      )
+    ).toBe(false);
+    expect(post.deletedAt).toBeInstanceOf(Date);
+    expect(secondReporterPost.deletedAt).toBeInstanceOf(Date);
+    expect(bystanderPost.deletedAt).toBeNull();
+    expect(reporterComment.deletedAt).toBeNull();
     expect(
       repository.bans.some(
         (ban) => ban.userId === bystander.id && ban.clubId === post.clubId
@@ -941,6 +966,8 @@ describe("reports routes", () => {
     ).toBe(false);
     expect(repository.auditLogs.map((log) => log.action)).toEqual([
       "USER_WARNED",
+      "POST_DELETED",
+      "POST_DELETED",
       "USER_BANNED"
     ]);
   });
@@ -1148,8 +1175,11 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     id: string;
     clubId: string;
     userId: string;
+    roleAtBan: "OWNER" | "MODERATOR" | "MEMBER" | null;
     expiresAt: Date | null;
     revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
   }> = [];
 
   findActiveUserByEmail = async (email: string) =>
@@ -1326,6 +1356,51 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       clubId,
       role
     });
+  };
+
+  removeMembership = (userId: string, clubId: string) => {
+    const membershipIndex = this.memberships.findIndex(
+      (membership) =>
+        membership.userId === userId && membership.clubId === clubId
+    );
+
+    if (membershipIndex >= 0) {
+      this.memberships.splice(membershipIndex, 1);
+    }
+  };
+
+  softDeleteAuthoredPosts = (
+    actorId: string,
+    clubId: string,
+    targetUserId: string
+  ) => {
+    const deletedAt = new Date();
+    const posts = this.posts.filter(
+      (post) =>
+        post.clubId === clubId &&
+        post.authorId === targetUserId &&
+        post.deletedAt === null
+    );
+
+    for (const post of posts) {
+      post.deletedAt = deletedAt;
+      this.auditLogs.push({
+        action: "POST_DELETED",
+        actorId,
+        clubId,
+        reportId: "",
+        postId: post.id,
+        commentId: null,
+        targetUserId,
+        moderatorNote: null,
+        metadata: {
+          deletedAt: deletedAt.toISOString(),
+          source: "BAN_CLEANUP"
+        }
+      });
+    }
+
+    return posts.length;
   };
 
   setProgress = (
@@ -1685,7 +1760,11 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     clubId: string,
     reportId: string,
     actorId: string,
-    input: { expiresAt?: string; moderatorNote?: string }
+    input: {
+      deleteAuthoredPosts?: boolean;
+      expiresAt?: string;
+      moderatorNote?: string;
+    }
   ) => {
     const action = this.prepareAction(clubId, reportId);
 
@@ -1734,15 +1813,32 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
 
     if (existingBan) {
       existingBan.expiresAt = expiresAt;
+      existingBan.roleAtBan = targetMembership?.role ?? null;
+      existingBan.updatedAt = new Date();
     } else {
+      const now = new Date();
       this.bans.push({
         id: crypto.randomUUID(),
         clubId,
         userId: action.target.authorId,
+        roleAtBan: targetMembership?.role ?? null,
         expiresAt,
-        revokedAt: null
+        revokedAt: null,
+        createdAt: now,
+        updatedAt: now
       });
     }
+    const activeBan = this.bans.find(
+      (ban) =>
+        ban.clubId === clubId &&
+        ban.userId === action.target.authorId &&
+        ban.revokedAt === null
+    );
+    const deletedPostCount = input.deleteAuthoredPosts
+      ? this.softDeleteAuthoredPosts(actorId, clubId, action.target.authorId)
+      : 0;
+
+    this.removeMembership(action.target.authorId, clubId);
 
     this.resolveReport(action.report);
     this.createAuditLog({
@@ -1754,11 +1850,14 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       targetType: action.targetType,
       moderatorNote: input.moderatorNote,
       metadata: {
+        banId: activeBan?.id,
+        deletedPostCount,
+        deleteAuthoredPosts: Boolean(input.deleteAuthoredPosts),
         expiresAt: expiresAt?.toISOString() ?? null
       }
     });
 
-    return this.successAction(action.report);
+    return this.successAction(action.report, { deletedPostCount });
   };
 
   resolveModerationReport = async (
@@ -1894,10 +1993,16 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     report: ReportRecord & {
       reporterId: string;
       clubId: string;
-    }
+    },
+    input: {
+      deletedPostCount?: number;
+    } = {}
   ) => ({
     status: "SUCCESS" as const,
-    report: this.toModerationReportRecord(report)
+    report: this.toModerationReportRecord(report),
+    ...(input.deletedPostCount !== undefined
+      ? { deletedPostCount: input.deletedPostCount }
+      : {})
   });
 
   private toPostTarget = (

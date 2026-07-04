@@ -46,6 +46,8 @@ export const listClubMembersQuerySchema = z
   })
   .strict();
 
+export const listClubBansQuerySchema = listClubMembersQuerySchema;
+
 export const createClubRequestSchema = z
   .object({
     title: z.string().trim().min(2).max(120),
@@ -70,6 +72,13 @@ export const clubMemberParamsSchema = z
   })
   .strict();
 
+export const clubBanParamsSchema = z
+  .object({
+    linkName: clubLinkNameSchema,
+    banId: z.uuid()
+  })
+  .strict();
+
 export const updateClubMemberRoleRequestSchema = z
   .object({
     role: clubMembershipRoleSchema
@@ -90,16 +99,19 @@ export const banClubMemberRequestSchema = z
       .refine((value) => new Date(value).getTime() > Date.now(), {
         message: "Ban expiration must be in the future."
       })
-      .optional()
+      .optional(),
+    deleteAuthoredPosts: z.boolean().optional()
   })
   .strict();
 
 export type ListClubsQuery = z.infer<typeof listClubsQuerySchema>;
 export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
+export type ListClubBansQuery = z.infer<typeof listClubBansQuerySchema>;
 export type ClubCategory = z.infer<typeof clubCategorySchema>;
 export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
 export type ClubLinkNameParams = z.infer<typeof clubLinkNameParamsSchema>;
 export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;
+export type ClubBanParams = z.infer<typeof clubBanParamsSchema>;
 export type UpdateClubMemberRoleRequest = z.infer<
   typeof updateClubMemberRoleRequestSchema
 >;

@@ -243,7 +243,10 @@ const runModerationAction = async (
     }
 
     return {
-      report: toModerationReportDto(result.report)
+      report: toModerationReportDto(result.report),
+      ...(result.deletedPostCount !== undefined
+        ? { deletedPostCount: result.deletedPostCount }
+        : {})
     };
   }
 

@@ -1,4 +1,5 @@
 import type {
+  ClubBanRecord,
   ClubDetailRecord,
   ClubDiscoveryRecord,
   ClubMemberRecord
@@ -74,8 +75,34 @@ export type ClubMemberDto = {
   updatedAt: string;
 };
 
+export type ClubBanDto = {
+  id: string;
+  roleAtBan: ClubMembershipRoleDto | null;
+  user: {
+    id: string;
+    displayName: string;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+  reason: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ClubMembersResponse = {
   members: ClubMemberDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
+export type ClubBansResponse = {
+  bans: ClubBanDto[];
   pagination: {
     page: number;
     limit: number;
@@ -90,6 +117,11 @@ export type ClubResponse = {
 
 export type ClubMemberResponse = {
   member: ClubMemberDto;
+};
+
+export type ClubBanResponse = {
+  ban: ClubBanDto;
+  deletedPostCount: number;
 };
 
 export const toClubDiscoveryDto = (
@@ -149,6 +181,22 @@ export const toClubMemberDto = (member: ClubMemberRecord): ClubMemberDto => ({
     : null,
   joinedAt: member.createdAt.toISOString(),
   updatedAt: member.updatedAt.toISOString()
+});
+
+export const toClubBanDto = (ban: ClubBanRecord): ClubBanDto => ({
+  id: ban.id,
+  roleAtBan: ban.roleAtBan,
+  user: {
+    id: ban.user.id,
+    displayName: ban.user.displayName,
+    username: ban.user.username,
+    avatarUrl: getReadyAssetUrl(ban.user.avatarAsset)
+  },
+  reason: ban.reason,
+  expiresAt: ban.expiresAt?.toISOString() ?? null,
+  revokedAt: ban.revokedAt?.toISOString() ?? null,
+  createdAt: ban.createdAt.toISOString(),
+  updatedAt: ban.updatedAt.toISOString()
 });
 
 const getReadyAssetUrl = (

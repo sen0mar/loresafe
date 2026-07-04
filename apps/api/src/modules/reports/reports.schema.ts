@@ -74,6 +74,7 @@ export const moderationReportBanRequestSchema = z
         message: "Ban expiration must be in the future."
       })
       .optional(),
+    deleteAuthoredPosts: z.boolean().optional(),
     moderatorNote: moderatorNoteSchema.optional()
   })
   .strict();
