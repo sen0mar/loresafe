@@ -89,6 +89,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 83: Instant reaction feedback — Made post and comment reaction feedback immediate with non-blocking optimistic cache writes, guarded duplicate pending toggles, motion-safe emoji click animation, and focused frontend regression coverage.
 - Feature 84: Post unlock reveal animation — Added a motion-safe lock-opening reveal for newly visible feed posts after progress updates, kept reveals tied to authorized refetched content, fixed Finished-mode milestone select refresh after save, and added focused frontend regression coverage.
 - Feature 85: Ban removes membership — Added ban-time role metadata with a committed migration, removed club membership on direct and report bans, added active-ban list/unban APIs, optional same-club authored post cleanup with audit logs, and focused backend/frontend regression coverage.
+- Feature 86: Ban cleanup confirmation choices — Replaced pre-ban cleanup checkboxes with Ban-triggered confirmation dialogs that let moderators choose ban-only or ban-and-delete-posts in member management and report queues, with focused frontend regression coverage.
 
 ## Entry Format
 

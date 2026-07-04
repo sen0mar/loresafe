@@ -3,6 +3,7 @@ import {
   ChevronDown,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   UserCog,
   Users
 } from "lucide-react";
@@ -23,6 +24,16 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/shared/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -216,7 +227,7 @@ const MemberControls = ({
   club: Club;
   member: ClubMember;
 }) => {
-  const [deleteAuthoredPosts, setDeleteAuthoredPosts] = useState(false);
+  const [isBanDialogOpen, setIsBanDialogOpen] = useState(false);
   const updateRoleMutation = useUpdateClubMemberRoleMutation(club.linkName);
   const banMutation = useBanClubMemberMutation(club.linkName);
   const isPending = updateRoleMutation.isPending || banMutation.isPending;
@@ -240,7 +251,7 @@ const MemberControls = ({
     );
   };
 
-  const banMember = () => {
+  const banMember = (deleteAuthoredPosts: boolean) => {
     banMutation.mutate(
       {
         membershipId: member.id,
@@ -251,7 +262,7 @@ const MemberControls = ({
       {
         onSuccess: (response) => {
           toast.success(formatDeletedPostToast(response.deletedPostCount));
-          setDeleteAuthoredPosts(false);
+          setIsBanDialogOpen(false);
         },
         onError: (error) => showError(error, "Could not ban member.")
       }
@@ -292,29 +303,54 @@ const MemberControls = ({
         </DropdownMenu>
       ) : null}
       {canBan ? (
-        <>
-          <label className="flex min-h-9 items-center gap-2 rounded-md border border-subtle bg-surface px-3 text-xs text-muted">
-            <input
-              className="size-4 rounded border border-default bg-inset accent-[var(--accent-primary)]"
-              type="checkbox"
-              checked={deleteAuthoredPosts}
+        <Dialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="w-full sm:w-fit"
+              type="button"
+              variant="destructive"
+              size="sm"
               disabled={isPending}
-              onChange={(event) => setDeleteAuthoredPosts(event.target.checked)}
-            />
-            Delete posts
-          </label>
-          <Button
-            className="w-full sm:w-fit"
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={isPending}
-            onClick={banMember}
-          >
-            <Ban />
-            Ban
-          </Button>
-        </>
+            >
+              <Ban />
+              Ban
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ban {member.user.displayName}?</DialogTitle>
+              <DialogDescription>
+                Choose whether to only remove this member from the club or also
+                delete their existing posts in this club.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="ghost" disabled={isPending}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isPending}
+                onClick={() => banMember(false)}
+              >
+                <Ban />
+                Ban user
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isPending}
+                onClick={() => banMember(true)}
+              >
+                <Trash2 />
+                Ban and delete posts
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   );

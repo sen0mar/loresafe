@@ -298,8 +298,12 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Banned users")).toBeVisible();
     expect(screen.getByText("Previously Banned")).toBeVisible();
 
-    await user.click(screen.getByLabelText("Delete posts"));
     await user.click(screen.getByRole("button", { name: /^ban$/i }));
+    expect(await screen.findByText("Ban Target Member?")).toBeVisible();
+    expect(screen.getByRole("button", { name: /^ban user$/i })).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: /^ban and delete posts$/i })
+    );
 
     await waitFor(() =>
       expect(
@@ -1601,10 +1605,12 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /open report/i }));
-    await user.click(
-      screen.getByLabelText("Delete this user's posts in this club")
-    );
     await user.click(screen.getByRole("button", { name: /^ban$/i }));
+    expect(await screen.findByText("Ban reported author?")).toBeVisible();
+    expect(screen.getByRole("button", { name: /^ban user$/i })).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: /^ban and delete posts$/i })
+    );
 
     await waitFor(() =>
       expect(

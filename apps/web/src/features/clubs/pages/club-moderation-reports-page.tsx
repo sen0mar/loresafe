@@ -29,6 +29,16 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -341,7 +351,7 @@ const ModerationActionControls = ({
     report.target.requiredMilestone?.id ?? ""
   );
   const [banExpiresAt, setBanExpiresAt] = useState("");
-  const [deleteAuthoredPosts, setDeleteAuthoredPosts] = useState(false);
+  const [isBanDialogOpen, setIsBanDialogOpen] = useState(false);
   const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(linkName);
   const hideMutation = useHideReportedContentMutation(linkName);
   const deleteMutation = useDeleteReportedContentMutation(linkName);
@@ -419,7 +429,7 @@ const ModerationActionControls = ({
     );
   };
 
-  const submitBan = () => {
+  const submitBan = (deleteAuthoredPosts: boolean) => {
     banMutation.mutate(
       {
         reportId: report.id,
@@ -436,7 +446,7 @@ const ModerationActionControls = ({
       {
         onSuccess: (response) => {
           showActionSuccess(formatBanSuccess(response.deletedPostCount));
-          setDeleteAuthoredPosts(false);
+          setIsBanDialogOpen(false);
         },
         onError: showActionError
       }
@@ -509,17 +519,6 @@ const ModerationActionControls = ({
         </div>
       </div>
 
-      <label className="flex min-h-10 items-center gap-2 rounded-md border border-subtle bg-surface px-3 text-xs text-muted">
-        <input
-          className="size-4 rounded border border-default bg-inset accent-[var(--accent-primary)]"
-          type="checkbox"
-          checked={deleteAuthoredPosts}
-          disabled={isWorking}
-          onChange={(event) => setDeleteAuthoredPosts(event.target.checked)}
-        />
-        Delete this user's posts in this club
-      </label>
-
       <div className="space-y-2">
         <label
           className="text-xs font-medium text-faint"
@@ -582,17 +581,54 @@ const ModerationActionControls = ({
           <AlertTriangle />
           Warn
         </Button>
-        <Button
-          className="w-full sm:w-fit"
-          type="button"
-          size="sm"
-          variant="destructive"
-          disabled={isWorking}
-          onClick={submitBan}
-        >
-          <Ban />
-          Ban
-        </Button>
+        <Dialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="w-full sm:w-fit"
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={isWorking}
+            >
+              <Ban />
+              Ban
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ban reported author?</DialogTitle>
+              <DialogDescription>
+                Choose whether to only ban this user from the club or also
+                delete their existing posts in this club.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="ghost" disabled={isWorking}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isWorking}
+                onClick={() => submitBan(false)}
+              >
+                <Ban />
+                Ban user
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isWorking}
+                onClick={() => submitBan(true)}
+              >
+                <Trash2 />
+                Ban and delete posts
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Button
           className="w-full sm:w-fit"
           type="button"
