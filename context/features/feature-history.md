@@ -93,6 +93,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 87: Fixed tab section overflow — Made shared tab lists wrap without creating two-axis scroll boxes, removed tab overflow overrides, and added focused frontend regression coverage.
 - Feature 88: Club overview tab cleanup — Isolated club tab content, removed overview-only unlocked and popular sections, added a viewer-specific My overview card with joined/post/comment/safe/locked metrics, and extended dashboard stats coverage.
 - Feature 89: Club progress tab refactor — Moved club progress controls and current mode into a dedicated Progress tab, removed the right rail and recent changes card, reordered club tabs, and added focused frontend regression coverage.
+- Feature 90: Reading mode copy refresh — Rewrote Progress tab reading mode descriptions in clearer user-facing language, including Brave mode's manual reveal behavior, with focused frontend verification.
 
 ## Entry Format
 

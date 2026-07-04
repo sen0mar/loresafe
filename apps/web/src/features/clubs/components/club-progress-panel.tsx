@@ -51,22 +51,22 @@ const progressModeOptions: Array<{
   {
     value: "STRICT",
     label: "Strict",
-    description: "Only show what is safely reached."
+    description: "Show only discussions up to my saved checkpoint."
   },
   {
     value: "SOFT",
     label: "Soft",
-    description: "Keep context careful without freezing discussion."
+    description: "Let me browse a little more freely while staying careful."
   },
   {
     value: "BRAVE",
     label: "Brave",
-    description: "Allow more flexible nearby context."
+    description: "Same as Strict, but lets me manually reveal locked posts when I choose."
   },
   {
     value: "FINISHED",
     label: "Finished",
-    description: "Treat the full timeline as complete."
+    description: "I've finished this story, so unlock the full timeline."
   }
 ];
 
