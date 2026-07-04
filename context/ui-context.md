@@ -113,7 +113,7 @@ Map shadcn primitives to the semantic ThreadSync tokens:
 ## Token Usage
 
 - Primary CTAs use `--gradient-primary` or `--accent-primary`.
-- Selected navigation, selected filters, selected reading mode, and soft badges use `--bg-active` with brand border/text.
+- Selected navigation, selected filters, selected reading mode, and subtle badges use `--bg-active` with brand border/text.
 - Cards use `--bg-elevated` or `--bg-subtle` with `--border-default`.
 - Inputs use `--bg-inset` with `--border-subtle`.
 - Metadata uses `--text-faint`; descriptions use `--text-muted`; titles use `--text-primary`.
@@ -206,4 +206,4 @@ Use stroke icons consistently. Avoid mixing emoji, 3D icons, and filled icon set
 - Badges must include text, not only color.
 - Modals and drawers need keyboard focus management.
 - Maintain contrast for steel-blue text on dark backgrounds.
-- Do not rely on color alone to communicate Strict/Soft/Brave/Finished or locked/unlocked states.
+- Do not rely on color alone to communicate Strict/Brave/Finished or locked/unlocked states.

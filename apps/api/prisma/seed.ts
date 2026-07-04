@@ -190,13 +190,13 @@ const seedDemoProgress = async (userId: string, clubId: string) => {
     },
     update: {
       currentMilestoneId: currentMilestone?.id ?? null,
-      mode: "SOFT"
+      mode: "STRICT"
     },
     create: {
       userId,
       clubId,
       currentMilestoneId: currentMilestone?.id ?? null,
-      mode: "SOFT"
+      mode: "STRICT"
     },
     select: {
       id: true

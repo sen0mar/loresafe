@@ -47,7 +47,6 @@ const previewPostLimit = 3;
 
 const progressModeLabels: Record<ProgressMode, string> = {
   STRICT: "Strict",
-  SOFT: "Soft",
   BRAVE: "Brave",
   FINISHED: "Finished"
 };

@@ -160,9 +160,7 @@ const seedPerfData = async () => {
           ? ("FINISHED" as const)
           : userIndex % 11 === 0
             ? ("BRAVE" as const)
-            : userIndex % 5 === 0
-              ? ("SOFT" as const)
-              : ("STRICT" as const),
+            : ("STRICT" as const),
       createdAt: now,
       updatedAt: now
     }))

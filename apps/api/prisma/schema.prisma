@@ -36,7 +36,6 @@ enum ClubCategory {
 
 enum ProgressMode {
   STRICT
-  SOFT
   BRAVE
   FINISHED
 }
