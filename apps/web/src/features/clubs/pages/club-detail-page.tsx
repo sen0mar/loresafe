@@ -2,7 +2,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BookOpen,
-  CalendarDays,
   FileWarning,
   Globe2,
   KeyRound,
@@ -51,8 +50,6 @@ import {
   useJoinClubMutation
 } from "../api/clubs.js";
 
-const memberFormatter = new Intl.NumberFormat();
-
 const visibilityMeta: Record<
   ClubVisibility,
   {
@@ -94,13 +91,6 @@ const getClubDetailTab = (value: string | null): ClubDetailTab =>
   value && clubDetailTabs.has(value as ClubDetailTab)
     ? (value as ClubDetailTab)
     : "overview";
-
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(value));
 
 export const ClubDetailPage = () => {
   const { linkName = "" } = useParams();
@@ -242,87 +232,66 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               </TabsTrigger>
             </TabsList>
 
-          <TabsContent value="overview">
-            <Card>
-              <CardHeader>
-                <CardTitle>Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm leading-6 text-muted">
-                  {club.description ?? "No description yet."}
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ClubMetric
-                    icon={Users}
-                    label="Members"
-                    value={memberFormatter.format(club.memberCount)}
-                  />
-                  <ClubMetric
-                    icon={CalendarDays}
-                    label="Created"
-                    value={formatDate(club.createdAt)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="overview" className="space-y-4">
+              <ClubDashboardPanels club={club} />
+            </TabsContent>
 
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Safe settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ClubMetric
-                  icon={VisibilityIcon}
-                  label="Visibility"
-                  value={visibilityMeta[club.settings.visibility].label}
-                />
-                <ClubCoverUploadPanel club={club} />
-                {canModerate ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
-                    <div className="min-w-0">
-                      <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
-                        <FileWarning className="size-4 text-warning" />
-                        Moderation reports
-                      </h2>
-                      <p className="mt-1 text-sm leading-6 text-muted">
-                        Review open reports without revealing unsafe content by default.
-                      </p>
+            <TabsContent value="settings">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Safe settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ClubMetric
+                    icon={VisibilityIcon}
+                    label="Visibility"
+                    value={visibilityMeta[club.settings.visibility].label}
+                  />
+                  <ClubCoverUploadPanel club={club} />
+                  {canModerate ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
+                      <div className="min-w-0">
+                        <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+                          <FileWarning className="size-4 text-warning" />
+                          Moderation reports
+                        </h2>
+                        <p className="mt-1 text-sm leading-6 text-muted">
+                          Review open reports without revealing unsafe content by default.
+                        </p>
+                      </div>
+                      <Button asChild variant="secondary" size="sm">
+                        <Link
+                          to={`/app/clubs/${club.linkName}/settings/moderation`}
+                        >
+                          Open queue
+                        </Link>
+                      </Button>
                     </div>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link to={`/app/clubs/${club.linkName}/settings/moderation`}>
-                        Open queue
-                      </Link>
-                    </Button>
+                  ) : null}
+                  <div className="rounded-lg border border-default bg-inset p-4">
+                    <h2 className="text-sm font-medium text-primary">Rules</h2>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
+                      {club.settings.rules ?? "No rules posted yet."}
+                    </p>
                   </div>
-                ) : null}
-                <div className="rounded-lg border border-default bg-inset p-4">
-                  <h2 className="text-sm font-medium text-primary">Rules</h2>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
-                    {club.settings.rules ?? "No rules posted yet."}
-                  </p>
-                </div>
-                <ClubMilestoneBuilderPanel club={club} />
-                <ClubInviteSection club={club} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  <ClubMilestoneBuilderPanel club={club} />
+                  <ClubInviteSection club={club} />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="timeline">
-            <ClubTimelineTab club={club} />
-          </TabsContent>
+            <TabsContent value="timeline">
+              <ClubTimelineTab club={club} />
+            </TabsContent>
 
-          <TabsContent value="members">
-            <ClubMembersTab club={club} />
-          </TabsContent>
+            <TabsContent value="members">
+              <ClubMembersTab club={club} />
+            </TabsContent>
 
-          <TabsContent value="feed">
-            <ClubFeedTab club={club} />
-          </TabsContent>
+            <TabsContent value="feed">
+              <ClubFeedTab club={club} />
+            </TabsContent>
           </Tabs>
-
-          <ClubDashboardPanels club={club} />
         </div>
 
         <ClubProgressPanel

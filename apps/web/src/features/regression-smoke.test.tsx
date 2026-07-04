@@ -365,7 +365,12 @@ describe("frontend regression smoke", () => {
           visibleCommentCount: 0,
           postReactionCount: 0,
           safePostCount: 1,
-          lockedPostCount: 0
+          lockedPostCount: 0,
+          viewer: {
+            joinedAt: now,
+            postCount: 1,
+            commentCount: 0
+          }
         }
       }),
       shellRoute("/api/clubs/safe-club/progress/summary", {
@@ -412,6 +417,127 @@ describe("frontend regression smoke", () => {
       "true"
     );
     expect(await screen.findByText("Visible post title")).toBeVisible();
+  });
+
+  it("shows only member content on the club members tab", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/members", {
+        members: [moderatedClubMember],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          pageCount: 1
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse)
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=members"]
+      }
+    );
+
+    expect(await screen.findByRole("tab", { name: /members/i })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(await screen.findByText("Target Member")).toBeVisible();
+    expect(screen.queryByText("Spoiler-safe space.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Club stats")).not.toBeInTheDocument();
+    expect(
+      findFetchCall(fetchMock, "GET", "/api/clubs/safe-club/stats")
+    ).toBeUndefined();
+  });
+
+  it("does not show recently unlocked content on the club overview", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute("/api/clubs/safe-club/stats", {
+        stats: {
+          memberCount: 3,
+          milestoneCount: 2,
+          visiblePostCount: 1,
+          visibleCommentCount: 0,
+          postReactionCount: 0,
+          safePostCount: 1,
+          lockedPostCount: 0,
+          viewer: {
+            joinedAt: now,
+            postCount: 1,
+            commentCount: 0
+          }
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/progress/summary", {
+        progress: {
+          mode: progress.mode,
+          currentMilestone: progress.currentMilestone,
+          totalMilestones: progress.totalMilestones,
+          completedMilestones: progress.completedMilestones,
+          percentage: progress.percentage,
+          updatedAt: progress.updatedAt
+        }
+      })
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club"]
+      }
+    );
+
+    expect(await screen.findByText("My overview")).toBeVisible();
+    expect(await screen.findByText("Club stats")).toBeVisible();
+    expect(screen.getByText("Joined")).toBeVisible();
+    expect(screen.getByText("My posts")).toBeVisible();
+    expect(screen.getByText("My comments")).toBeVisible();
+    expect(screen.getByText("Safe")).toBeVisible();
+    expect(screen.getByText("Locked")).toBeVisible();
+    expect(screen.queryByText("Recently unlocked")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /view unlocked/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Popular discussions")).not.toBeInTheDocument();
+    expect(
+      findFetchCall(
+        fetchMock,
+        "GET",
+        "/api/clubs/safe-club/recently-unlocked/summary"
+      )
+    ).toBeUndefined();
+    expect(
+      findFetchCall(
+        fetchMock,
+        "GET",
+        "/api/clubs/safe-club/popular-discussions"
+      )
+    ).toBeUndefined();
   });
 
   it("shows clear required-field messages when creating a club", async () => {
@@ -2334,7 +2460,12 @@ const dashboardStats = {
   visibleCommentCount: 1,
   postReactionCount: 0,
   safePostCount: 1,
-  lockedPostCount: 1
+  lockedPostCount: 1,
+  viewer: {
+    joinedAt: now,
+    postCount: 1,
+    commentCount: 1
+  }
 };
 
 const emptyUnlockSummary = {

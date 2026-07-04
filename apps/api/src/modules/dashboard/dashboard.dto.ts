@@ -22,6 +22,11 @@ export type ClubDashboardStatsResponse = {
     postReactionCount: number;
     safePostCount: number;
     lockedPostCount: number;
+    viewer: {
+      joinedAt: string | null;
+      postCount: number;
+      commentCount: number;
+    };
   };
 };
 
@@ -73,7 +78,12 @@ export const toClubDashboardStatsResponse = (
     visibleCommentCount: record.visibleCommentCount,
     postReactionCount: record.postReactionCount,
     safePostCount: record.safePostCount,
-    lockedPostCount: record.lockedPostCount
+    lockedPostCount: record.lockedPostCount,
+    viewer: {
+      joinedAt: record.viewer.joinedAt?.toISOString() ?? null,
+      postCount: record.viewer.postCount,
+      commentCount: record.viewer.commentCount
+    }
   }
 });
 
