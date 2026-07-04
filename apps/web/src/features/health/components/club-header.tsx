@@ -75,7 +75,7 @@ export const ClubHeader = ({ activeTab, onTabChange }: ClubHeaderProps) => (
         </span>
       </div>
       <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as ClubHomeTab)}>
-        <TabsList className="max-w-full overflow-x-auto">
+        <TabsList className="max-w-full">
           <TabsTrigger value="feed">Feed</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>

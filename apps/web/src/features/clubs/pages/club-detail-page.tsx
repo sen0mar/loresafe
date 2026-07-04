@@ -219,7 +219,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
             value={activeTab}
             onValueChange={handleTabChange}
           >
-            <TabsList className="w-full overflow-x-auto sm:w-fit">
+            <TabsList className="w-full sm:w-fit">
               <TabsTrigger value="overview">
                 <BookOpen className="mr-2 size-4" />
                 Overview

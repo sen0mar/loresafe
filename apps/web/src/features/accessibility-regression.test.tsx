@@ -80,6 +80,26 @@ describe("frontend accessibility regressions", () => {
     expect(screen.getByText("Locked discussions")).toBeInTheDocument();
   });
 
+  it("keeps wrapped tab lists fixed instead of scrollable", () => {
+    renderWithProviders(
+      <Tabs defaultValue="overview">
+        <TabsList data-testid="responsive-tabs">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="feed">Feed</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    );
+
+    const tabs = screen.getByTestId("responsive-tabs");
+
+    expect(tabs).toHaveClass("flex-wrap");
+    expect(tabs).toHaveClass("overflow-hidden");
+    expect(tabs).not.toHaveClass("overflow-x-auto");
+  });
+
   it("exposes reactions as a labeled button group with disabled controls", () => {
     renderWithProviders(
       <ReactionButtonGroup
