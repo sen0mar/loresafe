@@ -66,7 +66,7 @@ describe("AppShell layout", () => {
     const homeLink = screen.getByRole("link", { name: /^Home$/ });
 
     expect(homeLink).toHaveAttribute("href", "/app");
-    expect(homeLink).toHaveClass("border-brand");
+    expect(homeLink).toHaveAttribute("aria-current", "page");
   });
 
   it("does not keep desktop Home navigation active on other app routes", () => {
@@ -82,7 +82,7 @@ describe("AppShell layout", () => {
     const homeLink = screen.getByRole("link", { name: /^Home$/ });
 
     expect(homeLink).toHaveAttribute("href", "/app");
-    expect(homeLink).not.toHaveClass("border-brand");
+    expect(homeLink).not.toHaveAttribute("aria-current", "page");
   });
 
   it("routes desktop My Clubs navigation to the joined clubs page", () => {
@@ -98,7 +98,7 @@ describe("AppShell layout", () => {
     const clubsLink = screen.getByRole("link", { name: /^My Clubs$/ });
 
     expect(clubsLink).toHaveAttribute("href", "/app/clubs");
-    expect(clubsLink).toHaveClass("border-brand");
+    expect(clubsLink).toHaveAttribute("aria-current", "page");
   });
 
   it("routes mobile Home navigation to the authenticated homepage", async () => {

@@ -21,6 +21,10 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
+import {
+  LiquidSelectionIndicator,
+  useLiquidSelection
+} from "@/shared/components/ui/liquid-selection";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
@@ -43,11 +47,13 @@ type ClubProgressPanelProps = {
 
 const notStartedValue = "not-started";
 
-const progressModeOptions: Array<{
+type ProgressModeOption = {
   value: ProgressMode;
   label: string;
   description: string;
-}> = [
+};
+
+const progressModeOptions: ProgressModeOption[] = [
   {
     value: "STRICT",
     label: "Strict",
@@ -95,6 +101,8 @@ export const ClubProgressPanel = ({
     );
     setSelectedMode(progress.mode);
   }, [finalMilestone, progress]);
+
+  const readingModeSelection = useLiquidSelection<HTMLDivElement>(selectedMode);
 
   if (!isMember) {
     return <ProgressMembershipRequired />;
@@ -389,37 +397,30 @@ export const ClubProgressPanel = ({
             </Button>
           </div>
 
-          <div className="grid gap-2">
+          <div
+            ref={readingModeSelection.groupRef}
+            className="relative isolate grid gap-2"
+          >
             <p className="text-sm text-muted">Reading mode</p>
+            <LiquidSelectionIndicator
+              indicatorStyle={readingModeSelection.indicatorStyle}
+              isVisible={readingModeSelection.isIndicatorVisible}
+              motion="smooth"
+              settleAnimationKey={readingModeSelection.settleAnimationKey}
+              shouldPlaySettleAnimation={
+                readingModeSelection.shouldPlaySettleAnimation
+              }
+            />
             {progressModeOptions.map((mode) => (
-              <button
+              <ReadingModeButton
                 key={mode.value}
-                type="button"
-                className={cn(
-                  "rounded-lg border border-default bg-inset px-3 py-2 text-left transition-colors hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
-                  selectedMode === mode.value && "border-brand bg-active"
-                )}
-                disabled={
-                  isProgressSaving ||
-                  (isRewindSelection &&
-                    (mode.value === "FINISHED" ||
-                      (progress.mode === "FINISHED" &&
-                        mode.value !== "STRICT")))
-                }
-                onClick={() => setSelectedMode(mode.value)}
-              >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-primary">
-                    {mode.label}
-                  </span>
-                  {selectedMode === mode.value ? (
-                    <Check className="size-4 text-brand" />
-                  ) : null}
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-faint">
-                  {mode.description}
-                </span>
-              </button>
+                currentProgressMode={progress.mode}
+                disabled={isProgressSaving}
+                isRewindSelection={isRewindSelection}
+                mode={mode}
+                selectedMode={selectedMode}
+                onSelect={() => setSelectedMode(mode.value)}
+              />
             ))}
           </div>
 
@@ -434,6 +435,61 @@ export const ClubProgressPanel = ({
         </CardContent>
       </Card>
     </div>
+  );
+};
+
+const ReadingModeButton = ({
+  currentProgressMode,
+  disabled,
+  isRewindSelection,
+  mode,
+  onSelect,
+  selectedMode
+}: {
+  currentProgressMode: ProgressMode;
+  disabled: boolean;
+  isRewindSelection: boolean;
+  mode: ProgressModeOption;
+  onSelect: () => void;
+  selectedMode: ProgressMode;
+}) => {
+  const isSelected = selectedMode === mode.value;
+  const isDisabled =
+    disabled ||
+    (isRewindSelection &&
+      (mode.value === "FINISHED" ||
+        (currentProgressMode === "FINISHED" && mode.value !== "STRICT")));
+
+  return (
+    <button
+      data-active={isSelected ? "true" : "false"}
+      data-liquid-selection-item
+      data-liquid-selection-value={mode.value}
+      type="button"
+      className={cn(
+        "relative z-10 rounded-lg border border-default px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
+        isSelected
+          ? "border-transparent text-brand hover:text-brand"
+          : "bg-inset hover:border-strong hover:bg-active"
+      )}
+      disabled={isDisabled}
+      onClick={onSelect}
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "text-sm font-medium",
+            isSelected ? "text-brand" : "text-primary"
+          )}
+        >
+          {mode.label}
+        </span>
+        {isSelected ? <Check className="size-4 text-brand" /> : null}
+      </span>
+      <span className="mt-1 block text-xs leading-5 text-faint">
+        {mode.description}
+      </span>
+    </button>
   );
 };
 

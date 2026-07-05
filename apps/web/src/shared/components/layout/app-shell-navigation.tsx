@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   Bell,
   Bookmark,
@@ -28,6 +28,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/shared/components/ui/dropdown-menu";
+import {
+  LiquidSelectionIndicator,
+  useLiquidSelection
+} from "@/shared/components/ui/liquid-selection";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
@@ -91,26 +95,32 @@ export const DesktopSidebar = ({
   isJoinedClubsLoading = false,
   notificationUnreadCount = 0,
   onRetryJoinedClubs
-}: AppShellNavigationProps) => (
-  <aside className="hidden w-[252px] shrink-0 border-r border-default pr-3 lg:flex lg:flex-col">
-    <ShellBrand />
-    <nav className="mt-8 grid gap-1" aria-label="Primary navigation">
-      {primaryNavItems.map((item) => (
-        <NavButton
-          key={item.label}
-          item={withNotificationBadge(item, notificationUnreadCount)}
-        />
-      ))}
-    </nav>
-    <JoinedClubsSection
-      joinedClubs={joinedClubs}
-      joinedClubsTotal={joinedClubsTotal}
-      isJoinedClubsError={isJoinedClubsError}
-      isJoinedClubsLoading={isJoinedClubsLoading}
-      onRetryJoinedClubs={onRetryJoinedClubs}
-    />
-  </aside>
-);
+}: AppShellNavigationProps) => {
+  const location = useLocation();
+  const activePrimaryNavValue = getPrimaryNavActiveValue(location.pathname);
+  const activeJoinedClubValue = getJoinedClubActiveValue(
+    location.pathname,
+    joinedClubs
+  );
+
+  return (
+    <aside className="hidden w-[252px] shrink-0 border-r border-default pr-3 lg:flex lg:flex-col">
+      <ShellBrand />
+      <PrimaryNavigation
+        activeValue={activePrimaryNavValue}
+        notificationUnreadCount={notificationUnreadCount}
+      />
+      <JoinedClubsSection
+        activeValue={activeJoinedClubValue}
+        joinedClubs={joinedClubs}
+        joinedClubsTotal={joinedClubsTotal}
+        isJoinedClubsError={isJoinedClubsError}
+        isJoinedClubsLoading={isJoinedClubsLoading}
+        onRetryJoinedClubs={onRetryJoinedClubs}
+      />
+    </aside>
+  );
+};
 
 export const MobileNav = ({
   joinedClubs = [],
@@ -200,18 +210,56 @@ const ShellBrand = () => (
   </div>
 );
 
+const PrimaryNavigation = ({
+  activeValue,
+  notificationUnreadCount
+}: {
+  activeValue?: string;
+  notificationUnreadCount: number;
+}) => {
+  const liquidSelection = useLiquidSelection<HTMLElement>(activeValue, {
+    cacheKey: "app-shell-primary-navigation"
+  });
+
+  return (
+    <nav
+      ref={liquidSelection.groupRef}
+      className="relative isolate mt-8 grid gap-1"
+      aria-label="Primary navigation"
+    >
+      <LiquidSelectionIndicator
+        indicatorStyle={liquidSelection.indicatorStyle}
+        isVisible={liquidSelection.isIndicatorVisible}
+        motion="smooth"
+        settleAnimationKey={liquidSelection.settleAnimationKey}
+        shouldPlaySettleAnimation={liquidSelection.shouldPlaySettleAnimation}
+      />
+      {primaryNavItems.map((item) => (
+        <NavButton
+          key={item.label}
+          item={withNotificationBadge(item, notificationUnreadCount)}
+        />
+      ))}
+    </nav>
+  );
+};
+
 const NavButton = ({ item }: { item: NavItem }) => {
   const Icon = item.icon;
 
   if (item.path) {
     return (
       <NavLink
+        data-liquid-selection-item
+        data-liquid-selection-value={getNavItemValue(item)}
         to={item.path}
         end={item.path === AUTHENTICATED_HOME_PATH}
         className={({ isActive }) =>
           cn(
             navButtonClassName,
-            isActive && "border-brand bg-active text-brand shadow-glow"
+            isActive
+              ? "text-brand hover:text-brand"
+              : "hover:bg-active hover:text-primary"
           )
         }
       >
@@ -236,12 +284,13 @@ const NavButton = ({ item }: { item: NavItem }) => {
 };
 
 const JoinedClubsSection = ({
+  activeValue,
   joinedClubs = [],
   joinedClubsTotal,
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
   onRetryJoinedClubs
-}: AppShellNavigationProps) => (
+}: AppShellNavigationProps & { activeValue?: string }) => (
   <section className="mt-6 min-h-0 border-t border-default pt-4">
     <div className="mb-2 flex items-center justify-between px-3">
       <h2 className="text-xs font-medium text-faint">Joined clubs</h2>
@@ -258,25 +307,56 @@ const JoinedClubsSection = ({
         Join a public club to pin it here.
       </p>
     ) : (
-      <nav className="grid gap-1" aria-label="Joined clubs">
-        {joinedClubs.map((club) => (
-          <JoinedClubLink key={club.id} club={club} />
-        ))}
-      </nav>
+      <JoinedClubsNav activeValue={activeValue} joinedClubs={joinedClubs} />
     )}
   </section>
 );
+
+const JoinedClubsNav = ({
+  activeValue,
+  joinedClubs
+}: {
+  activeValue?: string;
+  joinedClubs: AppShellJoinedClub[];
+}) => {
+  const liquidSelection = useLiquidSelection<HTMLElement>(activeValue, {
+    cacheKey: "app-shell-joined-clubs-navigation"
+  });
+
+  return (
+    <nav
+      ref={liquidSelection.groupRef}
+      className="relative isolate grid gap-1"
+      aria-label="Joined clubs"
+    >
+      <LiquidSelectionIndicator
+        indicatorStyle={liquidSelection.indicatorStyle}
+        isVisible={liquidSelection.isIndicatorVisible}
+        motion="smooth"
+        settleAnimationKey={liquidSelection.settleAnimationKey}
+        shouldPlaySettleAnimation={liquidSelection.shouldPlaySettleAnimation}
+      />
+      {joinedClubs.map((club) => (
+        <JoinedClubLink key={club.id} club={club} />
+      ))}
+    </nav>
+  );
+};
 
 const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
   const VisibilityIcon = visibilityIcons[club.visibility];
 
   return (
     <NavLink
+      data-liquid-selection-item
+      data-liquid-selection-value={club.linkName}
       to={`/app/clubs/${club.linkName}`}
       className={({ isActive }) =>
         cn(
-          "min-h-14 rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-          isActive && "border-brand bg-active text-brand shadow-glow"
+          "relative z-10 block min-h-14 rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+          isActive
+            ? "text-brand hover:text-brand"
+            : "hover:bg-active hover:text-primary"
         )
       }
     >
@@ -371,7 +451,26 @@ const JoinedClubsError = ({ onRetry }: { onRetry?: () => void }) => (
 );
 
 const navButtonClassName =
-  "flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "relative z-10 flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm text-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+
+const getNavItemValue = (item: NavItem) => item.path ?? item.label;
+
+const isPathActive = (pathname: string, path: string) =>
+  path === AUTHENTICATED_HOME_PATH
+    ? pathname === path
+    : pathname === path || pathname.startsWith(`${path}/`);
+
+const getPrimaryNavActiveValue = (pathname: string) =>
+  primaryNavItems.find((item) => item.path && isPathActive(pathname, item.path))
+    ?.path;
+
+const getJoinedClubActiveValue = (
+  pathname: string,
+  joinedClubs: AppShellJoinedClub[]
+) =>
+  joinedClubs.find((club) =>
+    isPathActive(pathname, `/app/clubs/${club.linkName}`)
+  )?.linkName;
 
 const withNotificationBadge = (
   item: NavItem,

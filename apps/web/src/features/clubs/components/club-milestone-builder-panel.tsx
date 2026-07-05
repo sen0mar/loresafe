@@ -19,6 +19,10 @@ import { toast } from "sonner";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import {
+  LiquidSelectionIndicator,
+  useLiquidSelection
+} from "@/shared/components/ui/liquid-selection";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 
@@ -251,6 +255,7 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
 
   const isManualPending = createMilestoneMutation.isPending;
   const isTemplatePending = createTemplateMutation.isPending;
+  const builderModeSelection = useLiquidSelection<HTMLDivElement>(mode);
 
   return (
     <div className="rounded-lg border border-default bg-inset p-4">
@@ -264,12 +269,24 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
         </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-default bg-surface p-1">
+      <div
+        ref={builderModeSelection.groupRef}
+        className="liquid-selection-surface relative isolate mt-4 grid grid-cols-2 gap-1 overflow-hidden rounded-lg border border-default bg-surface p-1"
+      >
+        <LiquidSelectionIndicator
+          indicatorStyle={builderModeSelection.indicatorStyle}
+          isVisible={builderModeSelection.isIndicatorVisible}
+          settleAnimationKey={builderModeSelection.settleAnimationKey}
+          shouldPlaySettleAnimation={
+            builderModeSelection.shouldPlaySettleAnimation
+          }
+        />
         <BuilderModeButton
           active={mode === "manual"}
           disabled={isManualPending || isTemplatePending}
           icon={<ListPlus className="size-4" />}
           label="Single"
+          value="manual"
           onClick={() => setBuilderMode("manual")}
         />
         <BuilderModeButton
@@ -277,6 +294,7 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
           disabled={isManualPending || isTemplatePending}
           icon={<ListChecks className="size-4" />}
           label="Template"
+          value="template"
           onClick={() => setBuilderMode("template")}
         />
       </div>
@@ -500,19 +518,26 @@ const BuilderModeButton = ({
   disabled,
   icon,
   label,
+  value,
   onClick
 }: {
   active: boolean;
   disabled: boolean;
   icon: ReactNode;
   label: string;
+  value: BuilderMode;
   onClick: () => void;
 }) => (
   <button
+    data-active={active ? "true" : "false"}
+    data-liquid-selection-item
+    data-liquid-selection-value={value}
     type="button"
     className={cn(
-      "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium text-muted transition-colors duration-150 hover:bg-active hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:text-disabled",
-      active && "bg-active text-brand"
+      "relative z-10 inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium text-muted transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:text-disabled",
+      active
+        ? "text-brand hover:text-brand"
+        : "hover:bg-active hover:text-primary"
     )}
     disabled={disabled}
     onClick={onClick}

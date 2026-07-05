@@ -80,6 +80,23 @@ describe("frontend accessibility regressions", () => {
     expect(screen.getByText("Locked discussions")).toBeInTheDocument();
   });
 
+  it("keeps the liquid tab indicator decorative", () => {
+    const { container } = renderWithProviders(
+      <Tabs defaultValue="safe">
+        <TabsList>
+          <TabsTrigger value="safe">Safe</TabsTrigger>
+          <TabsTrigger value="locked">Locked</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    );
+
+    const indicator = container.querySelector(".liquid-selection-indicator");
+    const tabs = within(screen.getByRole("tablist")).getAllByRole("tab");
+
+    expect(indicator).toHaveAttribute("aria-hidden", "true");
+    expect(tabs).toHaveLength(2);
+  });
+
   it("keeps wrapped tab lists fixed instead of scrollable", () => {
     renderWithProviders(
       <Tabs defaultValue="overview">
