@@ -130,6 +130,9 @@ Map shadcn primitives to the semantic ThreadSync tokens:
 
 ## Radius and Borders
 
+ThreadSync uses a softer, more circular radius scale from `apps/web/src/styles.css`
+with `--radius: 1.125rem`.
+
 | Context | Recommended class |
 | --- | --- |
 | Inputs, filters, badges | `rounded-md` |
@@ -139,6 +142,10 @@ Map shadcn primitives to the semantic ThreadSync tokens:
 | Modal / overlay | `rounded-2xl` |
 | Avatars | `rounded-full` |
 | Icon wells | `rounded-lg` |
+
+Current semantic radius values are approximately: `rounded-md` 16px, `rounded-lg`
+18px, `rounded-xl` 22px, and `rounded-2xl` 26px. Prefer these shared classes
+over arbitrary radius values so the app keeps a consistently rounded feel.
 
 Use 1px borders for most panels. Use brand borders sparingly for active/selected states.
 
