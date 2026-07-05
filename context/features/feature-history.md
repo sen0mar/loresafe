@@ -102,6 +102,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 96: Settings dropdown polish — Converted the club settings milestone builder and invite form into smooth collapsed dropdown sections, defaulted the builder to Template-first mode, preserved existing form behavior, and added focused frontend regression coverage.
 - Feature 97: Delete account danger zone — Added a profile settings account deletion flow with typed confirmation, hard-delete backend endpoint, sole-owner club protection, session clearing, retryable R2 object cleanup jobs, removed the profile moderation settings section, and added focused backend/frontend regression coverage.
 - Feature 98: Club settings editing — Added owner/moderator-only visibility and rules updates with backend authorization, a settings-update rate limiter, a collapsed Settings-tab editor, read-only member views, and focused backend/frontend regression coverage.
+- Feature 99: Register home navigation — Added signup-page home navigation to match login page behavior and covered the link with focused frontend regression coverage.
 
 ## Entry Format
 

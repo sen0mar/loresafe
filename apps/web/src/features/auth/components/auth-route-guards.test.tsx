@@ -11,6 +11,7 @@ import {
 } from "../api/auth-session-hint";
 import { PublicOnlyRoute } from "./auth-route-guards";
 import { LoginPage } from "../pages/login-page";
+import { SignupPage } from "../pages/signup-page";
 
 describe("auth route guards", () => {
   beforeEach(() => {
@@ -28,6 +29,20 @@ describe("auth route guards", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Checking session")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows home navigation on the signup page", () => {
+    renderPublicSignupRoute();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Join the discussion at your own pace."
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to home" })).toHaveAttribute(
+      "href",
+      "/"
+    );
   });
 
   it("redirects authenticated visitors away from public auth pages", async () => {
@@ -80,5 +95,22 @@ const renderPublicLoginRoute = (routeChanges?: string[]) =>
             routeChanges.push(path);
           }
         : undefined
+    }
+  );
+
+const renderPublicSignupRoute = () =>
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="/signup"
+        element={
+          <PublicOnlyRoute>
+            <SignupPage />
+          </PublicOnlyRoute>
+        }
+      />
+    </Routes>,
+    {
+      initialEntries: ["/signup"]
     }
   );
