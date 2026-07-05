@@ -24,6 +24,16 @@ export type UpdateCurrentUserProfileRequest = z.infer<
   typeof updateCurrentUserProfileRequestSchema
 >;
 
+export const deleteCurrentUserAccountRequestSchema = z
+  .object({
+    confirmation: z.literal("delete")
+  })
+  .strict();
+
+export type DeleteCurrentUserAccountRequest = z.infer<
+  typeof deleteCurrentUserAccountRequestSchema
+>;
+
 export const listCurrentUserClubsQuerySchema = z
   .object({
     q: z.string().trim().max(120).default(""),

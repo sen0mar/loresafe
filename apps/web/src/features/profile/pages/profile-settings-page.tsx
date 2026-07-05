@@ -4,7 +4,7 @@ import { useMe } from "@/features/auth/api/auth";
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 
-import { ModerationSettingsPanel } from "../components/moderation-settings-panel.js";
+import { AccountDangerZone } from "../components/account-danger-zone.js";
 import { ProfileSettingsForm } from "../components/profile-settings-form.js";
 
 export const ProfileSettingsPage = () => {
@@ -35,7 +35,7 @@ export const ProfileSettingsPage = () => {
         </section>
 
         <ProfileSettingsForm currentUser={currentUser} />
-        <ModerationSettingsPanel />
+        <AccountDangerZone />
       </div>
     </AuthenticatedAppShell>
   );

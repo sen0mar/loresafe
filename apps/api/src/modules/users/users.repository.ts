@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
+import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
@@ -33,7 +34,15 @@ export type ListJoinedClubsResult = {
   total: number;
 };
 
+export type DeleteCurrentUserAccountResult =
+  | "DELETED"
+  | "SOLE_OWNER"
+  | "USER_NOT_FOUND";
+
 export type UsersRepository = {
+  deleteCurrentUserAccount: (
+    userId: string
+  ) => Promise<DeleteCurrentUserAccountResult>;
   findActiveUserByReservedName: (
     normalizedName: string
   ) => Promise<AuthUserRecord | null>;
@@ -65,6 +74,85 @@ const userSelect = {
 } as const;
 
 export const usersRepository: UsersRepository = {
+  deleteCurrentUserAccount: (userId) =>
+    prisma.$transaction(async (transaction) => {
+      const currentUser = await transaction.user.findFirst({
+        where: {
+          id: userId,
+          deletedAt: null
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (!currentUser) {
+        return "USER_NOT_FOUND";
+      }
+
+      const soleOwnerMembership = await transaction.clubMembership.findFirst({
+        where: {
+          userId,
+          role: "OWNER",
+          club: {
+            memberships: {
+              none: {
+                role: "OWNER",
+                userId: {
+                  not: userId
+                }
+              }
+            }
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (soleOwnerMembership) {
+        return "SOLE_OWNER";
+      }
+
+      const ownedFileAssets = await transaction.fileAsset.findMany({
+        where: {
+          ownerId: userId
+        },
+        select: {
+          objectKey: true
+        }
+      });
+      const objectKeys = ownedFileAssets.map((asset) => asset.objectKey);
+
+      await transaction.comment.updateMany({
+        where: {
+          authorId: {
+            not: userId
+          },
+          parent: {
+            is: {
+              authorId: userId
+            }
+          }
+        },
+        data: {
+          parentId: null
+        }
+      });
+
+      if (objectKeys.length > 0) {
+        await enqueueStorageObjectDeleteJob(objectKeys, transaction);
+      }
+
+      await transaction.user.delete({
+        where: {
+          id: userId
+        }
+      });
+
+      return "DELETED";
+    }),
+
   findActiveUserByReservedName: async (normalizedName) => {
     const reservation = await prisma.userNameReservation.findFirst({
       where: {

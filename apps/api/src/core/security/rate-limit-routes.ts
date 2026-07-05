@@ -1,6 +1,7 @@
 import type { Application } from "express";
 
 import {
+  accountDeleteRateLimiter,
   clubCreateRateLimiter,
   clubInviteCreateRateLimiter,
   clubJoinRateLimiter,
@@ -24,7 +25,7 @@ import {
 
 export type RateLimiterApp = Pick<
   Application,
-  "get" | "patch" | "post" | "use"
+  "delete" | "get" | "patch" | "post" | "use"
 >;
 
 export const registerRateLimiters = (app: RateLimiterApp) => {
@@ -97,6 +98,7 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.post("/api/clubs/:linkName/progress/next", clubProgressUpdateRateLimiter);
   app.post("/api/invites/:token/accept", inviteAcceptRateLimiter);
   app.patch("/api/users/me", profileUpdateRateLimiter);
+  app.delete("/api/users/me", accountDeleteRateLimiter);
   app.post("/api/uploads/public-assets", publicAssetUploadRateLimiter);
   app.post("/api/uploads/:assetId/complete", publicAssetUploadRateLimiter);
 };

@@ -59,10 +59,20 @@ export const apiPatch = async <TResponse, TBody = unknown>(
   });
 };
 
+export const apiDelete = async <TResponse, TBody = unknown>(
+  path: string,
+  body?: TBody
+): Promise<TResponse> => {
+  return apiRequest<TResponse>(path, {
+    method: "DELETE",
+    body
+  });
+};
+
 const apiRequest = async <TResponse,>(
   path: string,
   options: {
-    method: "GET" | "PATCH" | "POST";
+    method: "DELETE" | "GET" | "PATCH" | "POST";
     body?: unknown;
   }
 ): Promise<TResponse> => {

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 
+import { authQueryKeys } from "@/features/auth/api/auth";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { SignupForm } from "@/features/auth/components/signup-form";
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
@@ -181,7 +182,7 @@ describe("frontend regression smoke", () => {
     });
   });
 
-  it("links settings directly to report queues for moderated clubs", async () => {
+  it("omits moderation report links from profile settings", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
@@ -192,22 +193,16 @@ describe("frontend regression smoke", () => {
       initialEntries: ["/app/settings/profile"]
     });
 
-    const reportLinks = await screen.findAllByRole("link", {
-      name: /open reports/i
-    });
-    const settingsMain = within(screen.getByRole("main"));
-
-    expect(settingsMain.getByText("Safe Club")).toBeVisible();
-    expect(settingsMain.getByText("Mod Club")).toBeVisible();
-    expect(settingsMain.queryByText("Member Club")).not.toBeInTheDocument();
-    expect(settingsMain.queryByLabelText("Club")).not.toBeInTheDocument();
-    expect(reportLinks[0]).toHaveAttribute(
-      "href",
-      "/app/clubs/safe-club/settings/moderation"
-    );
+    expect(await screen.findByText("Danger zone")).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: /open reports/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No moderation clubs yet")
+    ).not.toBeInTheDocument();
   });
 
-  it("shows an empty moderation settings state without moderated clubs", async () => {
+  it("shows a danger zone with exact delete confirmation", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       shellRoute("/api/users/me/clubs", joinedClubsResponse),
@@ -217,9 +212,110 @@ describe("frontend regression smoke", () => {
     renderWithProviders(<ProfileSettingsPage />, {
       initialEntries: ["/app/settings/profile"]
     });
+    const user = userEvent.setup();
 
-    expect(await screen.findByText("No moderation clubs yet")).toBeVisible();
-    expect(screen.queryByLabelText("Club")).not.toBeInTheDocument();
+    expect(await screen.findByText("Danger zone")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /^delete account$/i }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    const confirmButton = dialog.getByRole("button", {
+      name: /^delete account$/i
+    });
+    const confirmationInput = dialog.getByLabelText('Type "delete" to confirm');
+
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(confirmationInput, "Delete");
+    expect(confirmButton).toBeDisabled();
+
+    await user.clear(confirmationInput);
+    await user.type(confirmationInput, "delete");
+    expect(confirmButton).toBeEnabled();
+  });
+
+  it("deletes the account from danger zone and redirects home", async () => {
+    window.localStorage.setItem("threadsync:auth-session", "present");
+
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      {
+        method: "DELETE",
+        path: "/api/users/me",
+        status: 204,
+        response: null
+      }
+    ]);
+    const pathChanges: string[] = [];
+    const { queryClient } = renderWithProviders(<ProfileSettingsPage />, {
+      initialEntries: ["/app/settings/profile"],
+      routeObserver: (path) => pathChanges.push(path)
+    });
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /^delete account$/i })
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+
+    await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
+    await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
+
+    await waitFor(() => expect(pathChanges).toContain("/"));
+
+    const deleteCall = fetchMock.mock.calls.find(
+      (call) => (call[1] as RequestInit | undefined)?.method === "DELETE"
+    );
+
+    expect(deleteCall).toBeDefined();
+    expect(getJsonRequestBody(deleteCall ?? [])).toEqual({
+      confirmation: "delete"
+    });
+    expect(queryClient.getQueryData(authQueryKeys.me)).toBeNull();
+    expect(window.localStorage.getItem("threadsync:auth-session")).toBeNull();
+  });
+
+  it("shows sole-owner guidance when account deletion is blocked", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      {
+        method: "DELETE",
+        path: "/api/users/me",
+        status: 409,
+        response: {
+          error: {
+            code: "CONFLICT",
+            message:
+              "Transfer ownership of every club where you are the only owner " +
+              "before deleting your account."
+          }
+        }
+      }
+    ]);
+
+    renderWithProviders(<ProfileSettingsPage />, {
+      initialEntries: ["/app/settings/profile"]
+    });
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /^delete account$/i })
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+
+    await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
+    await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
+
+    expect(
+      await dialog.findByText(
+        "Transfer ownership of every club where you are the only owner " +
+          "before deleting your account."
+      )
+    ).toBeVisible();
   });
 
   it("shows a clear banned state on club detail load", async () => {

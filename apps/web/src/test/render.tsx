@@ -73,6 +73,12 @@ export const mockFetchRoutes = (routes: MockRoute[]) => {
         ? route.response(request)
         : route.response;
 
+    if (route.status === 204) {
+      return new Response(null, {
+        status: 204
+      });
+    }
+
     return Response.json(payload, {
       status: route.status ?? 200
     });

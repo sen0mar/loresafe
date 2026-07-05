@@ -1,7 +1,10 @@
 import type { RequestHandler } from "express";
 
+import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
+import { clearedSessionCookieOptions } from "../../core/security/session-token.js";
 import {
+  deleteCurrentUserAccountRequestSchema,
   listCurrentUserClubsQuerySchema,
   updateCurrentUserProfileRequestSchema
 } from "./users.schema.js";
@@ -9,6 +12,7 @@ import { usersService, type UsersService } from "./users.service.js";
 import "../auth/auth.request.js";
 
 export type UsersController = {
+  deleteMe: RequestHandler;
   listCurrentUserClubs: RequestHandler;
   updateMe: RequestHandler;
 };
@@ -16,6 +20,36 @@ export type UsersController = {
 export const createUsersController = (
   service: UsersService = usersService
 ): UsersController => ({
+  deleteMe: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const parseResult = deleteCurrentUserAccountRequestSchema.safeParse(
+        req.body
+      );
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          'Type "delete" to confirm account deletion.'
+        );
+      }
+
+      await service.deleteCurrentUserAccount(
+        req.currentUser.id,
+        parseResult.data
+      );
+
+      res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+
   listCurrentUserClubs: async (req, res, next) => {
     try {
       if (!req.currentUser) {

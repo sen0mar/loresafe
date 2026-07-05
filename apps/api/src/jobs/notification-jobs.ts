@@ -3,11 +3,14 @@ import {
   startNotificationJobQueue,
   stopNotificationJobQueue
 } from "./notification-job-queue.js";
+import { registerStorageObjectDeleteJobHandlers } from "./storage-object-delete-job-handlers.js";
 
 export const startNotificationJobs = async () => {
   await startNotificationJobQueue();
-  await registerNotificationJobHandlers();
+  await Promise.all([
+    registerNotificationJobHandlers(),
+    registerStorageObjectDeleteJobHandlers()
+  ]);
 };
 
 export const stopNotificationJobs = stopNotificationJobQueue;
-

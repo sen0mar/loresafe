@@ -20,6 +20,7 @@ import { createAuthRouter } from "../auth/auth.routes.js";
 import { createAuthService } from "../auth/auth.service.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import {
+  type DeleteCurrentUserAccountResult,
   type JoinedClubRecord,
   type UpdateCurrentUserProfileInput,
   type UsersRepository
@@ -51,6 +52,183 @@ describe("users routes", () => {
         requestId: "joined-clubs-missing-session"
       }
     });
+  });
+
+  it("rejects account deletion without an authenticated session", async () => {
+    const response = await request(app)
+      .delete("/api/users/me")
+      .set("x-request-id", "account-delete-missing-session")
+      .send({
+        confirmation: "delete"
+      })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        requestId: "account-delete-missing-session"
+      }
+    });
+  });
+
+  it("rejects account deletion without the exact confirmation", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      username: "story_fan",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .delete("/api/users/me")
+      .set("x-request-id", "account-delete-invalid-confirmation")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        confirmation: "Delete"
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: 'Type "delete" to confirm account deletion.',
+        requestId: "account-delete-invalid-confirmation"
+      }
+    });
+    expect(await repository.findActiveUserById(user.id)).toEqual(user);
+  });
+
+  it("blocks account deletion when the user is the sole owner of a club", async () => {
+    const user = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Club Owner",
+      username: "club_owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Solo Owner Club",
+      linkName: "solo-owner-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(user.id, club.id, "OWNER");
+    repository.createPost(user.id, club.id);
+
+    const response = await request(app)
+      .delete("/api/users/me")
+      .set("x-request-id", "account-delete-sole-owner")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        confirmation: "delete"
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message:
+          "Transfer ownership of every club where you are the only owner " +
+          "before deleting your account.",
+        requestId: "account-delete-sole-owner"
+      }
+    });
+    expect(await repository.findActiveUserById(user.id)).toEqual(user);
+    expect(repository.posts).toHaveLength(1);
+    expect(repository.enqueuedStorageObjectDeleteJobs).toHaveLength(0);
+  });
+
+  it("deletes the account and cascades user-owned data", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      username: "story_fan",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherOwner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Other Owner",
+      username: "other_owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherUser = await repository.createUser({
+      email: "other@example.com",
+      displayName: "Other Reader",
+      username: "other_reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Shared Club",
+      linkName: "shared-club",
+      visibility: "PUBLIC"
+    });
+    const userPost = repository.createPost(user.id, club.id);
+    const otherPost = repository.createPost(otherUser.id, club.id);
+    const userComment = repository.createComment(user.id, otherPost.id);
+    const otherReply = repository.createComment(otherUser.id, otherPost.id, {
+      parentId: userComment.id
+    });
+
+    repository.createMembership(user.id, club.id, "OWNER");
+    repository.createMembership(otherOwner.id, club.id, "OWNER");
+    repository.createMembership(otherUser.id, club.id, "MEMBER");
+    repository.createPostReaction(user.id, otherPost.id);
+    repository.createCommentReaction(user.id, otherReply.id);
+    repository.createNotification(user.id, otherPost.id, otherReply.id);
+    repository.createReport(user.id, userPost.id, null);
+    repository.createProgress(user.id, club.id);
+    repository.createFileAsset(user.id, "public/avatars/user/avatar.webp");
+    repository.createFileAsset(user.id, "private/post-images/club/post.webp");
+    repository.createFileAsset(otherUser.id, "public/avatars/other/avatar.webp");
+
+    const cookie = await createSessionCookie(user);
+    const response = await request(app)
+      .delete("/api/users/me")
+      .set("Cookie", cookie)
+      .send({
+        confirmation: "delete"
+      })
+      .expect(204);
+
+    expect(response.headers["set-cookie"]?.[0]).toContain(
+      `${env.SESSION_COOKIE_NAME}=;`
+    );
+    expect(await repository.findActiveUserById(user.id)).toBeNull();
+    expect(repository.nameReservations.has("story_fan")).toBe(false);
+    expect(repository.nameReservations.has("existing reader")).toBe(false);
+    expect(repository.memberships.some((membership) => membership.userId === user.id)).toBe(false);
+    expect(repository.posts.some((post) => post.authorId === user.id)).toBe(false);
+    expect(repository.comments.some((comment) => comment.authorId === user.id)).toBe(false);
+    expect(repository.postReactions.some((reaction) => reaction.userId === user.id)).toBe(false);
+    expect(repository.commentReactions.some((reaction) => reaction.userId === user.id)).toBe(false);
+    expect(
+      repository.notifications.some(
+        (notification) => notification.userId === user.id
+      )
+    ).toBe(false);
+    expect(repository.reports.some((report) => report.reporterId === user.id)).toBe(false);
+    expect(repository.progressRows.some((progress) => progress.userId === user.id)).toBe(false);
+    expect(repository.fileAssets.some((asset) => asset.ownerId === user.id)).toBe(false);
+    expect(repository.fileAssets).toEqual([
+      {
+        ownerId: otherUser.id,
+        objectKey: "public/avatars/other/avatar.webp"
+      }
+    ]);
+    expect(
+      repository.comments.find((comment) => comment.id === otherReply.id)
+        ?.parentId
+    ).toBeNull();
+    expect(repository.enqueuedStorageObjectDeleteJobs).toEqual([
+      {
+        objectKeys: [
+          "public/avatars/user/avatar.webp",
+          "private/post-images/club/post.webp"
+        ]
+      }
+    ]);
+
+    await request(app).get("/api/auth/me").set("Cookie", cookie).expect(401);
   });
 
   it("returns all clubs joined by the current user with safe sidebar fields", async () => {
@@ -680,6 +858,15 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   readonly clubs = new Map<string, StoredClub>();
   readonly memberships: StoredMembership[] = [];
   readonly activeBans: StoredClubBan[] = [];
+  readonly posts: StoredPost[] = [];
+  readonly comments: StoredComment[] = [];
+  readonly postReactions: StoredPostReaction[] = [];
+  readonly commentReactions: StoredCommentReaction[] = [];
+  readonly notifications: StoredNotification[] = [];
+  readonly reports: StoredReport[] = [];
+  readonly progressRows: StoredProgress[] = [];
+  readonly fileAssets: StoredFileAsset[] = [];
+  readonly enqueuedStorageObjectDeleteJobs: Array<{ objectKeys: string[] }> = [];
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -786,6 +973,87 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     });
   };
 
+  createPost = (authorId: string, clubId: string) => {
+    const post = {
+      id: crypto.randomUUID(),
+      authorId,
+      clubId
+    };
+
+    this.posts.push(post);
+
+    return post;
+  };
+
+  createComment = (
+    authorId: string,
+    postId: string,
+    input: { parentId?: string | null } = {}
+  ) => {
+    const comment = {
+      id: crypto.randomUUID(),
+      authorId,
+      postId,
+      parentId: input.parentId ?? null
+    };
+
+    this.comments.push(comment);
+
+    return comment;
+  };
+
+  createPostReaction = (userId: string, postId: string) => {
+    this.postReactions.push({
+      userId,
+      postId
+    });
+  };
+
+  createCommentReaction = (userId: string, commentId: string) => {
+    this.commentReactions.push({
+      userId,
+      commentId
+    });
+  };
+
+  createNotification = (
+    userId: string,
+    postId: string | null,
+    commentId: string | null
+  ) => {
+    this.notifications.push({
+      userId,
+      postId,
+      commentId
+    });
+  };
+
+  createReport = (
+    reporterId: string,
+    postId: string | null,
+    commentId: string | null
+  ) => {
+    this.reports.push({
+      reporterId,
+      postId,
+      commentId
+    });
+  };
+
+  createProgress = (userId: string, clubId: string) => {
+    this.progressRows.push({
+      userId,
+      clubId
+    });
+  };
+
+  createFileAsset = (ownerId: string, objectKey: string) => {
+    this.fileAssets.push({
+      ownerId,
+      objectKey
+    });
+  };
+
   listJoinedClubsForUser = async (
     userId: string,
     { page, limit, q }: ListCurrentUserClubsQuery
@@ -832,6 +1100,113 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
       clubs,
       total: joinedMemberships.length
     };
+  };
+
+  deleteCurrentUserAccount = async (
+    userId: string
+  ): Promise<DeleteCurrentUserAccountResult> => {
+    const user = await this.findActiveUserById(userId);
+
+    if (!user) {
+      return "USER_NOT_FOUND";
+    }
+
+    const isSoleOwner = this.memberships.some(
+      (membership) =>
+        membership.userId === userId &&
+        membership.role === "OWNER" &&
+        !this.memberships.some(
+          (otherMembership) =>
+            otherMembership.clubId === membership.clubId &&
+            otherMembership.role === "OWNER" &&
+            otherMembership.userId !== userId
+        )
+    );
+
+    if (isSoleOwner) {
+      return "SOLE_OWNER";
+    }
+
+    const objectKeys = this.fileAssets
+      .filter((asset) => asset.ownerId === userId)
+      .map((asset) => asset.objectKey);
+    const userCommentIds = new Set(
+      this.comments
+        .filter((comment) => comment.authorId === userId)
+        .map((comment) => comment.id)
+    );
+
+    this.comments.forEach((comment) => {
+      if (comment.authorId !== userId && userCommentIds.has(comment.parentId ?? "")) {
+        comment.parentId = null;
+      }
+    });
+
+    const deletedPostIds = new Set(
+      this.posts
+        .filter((post) => post.authorId === userId)
+        .map((post) => post.id)
+    );
+    const deletedCommentIds = new Set(
+      this.comments
+        .filter(
+          (comment) =>
+            comment.authorId === userId || deletedPostIds.has(comment.postId)
+        )
+        .map((comment) => comment.id)
+    );
+
+    this.usersByEmail.delete(user.email);
+    for (const [reservedName, reservedUserId] of this.nameReservations) {
+      if (reservedUserId === userId) {
+        this.nameReservations.delete(reservedName);
+      }
+    }
+
+    removeMatching(this.memberships, (membership) => membership.userId === userId);
+    removeMatching(this.activeBans, (ban) => ban.userId === userId);
+    removeMatching(this.posts, (post) => post.authorId === userId);
+    removeMatching(
+      this.comments,
+      (comment) =>
+        comment.authorId === userId || deletedPostIds.has(comment.postId)
+    );
+    removeMatching(
+      this.postReactions,
+      (reaction) =>
+        reaction.userId === userId || deletedPostIds.has(reaction.postId)
+    );
+    removeMatching(
+      this.commentReactions,
+      (reaction) =>
+        reaction.userId === userId ||
+        deletedCommentIds.has(reaction.commentId)
+    );
+    removeMatching(
+      this.notifications,
+      (notification) =>
+        notification.userId === userId ||
+        (!!notification.postId && deletedPostIds.has(notification.postId)) ||
+        (!!notification.commentId &&
+          deletedCommentIds.has(notification.commentId))
+    );
+    removeMatching(
+      this.reports,
+      (report) =>
+        report.reporterId === userId ||
+        (!!report.postId && deletedPostIds.has(report.postId)) ||
+        (!!report.commentId && deletedCommentIds.has(report.commentId))
+    );
+    removeMatching(this.progressRows, (progress) => progress.userId === userId);
+    removeMatching(this.fileAssets, (asset) => asset.ownerId === userId);
+
+    if (objectKeys.length > 0) {
+      this.enqueuedStorageObjectDeleteJobs.push({
+        objectKeys
+      });
+    }
+
+    return "DELETED";
   };
 
   private matchesJoinedClubSearch = (
@@ -965,6 +1340,51 @@ type StoredClubBan = {
   clubId: string;
 };
 
+type StoredPost = {
+  id: string;
+  authorId: string;
+  clubId: string;
+};
+
+type StoredComment = {
+  id: string;
+  authorId: string;
+  postId: string;
+  parentId: string | null;
+};
+
+type StoredPostReaction = {
+  userId: string;
+  postId: string;
+};
+
+type StoredCommentReaction = {
+  userId: string;
+  commentId: string;
+};
+
+type StoredNotification = {
+  userId: string;
+  postId: string | null;
+  commentId: string | null;
+};
+
+type StoredReport = {
+  reporterId: string;
+  postId: string | null;
+  commentId: string | null;
+};
+
+type StoredProgress = {
+  userId: string;
+  clubId: string;
+};
+
+type StoredFileAsset = {
+  ownerId: string;
+  objectKey: string;
+};
+
 const clubCategoryLabels = {
   BOOKS: "books",
   TV_SHOWS: "tv shows television shows",
@@ -994,4 +1414,15 @@ const createSessionCookie = async (user: AuthUserRecord) => {
   });
 
   return `${env.SESSION_COOKIE_NAME}=${sessionToken}`;
+};
+
+const removeMatching = <TItem>(
+  items: TItem[],
+  predicate: (item: TItem) => boolean
+) => {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index])) {
+      items.splice(index, 1);
+    }
+  }
 };

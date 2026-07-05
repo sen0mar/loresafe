@@ -100,6 +100,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 94: Liquid glass selection — Added shared liquid-glass active selection motion for tabs, sidebar navigation, and compact mode selectors, with cached sidebar travel, calmer stacked-selector motion, reduced-motion handling, and focused frontend regression coverage.
 - Feature 95: Timeline and final progress polish — Hid timeline name badges unless a milestone title is redacted, made quick progress switch to Finished at the final milestone, and added focused backend/frontend regression coverage.
 - Feature 96: Settings dropdown polish — Converted the club settings milestone builder and invite form into smooth collapsed dropdown sections, defaulted the builder to Template-first mode, preserved existing form behavior, and added focused frontend regression coverage.
+- Feature 97: Delete account danger zone — Added a profile settings account deletion flow with typed confirmation, hard-delete backend endpoint, sole-owner club protection, session clearing, retryable R2 object cleanup jobs, removed the profile moderation settings section, and added focused backend/frontend regression coverage.
 
 ## Entry Format
 

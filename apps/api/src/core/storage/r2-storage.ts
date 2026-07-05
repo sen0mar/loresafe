@@ -1,4 +1,5 @@
 import {
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -30,6 +31,7 @@ export type ObjectStorage = {
     contentType: string;
     objectKey: string;
   }) => Promise<PresignedUpload>;
+  deleteObjects: (objectKeys: string[]) => Promise<void>;
   getObjectMetadata: (objectKey: string) => Promise<StoredObjectMetadata | null>;
   getPublicUrl: (objectKey: string) => string;
 };
@@ -74,6 +76,30 @@ export const r2Storage: ObjectStorage = {
       },
       expiresAt: new Date(Date.now() + expiresIn * 1000)
     };
+  },
+
+  deleteObjects: async (objectKeys) => {
+    const uniqueObjectKeys = [...new Set(objectKeys)].filter(Boolean);
+
+    for (let index = 0; index < uniqueObjectKeys.length; index += 1000) {
+      const chunk = uniqueObjectKeys.slice(index, index + 1000);
+
+      if (chunk.length === 0) {
+        continue;
+      }
+
+      await r2Client.send(
+        new DeleteObjectsCommand({
+          Bucket: env.R2_BUCKET_NAME,
+          Delete: {
+            Objects: chunk.map((objectKey) => ({
+              Key: objectKey
+            })),
+            Quiet: true
+          }
+        })
+      );
+    }
   },
 
   getObjectMetadata: async (objectKey) => {

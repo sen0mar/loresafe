@@ -9,6 +9,13 @@ export const createUsersRouter = (
 ) => {
   const router = Router();
 
+  router.delete(
+    "/me",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deleteMe
+  );
+
   router.get(
     "/me/clubs",
     middleware.loadCurrentUser,
