@@ -171,6 +171,54 @@ describe("milestones routes", () => {
     });
   });
 
+  it("rejects template safe title overrides that do not match the count", async () => {
+    const owner = await repository.createUser(validUserInput());
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones/templates")
+      .set("x-request-id", "milestones-template-safe-title-count")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        template: "BOOK",
+        count: 2,
+        safeTitles: ["Only one title"]
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the milestone template details and try again.",
+        requestId: "milestones-template-safe-title-count"
+      }
+    });
+    expect(repository.templateCreationTransactionCount).toBe(0);
+  });
+
+  it("rejects invalid template safe title overrides", async () => {
+    const owner = await repository.createUser(validUserInput());
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones/templates")
+      .set("x-request-id", "milestones-template-safe-title-invalid")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        template: "BOOK",
+        count: 2,
+        safeTitles: ["  ", "x".repeat(121)]
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the milestone template details and try again.",
+        requestId: "milestones-template-safe-title-invalid"
+      }
+    });
+    expect(repository.templateCreationTransactionCount).toBe(0);
+  });
+
   it("returns not found when creating milestones for an unknown club", async () => {
     const owner = await repository.createUser(validUserInput());
 
@@ -804,6 +852,72 @@ describe("milestones routes", () => {
       );
     }
   );
+
+  it("creates template milestones with custom safe title overrides", async () => {
+    const owner = await repository.createUser(validUserInput());
+    const club = repository.createClub({
+      linkName: "public-story-circle",
+      visibility: "PUBLIC"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .post("/api/clubs/public-story-circle/milestones/templates")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        template: "BOOK",
+        count: 3,
+        safeTitles: [" Prologue ", "Act one", "Finale"]
+      })
+      .expect(201);
+
+    expect(repository.templateCreationTransactionCount).toBe(1);
+    expect(response.body.milestones).toMatchObject([
+      {
+        position: 1,
+        safeTitle: "Prologue",
+        fullTitle: null,
+        description: null,
+        spoilerName: false,
+        isFullTitleHidden: false
+      },
+      {
+        position: 2,
+        safeTitle: "Act one",
+        fullTitle: null,
+        description: null,
+        spoilerName: false,
+        isFullTitleHidden: false
+      },
+      {
+        position: 3,
+        safeTitle: "Finale",
+        fullTitle: null,
+        description: null,
+        spoilerName: false,
+        isFullTitleHidden: false
+      }
+    ]);
+    expect(
+      repository.milestones.map((milestone) => ({
+        position: milestone.position,
+        safeTitle: milestone.safeTitle
+      }))
+    ).toEqual([
+      {
+        position: 1,
+        safeTitle: "Prologue"
+      },
+      {
+        position: 2,
+        safeTitle: "Act one"
+      },
+      {
+        position: 3,
+        safeTitle: "Finale"
+      }
+    ]);
+  });
 
   it("does not generate template milestones over an existing timeline", async () => {
     const owner = await repository.createUser(validUserInput());

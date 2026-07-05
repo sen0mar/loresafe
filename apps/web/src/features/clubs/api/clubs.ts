@@ -702,6 +702,7 @@ export type MilestoneTemplate =
 export type CreateClubMilestoneTemplateInput = {
   template: MilestoneTemplate;
   count: number;
+  safeTitles?: string[];
 };
 
 export type CreateClubMilestoneTemplateResponse = {

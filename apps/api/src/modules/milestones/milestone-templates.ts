@@ -18,12 +18,13 @@ export type GeneratedMilestoneTemplate = {
 
 export const generateMilestoneTemplateRows = (
   template: MilestoneTemplate,
-  count: number
+  count: number,
+  safeTitles?: string[]
 ): GeneratedMilestoneTemplate[] => {
   const titlePrefix = templateTitlePrefixes[template];
 
   return Array.from({ length: count }, (_, index) => ({
-    safeTitle: `${titlePrefix} ${index + 1}`,
+    safeTitle: safeTitles?.[index] ?? `${titlePrefix} ${index + 1}`,
     fullTitle: null,
     description: null,
     spoilerName: false

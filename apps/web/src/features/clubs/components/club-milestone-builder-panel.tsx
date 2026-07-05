@@ -1,5 +1,6 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useId, useMemo, useState } from "react";
+import type { ZodIssue } from "zod";
 import {
   BookOpen,
   ChevronDown,
@@ -46,19 +47,19 @@ type MilestoneFieldErrors = Partial<
 type TemplateFormValues = {
   template: MilestoneTemplate;
   count: string;
+  safeTitles: string[];
 };
-type TemplateFieldErrors = Partial<Record<keyof TemplateFormValues, string>>;
+type TemplateFieldErrors = Partial<
+  Record<"template" | "count" | "safeTitles", string>
+> & {
+  safeTitleRows?: Record<number, string>;
+};
 
 const initialValues: CreateMilestoneFormValues = {
   safeTitle: "",
   fullTitle: "",
   description: "",
   spoilerName: false
-};
-
-const initialTemplateValues: TemplateFormValues = {
-  template: "BOOK",
-  count: "12"
 };
 
 const templateOptions: Array<{
@@ -105,6 +106,14 @@ const templateOptions: Array<{
   }
 ];
 
+const initialTemplateCount = "12";
+
+const initialTemplateValues: TemplateFormValues = {
+  template: "BOOK",
+  count: initialTemplateCount,
+  safeTitles: generateTemplateSafeTitles("BOOK", Number(initialTemplateCount))
+};
+
 export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
   const role = club.membership.role;
   const canCreateMilestone = role === "OWNER" || role === "MODERATOR";
@@ -123,10 +132,12 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const builderContentId = useId();
-  const templatePreviewNames = useMemo(
-    () => generatePreviewNames(templateValues),
-    [templateValues]
+  const validTemplateCount = useMemo(
+    () => getValidTemplateCount(templateValues.count),
+    [templateValues.count]
   );
+  const visibleTemplateTitles =
+    validTemplateCount === null ? [] : templateValues.safeTitles;
   const isManualPending = createMilestoneMutation.isPending;
   const isTemplatePending = createTemplateMutation.isPending;
 
@@ -167,28 +178,66 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
   };
 
   const updateTemplate = (template: MilestoneTemplate) => {
-    setTemplateValues((currentValues) => ({
-      ...currentValues,
-      template
-    }));
+    setTemplateValues((currentValues) => {
+      const parsedCount = getValidTemplateCount(currentValues.count);
+
+      return {
+        ...currentValues,
+        template,
+        safeTitles:
+          parsedCount === null
+            ? []
+            : generateTemplateSafeTitles(template, parsedCount)
+      };
+    });
     setTemplateErrors((currentErrors) => ({
       ...currentErrors,
-      template: undefined
+      template: undefined,
+      safeTitles: undefined,
+      safeTitleRows: undefined
     }));
     setTemplateError(null);
   };
 
   const updateTemplateCount = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextCountValue = event.target.value;
+
     setTemplateValues((currentValues) => ({
       ...currentValues,
-      count: event.target.value
+      count: nextCountValue,
+      safeTitles: getTemplateTitlesForCountChange(
+        currentValues.template,
+        currentValues.safeTitles,
+        nextCountValue
+      )
     }));
     setTemplateErrors((currentErrors) => ({
       ...currentErrors,
-      count: undefined
+      count: undefined,
+      safeTitles: undefined,
+      safeTitleRows: undefined
     }));
     setTemplateError(null);
   };
+
+  const updateTemplateSafeTitle =
+    (index: number) => (event: ChangeEvent<HTMLInputElement>) => {
+      setTemplateValues((currentValues) => ({
+        ...currentValues,
+        safeTitles: currentValues.safeTitles.map((title, titleIndex) =>
+          titleIndex === index ? event.target.value : title
+        )
+      }));
+      setTemplateErrors((currentErrors) => ({
+        ...currentErrors,
+        safeTitles: undefined,
+        safeTitleRows: clearTemplateSafeTitleError(
+          currentErrors.safeTitleRows,
+          index
+        )
+      }));
+      setTemplateError(null);
+    };
 
   const submitMilestone = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -229,7 +278,8 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
 
     const parseResult = createMilestoneTemplateFormSchema.safeParse({
       template: templateValues.template,
-      count: Number(templateValues.count)
+      count: Number(templateValues.count),
+      safeTitles: templateValues.safeTitles
     });
 
     if (!parseResult.success) {
@@ -237,7 +287,11 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
 
       setTemplateErrors({
         template: flattenedErrors.template?.[0],
-        count: flattenedErrors.count?.[0]
+        count: flattenedErrors.count?.[0],
+        safeTitles: getTemplateSafeTitlesError(parseResult.error.issues),
+        safeTitleRows: getTemplateSafeTitleRowErrors(
+          parseResult.error.issues
+        )
       });
       return;
     }
@@ -495,25 +549,58 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="flex items-center gap-2 text-sm font-medium text-secondary">
                       <Sparkles className="size-4 text-brand" />
-                      Safe name preview
+                      Milestone titles
                     </h3>
                     <span className="font-mono text-xs text-faint">
-                      {templatePreviewNames.length}
+                      {visibleTemplateTitles.length}
                     </span>
                   </div>
-                  {templatePreviewNames.length > 0 ? (
-                    <ol className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1">
-                      {templatePreviewNames.map((name, index) => (
-                        <li
-                          className="flex items-center gap-3 rounded-md border border-subtle bg-inset px-3 py-2 text-sm text-secondary"
-                          key={name}
-                        >
-                          <span className="w-8 font-mono text-xs text-brand">
-                            {index + 1}
-                          </span>
-                          <span>{name}</span>
-                        </li>
-                      ))}
+                  {templateErrors.safeTitles ? (
+                    <p
+                      className="mt-3 text-sm text-error"
+                      id="template-safe-titles-error"
+                    >
+                      {templateErrors.safeTitles}
+                    </p>
+                  ) : null}
+                  {visibleTemplateTitles.length > 0 ? (
+                    <ol className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+                      {visibleTemplateTitles.map((title, index) => {
+                        const inputId = `milestone-template-safe-title-${index}`;
+                        const titleError =
+                          templateErrors.safeTitleRows?.[index];
+
+                        return (
+                          <li
+                            className="rounded-md border border-subtle bg-inset p-3"
+                            key={index}
+                          >
+                            <MilestoneFormField
+                              id={inputId}
+                              label={`Milestone ${index + 1}`}
+                              error={titleError}
+                              icon={<Type className="size-4" />}
+                            >
+                              <Input
+                                id={inputId}
+                                type="text"
+                                value={title}
+                                onChange={updateTemplateSafeTitle(index)}
+                                disabled={isTemplatePending}
+                                aria-invalid={!!titleError}
+                                aria-describedby={
+                                  titleError
+                                    ? `${inputId}-error`
+                                    : templateErrors.safeTitles
+                                      ? "template-safe-titles-error"
+                                      : undefined
+                                }
+                                maxLength={120}
+                              />
+                            </MilestoneFormField>
+                          </li>
+                        );
+                      })}
                     </ol>
                   ) : (
                     <p className="mt-3 text-sm leading-6 text-muted">
@@ -656,13 +743,36 @@ const FormError = ({ message }: { message: string }) => (
   </div>
 );
 
-const generatePreviewNames = ({ template, count }: TemplateFormValues) => {
+const getValidTemplateCount = (count: string) => {
   const parsedCount = Number(count);
 
   if (!Number.isInteger(parsedCount) || parsedCount < 1 || parsedCount > 200) {
-    return [];
+    return null;
   }
 
+  return parsedCount;
+};
+
+const getTemplateTitlesForCountChange = (
+  template: MilestoneTemplate,
+  currentTitles: string[],
+  nextCount: string
+) => {
+  const parsedCount = getValidTemplateCount(nextCount);
+
+  if (parsedCount === null) {
+    return currentTitles;
+  }
+
+  return generateTemplateSafeTitles(template, parsedCount).map(
+    (defaultTitle, index) => currentTitles[index] ?? defaultTitle
+  );
+};
+
+function generateTemplateSafeTitles(
+  template: MilestoneTemplate,
+  count: number
+) {
   const selectedTemplate = templateOptions.find(
     (option) => option.value === template
   );
@@ -672,7 +782,43 @@ const generatePreviewNames = ({ template, count }: TemplateFormValues) => {
   }
 
   return Array.from(
-    { length: parsedCount },
+    { length: count },
     (_, index) => `${selectedTemplate.previewPrefix} ${index + 1}`
   );
+}
+
+const getTemplateSafeTitlesError = (issues: ZodIssue[]) =>
+  issues.find(
+    (issue) => issue.path.length === 1 && issue.path[0] === "safeTitles"
+  )?.message;
+
+const getTemplateSafeTitleRowErrors = (issues: ZodIssue[]) =>
+  issues.reduce<Record<number, string>>((errors, issue) => {
+    const [field, index] = issue.path;
+
+    if (field === "safeTitles" && typeof index === "number") {
+      return {
+        ...errors,
+        [index]: errors[index] ?? issue.message
+      };
+    }
+
+    return errors;
+  }, {});
+
+const clearTemplateSafeTitleError = (
+  errors: Record<number, string> | undefined,
+  index: number
+) => {
+  if (!errors) {
+    return undefined;
+  }
+
+  const nextErrors = {
+    ...errors
+  };
+
+  delete nextErrors[index];
+
+  return Object.keys(nextErrors).length > 0 ? nextErrors : undefined;
 };

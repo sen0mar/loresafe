@@ -54,12 +54,24 @@ export const milestoneTemplateSchema = z.enum([
   "CUSTOM"
 ]);
 
+const templateSafeTitleSchema = z.string().trim().min(2).max(120);
+
 export const createMilestoneTemplateRequestSchema = z
   .object({
     template: milestoneTemplateSchema,
-    count: z.number().int().min(1).max(200)
+    count: z.number().int().min(1).max(200),
+    safeTitles: z.array(templateSafeTitleSchema).optional()
   })
-  .strict();
+  .strict()
+  .superRefine((input, context) => {
+    if (input.safeTitles && input.safeTitles.length !== input.count) {
+      context.addIssue({
+        code: "custom",
+        path: ["safeTitles"],
+        message: "Safe title count must match the milestone count."
+      });
+    }
+  });
 
 export type ListMilestonesQuery = z.infer<typeof listMilestonesQuerySchema>;
 export type CreateMilestoneRequest = z.infer<

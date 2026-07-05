@@ -86,7 +86,11 @@ export const createMilestonesService = (
       const milestones = await repository.createMilestonesFromTemplateIfEmpty({
         clubId: club.id,
         ...input,
-        milestones: generateMilestoneTemplateRows(input.template, input.count)
+        milestones: generateMilestoneTemplateRows(
+          input.template,
+          input.count,
+          input.safeTitles
+        )
       });
 
       return {

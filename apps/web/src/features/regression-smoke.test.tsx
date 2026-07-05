@@ -666,6 +666,83 @@ describe("frontend regression smoke", () => {
     expect(screen.getByLabelText("Max uses")).toBeVisible();
   });
 
+  it("submits edited template milestone titles from the settings builder", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club: moderationClub
+      }),
+      {
+        method: "POST",
+        path: "/api/clubs/safe-club/milestones/templates",
+        response: ({ body }: { body: unknown }) => {
+          const input = body as {
+            safeTitles: string[];
+          };
+
+          return {
+            milestones: input.safeTitles.map((safeTitle, index) => ({
+              ...milestoneOne,
+              id: `${firstMilestoneId}-${index}`,
+              position: index + 1,
+              safeTitle
+            }))
+          };
+        }
+      }
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=settings"]
+      }
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /milestone builder/i })
+    );
+    const countInput = screen.getByLabelText("Count");
+
+    await user.clear(countInput);
+    await user.type(countInput, "3");
+    await user.clear(await screen.findByLabelText("Milestone 1"));
+    await user.type(screen.getByLabelText("Milestone 1"), "Prologue");
+    await user.clear(screen.getByLabelText("Milestone 2"));
+    await user.type(screen.getByLabelText("Milestone 2"), "First reveal");
+    await user.clear(screen.getByLabelText("Milestone 3"));
+    await user.type(screen.getByLabelText("Milestone 3"), "Finale");
+    await user.click(screen.getByRole("button", { name: /generate milestones/i }));
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(
+          fetchMock,
+          "POST",
+          "/api/clubs/safe-club/milestones/templates"
+        )
+      ).toBeTruthy()
+    );
+    expect(
+      getJsonRequestBody(
+        findFetchCall(
+          fetchMock,
+          "POST",
+          "/api/clubs/safe-club/milestones/templates"
+        )!
+      )
+    ).toEqual({
+      template: "BOOK",
+      count: 3,
+      safeTitles: ["Prologue", "First reveal", "Finale"]
+    });
+  });
+
   it("lets moderators update club settings from the settings tab", async () => {
     let editableClub: Club = {
       ...moderationClub,
