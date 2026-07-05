@@ -1,12 +1,20 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useState } from "react";
-import { Clock3, Copy, KeyRound, LinkIcon, Users } from "lucide-react";
+import { useId, useState } from "react";
+import {
+  ChevronDown,
+  Clock3,
+  Copy,
+  KeyRound,
+  LinkIcon,
+  Users
+} from "lucide-react";
 import { toast } from "sonner";
 
 import type { Club } from "@/features/clubs/api/clubs";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { cn } from "@/shared/lib/utils";
 
 import {
   type ClubInvite,
@@ -41,6 +49,8 @@ export const ClubInviteSection = ({ club }: { club: Club }) => {
   const [fieldErrors, setFieldErrors] = useState<InviteFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [createdInvite, setCreatedInvite] = useState<CreatedInvite | null>(null);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const inviteContentId = useId();
 
   if (!canCreateInvite) {
     return null;
@@ -114,106 +124,149 @@ export const ClubInviteSection = ({ club }: { club: Club }) => {
   };
 
   return (
-    <div className="rounded-lg border border-default bg-inset p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-medium text-primary">
+    <div className="overflow-hidden rounded-lg border border-default bg-inset">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors duration-150 hover:bg-active focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+        aria-controls={inviteContentId}
+        aria-expanded={isInviteOpen}
+        onClick={() => setIsInviteOpen((isOpen) => !isOpen)}
+      >
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 text-sm font-medium text-primary">
             <KeyRound className="size-4 text-brand" />
             Invites
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-muted">
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-muted">
             Generate a link for readers who should join this club.
-          </p>
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-5 shrink-0 text-faint transition-transform duration-150",
+            isInviteOpen && "rotate-180 text-brand"
+          )}
+          aria-hidden="true"
+        />
+      </button>
+
+      <div
+        id={inviteContentId}
+        className={cn(
+          "grid transition-[border-color,grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+          isInviteOpen
+            ? "grid-rows-[1fr] border-t border-default"
+            : "grid-rows-[0fr] border-t border-transparent"
+        )}
+        aria-hidden={!isInviteOpen}
+        data-state={isInviteOpen ? "open" : "closed"}
+        inert={!isInviteOpen}
+      >
+        <div
+          className={cn(
+            "min-h-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            isInviteOpen ? "translate-y-0 opacity-100 delay-75" : "-translate-y-1 opacity-0"
+          )}
+        >
+          <div className="px-4 pb-4 pt-4">
+            <form className="grid gap-3" onSubmit={submitInvite} noValidate>
+              {formError ? (
+                <div className="rounded-lg border border-default bg-surface p-3">
+                  <p className="text-sm text-error">{formError}</p>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InviteFormField
+                  id="invite-expires-in-days"
+                  label="Expires in days"
+                  error={fieldErrors.expiresInDays}
+                  icon={<Clock3 className="size-4" />}
+                >
+                  <Input
+                    id="invite-expires-in-days"
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={values.expiresInDays}
+                    onChange={updateField("expiresInDays")}
+                    disabled={createInviteMutation.isPending}
+                    aria-invalid={!!fieldErrors.expiresInDays}
+                    aria-describedby={
+                      fieldErrors.expiresInDays
+                        ? "invite-expires-in-days-error"
+                        : undefined
+                    }
+                  />
+                </InviteFormField>
+
+                <InviteFormField
+                  id="invite-max-uses"
+                  label="Max uses"
+                  error={fieldErrors.maxUses}
+                  icon={<Users className="size-4" />}
+                >
+                  <Input
+                    id="invite-max-uses"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={values.maxUses}
+                    onChange={updateField("maxUses")}
+                    disabled={createInviteMutation.isPending}
+                    aria-invalid={!!fieldErrors.maxUses}
+                    aria-describedby={
+                      fieldErrors.maxUses ? "invite-max-uses-error" : undefined
+                    }
+                  />
+                </InviteFormField>
+              </div>
+
+              <Button
+                type="submit"
+                className="justify-self-start"
+                disabled={createInviteMutation.isPending}
+              >
+                <LinkIcon />
+                {createInviteMutation.isPending
+                  ? "Generating..."
+                  : "Generate invite"}
+              </Button>
+            </form>
+
+            {createdInvite ? (
+              <div className="mt-4 space-y-3 rounded-lg border border-default bg-surface p-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-faint">
+                  <span>
+                    Expires{" "}
+                    {dateTimeFormatter.format(
+                      new Date(createdInvite.expiresAt)
+                    )}
+                  </span>
+                  <span>
+                    {createdInvite.usedCount}/{createdInvite.maxUses} uses
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    readOnly
+                    value={createdInvite.inviteUrl}
+                    aria-label="Generated invite link"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={copyInviteUrl}
+                  >
+                    <Copy />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
-
-      <form className="mt-4 grid gap-3" onSubmit={submitInvite} noValidate>
-        {formError ? (
-          <div className="rounded-lg border border-default bg-surface p-3">
-            <p className="text-sm text-error">{formError}</p>
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <InviteFormField
-            id="invite-expires-in-days"
-            label="Expires in days"
-            error={fieldErrors.expiresInDays}
-            icon={<Clock3 className="size-4" />}
-          >
-            <Input
-              id="invite-expires-in-days"
-              type="number"
-              min={1}
-              max={30}
-              value={values.expiresInDays}
-              onChange={updateField("expiresInDays")}
-              disabled={createInviteMutation.isPending}
-              aria-invalid={!!fieldErrors.expiresInDays}
-              aria-describedby={
-                fieldErrors.expiresInDays
-                  ? "invite-expires-in-days-error"
-                  : undefined
-              }
-            />
-          </InviteFormField>
-
-          <InviteFormField
-            id="invite-max-uses"
-            label="Max uses"
-            error={fieldErrors.maxUses}
-            icon={<Users className="size-4" />}
-          >
-            <Input
-              id="invite-max-uses"
-              type="number"
-              min={1}
-              max={100}
-              value={values.maxUses}
-              onChange={updateField("maxUses")}
-              disabled={createInviteMutation.isPending}
-              aria-invalid={!!fieldErrors.maxUses}
-              aria-describedby={
-                fieldErrors.maxUses ? "invite-max-uses-error" : undefined
-              }
-            />
-          </InviteFormField>
-        </div>
-
-        <Button
-          type="submit"
-          className="justify-self-start"
-          disabled={createInviteMutation.isPending}
-        >
-          <LinkIcon />
-          {createInviteMutation.isPending ? "Generating..." : "Generate invite"}
-        </Button>
-      </form>
-
-      {createdInvite ? (
-        <div className="mt-4 space-y-3 rounded-lg border border-default bg-surface p-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-faint">
-            <span>
-              Expires{" "}
-              {dateTimeFormatter.format(new Date(createdInvite.expiresAt))}
-            </span>
-            <span>
-              {createdInvite.usedCount}/{createdInvite.maxUses} uses
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              readOnly
-              value={createdInvite.inviteUrl}
-              aria-label="Generated invite link"
-            />
-            <Button type="button" variant="secondary" onClick={copyInviteUrl}>
-              <Copy />
-              Copy
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 };

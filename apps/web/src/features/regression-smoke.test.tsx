@@ -463,6 +463,78 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
   });
 
+  it("keeps club settings dropdown sections collapsed until opened", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club: moderationClub
+      })
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=settings"]
+      }
+    );
+
+    const builderToggle = await screen.findByRole("button", {
+      name: /milestone builder/i
+    });
+    const builderContent = document.getElementById(
+      builderToggle.getAttribute("aria-controls") ?? ""
+    );
+
+    expect(builderToggle).toHaveAttribute("aria-expanded", "false");
+    expect(builderContent).toHaveAttribute("data-state", "closed");
+    expect(builderContent).toHaveAttribute("aria-hidden", "true");
+    expect(builderContent).toHaveAttribute("inert");
+    expect(screen.queryByLabelText("Safe title")).not.toBeInTheDocument();
+
+    await user.click(builderToggle);
+
+    expect(builderToggle).toHaveAttribute("aria-expanded", "true");
+    expect(builderContent).toHaveAttribute("data-state", "open");
+    expect(builderContent).toHaveAttribute("aria-hidden", "false");
+    expect(builderContent).not.toHaveAttribute("inert");
+    const templateModeButton = screen.getByRole("button", { name: "Template" });
+    const singleModeButton = screen.getByRole("button", { name: "Single" });
+    const modeSelector = templateModeButton.closest(".liquid-selection-surface");
+
+    expect(templateModeButton).toBeVisible();
+    expect(templateModeButton).toHaveAttribute("data-active", "true");
+    expect(singleModeButton).toHaveAttribute("data-active", "false");
+    expect(singleModeButton).toBeVisible();
+    expect(
+      modeSelector?.querySelector(".liquid-selection-indicator")
+    ).toHaveAttribute("data-visible", "true");
+    expect(screen.getByLabelText("Count")).toBeVisible();
+
+    const inviteToggle = screen.getByRole("button", { name: /invites/i });
+    const inviteContent = document.getElementById(
+      inviteToggle.getAttribute("aria-controls") ?? ""
+    );
+
+    expect(inviteToggle).toHaveAttribute("aria-expanded", "false");
+    expect(inviteContent).toHaveAttribute("data-state", "closed");
+    expect(inviteContent).toHaveAttribute("aria-hidden", "true");
+    expect(inviteContent).toHaveAttribute("inert");
+
+    await user.click(inviteToggle);
+
+    expect(inviteToggle).toHaveAttribute("aria-expanded", "true");
+    expect(inviteContent).toHaveAttribute("data-state", "open");
+    expect(inviteContent).toHaveAttribute("aria-hidden", "false");
+    expect(inviteContent).not.toHaveAttribute("inert");
+    expect(screen.getByLabelText("Expires in days")).toBeVisible();
+    expect(screen.getByLabelText("Max uses")).toBeVisible();
+  });
+
   it("only labels hidden timeline milestone names", async () => {
     const visibleSpoilerMilestone: ClubMilestone = {
       id: "00000000-0000-4000-8000-000000000013",
