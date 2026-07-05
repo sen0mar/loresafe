@@ -113,6 +113,7 @@ export const useLiquidSelection = <
     getInitialCachedSelection(activeValue, cacheKey)
   );
   const groupRef = useRef<TElement | null>(null);
+  const [groupElement, setGroupElement] = useState<TElement | null>(null);
   const previousActiveValueRef = useRef(
     initialCachedSelectionRef.current?.activeValue ?? activeValue
   );
@@ -128,6 +129,11 @@ export const useLiquidSelection = <
   const [indicatorRect, setIndicatorRect] = useState<IndicatorRect | null>(
     initialCachedSelectionRef.current?.rect ?? null
   );
+
+  const setGroupRef = useCallback((node: TElement | null) => {
+    groupRef.current = node;
+    setGroupElement(node);
+  }, []);
 
   const updateIndicatorRect = useCallback(() => {
     const group = groupRef.current;
@@ -186,10 +192,10 @@ export const useLiquidSelection = <
     }
 
     updateIndicatorRect();
-  }, [updateIndicatorRect]);
+  }, [groupElement, updateIndicatorRect]);
 
   useEffect(() => {
-    const group = groupRef.current;
+    const group = groupElement;
 
     if (!group || typeof ResizeObserver === "undefined") {
       return;
@@ -200,7 +206,7 @@ export const useLiquidSelection = <
     getSelectionItems(group).forEach((item) => observer.observe(item));
 
     return () => observer.disconnect();
-  }, [updateIndicatorRect]);
+  }, [groupElement, updateIndicatorRect]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -213,7 +219,7 @@ export const useLiquidSelection = <
   }, [updateIndicatorRect]);
 
   return {
-    groupRef,
+    groupRef: setGroupRef,
     indicatorStyle: getIndicatorStyle(indicatorRect),
     isIndicatorVisible: Boolean(indicatorRect),
     settleAnimationKey,

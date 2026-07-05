@@ -113,7 +113,7 @@ export const ClubModerationReportsPage = () => {
         <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
           <div className="min-w-0 space-y-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/app/clubs/${linkName}`}>
+              <Link to={`/app/clubs/${linkName}?tab=settings`}>
                 <ArrowLeft />
                 Club settings
               </Link>

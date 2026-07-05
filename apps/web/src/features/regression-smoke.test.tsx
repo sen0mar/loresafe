@@ -548,6 +548,18 @@ describe("frontend regression smoke", () => {
     ).toEqual(["Feed", "Progress", "Overview", "Members", "Timeline", "Settings"]);
     expect(await screen.findByLabelText("Current milestone")).toBeVisible();
     expect(screen.getByText("Reading mode")).toBeVisible();
+    const readingModeSelector = screen.getByText("Reading mode").parentElement;
+
+    expect(
+      readingModeSelector?.querySelector(
+        '[data-liquid-selection-value="STRICT"]'
+      )
+    ).toHaveAttribute("data-active", "true");
+    await waitFor(() =>
+      expect(
+        readingModeSelector?.querySelector(".liquid-selection-indicator")
+      ).toHaveAttribute("data-visible", "true")
+    );
     expect(screen.getByText("Current mode")).toBeVisible();
     expect(
       screen.getByText("Current mode").compareDocumentPosition(
@@ -2168,6 +2180,10 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("POST")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /club settings/i })).toHaveAttribute(
+      "href",
+      "/app/clubs/safe-club?tab=settings"
+    );
     expect(screen.getByText("COMMENT")).toBeInTheDocument();
     expect(screen.getByText("Spam")).toBeInTheDocument();
     expect(screen.queryByText("Reporter")).not.toBeInTheDocument();
