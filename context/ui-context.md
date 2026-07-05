@@ -67,6 +67,11 @@ Colors below define the current app palette in `apps/web/src/styles.css`.
 | Brand glow shadow | `--shadow-glow` | `none` |
 | Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
 | App background | `--gradient-app` | `#07090c` |
+| Glass tab surface | `--glass-tabs-surface` | `rgba(6, 8, 11, 0.76)` |
+| Glass tab border | `--glass-tabs-border` | `rgba(170, 203, 250, 0.16)` |
+| Glass tab highlight | `--glass-tab-highlight` | `rgba(16, 26, 39, 0.78)` |
+| Glass tab highlight border | `--glass-tab-highlight-border` | `rgba(123, 169, 231, 0.82)` |
+| Glass tab highlight glow | `--glass-tab-highlight-glow` | `rgba(96, 145, 214, 0.24)` |
 
 Recommended CSS starting point:
 
@@ -119,6 +124,17 @@ Map shadcn primitives to the semantic ThreadSync tokens:
 - Metadata uses `--text-faint`; descriptions use `--text-muted`; titles use `--text-primary`.
 - Locked placeholders use muted text, safe metadata only, and an obvious lock icon.
 - Charts and progress dots use chart tokens, not arbitrary colors.
+
+## Liquid Glass Selection
+
+- Shared tabs and tab-like controls use a translucent glass tray plus a decorative active indicator that moves between selected items.
+- Use `Tabs`, `TabsList`, and `TabsTrigger` from `apps/web/src/shared/components/ui/tabs.tsx`; do not add per-feature active tab backgrounds or borders that fight the shared indicator.
+- Use `LiquidSelectionIndicator` and `useLiquidSelection` from `apps/web/src/shared/components/ui/liquid-selection.tsx` for non-Radix controls that behave like tabs, sidebar navigation, or compact mode selectors.
+- Inner liquid/ripple motion should play briefly only when the selected item changes: the highlight may compress like a water drop during travel, then spring back and settle without continuous animation.
+- Use a stable `cacheKey` for navigation groups that remount across route changes so the highlight can travel from the previous selection instead of restarting from the group origin.
+- Use the smoother indicator motion for vertical navigation and stacked selectors where the full drop squash would over-expand horizontally.
+- The indicator must stay `aria-hidden` and respect reduced-motion preferences.
+- Keep the effect restrained for navigation, filters, and compact selectors. Do not convert every card, feed item, or large radio grid to glass by default.
 
 ## Typography
 

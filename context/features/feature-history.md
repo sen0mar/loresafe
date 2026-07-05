@@ -97,6 +97,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 91: Soft mode removal — Removed Soft reading mode from app contracts, UI, seeds, and tests, added a committed migration that maps existing Soft progress/history rows to Strict, and updated mode documentation.
 - Feature 92: Club overview layout polish — Tightened the My overview metric cards, kept the progress summary panel content-height only, and made long milestone checkpoint summaries wrap into additional full-width rows with focused frontend regression coverage.
 - Feature 93: Rounder UI radius scale — Increased the shared frontend radius token for softer cards, panels, inputs, buttons, dialogs, and tabs, and updated UI radius guidance.
+- Feature 94: Liquid glass selection — Added shared liquid-glass active selection motion for tabs, sidebar navigation, and compact mode selectors, with cached sidebar travel, calmer stacked-selector motion, reduced-motion handling, and focused frontend regression coverage.
 
 ## Entry Format
 
