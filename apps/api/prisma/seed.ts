@@ -131,7 +131,8 @@ const seedDemoMilestones = async (clubId: string) => {
       position: 3,
       safeTitle: "Named revelation",
       fullTitle: "The Bloody-Nine",
-      description: "A name-sensitive checkpoint; use only the safe title in locked views.",
+      description:
+        "A name-sensitive checkpoint; use only the spoiler free title in locked views.",
       spoilerName: true
     },
     {

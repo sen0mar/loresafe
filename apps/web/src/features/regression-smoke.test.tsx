@@ -625,7 +625,9 @@ describe("frontend regression smoke", () => {
     expect(builderContent).toHaveAttribute("data-state", "closed");
     expect(builderContent).toHaveAttribute("aria-hidden", "true");
     expect(builderContent).toHaveAttribute("inert");
-    expect(screen.queryByLabelText("Safe title")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Spoiler free title")
+    ).not.toBeInTheDocument();
 
     await user.click(builderToggle);
 

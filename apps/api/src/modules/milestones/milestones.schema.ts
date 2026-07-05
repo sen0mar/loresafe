@@ -68,7 +68,7 @@ export const createMilestoneTemplateRequestSchema = z
       context.addIssue({
         code: "custom",
         path: ["safeTitles"],
-        message: "Safe title count must match the milestone count."
+        message: "Spoiler free title count must match the milestone count."
       });
     }
   });

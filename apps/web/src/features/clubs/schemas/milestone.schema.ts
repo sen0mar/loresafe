@@ -12,11 +12,11 @@ export const createMilestoneFormSchema = z.object({
   safeTitle: z
     .string()
     .trim()
-    .min(2, "Safe title must be at least 2 characters.")
-    .max(120, "Safe title must be 120 characters or fewer."),
+    .min(2, "Spoiler free title must be at least 2 characters.")
+    .max(120, "Spoiler free title must be 120 characters or fewer."),
   fullTitle: optionalTrimmedText(
     160,
-    "Full title must be 160 characters or fewer."
+    "Full spoiler title must be 160 characters or fewer."
   ),
   description: optionalTrimmedText(
     500,

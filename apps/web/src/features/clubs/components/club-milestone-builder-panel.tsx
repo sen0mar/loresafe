@@ -376,7 +376,7 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
 
                 <MilestoneFormField
                   id="milestone-safe-title"
-                  label="Safe title"
+                  label="Spoiler free title"
                   error={fieldErrors.safeTitle}
                   icon={<Sparkles className="size-4" />}
                 >
@@ -398,7 +398,7 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
 
                 <MilestoneFormField
                   id="milestone-full-title"
-                  label="Full title"
+                  label="Full spoiler title"
                   error={fieldErrors.fullTitle}
                   icon={<Type className="size-4" />}
                 >
@@ -450,11 +450,12 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
                   <span className="grid gap-1">
                     <span className="flex items-center gap-2 font-medium text-secondary">
                       <EyeOff className="size-4 text-faint" />
-                      Hide full title on the public timeline
+                      Hide full spoiler title on the public timeline
                     </span>
                     <span>
-                      Readers will see the safe title until this name is safe to
-                      show.
+                      Readers will see the spoiler free title until the spoiler
+                      title is safe to show, once the needed milestone has been
+                      reached.
                     </span>
                   </span>
                 </label>
@@ -556,8 +557,8 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
                     </span>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted">
-                    These are safe preview titles. Add spoiler titles later in
-                    the Timeline tab.
+                    These are spoiler free preview titles. Add full spoiler
+                    titles later in the Timeline tab.
                   </p>
                   {templateErrors.safeTitles ? (
                     <p

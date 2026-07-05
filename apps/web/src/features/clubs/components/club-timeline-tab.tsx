@@ -307,7 +307,7 @@ const TimelineMilestoneCard = ({
             </h3>
             {hasUnlockedSpoilerTitle ? (
               <p className="text-sm text-secondary">
-                Safe label: {milestone.safeTitle}
+                Spoiler free title: {milestone.safeTitle}
               </p>
             ) : null}
           </div>
@@ -374,7 +374,7 @@ const TimelineMilestoneCard = ({
             ) : null}
             <MilestoneEditField
               id={`${milestone.id}-safe-title`}
-              label="Safe title"
+              label="Spoiler free title"
               error={fieldErrors.safeTitle}
               icon={<Sparkles className="size-4 text-faint" />}
             >
@@ -389,7 +389,7 @@ const TimelineMilestoneCard = ({
             </MilestoneEditField>
             <MilestoneEditField
               id={`${milestone.id}-full-title`}
-              label="Full title"
+              label="Full spoiler title"
               error={fieldErrors.fullTitle}
               icon={<Type className="size-4 text-faint" />}
             >
@@ -428,11 +428,12 @@ const TimelineMilestoneCard = ({
               <span className="grid gap-1">
                 <span className="flex items-center gap-2 font-medium text-secondary">
                   <EyeOff className="size-4 text-faint" />
-                  Hide full title on the public timeline
+                  Hide full spoiler title on the public timeline
                 </span>
                 <span>
-                  Readers will see the safe title until this name is safe to
-                  show.
+                  Readers will see the spoiler free title until the spoiler
+                  title is safe to show, once the needed milestone has been
+                  reached.
                 </span>
               </span>
             </label>
