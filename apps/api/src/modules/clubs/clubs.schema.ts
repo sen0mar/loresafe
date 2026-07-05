@@ -59,6 +59,21 @@ export const createClubRequestSchema = z
   })
   .strict();
 
+export const updateClubSettingsRequestSchema = z
+  .object({
+    visibility: clubVisibilitySchema,
+    rules: z
+      .union([
+        z
+          .string()
+          .trim()
+          .max(2000)
+          .transform((value) => (value.length > 0 ? value : null)),
+        z.null()
+      ])
+  })
+  .strict();
+
 export const clubLinkNameParamsSchema = z
   .object({
     linkName: clubLinkNameSchema
@@ -109,6 +124,9 @@ export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
 export type ListClubBansQuery = z.infer<typeof listClubBansQuerySchema>;
 export type ClubCategory = z.infer<typeof clubCategorySchema>;
 export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
+export type UpdateClubSettingsRequest = z.infer<
+  typeof updateClubSettingsRequestSchema
+>;
 export type ClubLinkNameParams = z.infer<typeof clubLinkNameParamsSchema>;
 export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;
 export type ClubBanParams = z.infer<typeof clubBanParamsSchema>;

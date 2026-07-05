@@ -15,6 +15,7 @@ import {
   type ClubBanMutationResult,
   clubsRepository,
   type ClubMemberMutationResult,
+  type ClubSettingsMutationResult,
   isUniqueConstraintError,
   type ClubsRepository
 } from "./clubs.repository.js";
@@ -24,7 +25,8 @@ import type {
   CreateClubRequest,
   ListClubBansQuery,
   ListClubMembersQuery,
-  ListClubsQuery
+  ListClubsQuery,
+  UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 
 export type ClubsService = {
@@ -39,6 +41,11 @@ export type ClubsService = {
   joinPublicClubByLinkName: (
     linkName: string,
     userId: string
+  ) => Promise<ClubResponse>;
+  updateClubSettings: (
+    linkName: string,
+    userId: string,
+    input: UpdateClubSettingsRequest
   ) => Promise<ClubResponse>;
   listClubMembersByLinkName: (
     linkName: string,
@@ -127,6 +134,12 @@ export const createClubsService = (
       case "BANNED":
         throw bannedFromClubError();
     }
+  },
+
+  updateClubSettings: async (linkName, userId, input) => {
+    const result = await repository.updateClubSettings(linkName, userId, input);
+
+    return toClubSettingsMutationResponse(result);
   },
 
   listClubMembersByLinkName: async (linkName, userId, query) => {
@@ -261,6 +274,27 @@ const toMemberMutationResponse = (
         409,
         "CONFLICT",
         "This club must keep at least one owner."
+      );
+  }
+};
+
+const toClubSettingsMutationResponse = (
+  result: ClubSettingsMutationResult
+): ClubResponse => {
+  switch (result.status) {
+    case "SUCCESS":
+      return {
+        club: toClubDto(result.club)
+      };
+    case "CLUB_NOT_FOUND":
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    case "ACTOR_BANNED":
+      throw bannedFromClubError();
+    case "ACTOR_NOT_ALLOWED":
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Only club owners and moderators can update club settings."
       );
   }
 };

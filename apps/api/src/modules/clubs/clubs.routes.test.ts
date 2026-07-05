@@ -22,6 +22,7 @@ import type {
   ClubDiscoveryRecord,
   ClubMemberMutationResult,
   ClubMemberRecord,
+  ClubSettingsMutationResult,
   ClubsRepository
 } from "./clubs.repository.js";
 import { createClubsController } from "./clubs.controller.js";
@@ -31,7 +32,8 @@ import type {
   BanClubMemberRequest,
   ClubCategory,
   CreateClubRequest,
-  ListClubBansQuery
+  ListClubBansQuery,
+  UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 
 describe("clubs routes", () => {
@@ -1044,6 +1046,318 @@ describe("clubs routes", () => {
     expect(response.body.club).not.toHaveProperty("memberships");
   });
 
+  it("lets owners update club visibility and rules", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Settings Club",
+      linkName: "settings-club",
+      rules: "Old rules.",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .patch("/api/clubs/settings-club/settings")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        visibility: "PRIVATE",
+        rules: "  Keep finale spoilers out of early threads.  "
+      })
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      linkName: "settings-club",
+      visibility: "PRIVATE",
+      rules: "Keep finale spoilers out of early threads.",
+      settings: {
+        visibility: "PRIVATE",
+        rules: "Keep finale spoilers out of early threads."
+      },
+      membership: {
+        isMember: true,
+        role: "OWNER"
+      }
+    });
+    expect(repository.clubs.get(club.id)?.visibility).toBe("PRIVATE");
+    expect(repository.clubs.get(club.id)?.rules).toBe(
+      "Keep finale spoilers out of early threads."
+    );
+  });
+
+  it("lets moderators update club settings and clear rules", async () => {
+    const moderator = await repository.createUser({
+      email: "moderator@example.com",
+      displayName: "Moderator",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Moderator Settings Club",
+      linkName: "moderator-settings-club",
+      rules: "Old rules.",
+      visibility: "PRIVATE"
+    });
+
+    repository.createMembership(moderator.id, club.id, "MODERATOR");
+
+    const response = await request(app)
+      .patch("/api/clubs/moderator-settings-club/settings")
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({
+        visibility: "INVITE_ONLY",
+        rules: null
+      })
+      .expect(200);
+
+    expect(response.body.club).toMatchObject({
+      visibility: "INVITE_ONLY",
+      rules: null,
+      settings: {
+        visibility: "INVITE_ONLY",
+        rules: null
+      },
+      membership: {
+        isMember: true,
+        role: "MODERATOR"
+      }
+    });
+  });
+
+  it("prevents normal members from updating club settings", async () => {
+    const member = await repository.createUser({
+      email: "member@example.com",
+      displayName: "Member",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Member Settings Club",
+      linkName: "member-settings-club",
+      rules: "Original rules.",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(member.id, club.id, "MEMBER");
+
+    const response = await request(app)
+      .patch("/api/clubs/member-settings-club/settings")
+      .set("x-request-id", "member-settings-denied")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        visibility: "PRIVATE",
+        rules: "Member should not update this."
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only club owners and moderators can update club settings.",
+        requestId: "member-settings-denied"
+      }
+    });
+    expect(repository.clubs.get(club.id)?.visibility).toBe("PUBLIC");
+    expect(repository.clubs.get(club.id)?.rules).toBe("Original rules.");
+  });
+
+  it("hides private club settings updates from non-members", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    repository.createClub({
+      title: "Hidden Settings Club",
+      linkName: "hidden-settings-club",
+      visibility: "PRIVATE"
+    });
+
+    const response = await request(app)
+      .patch("/api/clubs/hidden-settings-club/settings")
+      .set("x-request-id", "hidden-settings-denied")
+      .set("Cookie", await createSessionCookie(reader))
+      .send({
+        visibility: "PUBLIC",
+        rules: "Should not update."
+      })
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Club not found",
+        requestId: "hidden-settings-denied"
+      }
+    });
+  });
+
+  it("blocks banned actors from updating club settings", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Banned Settings Club",
+      linkName: "banned-settings-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+    repository.createBan(owner.id, club.id, {
+      roleAtBan: "OWNER"
+    });
+
+    const response = await request(app)
+      .patch("/api/clubs/banned-settings-club/settings")
+      .set("x-request-id", "banned-settings-denied")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        visibility: "PRIVATE",
+        rules: "Should not update."
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BANNED",
+        message: "You are banned from this club.",
+        requestId: "banned-settings-denied"
+      }
+    });
+  });
+
+  it.each([
+    ["visibility", { visibility: "FRIENDS_ONLY", rules: "Valid rules." }],
+    ["rules", { visibility: "PUBLIC", rules: "x".repeat(2001) }],
+    [
+      "extra fields",
+      {
+        visibility: "PUBLIC",
+        rules: "Valid rules.",
+        title: "Unexpected"
+      }
+    ]
+  ])("rejects invalid club settings payloads for %s", async (_label, body) => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Invalid Settings Club",
+      linkName: "invalid-settings-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .patch("/api/clubs/invalid-settings-club/settings")
+      .set("x-request-id", "invalid-club-settings")
+      .set("Cookie", await createSessionCookie(owner))
+      .send(body)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the club settings request and try again.",
+        requestId: "invalid-club-settings"
+      }
+    });
+  });
+
+  it("rejects malformed club settings URLs", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .patch("/api/clubs/not%20ok/settings")
+      .set("x-request-id", "invalid-club-settings-url")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        visibility: "PUBLIC",
+        rules: "Valid rules."
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the club settings request and try again.",
+        requestId: "invalid-club-settings-url"
+      }
+    });
+  });
+
+  it("updates public discovery when club visibility changes", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Discovery Settings Club",
+      linkName: "discovery-settings-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    await request(app)
+      .patch("/api/clubs/discovery-settings-club/settings")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        visibility: "PRIVATE",
+        rules: null
+      })
+      .expect(200);
+
+    const privateDiscoveryResponse = await request(app)
+      .get("/api/clubs")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(
+      privateDiscoveryResponse.body.clubs.map(
+        (discoveredClub: { linkName: string }) => discoveredClub.linkName
+      )
+    ).not.toContain("discovery-settings-club");
+
+    await request(app)
+      .patch("/api/clubs/discovery-settings-club/settings")
+      .set("Cookie", await createSessionCookie(owner))
+      .send({
+        visibility: "PUBLIC",
+        rules: null
+      })
+      .expect(200);
+
+    const publicDiscoveryResponse = await request(app)
+      .get("/api/clubs")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(
+      publicDiscoveryResponse.body.clubs.map(
+        (discoveredClub: { linkName: string }) => discoveredClub.linkName
+      )
+    ).toContain("discovery-settings-club");
+  });
+
   it("paginates public discovery results", async () => {
     const user = await repository.createUser({
       email: "reader@example.com",
@@ -1390,6 +1704,41 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return {
       status: "SUCCESS" as const,
       club: this.toClubDetailRecord(club, userId)
+    };
+  };
+
+  updateClubSettings = async (
+    linkName: string,
+    actorId: string,
+    input: UpdateClubSettingsRequest
+  ): Promise<ClubSettingsMutationResult> => {
+    const club = this.findStoredClubByLinkName(linkName);
+
+    if (!club) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (this.hasActiveBan(actorId, club.id)) {
+      return { status: "ACTOR_BANNED" };
+    }
+
+    const actorRole = this.findMembership(actorId, club.id)?.role ?? null;
+
+    if (!actorRole && club.visibility !== "PUBLIC") {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (!canTestManageSettings(actorRole)) {
+      return { status: "ACTOR_NOT_ALLOWED" };
+    }
+
+    club.visibility = input.visibility;
+    club.rules = input.rules;
+    club.updatedAt = new Date();
+
+    return {
+      status: "SUCCESS",
+      club: this.toClubDetailRecord(club, actorId)
     };
   };
 
@@ -1962,6 +2311,10 @@ const canTestActorUnbanRole = (
 
 const canTestManageBans = (role: "OWNER" | "MODERATOR" | "MEMBER") =>
   role === "OWNER" || role === "MODERATOR";
+
+const canTestManageSettings = (
+  role: "OWNER" | "MODERATOR" | "MEMBER" | null
+) => role === "OWNER" || role === "MODERATOR";
 
 const createSessionCookie = async (user: AuthUserRecord) => {
   const token = await createSessionToken({

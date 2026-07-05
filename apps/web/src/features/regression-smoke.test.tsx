@@ -579,6 +579,29 @@ describe("frontend regression smoke", () => {
       }
     );
 
+    const settingsToggle = await screen.findByRole("button", {
+      name: /club rules and visibility/i
+    });
+    const settingsContent = document.getElementById(
+      settingsToggle.getAttribute("aria-controls") ?? ""
+    );
+
+    expect(settingsToggle).toHaveAttribute("aria-expanded", "false");
+    expect(settingsContent).toHaveAttribute("data-state", "closed");
+    expect(settingsContent).toHaveAttribute("aria-hidden", "true");
+    expect(settingsContent).toHaveAttribute("inert");
+    expect(
+      screen.queryByRole("button", { name: /save settings/i })
+    ).not.toBeInTheDocument();
+
+    await user.click(settingsToggle);
+
+    expect(settingsToggle).toHaveAttribute("aria-expanded", "true");
+    expect(settingsContent).toHaveAttribute("data-state", "open");
+    expect(settingsContent).toHaveAttribute("aria-hidden", "false");
+    expect(settingsContent).not.toHaveAttribute("inert");
+    expect(screen.getByLabelText("Rules")).toBeVisible();
+
     const builderToggle = await screen.findByRole("button", {
       name: /milestone builder/i
     });
@@ -629,6 +652,146 @@ describe("frontend regression smoke", () => {
     expect(inviteContent).not.toHaveAttribute("inert");
     expect(screen.getByLabelText("Expires in days")).toBeVisible();
     expect(screen.getByLabelText("Max uses")).toBeVisible();
+  });
+
+  it("lets moderators update club settings from the settings tab", async () => {
+    let editableClub: Club = {
+      ...moderationClub,
+      rules: "Old spoiler rules.",
+      visibility: "PUBLIC",
+      settings: {
+        visibility: "PUBLIC",
+        rules: "Old spoiler rules."
+      }
+    };
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", () => ({
+        club: editableClub
+      })),
+      {
+        method: "PATCH",
+        path: "/api/clubs/safe-club/settings",
+        response: ({ body }) => {
+          const input = body as {
+            rules: string | null;
+            visibility: Club["settings"]["visibility"];
+          };
+
+          editableClub = {
+            ...editableClub,
+            rules: input.rules,
+            visibility: input.visibility,
+            settings: {
+              rules: input.rules,
+              visibility: input.visibility
+            }
+          };
+
+          return {
+            club: editableClub
+          };
+        }
+      }
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=settings"]
+      }
+    );
+
+    const settingsToggle = await screen.findByRole("button", {
+      name: /club rules and visibility/i
+    });
+
+    expect(settingsToggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /save settings/i })
+    ).not.toBeInTheDocument();
+
+    await user.click(settingsToggle);
+
+    const saveButton = screen.getByRole("button", {
+      name: /save settings/i
+    });
+    const rulesInput = screen.getByLabelText("Rules");
+
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByText("Settings are up to date")).toBeVisible();
+
+    await user.click(screen.getByText("Private"));
+    await user.clear(rulesInput);
+    await user.type(rulesInput, "Updated spoiler rules.");
+
+    expect(screen.getByText("Unsaved changes")).toBeVisible();
+    expect(saveButton).toBeEnabled();
+
+    await user.click(saveButton);
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/settings")
+      ).toBeTruthy()
+    );
+    expect(
+      getJsonRequestBody(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/settings")!
+      )
+    ).toEqual({
+      visibility: "PRIVATE",
+      rules: "Updated spoiler rules."
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Settings are up to date")).toBeVisible()
+    );
+    expect(screen.getByDisplayValue("PRIVATE")).toBeChecked();
+    expect(screen.getByLabelText("Rules")).toHaveValue(
+      "Updated spoiler rules."
+    );
+  });
+
+  it("keeps normal member club settings read-only", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club: {
+          ...club,
+          rules: "Member-visible rules.",
+          settings: {
+            visibility: "PUBLIC",
+            rules: "Member-visible rules."
+          }
+        }
+      })
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club?tab=settings"]
+      }
+    );
+
+    expect(await screen.findByText("Member-visible rules.")).toBeVisible();
+    expect(screen.getByText("Visibility")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /save settings/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Rules")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Club rules and visibility")
+    ).not.toBeInTheDocument();
   });
 
   it("only labels hidden timeline milestone names", async () => {

@@ -51,6 +51,13 @@ export const createClubsRouter = (
     controller.updateClubMemberRole
   );
 
+  router.patch(
+    "/:linkName/settings",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.updateClubSettings
+  );
+
   router.post(
     "/:linkName/members/:membershipId/ban",
     middleware.loadCurrentUser,

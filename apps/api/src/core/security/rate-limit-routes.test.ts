@@ -43,6 +43,10 @@ describe("registerRateLimiters", () => {
       "/api/comments/:commentId/delete",
       expect.any(Function)
     );
+    expect(app.patch).toHaveBeenCalledWith(
+      "/api/clubs/:linkName/settings",
+      expect.any(Function)
+    );
     expect(app.use).not.toHaveBeenCalledWith(
       "/api/clubs",
       expect.any(Function)

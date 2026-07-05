@@ -9,6 +9,7 @@ import {
   clubMilestoneCreateRateLimiter,
   clubPostCreateRateLimiter,
   clubProgressUpdateRateLimiter,
+  clubSettingsUpdateRateLimiter,
   commentReactionToggleRateLimiter,
   inviteAcceptRateLimiter,
   loginRateLimiter,
@@ -48,6 +49,7 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     "/api/clubs/:linkName/bans/:banId/unban",
     clubMemberManagementRateLimiter
   );
+  app.patch("/api/clubs/:linkName/settings", clubSettingsUpdateRateLimiter);
   app.post("/api/clubs/:linkName/milestones", clubMilestoneCreateRateLimiter);
   app.post(
     "/api/clubs/:linkName/milestones/templates",

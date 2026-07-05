@@ -24,6 +24,7 @@ import { ClubCoverUploadPanel } from "@/features/clubs/components/club-cover-upl
 import { ClubDashboardPanels } from "@/features/clubs/components/club-dashboard-panels";
 import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-milestone-builder-panel";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
+import { ClubSettingsForm } from "@/features/clubs/components/club-settings-form";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
 import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
@@ -272,11 +273,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               <CardTitle>Safe settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ClubMetric
-                icon={VisibilityIcon}
-                label="Visibility"
-                value={visibilityMeta[club.settings.visibility].label}
-              />
+              <ClubSettingsForm club={club} />
               <ClubCoverUploadPanel club={club} />
               {canModerate ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-inset p-4">
@@ -298,12 +295,6 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                   </Button>
                 </div>
               ) : null}
-              <div className="rounded-lg border border-default bg-inset p-4">
-                <h2 className="text-sm font-medium text-primary">Rules</h2>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted">
-                  {club.settings.rules ?? "No rules posted yet."}
-                </p>
-              </div>
               <ClubMilestoneBuilderPanel club={club} />
               <ClubInviteSection club={club} />
             </CardContent>
@@ -313,24 +304,6 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
     </>
   );
 };
-
-const ClubMetric = ({
-  icon: Icon,
-  label,
-  value
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) => (
-  <div className="rounded-lg border border-default bg-inset p-4">
-    <span className="flex items-center gap-2 text-xs text-faint">
-      <Icon className="size-4" />
-      {label}
-    </span>
-    <p className="mt-2 text-sm font-medium text-primary">{value}</p>
-  </div>
-);
 
 const ClubDetailLoading = () => (
   <div className="space-y-4">

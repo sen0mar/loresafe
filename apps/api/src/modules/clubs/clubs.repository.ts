@@ -6,7 +6,8 @@ import type {
   CreateClubRequest,
   ListClubBansQuery,
   ListClubMembersQuery,
-  ListClubsQuery
+  ListClubsQuery,
+  UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 import {
   activeBanWhere,
@@ -150,6 +151,15 @@ export type ClubBanMutationResult =
         | "MEMBER_NOT_FOUND";
     };
 
+export type ClubSettingsMutationResult =
+  | {
+      status: "SUCCESS";
+      club: ClubDetailRecord;
+    }
+  | {
+      status: "ACTOR_BANNED" | "ACTOR_NOT_ALLOWED" | "CLUB_NOT_FOUND";
+    };
+
 export type JoinPublicClubResult =
   | {
       status: "SUCCESS";
@@ -173,6 +183,11 @@ export type ClubsRepository = {
     linkName: string,
     userId: string
   ) => Promise<JoinPublicClubResult>;
+  updateClubSettings: (
+    linkName: string,
+    actorId: string,
+    input: UpdateClubSettingsRequest
+  ) => Promise<ClubSettingsMutationResult>;
   listClubMembersByLinkName: (
     linkName: string,
     userId: string,
@@ -466,6 +481,87 @@ export const clubsRepository: ClubsRepository = {
       return {
         status: "SUCCESS",
         club: toClubDetailRecord(joinedClub)
+      };
+    }),
+
+  updateClubSettings: (linkName, actorId, input) =>
+    prisma.$transaction(async (transaction) => {
+      const now = new Date();
+      const club = await transaction.club.findUnique({
+        where: {
+          linkName
+        },
+        select: {
+          id: true,
+          visibility: true,
+          memberships: {
+            where: {
+              userId: actorId
+            },
+            select: {
+              role: true
+            },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(actorId, now),
+            select: {
+              id: true
+            },
+            take: 1
+          }
+        }
+      });
+
+      if (!club) {
+        return {
+          status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (club.bans.length > 0) {
+        return {
+          status: "ACTOR_BANNED"
+        };
+      }
+
+      const actorRole = club.memberships[0]?.role ?? null;
+
+      if (!actorRole && club.visibility !== "PUBLIC") {
+        return {
+          status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (!canManageClubSettings(actorRole)) {
+        return {
+          status: "ACTOR_NOT_ALLOWED"
+        };
+      }
+
+      await transaction.club.update({
+        where: {
+          id: club.id
+        },
+        data: {
+          rules: input.rules,
+          visibility: input.visibility
+        },
+        select: {
+          id: true
+        }
+      });
+
+      const updatedClub = await transaction.club.findUniqueOrThrow({
+        where: {
+          id: club.id
+        },
+        select: clubDetailSelect(actorId)
+      });
+
+      return {
+        status: "SUCCESS",
+        club: toClubDetailRecord(updatedClub)
       };
     }),
 
@@ -1157,6 +1253,9 @@ const createAuditLogInTransaction = (
   });
 
 const canManageClubBans = (role: ClubMembershipRole) =>
+  role === "OWNER" || role === "MODERATOR";
+
+const canManageClubSettings = (role: ClubMembershipRole | null) =>
   role === "OWNER" || role === "MODERATOR";
 
 const toClubDetailRecord = (club: {

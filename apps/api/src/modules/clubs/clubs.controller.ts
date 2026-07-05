@@ -11,6 +11,7 @@ import {
   listClubBansQuerySchema,
   listClubMembersQuerySchema,
   listClubsQuerySchema,
+  updateClubSettingsRequestSchema,
   updateClubMemberRoleRequestSchema
 } from "./clubs.schema.js";
 import { clubsService, type ClubsService } from "./clubs.service.js";
@@ -24,6 +25,7 @@ export type ClubsController = {
   listClubMembers: RequestHandler;
   listClubs: RequestHandler;
   unbanClubBan: RequestHandler;
+  updateClubSettings: RequestHandler;
   updateClubMemberRole: RequestHandler;
 };
 
@@ -199,6 +201,35 @@ export const createClubsController = (
         paramsResult.data.membershipId,
         req.currentUser.id,
         bodyResult.data.role
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateClubSettings: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = clubLinkNameParamsSchema.safeParse(req.params);
+      const bodyResult = updateClubSettingsRequestSchema.safeParse(req.body);
+
+      if (!paramsResult.success || !bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the club settings request and try again."
+        );
+      }
+
+      const response = await service.updateClubSettings(
+        paramsResult.data.linkName,
+        req.currentUser.id,
+        bodyResult.data
       );
 
       res.status(200).json(response);

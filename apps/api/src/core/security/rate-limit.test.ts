@@ -117,6 +117,12 @@ describe("rate limit defaults", () => {
         storePrefix: "threadsync:rl:clubs:members:manage:",
         windowMs: 10 * 60 * 1000
       },
+      "clubs-settings-update": {
+        limit: 120,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "threadsync:rl:clubs:settings:update:",
+        windowMs: 10 * 60 * 1000
+      },
       "clubs-milestones-create": {
         limit: 90,
         skipSuccessfulRequests: undefined,
@@ -183,7 +189,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(21);
+    expect(options).toHaveLength(22);
     expect(options).toEqual(
       options.map((option) =>
         expect.objectContaining({

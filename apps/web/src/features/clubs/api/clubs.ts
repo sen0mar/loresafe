@@ -726,6 +726,11 @@ export type UpdateClubMemberRoleInput = {
   role: ClubMembershipRole;
 };
 
+export type UpdateClubSettingsInput = {
+  visibility: ClubVisibility;
+  rules: string | null;
+};
+
 export type BanClubMemberInput = {
   reason?: string | null;
   expiresAt?: string;
@@ -782,6 +787,28 @@ export const refreshClubMemberManagementQueries = (
   void queryClient.invalidateQueries({
     predicate: (query) =>
       Array.isArray(query.queryKey) && query.queryKey.includes("comments")
+  });
+};
+
+export const refreshClubSettingsQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  linkName: string
+) => {
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.detail(linkName)
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.discovery
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.joined
+  });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.dashboardRoot(linkName)
+  });
+  void queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) && query.queryKey.includes("search")
   });
 };
 
@@ -1034,6 +1061,15 @@ export const createPostComment = (
 
 export const createReport = (input: CreateReportInput) =>
   apiPost<CreateReportResponse, CreateReportInput>("/api/reports", input);
+
+export const updateClubSettings = (
+  linkName: string,
+  input: UpdateClubSettingsInput
+) =>
+  apiPatch<ClubResponse, UpdateClubSettingsInput>(
+    `/api/clubs/${linkName}/settings`,
+    input
+  );
 
 export const updateClubMemberRole = (
   linkName: string,
@@ -1465,6 +1501,19 @@ export const useCreateReportMutation = () =>
   useMutation({
     mutationFn: createReport
   });
+
+export const useUpdateClubSettingsMutation = (linkName: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateClubSettingsInput) =>
+      updateClubSettings(linkName, input),
+    onSuccess: (response) => {
+      queryClient.setQueryData(clubsQueryKeys.detail(linkName), response);
+      refreshClubSettingsQueries(queryClient, linkName);
+    }
+  });
+};
 
 export const useUpdateClubMemberRoleMutation = (linkName: string) => {
   const queryClient = useQueryClient();
