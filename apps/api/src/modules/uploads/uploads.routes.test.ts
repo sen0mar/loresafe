@@ -611,5 +611,7 @@ class FakeObjectStorage implements ObjectStorage {
   getObjectMetadata = async (objectKey: string) =>
     this.metadata.get(objectKey) ?? null;
 
+  deleteObjects = async (_objectKeys: string[]) => undefined;
+
   getPublicUrl = (objectKey: string) => `https://assets.example/${objectKey}`;
 }

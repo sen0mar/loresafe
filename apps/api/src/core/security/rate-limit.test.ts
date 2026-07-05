@@ -81,6 +81,12 @@ describe("rate limit defaults", () => {
         storePrefix: "threadsync:rl:users:profile-update:",
         windowMs: 10 * 60 * 1000
       },
+      "users-account-delete": {
+        limit: 6,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "threadsync:rl:users:account-delete:",
+        windowMs: 60 * 60 * 1000
+      },
       "uploads-public-assets": {
         limit: 90,
         skipSuccessfulRequests: undefined,
@@ -177,7 +183,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(20);
+    expect(options).toHaveLength(21);
     expect(options).toEqual(
       options.map((option) =>
         expect.objectContaining({

@@ -6,6 +6,7 @@ import {
   toJoinedClubDto
 } from "./users.dto.js";
 import type {
+  DeleteCurrentUserAccountRequest,
   ListCurrentUserClubsQuery,
   UpdateCurrentUserProfileRequest
 } from "./users.schema.js";
@@ -16,6 +17,10 @@ import {
 } from "./users.repository.js";
 
 export type UsersService = {
+  deleteCurrentUserAccount: (
+    userId: string,
+    input: DeleteCurrentUserAccountRequest
+  ) => Promise<void>;
   listCurrentUserClubs: (
     userId: string,
     query: ListCurrentUserClubsQuery
@@ -29,6 +34,22 @@ export type UsersService = {
 export const createUsersService = (
   repository: UsersRepository = usersRepository
 ): UsersService => ({
+  deleteCurrentUserAccount: async (userId, _input) => {
+    const result = await repository.deleteCurrentUserAccount(userId);
+
+    if (result === "USER_NOT_FOUND") {
+      throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+    }
+
+    if (result === "SOLE_OWNER") {
+      throw new HttpError(
+        409,
+        "CONFLICT",
+        "Transfer ownership of every club where you are the only owner before deleting your account."
+      );
+    }
+  },
+
   listCurrentUserClubs: async (userId, query) => {
     const result = await repository.listJoinedClubsForUser(userId, query);
 

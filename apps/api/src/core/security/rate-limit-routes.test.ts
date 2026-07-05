@@ -6,6 +6,7 @@ import {
 } from "./rate-limit-routes.js";
 
 const createRateLimiterApp = (): RateLimiterApp => ({
+  delete: vi.fn() as unknown as RateLimiterApp["delete"],
   get: vi.fn() as unknown as RateLimiterApp["get"],
   patch: vi.fn() as unknown as RateLimiterApp["patch"],
   post: vi.fn() as unknown as RateLimiterApp["post"],
@@ -23,6 +24,10 @@ describe("registerRateLimiters", () => {
       expect.any(Function)
     );
     expect(app.patch).toHaveBeenCalledWith(
+      "/api/users/me",
+      expect.any(Function)
+    );
+    expect(app.delete).toHaveBeenCalledWith(
       "/api/users/me",
       expect.any(Function)
     );

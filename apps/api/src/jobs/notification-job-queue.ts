@@ -8,8 +8,13 @@ export const notificationJobNames = {
   progressUnlocked: "notifications.progress-unlocked"
 } as const;
 
+export const storageJobNames = {
+  objectDelete: "storage.object-delete"
+} as const;
+
 type NotificationJobName =
   (typeof notificationJobNames)[keyof typeof notificationJobNames];
+type StorageJobName = (typeof storageJobNames)[keyof typeof storageJobNames];
 
 type TransactionLike = PrismaTransactionLike | undefined;
 
@@ -42,8 +47,13 @@ notificationBoss.on("warning", ({ message, data }) => {
 
 export const startNotificationJobQueue = async () => {
   await notificationBoss.start();
+  const queueNames = [
+    ...Object.values(notificationJobNames),
+    ...Object.values(storageJobNames)
+  ];
+
   await Promise.all(
-    Object.values(notificationJobNames).map((name) =>
+    queueNames.map((name) =>
       notificationBoss.createQueue(name, notificationJobOptions)
     )
   );
@@ -79,8 +89,27 @@ export const enqueueProgressUnlockedNotificationJob = (
     transaction
   );
 
+export const enqueueStorageObjectDeleteJob = (
+  objectKeys: string[],
+  transaction?: TransactionLike
+) =>
+  sendJob(
+    storageJobNames.objectDelete,
+    {
+      objectKeys
+    },
+    transaction
+  );
+
 const sendNotificationJob = (
   name: NotificationJobName,
+  data: object,
+  transaction?: TransactionLike
+) =>
+  sendJob(name, data, transaction);
+
+const sendJob = (
+  name: NotificationJobName | StorageJobName,
   data: object,
   transaction?: TransactionLike
 ) =>
