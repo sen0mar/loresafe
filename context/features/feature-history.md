@@ -105,6 +105,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 99: Register home navigation — Added signup-page home navigation to match login page behavior and covered the link with focused frontend regression coverage.
 - Feature 100: Editable template milestone titles — Added optional safe-title overrides to milestone template generation, editable title rows in the settings builder, and focused backend/frontend regression coverage.
 - Feature 101: Template milestone title helper copy — Added Settings-tab helper text clarifying that template milestone titles are safe previews and spoiler titles can be edited later in Timeline.
+- Feature 102: Settings tab heading cleanup — Removed the redundant Safe settings wrapper heading and restored top spacing for the first Settings-tab panel.
 
 ## Entry Format
 

@@ -33,8 +33,7 @@ import { Button } from "@/shared/components/ui/button";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle
+  CardHeader
 } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
@@ -269,10 +268,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
         <TabsContent value="settings">
           <Card>
-            <CardHeader>
-              <CardTitle>Safe settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-4">
               <ClubSettingsForm club={club} />
               <ClubCoverUploadPanel club={club} />
               {canModerate ? (
