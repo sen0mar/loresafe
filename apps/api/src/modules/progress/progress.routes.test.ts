@@ -265,6 +265,10 @@ describe("progress routes", () => {
       position: 2,
       safeTitle: "Middle"
     });
+    repository.createMilestone(club.id, {
+      position: 3,
+      safeTitle: "Finale"
+    });
     repository.createMembership(user.id, club.id);
 
     await request(app)
@@ -301,7 +305,56 @@ describe("progress routes", () => {
     });
   });
 
-  it("stops quick progress at the final milestone without duplicate history", async () => {
+  it("switches quick progress to Finished when it reaches the final milestone", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("finish-on-next-club");
+    const firstMilestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const finalMilestone = repository.createMilestone(club.id, {
+      position: 2,
+      safeTitle: "Finale"
+    });
+    repository.createMembership(user.id, club.id);
+
+    await request(app)
+      .patch("/api/clubs/finish-on-next-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: firstMilestone.id,
+        mode: "BRAVE"
+      })
+      .expect(200);
+    const response = await request(app)
+      .post("/api/clubs/finish-on-next-club/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      mode: "FINISHED",
+      currentMilestone: {
+        id: finalMilestone.id,
+        safeTitle: "Finale"
+      },
+      completedMilestones: 2,
+      totalMilestones: 2,
+      percentage: 100
+    });
+    expect(repository.history[0]).toMatchObject({
+      fromMode: "BRAVE",
+      toMode: "FINISHED",
+      fromMilestone: {
+        id: firstMilestone.id
+      },
+      toMilestone: {
+        id: finalMilestone.id
+      }
+    });
+    expect(repository.progressRows[0]?.mode).toBe("FINISHED");
+  });
+
+  it("switches final quick progress to Finished without duplicate milestone movement", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("final-club");
     const finalMilestone = repository.createMilestone(club.id, {
@@ -325,7 +378,7 @@ describe("progress routes", () => {
       .expect(200);
 
     expect(response.body.progress).toMatchObject({
-      mode: "BRAVE",
+      mode: "FINISHED",
       currentMilestone: {
         id: finalMilestone.id,
         safeTitle: "Finale"
@@ -334,9 +387,19 @@ describe("progress routes", () => {
       totalMilestones: 1,
       percentage: 100
     });
-    expect(repository.history).toHaveLength(historyCount);
+    expect(repository.history).toHaveLength(historyCount + 1);
+    expect(repository.history[0]).toMatchObject({
+      fromMode: "BRAVE",
+      toMode: "FINISHED",
+      fromMilestone: {
+        id: finalMilestone.id
+      },
+      toMilestone: {
+        id: finalMilestone.id
+      }
+    });
     expect(repository.enqueuedProgressUnlockNotificationJobs).toHaveLength(
-      historyCount
+      historyCount + 1
     );
   });
 
@@ -792,11 +855,42 @@ class InMemoryProgressRepository
       })[0];
 
     if (!nextMilestone) {
+      const mode = existingProgress?.mode ?? "STRICT";
+
+      if (existingProgress && currentPosition !== null && mode !== "FINISHED") {
+        const now = new Date();
+        const fromMilestoneId = existingProgress.currentMilestoneId;
+
+        existingProgress.mode = "FINISHED";
+        existingProgress.updatedAt = now;
+
+        const progressHistory = {
+          id: crypto.randomUUID(),
+          userId,
+          clubId,
+          fromMode: mode,
+          toMode: "FINISHED" as ProgressMode,
+          fromMilestone: this.findMilestone(fromMilestoneId),
+          toMilestone: this.findMilestone(fromMilestoneId),
+          createdAt: now
+        };
+
+        this.history.unshift(progressHistory);
+        this.enqueuedProgressUnlockNotificationJobs.push({
+          progressHistoryId: progressHistory.id
+        });
+      }
+
       return this.toClubProgressRecord(userId, clubId, existingProgress);
     }
 
     const mode = existingProgress?.mode ?? "STRICT";
     const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+    const hasLaterMilestone = this.milestones.some(
+      (milestone) =>
+        milestone.clubId === clubId && milestone.position > nextMilestone.position
+    );
+    const nextMode: ProgressMode = hasLaterMilestone ? mode : "FINISHED";
     const now = new Date();
     const progress =
       existingProgress ??
@@ -805,12 +899,13 @@ class InMemoryProgressRepository
         userId,
         clubId,
         currentMilestoneId: null,
-        mode,
+        mode: nextMode,
         createdAt: now,
         updatedAt: now
       };
 
     progress.currentMilestoneId = nextMilestone.id;
+    progress.mode = nextMode;
     progress.updatedAt = now;
 
     if (!existingProgress) {
@@ -822,7 +917,7 @@ class InMemoryProgressRepository
       userId,
       clubId,
       fromMode: mode,
-      toMode: mode,
+      toMode: nextMode,
       fromMilestone: this.findMilestone(fromMilestoneId),
       toMilestone: this.findMilestone(nextMilestone.id),
       createdAt: now

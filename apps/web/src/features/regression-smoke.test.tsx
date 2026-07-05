@@ -8,6 +8,7 @@ import { SignupForm } from "@/features/auth/components/signup-form";
 import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
+import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { MilestoneProgressDots } from "@/features/clubs/components/milestone-progress-dots";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
@@ -462,6 +463,53 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
   });
 
+  it("only labels hidden timeline milestone names", async () => {
+    const visibleSpoilerMilestone: ClubMilestone = {
+      id: "00000000-0000-4000-8000-000000000013",
+      position: 3,
+      safeTitle: "Safe finale",
+      fullTitle: "Final reveal",
+      description: null,
+      spoilerName: true,
+      isFullTitleHidden: false
+    };
+    const hiddenSpoilerMilestone: ClubMilestone = {
+      id: "00000000-0000-4000-8000-000000000014",
+      position: 4,
+      safeTitle: "Later checkpoint",
+      fullTitle: null,
+      description: null,
+      spoilerName: true,
+      isFullTitleHidden: true
+    };
+
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", {
+        milestones: [
+          milestoneOne,
+          visibleSpoilerMilestone,
+          hiddenSpoilerMilestone
+        ],
+        pagination: {
+          page: 1,
+          limit: 100,
+          total: 3,
+          pageCount: 1
+        }
+      })
+    ]);
+
+    renderWithProviders(<ClubTimelineTab club={club} />);
+
+    expect(await screen.findByText("Final reveal")).toBeVisible();
+    expect(screen.getByText("Later checkpoint")).toBeVisible();
+    expect(screen.getByText("Name hidden")).toBeVisible();
+    expect(screen.queryByText("Safe name")).not.toBeInTheDocument();
+  });
+
   it("shows only member content on the club members tab", async () => {
     const fetchMock = mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -851,6 +899,57 @@ describe("frontend regression smoke", () => {
     const milestoneSelect = await screen.findByLabelText("Current milestone");
 
     expect(milestoneSelect).toHaveValue(secondMilestoneId);
+  });
+
+  it("switches to Finished after quick advance reaches the final milestone", async () => {
+    let hasAdvancedToFinished = false;
+    const finishedProgress: ClubProgress = {
+      ...progress,
+      mode: "FINISHED",
+      currentMilestone: milestoneTwo,
+      completedMilestones: 2,
+      percentage: 100,
+      updatedAt: now
+    };
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", () => ({
+        progress: hasAdvancedToFinished ? finishedProgress : progress
+      })),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      {
+        method: "POST",
+        path: "/api/clubs/safe-club/progress/next",
+        response: () => {
+          hasAdvancedToFinished = true;
+
+          return {
+            progress: finishedProgress
+          };
+        }
+      }
+    ]);
+
+    renderWithProviders(
+      <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" />
+    );
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /next milestone complete/i })
+    );
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(fetchMock, "POST", "/api/clubs/safe-club/progress/next")
+      ).toBeTruthy()
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /finished/i })).toHaveAttribute(
+        "data-active",
+        "true"
+      )
+    );
+    expect(screen.getByLabelText("Current milestone")).toHaveValue(secondMilestoneId);
   });
 
   it("animates feed posts that become visible after forward progress", async () => {

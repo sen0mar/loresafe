@@ -295,11 +295,51 @@ export const progressRepository: ProgressRepository = {
           position: "asc"
         },
         select: {
-          id: true
+          id: true,
+          position: true
         }
       });
 
       if (!nextMilestone) {
+        const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
+        const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+
+        if (currentPosition !== null && mode !== "FINISHED") {
+          await transaction.clubProgress.update({
+            where: {
+              userId_clubId: {
+                userId,
+                clubId
+              }
+            },
+            data: {
+              mode: "FINISHED"
+            },
+            select: {
+              id: true
+            }
+          });
+
+          const progressHistory = await transaction.progressHistory.create({
+            data: {
+              userId,
+              clubId,
+              fromMilestoneId,
+              toMilestoneId: fromMilestoneId,
+              fromMode: mode,
+              toMode: "FINISHED"
+            },
+            select: {
+              id: true
+            }
+          });
+
+          await enqueueProgressUnlockedNotificationJob(
+            progressHistory.id,
+            transaction
+          );
+        }
+
         const [progress, totalMilestones, history] = await Promise.all([
           transaction.clubProgress.findUnique({
             where: {
@@ -347,6 +387,18 @@ export const progressRepository: ProgressRepository = {
 
       const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
       const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+      const laterMilestone = await transaction.milestone.findFirst({
+        where: {
+          clubId,
+          position: {
+            gt: nextMilestone.position
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+      const nextMode: ProgressMode = laterMilestone ? mode : "FINISHED";
 
       await transaction.clubProgress.upsert({
         where: {
@@ -359,10 +411,11 @@ export const progressRepository: ProgressRepository = {
           userId,
           clubId,
           currentMilestoneId: nextMilestone.id,
-          mode
+          mode: nextMode
         },
         update: {
-          currentMilestoneId: nextMilestone.id
+          currentMilestoneId: nextMilestone.id,
+          mode: nextMode
         },
         select: {
           id: true
@@ -376,7 +429,7 @@ export const progressRepository: ProgressRepository = {
           fromMilestoneId,
           toMilestoneId: nextMilestone.id,
           fromMode: mode,
-          toMode: mode
+          toMode: nextMode
         },
         select: {
           id: true

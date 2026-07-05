@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   EyeOff,
-  Flag,
   FileText,
   ListChecks,
   Pencil,
@@ -318,12 +317,7 @@ const TimelineMilestoneCard = ({
                 <EyeOff className="size-3" />
                 Name hidden
               </Badge>
-            ) : (
-              <Badge variant="outline">
-                <Flag className="size-3" />
-                Safe name
-              </Badge>
-            )}
+            ) : null}
             {canManage ? (
               <div className="flex gap-1">
                 <Button
