@@ -555,6 +555,10 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
                       {visibleTemplateTitles.length}
                     </span>
                   </div>
+                  <p className="mt-2 text-sm leading-6 text-muted">
+                    These are safe preview titles. Add spoiler titles later in
+                    the Timeline tab.
+                  </p>
                   {templateErrors.safeTitles ? (
                     <p
                       className="mt-3 text-sm text-error"
