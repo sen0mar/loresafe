@@ -674,7 +674,7 @@ describe("frontend regression smoke", () => {
       {
         method: "PATCH",
         path: "/api/clubs/safe-club/settings",
-        response: ({ body }) => {
+        response: ({ body }: { body: unknown }) => {
           const input = body as {
             rules: string | null;
             visibility: Club["settings"]["visibility"];
