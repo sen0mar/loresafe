@@ -44,8 +44,23 @@ describe("notifications routes", () => {
       .expect(401);
 
     await request(app)
+      .post("/api/notifications/read-all")
+      .set("x-request-id", "notifications-read-all-missing-session")
+      .expect(401);
+
+    await request(app)
+      .delete("/api/notifications")
+      .set("x-request-id", "notifications-delete-all-missing-session")
+      .expect(401);
+
+    await request(app)
       .post(`/api/notifications/${crypto.randomUUID()}/read`)
       .set("x-request-id", "notification-read-missing-session")
+      .expect(401);
+
+    await request(app)
+      .delete(`/api/notifications/${crypto.randomUUID()}`)
+      .set("x-request-id", "notification-delete-missing-session")
       .expect(401);
   });
 
@@ -212,6 +227,130 @@ describe("notifications routes", () => {
       .toBeNull();
   });
 
+  it("marks all current-user notifications as read without touching other users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other-read-all@example.com"
+    });
+    const club = repository.createClub("Bulk Read Club");
+    const milestone = repository.createMilestone(club.id, 1);
+    repository.setProgress(user.id, club.id, 1);
+    const firstNotification = repository.createNotification(
+      user.id,
+      club.id,
+      milestone
+    );
+    const secondNotification = repository.createNotification(
+      user.id,
+      club.id,
+      milestone
+    );
+    const otherNotification = repository.createNotification(
+      otherUser.id,
+      club.id,
+      milestone
+    );
+
+    const response = await request(app)
+      .post("/api/notifications/read-all")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      updatedCount: 2,
+      unreadCount: 0
+    });
+    expect(
+      repository.notifications.find((row) => row.id === firstNotification.id)
+        ?.readAt
+    ).toBeInstanceOf(Date);
+    expect(
+      repository.notifications.find((row) => row.id === secondNotification.id)
+        ?.readAt
+    ).toBeInstanceOf(Date);
+    expect(
+      repository.notifications.find((row) => row.id === otherNotification.id)
+        ?.readAt
+    ).toBeNull();
+  });
+
+  it("deletes only the current user's selected notification", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other-delete@example.com"
+    });
+    const club = repository.createClub("Delete One Club");
+    const milestone = repository.createMilestone(club.id, 1);
+    repository.setProgress(user.id, club.id, 1);
+    const notification = repository.createNotification(
+      user.id,
+      club.id,
+      milestone
+    );
+    const retainedNotification = repository.createNotification(
+      user.id,
+      club.id,
+      milestone
+    );
+    const otherNotification = repository.createNotification(
+      otherUser.id,
+      club.id,
+      milestone
+    );
+
+    await request(app)
+      .delete(`/api/notifications/${otherNotification.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(404);
+
+    const response = await request(app)
+      .delete(`/api/notifications/${notification.id}`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      deletedCount: 1,
+      unreadCount: 1
+    });
+    expect(repository.notifications.map((row) => row.id)).toEqual([
+      retainedNotification.id,
+      otherNotification.id
+    ]);
+  });
+
+  it("deletes all current-user notifications without touching other users", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other-delete-all@example.com"
+    });
+    const club = repository.createClub("Delete All Club");
+    const milestone = repository.createMilestone(club.id, 1);
+    repository.setProgress(user.id, club.id, 1);
+    repository.createNotification(user.id, club.id, milestone);
+    repository.createNotification(user.id, club.id, milestone);
+    const otherNotification = repository.createNotification(
+      otherUser.id,
+      club.id,
+      milestone
+    );
+
+    const response = await request(app)
+      .delete("/api/notifications")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      deletedCount: 2,
+      unreadCount: 0
+    });
+    expect(repository.notifications.map((row) => row.id)).toEqual([
+      otherNotification.id
+    ]);
+  });
+
   it("publishes a safe notification read event for the owning user", async () => {
     const eventPublisher = createMockEventsService();
     app = createNotificationsTestApp(repository, eventPublisher);
@@ -264,6 +403,11 @@ describe("notifications routes", () => {
 
     await request(app)
       .post("/api/notifications/not-a-uuid/read")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    await request(app)
+      .delete("/api/notifications/not-a-uuid")
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
   });
@@ -527,6 +671,58 @@ class InMemoryNotificationsRepository
           storedNotification.userId === userId &&
           storedNotification.readAt === null
       ).length
+    };
+  };
+
+  markAllNotificationsRead = async (userId: string) => {
+    let updatedCount = 0;
+
+    for (const notification of this.notifications) {
+      if (notification.userId === userId && notification.readAt === null) {
+        notification.readAt = new Date("2026-01-01T12:00:00.000Z");
+        updatedCount += 1;
+      }
+    }
+
+    return {
+      updatedCount,
+      unreadCount: 0
+    };
+  };
+
+  deleteNotification = async (notificationId: string, userId: string) => {
+    const notificationIndex = this.notifications.findIndex(
+      (notification) =>
+        notification.id === notificationId && notification.userId === userId
+    );
+
+    if (notificationIndex === -1) {
+      return null;
+    }
+
+    this.notifications.splice(notificationIndex, 1);
+
+    return {
+      deletedCount: 1,
+      unreadCount: this.notifications.filter(
+        (notification) =>
+          notification.userId === userId && notification.readAt === null
+      ).length
+    };
+  };
+
+  deleteAllNotifications = async (userId: string) => {
+    const startingCount = this.notifications.length;
+    const retainedNotifications = this.notifications.filter(
+      (notification) => notification.userId !== userId
+    );
+
+    this.notifications.splice(0, this.notifications.length);
+    this.notifications.push(...retainedNotifications);
+
+    return {
+      deletedCount: startingCount - this.notifications.length,
+      unreadCount: 0
     };
   };
 

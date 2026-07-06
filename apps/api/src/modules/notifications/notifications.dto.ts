@@ -40,6 +40,16 @@ export type MarkNotificationReadResponse = {
   unreadCount: number;
 };
 
+export type MarkAllNotificationsReadResponse = {
+  updatedCount: number;
+  unreadCount: number;
+};
+
+export type DeleteNotificationResponse = {
+  deletedCount: number;
+  unreadCount: number;
+};
+
 export const toNotificationDto = (
   notification: NotificationRecord
 ): NotificationDto => {

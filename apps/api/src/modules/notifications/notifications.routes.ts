@@ -20,10 +20,31 @@ export const createNotificationsRouter = (
   );
 
   router.post(
+    "/read-all",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.markAllNotificationsRead
+  );
+
+  router.delete(
+    "/",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deleteAllNotifications
+  );
+
+  router.post(
     "/:id/read",
     middleware.loadCurrentUser,
     middleware.requireUser,
     controller.markNotificationRead
+  );
+
+  router.delete(
+    "/:id",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deleteNotification
   );
 
   return router;

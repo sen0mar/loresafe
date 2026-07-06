@@ -14,6 +14,9 @@ import {
 export type NotificationsController = {
   listNotifications: RequestHandler;
   markNotificationRead: RequestHandler;
+  markAllNotificationsRead: RequestHandler;
+  deleteNotification: RequestHandler;
+  deleteAllNotifications: RequestHandler;
 };
 
 export const createNotificationsController = (
@@ -66,6 +69,63 @@ export const createNotificationsController = (
         paramsResult.data.id,
         req.currentUser.id
       );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  markAllNotificationsRead: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const response = await service.markAllNotificationsRead(
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteNotification: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = notificationParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the notification request and try again."
+        );
+      }
+
+      const response = await service.deleteNotification(
+        paramsResult.data.id,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteAllNotifications: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const response = await service.deleteAllNotifications(req.currentUser.id);
 
       res.status(200).json(response);
     } catch (error) {
