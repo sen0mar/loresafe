@@ -192,6 +192,8 @@ export type ClubProgress = {
   totalMilestones: number;
   completedMilestones: number;
   percentage: number;
+  onboardingCompletedAt: string | null;
+  needsWelcomeSetup: boolean;
   updatedAt: string | null;
   history: ClubProgressHistory[];
 };

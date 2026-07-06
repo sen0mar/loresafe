@@ -26,6 +26,7 @@ import { ClubMilestoneBuilderPanel } from "@/features/clubs/components/club-mile
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubSettingsForm } from "@/features/clubs/components/club-settings-form";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
+import { ClubWelcomeProgressDialog } from "@/features/clubs/components/club-welcome-progress-dialog";
 import { ClubInviteSection } from "@/features/invites/components/club-invite-section";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
@@ -163,6 +164,11 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
   return (
     <>
+      <ClubWelcomeProgressDialog
+        clubTitle={club.title}
+        isMember={club.membership.isMember}
+        linkName={club.linkName}
+      />
       <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
           {club.coverUrl ? (

@@ -38,6 +38,7 @@ export type ClubProgressRecord = {
   currentMilestone: ProgressMilestoneRecord | null;
   totalMilestones: number;
   history: ProgressHistoryRecord[];
+  onboardingCompletedAt: Date | null;
   updatedAt: Date | null;
 };
 
@@ -228,6 +229,7 @@ export const progressRepository: ProgressRepository = {
           currentMilestone: {
             select: milestoneSelect
           },
+          onboardingCompletedAt: true,
           updatedAt: true
         }
       }),
@@ -255,6 +257,7 @@ export const progressRepository: ProgressRepository = {
       currentMilestone: progress?.currentMilestone ?? null,
       totalMilestones,
       history: history.map(toProgressHistoryRecord),
+      onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
       updatedAt: progress?.updatedAt ?? null
     };
   },
@@ -271,6 +274,7 @@ export const progressRepository: ProgressRepository = {
         select: {
           mode: true,
           currentMilestoneId: true,
+          onboardingCompletedAt: true,
           currentMilestone: {
             select: {
               position: true
@@ -303,8 +307,14 @@ export const progressRepository: ProgressRepository = {
       if (!nextMilestone) {
         const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
         const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+        const onboardingCompletedAt =
+          existingProgress?.onboardingCompletedAt ?? new Date();
 
-        if (currentPosition !== null && mode !== "FINISHED") {
+        if (
+          existingProgress &&
+          currentPosition !== null &&
+          (mode !== "FINISHED" || !existingProgress.onboardingCompletedAt)
+        ) {
           await transaction.clubProgress.update({
             where: {
               userId_clubId: {
@@ -313,13 +323,16 @@ export const progressRepository: ProgressRepository = {
               }
             },
             data: {
-              mode: "FINISHED"
+              mode: "FINISHED",
+              onboardingCompletedAt
             },
             select: {
               id: true
             }
           });
+        }
 
+        if (currentPosition !== null && mode !== "FINISHED") {
           const progressHistory = await transaction.progressHistory.create({
             data: {
               userId,
@@ -354,6 +367,7 @@ export const progressRepository: ProgressRepository = {
               currentMilestone: {
                 select: milestoneSelect
               },
+              onboardingCompletedAt: true,
               updatedAt: true
             }
           }),
@@ -381,12 +395,15 @@ export const progressRepository: ProgressRepository = {
           currentMilestone: progress?.currentMilestone ?? null,
           totalMilestones,
           history: history.map(toProgressHistoryRecord),
+          onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
           updatedAt: progress?.updatedAt ?? null
         };
       }
 
       const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
       const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
+      const onboardingCompletedAt =
+        existingProgress?.onboardingCompletedAt ?? new Date();
       const laterMilestone = await transaction.milestone.findFirst({
         where: {
           clubId,
@@ -411,11 +428,13 @@ export const progressRepository: ProgressRepository = {
           userId,
           clubId,
           currentMilestoneId: nextMilestone.id,
-          mode: nextMode
+          mode: nextMode,
+          onboardingCompletedAt
         },
         update: {
           currentMilestoneId: nextMilestone.id,
-          mode: nextMode
+          mode: nextMode,
+          onboardingCompletedAt
         },
         select: {
           id: true
@@ -455,6 +474,7 @@ export const progressRepository: ProgressRepository = {
             currentMilestone: {
               select: milestoneSelect
             },
+            onboardingCompletedAt: true,
             updatedAt: true
           }
         }),
@@ -482,6 +502,7 @@ export const progressRepository: ProgressRepository = {
         currentMilestone: progress.currentMilestone,
         totalMilestones,
         history: history.map(toProgressHistoryRecord),
+        onboardingCompletedAt: progress.onboardingCompletedAt,
         updatedAt: progress.updatedAt
       };
     }),
@@ -514,10 +535,13 @@ export const progressRepository: ProgressRepository = {
         select: {
           id: true,
           mode: true,
-          currentMilestoneId: true
+          currentMilestoneId: true,
+          onboardingCompletedAt: true
         }
       });
 
+      const onboardingCompletedAt =
+        existingProgress?.onboardingCompletedAt ?? new Date();
       const fromMode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
       const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
       const hasChanged =
@@ -535,11 +559,13 @@ export const progressRepository: ProgressRepository = {
           userId,
           clubId,
           currentMilestoneId: input.currentMilestoneId,
-          mode: input.mode
+          mode: input.mode,
+          onboardingCompletedAt
         },
         update: {
           currentMilestoneId: input.currentMilestoneId,
-          mode: input.mode
+          mode: input.mode,
+          onboardingCompletedAt
         },
         select: {
           id: true
@@ -581,6 +607,7 @@ export const progressRepository: ProgressRepository = {
             currentMilestone: {
               select: milestoneSelect
             },
+            onboardingCompletedAt: true,
             updatedAt: true
           }
         }),
@@ -608,6 +635,7 @@ export const progressRepository: ProgressRepository = {
         currentMilestone: progress.currentMilestone,
         totalMilestones,
         history: history.map(toProgressHistoryRecord),
+        onboardingCompletedAt: progress.onboardingCompletedAt,
         updatedAt: progress.updatedAt
       };
     }),

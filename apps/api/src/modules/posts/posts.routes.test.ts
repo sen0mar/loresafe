@@ -2459,6 +2459,7 @@ type StoredProgress = {
   clubId: string;
   currentMilestoneId: string | null;
   mode: ProgressMode;
+  onboardingCompletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -2773,6 +2774,7 @@ class InMemoryPostsRepository
       clubId,
       currentMilestoneId: milestoneId,
       mode,
+      onboardingCompletedAt: now,
       createdAt: now,
       updatedAt: now
     });
@@ -3100,12 +3102,14 @@ class InMemoryPostsRepository
         clubId,
         currentMilestoneId: null,
         mode: "STRICT" as ProgressMode,
+        onboardingCompletedAt: now,
         createdAt: now,
         updatedAt: now
       };
 
     progress.currentMilestoneId = input.currentMilestoneId;
     progress.mode = input.mode;
+    progress.onboardingCompletedAt ??= now;
     progress.updatedAt = now;
 
     if (!existingProgress) {
@@ -3232,6 +3236,7 @@ class InMemoryPostsRepository
           historyRow.userId === userId && historyRow.clubId === clubId
       )
       .slice(0, 5),
+    onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
     updatedAt: progress?.updatedAt ?? null
   });
 

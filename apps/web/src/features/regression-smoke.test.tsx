@@ -571,6 +571,167 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
   });
 
+  it("prompts members to complete welcome progress setup", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress: welcomeSetupProgress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute("/api/clubs/safe-club/stats", {
+        stats: dashboardStats
+      }),
+      shellRoute("/api/clubs/safe-club/progress-summary", {
+        progress: welcomeProgressSummary
+      }),
+      shellRoute("/api/clubs/safe-club/popular-discussions", {
+        discussions: [],
+        pagination: {
+          limit: 5
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/recently-unlocked/summary", {
+        unlock: emptyUnlockSummary,
+        posts: [],
+        pagination: {
+          limit: 3
+        }
+      })
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club"]
+      }
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /welcome to safe club/i
+    });
+
+    expect(dialog).toHaveTextContent(
+      /you can change this later in the progress tab/i
+    );
+    expect(await within(dialog).findByText("Strict")).toBeVisible();
+    expect(within(dialog).getByText("Brave")).toBeVisible();
+    expect(within(dialog).getByText("Finished")).toBeVisible();
+    expect(within(dialog).getByText(/manual reveal choice/i)).toBeVisible();
+  });
+
+  it("saves welcome progress setup and closes the required dialog", async () => {
+    let hasSavedWelcomeSetup = false;
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      shellRoute("/api/clubs/safe-club/progress", () => ({
+        progress: hasSavedWelcomeSetup
+          ? {
+              ...progress,
+              mode: "BRAVE",
+              currentMilestone: milestoneTwo,
+              completedMilestones: 2,
+              percentage: 100,
+              updatedAt: now
+            }
+          : welcomeSetupProgress
+      })),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
+      shellRoute("/api/clubs/safe-club/stats", {
+        stats: dashboardStats
+      }),
+      shellRoute("/api/clubs/safe-club/progress-summary", {
+        progress: welcomeProgressSummary
+      }),
+      shellRoute("/api/clubs/safe-club/popular-discussions", {
+        discussions: [],
+        pagination: {
+          limit: 5
+        }
+      }),
+      shellRoute("/api/clubs/safe-club/recently-unlocked/summary", {
+        unlock: emptyUnlockSummary,
+        posts: [],
+        pagination: {
+          limit: 3
+        }
+      }),
+      {
+        method: "PATCH",
+        path: "/api/clubs/safe-club/progress",
+        response: () => {
+          hasSavedWelcomeSetup = true;
+
+          return {
+            progress: {
+              ...progress,
+              mode: "BRAVE",
+              currentMilestone: milestoneTwo,
+              completedMilestones: 2,
+              percentage: 100,
+              updatedAt: now
+            }
+          };
+        }
+      }
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club"]
+      }
+    );
+    const user = userEvent.setup();
+    const dialog = await screen.findByRole("dialog", {
+      name: /welcome to safe club/i
+    });
+
+    await user.click(within(dialog).getByRole("button", { name: /close/i }));
+
+    expect(
+      screen.getByRole("dialog", { name: /welcome to safe club/i })
+    ).toBeVisible();
+
+    await user.selectOptions(
+      within(dialog).getByLabelText("Current milestone"),
+      secondMilestoneId
+    );
+    await user.click(within(dialog).getByRole("button", { name: /brave/i }));
+    await user.click(within(dialog).getByRole("button", { name: /save setup/i }));
+
+    await waitFor(() =>
+      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
+        .toBeTruthy()
+    );
+    expect(
+      getJsonRequestBody(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")!
+      )
+    ).toEqual({
+      currentMilestoneId: secondMilestoneId,
+      mode: "BRAVE"
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: /welcome to safe club/i })
+      ).not.toBeInTheDocument()
+    );
+  });
+
   it("keeps club settings dropdown sections collapsed until opened", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -2802,7 +2963,22 @@ const progress: ClubProgress = {
   totalMilestones: 2,
   completedMilestones: 1,
   percentage: 50,
+  onboardingCompletedAt: now,
+  needsWelcomeSetup: false,
   updatedAt: now,
+  history: []
+};
+
+const welcomeSetupProgress: ClubProgress = {
+  id: null,
+  mode: "STRICT",
+  currentMilestone: null,
+  totalMilestones: 2,
+  completedMilestones: 0,
+  percentage: 0,
+  onboardingCompletedAt: null,
+  needsWelcomeSetup: true,
+  updatedAt: null,
   history: []
 };
 
@@ -3115,6 +3291,15 @@ const progressSummary = {
   completedMilestones: 1,
   percentage: 50,
   updatedAt: now
+};
+
+const welcomeProgressSummary = {
+  mode: "STRICT",
+  currentMilestone: null,
+  totalMilestones: 2,
+  completedMilestones: 0,
+  percentage: 0,
+  updatedAt: null
 };
 
 const dashboardStats = {
