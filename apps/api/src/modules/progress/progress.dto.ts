@@ -39,6 +39,8 @@ export type ClubProgressDto = {
   totalMilestones: number;
   completedMilestones: number;
   percentage: number;
+  onboardingCompletedAt: string | null;
+  needsWelcomeSetup: boolean;
   updatedAt: string | null;
   history: ProgressHistoryDto[];
 };
@@ -91,6 +93,9 @@ export const toClubProgressDto = (
     totalMilestones: progress.totalMilestones,
     completedMilestones,
     percentage,
+    onboardingCompletedAt:
+      progress.onboardingCompletedAt?.toISOString() ?? null,
+    needsWelcomeSetup: progress.onboardingCompletedAt === null,
     updatedAt: progress.updatedAt?.toISOString() ?? null,
     history: progress.history.map((history) =>
       toProgressHistoryDto(history, viewerProgress)

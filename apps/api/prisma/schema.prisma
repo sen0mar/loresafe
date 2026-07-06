@@ -300,6 +300,7 @@ model ClubProgress {
   userId             String       @map("user_id") @db.Uuid
   currentMilestoneId String?      @map("current_milestone_id") @db.Uuid
   mode               ProgressMode @default(STRICT)
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz(6)
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

@@ -81,9 +81,69 @@ describe("progress routes", () => {
       totalMilestones: 1,
       completedMilestones: 0,
       percentage: 0,
+      onboardingCompletedAt: null,
+      needsWelcomeSetup: true,
       updatedAt: null,
       history: []
     });
+  });
+
+  it("does not request welcome setup for existing progress rows", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("existing-progress-club");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    const completedAt = new Date("2026-07-01T12:00:00.000Z");
+    repository.createMembership(user.id, club.id);
+    repository.progressRows.push({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      clubId: club.id,
+      currentMilestoneId: milestone.id,
+      mode: "STRICT",
+      onboardingCompletedAt: completedAt,
+      createdAt: completedAt,
+      updatedAt: completedAt
+    });
+
+    const response = await request(app)
+      .get("/api/clubs/existing-progress-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      id: expect.any(String),
+      onboardingCompletedAt: completedAt.toISOString(),
+      needsWelcomeSetup: false
+    });
+  });
+
+  it("completes welcome setup without history for the default strict not-started choice", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("welcome-default-club");
+    repository.createMembership(user.id, club.id);
+
+    const response = await request(app)
+      .patch("/api/clubs/welcome-default-club/progress")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        currentMilestoneId: null,
+        mode: "STRICT"
+      })
+      .expect(200);
+
+    expect(response.body.progress).toMatchObject({
+      id: expect.any(String),
+      mode: "STRICT",
+      currentMilestone: null,
+      onboardingCompletedAt: expect.any(String),
+      needsWelcomeSetup: false,
+      history: []
+    });
+    expect(repository.history).toHaveLength(0);
+    expect(repository.enqueuedProgressUnlockNotificationJobs).toEqual([]);
   });
 
   it("persists progress per user and per club", async () => {
@@ -139,6 +199,7 @@ describe("progress routes", () => {
 
     expect(firstUserFirstClub.body.progress).toMatchObject({
       mode: "STRICT",
+      needsWelcomeSetup: false,
       currentMilestone: {
         id: firstMilestone.id,
         safeTitle: "First opening"
@@ -146,6 +207,7 @@ describe("progress routes", () => {
     });
     expect(firstUserSecondClub.body.progress).toMatchObject({
       mode: "BRAVE",
+      needsWelcomeSetup: false,
       currentMilestone: {
         id: secondMilestone.id,
         safeTitle: "Second opening"
@@ -153,6 +215,7 @@ describe("progress routes", () => {
     });
     expect(secondUserFirstClub.body.progress).toMatchObject({
       mode: "STRICT",
+      needsWelcomeSetup: true,
       currentMilestone: null
     });
   });
@@ -244,7 +307,9 @@ describe("progress routes", () => {
         safeTitle: "Opening"
       },
       completedMilestones: 1,
-      totalMilestones: 2
+      totalMilestones: 2,
+      onboardingCompletedAt: expect.any(String),
+      needsWelcomeSetup: false
     });
     expect(repository.history).toHaveLength(1);
     expect(repository.enqueuedProgressUnlockNotificationJobs).toEqual([
@@ -599,6 +664,8 @@ describe("progress routes", () => {
       "history",
       "id",
       "mode",
+      "needsWelcomeSetup",
+      "onboardingCompletedAt",
       "percentage",
       "totalMilestones",
       "updatedAt"
@@ -695,6 +762,7 @@ type StoredProgress = {
   clubId: string;
   currentMilestoneId: string | null;
   mode: ProgressMode;
+  onboardingCompletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -857,12 +925,21 @@ class InMemoryProgressRepository
     if (!nextMilestone) {
       const mode = existingProgress?.mode ?? "STRICT";
 
-      if (existingProgress && currentPosition !== null && mode !== "FINISHED") {
+      if (
+        existingProgress &&
+        currentPosition !== null &&
+        (mode !== "FINISHED" || !existingProgress.onboardingCompletedAt)
+      ) {
         const now = new Date();
-        const fromMilestoneId = existingProgress.currentMilestoneId;
 
         existingProgress.mode = "FINISHED";
+        existingProgress.onboardingCompletedAt ??= now;
         existingProgress.updatedAt = now;
+      }
+
+      if (existingProgress && currentPosition !== null && mode !== "FINISHED") {
+        const now = existingProgress.updatedAt;
+        const fromMilestoneId = existingProgress.currentMilestoneId;
 
         const progressHistory = {
           id: crypto.randomUUID(),
@@ -900,12 +977,14 @@ class InMemoryProgressRepository
         clubId,
         currentMilestoneId: null,
         mode: nextMode,
+        onboardingCompletedAt: now,
         createdAt: now,
         updatedAt: now
       };
 
     progress.currentMilestoneId = nextMilestone.id;
     progress.mode = nextMode;
+    progress.onboardingCompletedAt ??= now;
     progress.updatedAt = now;
 
     if (!existingProgress) {
@@ -961,12 +1040,14 @@ class InMemoryProgressRepository
         clubId,
         currentMilestoneId: null,
         mode: "STRICT" as ProgressMode,
+        onboardingCompletedAt: now,
         createdAt: now,
         updatedAt: now
       };
 
     progress.currentMilestoneId = input.currentMilestoneId;
     progress.mode = input.mode;
+    progress.onboardingCompletedAt ??= now;
     progress.updatedAt = now;
 
     if (!existingProgress) {
@@ -1038,6 +1119,7 @@ class InMemoryProgressRepository
           historyRow.userId === userId && historyRow.clubId === clubId
       )
       .slice(0, 5),
+    onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
     updatedAt: progress?.updatedAt ?? null
   });
 

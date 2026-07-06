@@ -276,6 +276,8 @@ describe("frontend accessibility regressions", () => {
             totalMilestones: 0,
             completedMilestones: 0,
             percentage: 0,
+            onboardingCompletedAt: now,
+            needsWelcomeSetup: false,
             updatedAt: now,
             history: []
           }
