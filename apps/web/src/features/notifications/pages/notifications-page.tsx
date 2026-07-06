@@ -1,13 +1,17 @@
 import {
   Bell,
   Check,
+  CheckCheck,
   ChevronRight,
   LockKeyhole,
   MessageCircle,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Trash2
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -15,6 +19,9 @@ import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-
 import {
   type NotificationItem,
   notificationsQueryKeys,
+  useDeleteAllNotificationsMutation,
+  useDeleteNotificationMutation,
+  useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsInfiniteQuery
 } from "@/features/notifications/api/notifications";
@@ -26,6 +33,16 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/shared/components/ui/dialog";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
@@ -40,6 +57,9 @@ export const NotificationsPage = () => {
   const queryClient = useQueryClient();
   const notificationsQuery = useNotificationsInfiniteQuery();
   const markReadMutation = useMarkNotificationReadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
+  const deleteNotificationMutation = useDeleteNotificationMutation();
+  const deleteAllNotificationsMutation = useDeleteAllNotificationsMutation();
   const notifications =
     notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
@@ -66,6 +86,58 @@ export const NotificationsPage = () => {
     });
   };
 
+  const markAllRead = () => {
+    if (unreadCount === 0 || markAllReadMutation.isPending) {
+      return;
+    }
+
+    markAllReadMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        toast.success(
+          response.updatedCount === 0
+            ? "Everything was already read."
+            : "All notifications marked as read."
+        );
+      },
+      onError: () => {
+        toast.error("Could not mark notifications as read.");
+      }
+    });
+  };
+
+  const deleteNotification = (notification: NotificationItem) => {
+    deleteNotificationMutation.mutate(notification.id, {
+      onSuccess: () => {
+        toast.success("Notification deleted.");
+      },
+      onError: () => {
+        toast.error("Could not delete notification.");
+      }
+    });
+  };
+
+  const deleteAllNotifications = () => {
+    if (
+      notifications.length === 0 ||
+      deleteAllNotificationsMutation.isPending
+    ) {
+      return;
+    }
+
+    deleteAllNotificationsMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        toast.success(
+          response.deletedCount === 0
+            ? "No notifications to delete."
+            : "All notifications deleted."
+        );
+      },
+      onError: () => {
+        toast.error("Could not delete notifications.");
+      }
+    });
+  };
+
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
@@ -79,7 +151,62 @@ export const NotificationsPage = () => {
                   : `${unreadCount} unread`}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ConfirmNotificationActionDialog
+                title="Mark all notifications as read?"
+                description="This will mark every unread notification in your inbox as read."
+                confirmLabel="Mark all read"
+                pendingLabel="Marking..."
+                confirmIcon={<CheckCheck className="size-4" />}
+                disabled={unreadCount === 0 || markAllReadMutation.isPending}
+                isPending={markAllReadMutation.isPending}
+                onConfirm={markAllRead}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      unreadCount === 0 || markAllReadMutation.isPending
+                    }
+                  >
+                    <CheckCheck className="size-4" />
+                    {markAllReadMutation.isPending
+                      ? "Marking..."
+                      : "Mark all read"}
+                  </Button>
+                }
+              />
+              <ConfirmNotificationActionDialog
+                title="Delete all notifications?"
+                description="This permanently removes every notification from your inbox. Posts, comments, and clubs are not affected."
+                confirmLabel="Delete all"
+                pendingLabel="Deleting..."
+                confirmIcon={<Trash2 className="size-4" />}
+                confirmVariant="destructive"
+                disabled={
+                  notifications.length === 0 ||
+                  deleteAllNotificationsMutation.isPending
+                }
+                isPending={deleteAllNotificationsMutation.isPending}
+                onConfirm={deleteAllNotifications}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      notifications.length === 0 ||
+                      deleteAllNotificationsMutation.isPending
+                    }
+                  >
+                    <Trash2 className="size-4" />
+                    {deleteAllNotificationsMutation.isPending
+                      ? "Deleting..."
+                      : "Delete all"}
+                  </Button>
+                }
+              />
               <Button
                 type="button"
                 variant="outline"
@@ -117,7 +244,13 @@ export const NotificationsPage = () => {
                         markReadMutation.isPending &&
                         markReadMutation.variables === notification.id
                       }
+                      isDeleting={
+                        deleteNotificationMutation.isPending &&
+                        deleteNotificationMutation.variables ===
+                          notification.id
+                      }
                       onMarkRead={() => markRead(notification)}
+                      onDelete={() => deleteNotification(notification)}
                     />
                   ))}
                 </div>
@@ -146,11 +279,15 @@ export const NotificationsPage = () => {
 const NotificationRow = ({
   notification,
   isMarkingRead,
-  onMarkRead
+  isDeleting,
+  onMarkRead,
+  onDelete
 }: {
   notification: NotificationItem;
   isMarkingRead: boolean;
+  isDeleting: boolean;
   onMarkRead: () => void;
+  onDelete: () => void;
 }) => {
   const isUnread = !notification.readAt;
   const isLocked = notification.visibility === "LOCKED";
@@ -207,7 +344,12 @@ const NotificationRow = ({
             </p>
           </div>
           <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <Button asChild variant="ghost" size="sm" className="w-full sm:w-fit">
+            <Button
+              asChild
+              className="w-full sm:w-fit"
+              variant="ghost"
+              size="sm"
+            >
               <Link to={targetPath}>
                 Open
                 <ChevronRight className="size-4" />
@@ -226,10 +368,92 @@ const NotificationRow = ({
                 {isMarkingRead ? "Marking..." : "Mark read"}
               </Button>
             ) : null}
+            <ConfirmNotificationActionDialog
+              title="Delete this notification?"
+              description="This permanently removes the notification from your inbox. The original discussion is not affected."
+              confirmLabel="Delete"
+              pendingLabel="Deleting..."
+              confirmIcon={<Trash2 className="size-4" />}
+              confirmVariant="destructive"
+              disabled={isDeleting}
+              isPending={isDeleting}
+              onConfirm={onDelete}
+              trigger={
+                <Button
+                  className="w-full sm:w-fit"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="size-4" />
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              }
+            />
           </div>
         </div>
       </div>
     </article>
+  );
+};
+
+const ConfirmNotificationActionDialog = ({
+  title,
+  description,
+  confirmLabel,
+  pendingLabel,
+  confirmIcon,
+  confirmVariant = "default",
+  disabled,
+  isPending,
+  trigger,
+  onConfirm
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  pendingLabel: string;
+  confirmIcon: ReactNode;
+  confirmVariant?: "default" | "destructive";
+  disabled: boolean;
+  isPending: boolean;
+  trigger: ReactNode;
+  onConfirm: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const confirmAction = () => {
+    onConfirm();
+    setIsOpen(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={isPending}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            type="button"
+            variant={confirmVariant}
+            disabled={disabled || isPending}
+            onClick={confirmAction}
+          >
+            {confirmIcon}
+            {isPending ? pendingLabel : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

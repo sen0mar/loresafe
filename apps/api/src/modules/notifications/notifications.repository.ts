@@ -80,6 +80,21 @@ export type NotificationsRepository = {
     notification: NotificationRecord;
     unreadCount: number;
   } | null>;
+  markAllNotificationsRead: (userId: string) => Promise<{
+    updatedCount: number;
+    unreadCount: number;
+  }>;
+  deleteNotification: (
+    notificationId: string,
+    userId: string
+  ) => Promise<{
+    deletedCount: number;
+    unreadCount: number;
+  } | null>;
+  deleteAllNotifications: (userId: string) => Promise<{
+    deletedCount: number;
+    unreadCount: number;
+  }>;
 };
 
 const notificationSelect = (userId: string) =>
@@ -217,6 +232,64 @@ export const notificationsRepository: NotificationsRepository = {
       return {
         notification: toNotificationRecord(notification),
         unreadCount
+      };
+    }),
+
+  markAllNotificationsRead: async (userId) =>
+    prisma.$transaction(async (transaction) => {
+      const result = await transaction.notification.updateMany({
+        where: {
+          userId,
+          readAt: null
+        },
+        data: {
+          readAt: new Date()
+        }
+      });
+
+      return {
+        updatedCount: result.count,
+        unreadCount: 0
+      };
+    }),
+
+  deleteNotification: async (notificationId, userId) =>
+    prisma.$transaction(async (transaction) => {
+      const result = await transaction.notification.deleteMany({
+        where: {
+          id: notificationId,
+          userId
+        }
+      });
+
+      if (result.count === 0) {
+        return null;
+      }
+
+      const unreadCount = await transaction.notification.count({
+        where: {
+          userId,
+          readAt: null
+        }
+      });
+
+      return {
+        deletedCount: result.count,
+        unreadCount
+      };
+    }),
+
+  deleteAllNotifications: async (userId) =>
+    prisma.$transaction(async (transaction) => {
+      const result = await transaction.notification.deleteMany({
+        where: {
+          userId
+        }
+      });
+
+      return {
+        deletedCount: result.count,
+        unreadCount: 0
       };
     })
 };

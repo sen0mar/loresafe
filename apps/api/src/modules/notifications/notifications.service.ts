@@ -4,6 +4,8 @@ import {
   type EventsService
 } from "../events/events.service.js";
 import {
+  type DeleteNotificationResponse,
+  type MarkAllNotificationsReadResponse,
   type MarkNotificationReadResponse,
   type NotificationsResponse,
   toNotificationDto
@@ -25,6 +27,16 @@ export type NotificationsService = {
     notificationId: string,
     userId: string
   ) => Promise<MarkNotificationReadResponse>;
+  markAllNotificationsRead: (
+    userId: string
+  ) => Promise<MarkAllNotificationsReadResponse>;
+  deleteNotification: (
+    notificationId: string,
+    userId: string
+  ) => Promise<DeleteNotificationResponse>;
+  deleteAllNotifications: (
+    userId: string
+  ) => Promise<DeleteNotificationResponse>;
 };
 
 export const createNotificationsService = (
@@ -76,7 +88,23 @@ export const createNotificationsService = (
       notification: toNotificationDto(result.notification),
       unreadCount: result.unreadCount
     };
-  }
+  },
+
+  markAllNotificationsRead: async (userId) =>
+    repository.markAllNotificationsRead(userId),
+
+  deleteNotification: async (notificationId, userId) => {
+    const result = await repository.deleteNotification(notificationId, userId);
+
+    if (!result) {
+      throw new HttpError(404, "NOT_FOUND", "Notification not found");
+    }
+
+    return result;
+  },
+
+  deleteAllNotifications: async (userId) =>
+    repository.deleteAllNotifications(userId)
 });
 
 export const notificationsService = createNotificationsService();
