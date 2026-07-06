@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import userEvent from "@testing-library/user-event";
 import { screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
+import { vi } from "vitest";
 
 import { authQueryKeys } from "@/features/auth/api/auth";
 import { LoginForm } from "@/features/auth/components/login-form";
@@ -10,6 +11,7 @@ import { ClubFeedTab } from "@/features/clubs/components/club-feed-tab";
 import { ClubMembersTab } from "@/features/clubs/components/club-members-tab";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import { ClubTimelineTab } from "@/features/clubs/components/club-timeline-tab";
+import { ClubWelcomeProgressDialog } from "@/features/clubs/components/club-welcome-progress-dialog";
 import { CreateClubForm } from "@/features/clubs/components/create-club-form";
 import { MilestoneProgressDots } from "@/features/clubs/components/milestone-progress-dots";
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
@@ -569,6 +571,33 @@ describe("frontend regression smoke", () => {
       )
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
+  });
+
+  it("does not flash the welcome setup dialog while progress is loading", async () => {
+    const pendingFetch = vi.fn(
+      () => new Promise<Response>(() => undefined)
+    );
+    vi.stubGlobal("fetch", pendingFetch);
+
+    renderWithProviders(
+      <ClubWelcomeProgressDialog
+        clubTitle="Safe Club"
+        isMember
+        linkName="safe-club"
+      />
+    );
+
+    await waitFor(() =>
+      expect(pendingFetch).toHaveBeenCalledWith(
+        "/api/clubs/safe-club/progress",
+        expect.objectContaining({
+          credentials: "include"
+        })
+      )
+    );
+    expect(
+      screen.queryByRole("dialog", { name: /welcome to safe club/i })
+    ).not.toBeInTheDocument();
   });
 
   it("prompts members to complete welcome progress setup", async () => {

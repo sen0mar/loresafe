@@ -91,7 +91,7 @@ export const ClubWelcomeProgressDialog = ({
   const shouldOpen =
     isMember &&
     !hasCompletedWelcome &&
-    (isLoading || progress?.needsWelcomeSetup === true);
+    progress?.needsWelcomeSetup === true;
   const selectedMilestone =
     selectedMilestoneId === notStartedValue
       ? null
