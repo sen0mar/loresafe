@@ -342,10 +342,10 @@ export const ClubMilestoneBuilderPanel = ({ club }: { club: Club }) => {
       <div
         id={builderContentId}
         className={cn(
-          "grid transition-[border-color,grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+          "grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
           isBuilderOpen
-            ? "grid-rows-[1fr] border-t border-default"
-            : "grid-rows-[0fr] border-t border-transparent"
+            ? "soft-section-divider grid-rows-[1fr]"
+            : "grid-rows-[0fr]"
         )}
         aria-hidden={!isBuilderOpen}
         data-state={isBuilderOpen ? "open" : "closed"}

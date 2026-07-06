@@ -18,7 +18,7 @@ export const ProfileSettingsPage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="mx-auto max-w-2xl space-y-4">
-        <section className="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
+        <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-3 pb-4">
           <div className="min-w-0 space-y-2">
             <p className="text-sm font-medium text-brand">Settings</p>
             <h1 className="truncate text-2xl font-semibold tracking-normal text-primary sm:text-3xl">

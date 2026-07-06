@@ -13,13 +13,18 @@ type AuthenticatedAppShellProps = {
   rightRail?: ReactNode;
 };
 
+const sidebarJoinedClubsLimit = 3;
+
 export const AuthenticatedAppShell = ({
   children,
   rightRail
 }: AuthenticatedAppShellProps) => {
   const meQuery = useMe();
   const logoutMutation = useLogout();
-  const joinedClubsQuery = useJoinedClubsQuery(Boolean(meQuery.data));
+  const joinedClubsQuery = useJoinedClubsQuery({
+    enabled: Boolean(meQuery.data),
+    limit: sidebarJoinedClubsLimit
+  });
   const unreadNotificationsQuery = useUnreadNotificationsQuery(
     Boolean(meQuery.data)
   );

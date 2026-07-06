@@ -194,10 +194,10 @@ export const ClubSettingsForm = ({ club }: { club: Club }) => {
       <div
         id={settingsContentId}
         className={cn(
-          "grid transition-[border-color,grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+          "grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
           isSettingsOpen
-            ? "grid-rows-[1fr] border-t border-default"
-            : "grid-rows-[0fr] border-t border-transparent"
+            ? "soft-section-divider grid-rows-[1fr]"
+            : "grid-rows-[0fr]"
         )}
         aria-hidden={!isSettingsOpen}
         data-state={isSettingsOpen ? "open" : "closed"}

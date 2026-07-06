@@ -24,7 +24,7 @@ type ClubHeaderProps = {
 };
 
 export const ClubHeader = ({ activeTab, onTabChange }: ClubHeaderProps) => (
-  <section className="grid gap-4 border-b border-default pb-4 md:grid-cols-[176px_minmax(0,1fr)]">
+  <section className="soft-section-divider-bottom grid gap-4 pb-4 md:grid-cols-[176px_minmax(0,1fr)]">
     <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-default bg-active shadow-soft">
       <ShieldCheck className="size-12 text-brand" />
     </div>

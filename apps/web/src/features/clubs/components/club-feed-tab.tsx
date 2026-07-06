@@ -791,7 +791,7 @@ const VisiblePostCard = ({
           <PredictionStateBadges prediction={post.prediction} />
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
+      <div className="soft-section-divider flex flex-wrap items-center justify-between gap-3 pt-3">
         <span className="flex items-center gap-2 text-xs text-faint">
           <UserCircle className="size-4" />
           {post.author.displayName}
@@ -905,7 +905,7 @@ const LockedPostCard = ({
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
       {post.media ? <PostMediaPreview media={post.media} locked /> : null}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3">
+      <div className="soft-section-divider flex flex-wrap items-center justify-between gap-3 pt-3">
         <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />
           {formatDateTime(post.createdAt)}

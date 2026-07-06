@@ -389,7 +389,7 @@ const RevealedPostCard = ({
           <PredictionStateBadges prediction={post.prediction} />
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-3 text-xs text-faint">
+      <div className="soft-section-divider flex flex-wrap items-center justify-between gap-3 pt-3 text-xs text-faint">
         <span className="flex items-center gap-2">
           <UserCircle className="size-4" />
           {post.author.displayName}
@@ -820,7 +820,7 @@ const CommentThreadBlock = ({
     />
     {replyParentId === thread.parent.id &&
     thread.parent.visibility === "VISIBLE" ? (
-      <div className="ml-4 border-l border-subtle pl-4">
+      <div className="soft-thread-divider ml-4 pl-4">
         <CommentForm
           baseMilestone={thread.parent.requiredMilestone}
           label="Reply"
@@ -834,7 +834,7 @@ const CommentThreadBlock = ({
       </div>
     ) : null}
     {thread.replies.length > 0 ? (
-      <div className="space-y-3 border-l border-subtle pl-4 md:ml-4">
+      <div className="soft-thread-divider space-y-3 pl-4 md:ml-4">
         {thread.replies.map((reply) => (
           <CommentBlock
             key={reply.id}

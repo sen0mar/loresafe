@@ -47,7 +47,7 @@ export const AppShell = ({
 }: AppShellProps) => {
   return (
     <div className="min-h-screen bg-gradient-app text-primary">
-      <div className="mx-auto flex min-h-screen w-full max-w-[112rem] p-2 lg:p-3">
+      <div className="mx-auto flex min-h-screen w-full max-w-[112rem] gap-3 p-2 lg:p-3">
         <DesktopSidebar
           joinedClubs={joinedClubs}
           joinedClubsTotal={joinedClubsTotal}
@@ -57,8 +57,8 @@ export const AppShell = ({
           notificationUnreadCount={notificationUnreadCount}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-default bg-base-90 px-2 py-3 backdrop-blur-md lg:px-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <header className="app-shell-topbar flex items-center gap-3 rounded-2xl border px-2 py-3 backdrop-blur-md lg:px-6">
             <MobileNav
               joinedClubs={joinedClubs}
               joinedClubsTotal={joinedClubsTotal}
@@ -94,7 +94,7 @@ export const AppShell = ({
 
           <div
             className={cn(
-              "grid min-w-0 flex-1 grid-cols-1 gap-4 px-2 py-4 lg:px-6",
+              "grid min-w-0 flex-1 grid-cols-1 gap-4 px-2 pb-4 pt-1 lg:px-6",
               rightRail && "xl:grid-cols-[minmax(0,1fr)_320px]"
             )}
           >

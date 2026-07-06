@@ -107,6 +107,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 101: Template milestone title helper copy — Added Settings-tab helper text clarifying that template milestone titles are safe previews and spoiler titles can be edited later in Timeline.
 - Feature 102: Settings tab heading cleanup — Removed the redundant Safe settings wrapper heading and restored top spacing for the first Settings-tab panel.
 - Feature 103: Homepage option grid and popular clubs — Replaced the authenticated home dashboard with three navigation option cards, added popular public club discovery sorting with a 20-club cap, and added a homepage popular preview plus Explore's Most popular filter with focused backend/frontend regression coverage.
+- Feature 104: Section divider and shell polish — Added softened app-shell elevation, shared faded divider utilities across authenticated pages and menus, capped the desktop joined-club sidebar preview with View all links, made the top bar scroll in normal flow with a clickable home brand, and compacted the authenticated homepage viewport layout.
 
 ## Entry Format
 

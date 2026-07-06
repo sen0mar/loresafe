@@ -10,7 +10,7 @@ export const CreateClubPage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="mx-auto max-w-3xl space-y-4">
-        <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
+        <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
           <div className="min-w-0 space-y-2">
             <p className="flex items-center gap-2 text-sm font-medium text-brand">
               <PlusCircle className="size-4" />

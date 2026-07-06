@@ -110,7 +110,7 @@ export const ClubModerationReportsPage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
-        <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
+        <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
           <div className="min-w-0 space-y-2">
             <Button variant="ghost" size="sm" asChild>
               <Link to={`/app/clubs/${linkName}?tab=settings`}>
@@ -679,7 +679,7 @@ const RevealedReportContent = ({
         {report.target.body}
       </p>
     </div>
-    <div className="border-t border-subtle pt-3">
+    <div className="soft-section-divider pt-3">
       <p className="text-xs text-faint">Reporter details</p>
       <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-muted">
         {report.details ?? "No additional details."}

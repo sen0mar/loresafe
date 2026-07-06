@@ -65,6 +65,11 @@ Colors below define the current app palette in `apps/web/src/styles.css`.
 | Card shadow | `--shadow-card` | `none` |
 | Soft shadow | `--shadow-soft` | `none` |
 | Brand glow shadow | `--shadow-glow` | `none` |
+| Shell sidebar shadow | `--shadow-shell-sidebar` | restrained dark/brand elevation |
+| Shell panel shadow | `--shadow-shell-panel` | restrained topbar/panel elevation |
+| Soft divider line | `--divider-soft-line` | faded token-based horizontal separator |
+| Soft vertical divider line | `--divider-soft-line-vertical` | faded token-based vertical separator |
+| Soft divider glow | `--divider-soft-glow` | low-opacity brand glow for separators |
 | Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
 | App background | `--gradient-app` | `#07090c` |
 | Glass tab surface | `--glass-tabs-surface` | `rgba(6, 8, 11, 0.76)` |
@@ -164,6 +169,10 @@ Current semantic radius values are approximately: `rounded-md` 16px, `rounded-lg
 over arbitrary radius values so the app keeps a consistently rounded feel.
 
 Use 1px borders for most panels. Use brand borders sparingly for active/selected states.
+For app-shell layout separation, prefer restrained elevation and faded token-based
+section dividers over long isolated rules. Use the shared divider classes for
+standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
+`soft-thread-divider`, and `soft-menu-separator`.
 
 ## Layout Patterns
 

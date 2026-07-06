@@ -73,7 +73,7 @@ export const JoinedClubsPage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
-        <section className="space-y-4 border-b border-default pb-4">
+        <section className="soft-section-divider-bottom space-y-4 pb-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 space-y-2">
               <p className="flex items-center gap-2 text-sm font-medium text-brand">

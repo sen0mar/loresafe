@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   Bell,
   Bookmark,
@@ -83,6 +83,8 @@ const roleLabels: Record<AppShellJoinedClub["role"], string> = {
   MEMBER: "Member"
 };
 
+const sidebarJoinedClubsLimit = 3;
+
 const memberFormatter = new Intl.NumberFormat(undefined, {
   notation: "compact",
   maximumFractionDigits: 1
@@ -104,7 +106,10 @@ export const DesktopSidebar = ({
   );
 
   return (
-    <aside className="hidden w-[252px] shrink-0 border-r border-default pr-3 lg:flex lg:flex-col">
+    <aside
+      aria-label="Primary sidebar"
+      className="app-shell-sidebar relative isolate hidden w-[252px] shrink-0 overflow-y-auto rounded-2xl border border-default px-3 pb-4 lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-1.5rem)] lg:max-h-[calc(100dvh-1.5rem)] lg:flex-col"
+    >
       <ShellBrand />
       <PrimaryNavigation
         activeValue={activePrimaryNavValue}
@@ -200,14 +205,18 @@ export const MobileNav = ({
 );
 
 const ShellBrand = () => (
-  <div className="flex items-center gap-3 px-3 pt-3">
+  <Link
+    to={AUTHENTICATED_HOME_PATH}
+    aria-label="ThreadSync home"
+    className="flex items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+  >
     <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
       <ShieldCheck className="size-6" />
     </span>
     <span className="text-xl font-semibold tracking-normal">
       Thread<span className="text-brand">Sync</span>
     </span>
-  </div>
+  </Link>
 );
 
 const PrimaryNavigation = ({
@@ -290,27 +299,39 @@ const JoinedClubsSection = ({
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
   onRetryJoinedClubs
-}: AppShellNavigationProps & { activeValue?: string }) => (
-  <section className="mt-6 min-h-0 border-t border-default pt-4">
-    <div className="mb-2 flex items-center justify-between px-3">
-      <h2 className="text-xs font-medium text-faint">Joined clubs</h2>
-      {joinedClubsTotal ? (
-        <Badge variant="secondary">{joinedClubsTotal}</Badge>
-      ) : null}
-    </div>
-    {isJoinedClubsLoading ? (
-      <JoinedClubsLoading />
-    ) : isJoinedClubsError ? (
-      <JoinedClubsError onRetry={onRetryJoinedClubs} />
-    ) : joinedClubs.length === 0 ? (
-      <p className="px-3 py-2 text-sm leading-5 text-faint">
-        Join a public club to pin it here.
-      </p>
-    ) : (
-      <JoinedClubsNav activeValue={activeValue} joinedClubs={joinedClubs} />
-    )}
-  </section>
-);
+}: AppShellNavigationProps & { activeValue?: string }) => {
+  const visibleJoinedClubs = joinedClubs.slice(0, sidebarJoinedClubsLimit);
+  const totalJoinedClubs = joinedClubsTotal ?? joinedClubs.length;
+  const hasMoreJoinedClubs = totalJoinedClubs > visibleJoinedClubs.length;
+
+  return (
+    <section className="sidebar-section-divider mt-6 min-h-0 pt-4">
+      <div className="mb-2 flex items-center justify-between px-3">
+        <h2 className="text-xs font-medium text-faint">Joined clubs</h2>
+        {joinedClubsTotal ? (
+          <Badge variant="secondary">{joinedClubsTotal}</Badge>
+        ) : null}
+      </div>
+      {isJoinedClubsLoading ? (
+        <JoinedClubsLoading />
+      ) : isJoinedClubsError ? (
+        <JoinedClubsError onRetry={onRetryJoinedClubs} />
+      ) : visibleJoinedClubs.length === 0 ? (
+        <p className="px-3 py-2 text-sm leading-5 text-faint">
+          Join a public club to pin it here.
+        </p>
+      ) : (
+        <>
+          <JoinedClubsNav
+            activeValue={activeValue}
+            joinedClubs={visibleJoinedClubs}
+          />
+          {hasMoreJoinedClubs ? <JoinedClubsViewAllLink /> : null}
+        </>
+      )}
+    </section>
+  );
+};
 
 const JoinedClubsNav = ({
   activeValue,
@@ -373,8 +394,18 @@ const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
   );
 };
 
+const JoinedClubsViewAllLink = () => (
+  <NavLink
+    to="/app/clubs"
+    className="mt-2 flex h-9 items-center justify-center rounded-lg border border-default bg-inset px-3 text-sm font-medium text-secondary transition-colors duration-150 hover:border-strong hover:bg-active hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+  >
+    View all
+  </NavLink>
+);
+
 const MobileJoinedClubs = ({
   joinedClubs = [],
+  joinedClubsTotal,
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
   onRetryJoinedClubs
@@ -411,19 +442,31 @@ const MobileJoinedClubs = ({
     );
   }
 
-  return joinedClubs.map((club) => {
-    const VisibilityIcon = visibilityIcons[club.visibility];
+  const totalJoinedClubs = joinedClubsTotal ?? joinedClubs.length;
+  const hasMoreJoinedClubs = totalJoinedClubs > joinedClubs.length;
 
-    return (
-      <DropdownMenuItem key={club.id} asChild>
-        <NavLink to={`/app/clubs/${club.linkName}`}>
-          <VisibilityIcon className="size-4" />
-          <span className="min-w-0 flex-1 truncate">{club.title}</span>
-          <Badge variant="secondary">{roleLabels[club.role]}</Badge>
-        </NavLink>
-      </DropdownMenuItem>
-    );
-  });
+  return (
+    <>
+      {joinedClubs.map((club) => {
+        const VisibilityIcon = visibilityIcons[club.visibility];
+
+        return (
+          <DropdownMenuItem key={club.id} asChild>
+            <NavLink to={`/app/clubs/${club.linkName}`}>
+              <VisibilityIcon className="size-4" />
+              <span className="min-w-0 flex-1 truncate">{club.title}</span>
+              <Badge variant="secondary">{roleLabels[club.role]}</Badge>
+            </NavLink>
+          </DropdownMenuItem>
+        );
+      })}
+      {hasMoreJoinedClubs ? (
+        <DropdownMenuItem asChild>
+          <NavLink to="/app/clubs">View all joined clubs</NavLink>
+        </DropdownMenuItem>
+      ) : null}
+    </>
+  );
 };
 
 const JoinedClubsLoading = () => (

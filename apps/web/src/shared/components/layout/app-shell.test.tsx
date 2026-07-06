@@ -11,6 +11,45 @@ const currentUser = {
   avatarUrl: null
 };
 
+const joinedClubs = [
+  {
+    id: "club-1",
+    title: "First Club",
+    linkName: "first-club",
+    visibility: "PUBLIC" as const,
+    role: "OWNER" as const,
+    memberCount: 5,
+    joinedAt: "2026-07-06T07:00:00.000Z"
+  },
+  {
+    id: "club-2",
+    title: "Second Club",
+    linkName: "second-club",
+    visibility: "PRIVATE" as const,
+    role: "MODERATOR" as const,
+    memberCount: 4,
+    joinedAt: "2026-07-06T07:00:00.000Z"
+  },
+  {
+    id: "club-3",
+    title: "Third Club",
+    linkName: "third-club",
+    visibility: "INVITE_ONLY" as const,
+    role: "MEMBER" as const,
+    memberCount: 3,
+    joinedAt: "2026-07-06T07:00:00.000Z"
+  },
+  {
+    id: "club-4",
+    title: "Fourth Club",
+    linkName: "fourth-club",
+    visibility: "PUBLIC" as const,
+    role: "MEMBER" as const,
+    memberCount: 2,
+    joinedAt: "2026-07-06T07:00:00.000Z"
+  }
+];
+
 const getContentGrid = () => {
   const main = screen.getByTestId("page-content").closest("main");
 
@@ -50,6 +89,44 @@ describe("AppShell layout", () => {
     );
     expect(getContentGrid()).toHaveClass(
       "xl:grid-cols-[minmax(0,1fr)_320px]"
+    );
+  });
+
+  it("keeps the top bar in normal page flow and links the brand home", () => {
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    expect(screen.getByRole("banner")).not.toHaveClass("sticky");
+    expect(screen.getByRole("link", { name: "ThreadSync home" })).toHaveAttribute(
+      "href",
+      "/app"
+    );
+  });
+
+  it("keeps the desktop sidebar viewport-height and caps pinned joined clubs", () => {
+    renderWithProviders(
+      <AppShell
+        currentUser={currentUser}
+        joinedClubs={joinedClubs}
+        joinedClubsTotal={joinedClubs.length}
+      >
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    expect(screen.getByLabelText("Primary sidebar")).toHaveClass(
+      "lg:h-[calc(100dvh-1.5rem)]"
+    );
+    expect(screen.getByText("First Club")).toBeVisible();
+    expect(screen.getByText("Second Club")).toBeVisible();
+    expect(screen.getByText("Third Club")).toBeVisible();
+    expect(screen.queryByText("Fourth Club")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View all" })).toHaveAttribute(
+      "href",
+      "/app/clubs"
     );
   });
 

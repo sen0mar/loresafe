@@ -163,7 +163,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
   return (
     <>
-      <section className="flex flex-wrap items-start justify-between gap-4 border-b border-default pb-4">
+      <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
           {club.coverUrl ? (
             <img
@@ -303,7 +303,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
 
 const ClubDetailLoading = () => (
   <div className="space-y-4">
-    <section className="space-y-3 border-b border-default pb-4">
+    <section className="soft-section-divider-bottom space-y-3 pb-4">
       <Skeleton className="h-8 w-40" />
       <Skeleton className="h-5 w-72" />
       <Skeleton className="h-4 w-32" />

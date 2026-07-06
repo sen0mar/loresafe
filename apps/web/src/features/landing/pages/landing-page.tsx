@@ -45,7 +45,7 @@ export const LandingPage = () => (
         </div>
       </div>
     </section>
-    <section className="relative z-10 border-t border-default bg-background px-5 py-5 sm:px-8 lg:px-12">
+    <section className="soft-section-divider relative z-10 bg-background px-5 py-5 sm:px-8 lg:px-12">
       <div className="grid max-w-5xl gap-3 text-sm text-muted sm:grid-cols-3">
         <p>
           <span className="font-medium text-primary">Create clubs</span> around
