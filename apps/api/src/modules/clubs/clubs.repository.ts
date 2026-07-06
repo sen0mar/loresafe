@@ -1023,7 +1023,7 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  listPublicClubs: async (userId, { page, limit }) => {
+  listPublicClubs: async (userId, { limit, page, sort }) => {
     const skip = (page - 1) * limit;
     const now = new Date();
     const publicClubWhere = {
@@ -1032,18 +1032,12 @@ export const clubsRepository: ClubsRepository = {
         none: activeUserBanWhere(userId, now)
       }
     } satisfies Prisma.ClubWhereInput;
+    const orderBy = getPublicClubOrder(sort);
 
     const [clubs, total] = await prisma.$transaction([
       prisma.club.findMany({
         where: publicClubWhere,
-        orderBy: [
-          {
-            createdAt: "desc"
-          },
-          {
-            id: "asc"
-          }
-        ],
+        orderBy,
         skip,
         take: limit,
         select: publicClubSelect
@@ -1062,6 +1056,35 @@ export const clubsRepository: ClubsRepository = {
       total
     };
   }
+};
+
+const getPublicClubOrder = (
+  sort: ListClubsQuery["sort"]
+): Prisma.ClubOrderByWithRelationInput[] => {
+  if (sort === "popular") {
+    return [
+      {
+        memberships: {
+          _count: "desc"
+        }
+      },
+      {
+        createdAt: "desc"
+      },
+      {
+        id: "asc"
+      }
+    ];
+  }
+
+  return [
+    {
+      createdAt: "desc"
+    },
+    {
+      id: "asc"
+    }
+  ];
 };
 
 export const isUniqueConstraintError = (error: unknown) =>

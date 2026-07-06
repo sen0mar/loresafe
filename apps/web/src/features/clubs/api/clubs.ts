@@ -332,6 +332,12 @@ export type ClubsDiscoveryResponse = {
   };
 };
 
+export type PublicClubsQueryInput = {
+  limit?: number;
+  page?: number;
+  sort?: "newest" | "popular";
+};
+
 export type ClubResponse = {
   club: Club;
 };
@@ -756,7 +762,7 @@ export const refreshClubAssetQueries = (
     queryKey: clubsQueryKeys.detail(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.discovery
+    queryKey: clubsQueryKeys.discoveryRoot
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
@@ -799,7 +805,7 @@ export const refreshClubSettingsQueries = (
     queryKey: clubsQueryKeys.detail(linkName)
   });
   void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.discovery
+    queryKey: clubsQueryKeys.discoveryRoot
   });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.joined
@@ -857,7 +863,17 @@ const reconcileModerationReportMutation = (
 };
 
 export const clubsQueryKeys = {
-  discovery: ["clubs", "discovery"] as const,
+  discoveryRoot: ["clubs", "discovery"] as const,
+  discovery: (input: PublicClubsQueryInput = {}) =>
+    [
+      "clubs",
+      "discovery",
+      {
+        limit: input.limit ?? 20,
+        page: input.page ?? 1,
+        sort: input.sort ?? "newest"
+      }
+    ] as const,
   joined: ["users", "me", "clubs"] as const,
   joinedList: ({ limit, page, q }: JoinedClubsQueryInput) =>
     ["users", "me", "clubs", { limit, page, q: q?.trim() ?? "" }] as const,
@@ -898,8 +914,25 @@ export const clubsQueryKeys = {
     ["posts", "detail", postId, "comments"] as const
 };
 
-export const getPublicClubs = () =>
-  apiGet<ClubsDiscoveryResponse>("/api/clubs");
+export const getPublicClubs = (input: PublicClubsQueryInput = {}) => {
+  const params = new URLSearchParams();
+
+  if (input.page) {
+    params.set("page", String(input.page));
+  }
+
+  if (input.limit) {
+    params.set("limit", String(input.limit));
+  }
+
+  if (input.sort) {
+    params.set("sort", input.sort);
+  }
+
+  const query = params.toString();
+
+  return apiGet<ClubsDiscoveryResponse>(query ? `/api/clubs?${query}` : "/api/clubs");
+};
 
 export const getClubByLinkName = (linkName: string) =>
   apiGet<ClubResponse>(`/api/clubs/${linkName}`);
@@ -1235,10 +1268,13 @@ export const updateClubProgress = (
 export const advanceClubProgressToNextMilestone = (linkName: string) =>
   apiPost<ClubProgressResponse>(`/api/clubs/${linkName}/progress/next`);
 
-export const usePublicClubsQuery = (enabled = true) =>
+export const usePublicClubsQuery = (
+  enabled = true,
+  input: PublicClubsQueryInput = {}
+) =>
   useQuery({
-    queryKey: clubsQueryKeys.discovery,
-    queryFn: getPublicClubs,
+    queryKey: clubsQueryKeys.discovery(input),
+    queryFn: () => getPublicClubs(input),
     enabled
   });
 
@@ -1411,9 +1447,9 @@ export const useCreateClubMutation = () => {
         clubsQueryKeys.detail(response.club.linkName),
         response
       );
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.discovery
-      });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.discoveryRoot
+  });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
       });
@@ -2063,9 +2099,9 @@ export const useJoinClubMutation = () => {
         clubsQueryKeys.detail(response.club.linkName),
         response
       );
-      void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.discovery
-      });
+  void queryClient.invalidateQueries({
+    queryKey: clubsQueryKeys.discoveryRoot
+  });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
       });

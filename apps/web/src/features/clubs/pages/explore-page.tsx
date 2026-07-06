@@ -1,22 +1,29 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Compass, Globe2, PlusCircle, Search } from "lucide-react";
+import { Compass, Filter, Globe2, PlusCircle, Search } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
-  ActiveFilterBadges,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/shared/components/ui/dropdown-menu";
+import {
   ClubResults,
   PostResults,
   SearchEmpty,
-  SearchFilterMenu,
   SearchLoading,
-  parseFilters,
   toEffectiveSearchFilters
 } from "@/features/search/pages/search-results-page";
 import {
+  defaultSearchFilters,
+  searchFilters,
   type SearchFilter,
   useSearchResultsInfiniteQuery
 } from "@/features/search/api/search";
@@ -29,14 +36,38 @@ import {
   ExploreClubsLoading
 } from "../components/explore-clubs-states.js";
 
+type ExploreFilter = SearchFilter | "popular";
+
+const popularFilter: { value: ExploreFilter; label: string } = {
+  value: "popular",
+  label: "Most popular"
+};
+const exploreFilters: Array<{ value: ExploreFilter; label: string }> = [
+  popularFilter,
+  ...searchFilters
+];
+const filterLabelByValue = Object.fromEntries(
+  exploreFilters.map((filter) => [filter.value, filter.label])
+) as Record<ExploreFilter, string>;
+const validExploreFilters = new Set<ExploreFilter>([
+  "popular",
+  ...defaultSearchFilters
+]);
+const exploreClubLimit = 20;
+
 export const ExplorePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
-  const filters = parseFilters(searchParams);
-  const effectiveFilters = toEffectiveSearchFilters(filters);
+  const filters = parseExploreFilters(searchParams);
+  const searchResultFilters = getSearchResultFilters(filters);
+  const effectiveFilters = toEffectiveSearchFilters(searchResultFilters);
+  const isPopularFilterActive = filters.includes("popular");
   const [searchValue, setSearchValue] = useState(query);
-  const clubsQuery = usePublicClubsQuery(query.length === 0);
-  const searchQuery = useSearchResultsInfiniteQuery(query, filters);
+  const clubsQuery = usePublicClubsQuery(query.length === 0, {
+    limit: exploreClubLimit,
+    sort: isPopularFilterActive ? "popular" : "newest"
+  });
+  const searchQuery = useSearchResultsInfiniteQuery(query, searchResultFilters);
   const clubs = searchQuery.data?.pages.flatMap((page) => page.clubs) ?? [];
   const posts = searchQuery.data?.pages.flatMap((page) => page.posts) ?? [];
   const hasSearchResults = clubs.length > 0 || posts.length > 0;
@@ -45,7 +76,7 @@ export const ExplorePage = () => {
     setSearchValue(query);
   }, [query]);
 
-  const saveFilters = (nextFilters: SearchFilter[]) => {
+  const saveFilters = (nextFilters: ExploreFilter[]) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
 
@@ -135,12 +166,12 @@ export const ExplorePage = () => {
                 onChange={(event) => updateQuery(event.target.value)}
               />
             </div>
-            <SearchFilterMenu filters={filters} onFiltersSave={saveFilters} />
+            <ExploreFilterMenu filters={filters} onFiltersSave={saveFilters} />
           </form>
         </section>
 
-        {query && filters.length > 0 ? (
-          <ActiveFilterBadges filters={filters} />
+        {filters.length > 0 ? (
+          <ActiveExploreFilterBadges filters={filters} />
         ) : null}
 
         {query ? (
@@ -185,7 +216,7 @@ export const ExplorePage = () => {
           <ExploreClubsEmpty />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {clubsQuery.data.clubs.map((club) => (
+            {clubsQuery.data.clubs.slice(0, exploreClubLimit).map((club) => (
               <ClubDiscoveryCard key={club.id} club={club} />
             ))}
           </div>
@@ -196,3 +227,145 @@ export const ExplorePage = () => {
 };
 
 const countFormatter = new Intl.NumberFormat();
+
+const ExploreFilterMenu = ({
+  filters,
+  onFiltersSave
+}: {
+  filters: ExploreFilter[];
+  onFiltersSave: (filters: ExploreFilter[]) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<ExploreFilter[]>(filters);
+
+  useEffect(() => {
+    if (!open) {
+      setDraftFilters(filters);
+    }
+  }, [filters, open]);
+
+  const updateDraftFilter = (filter: ExploreFilter, checked: boolean) => {
+    setDraftFilters((currentFilters) =>
+      toggleExploreFilter(currentFilters, filter, checked)
+    );
+  };
+
+  const saveFilters = () => {
+    onFiltersSave(draftFilters);
+    setOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary">
+          <Filter />
+          Add filters
+          <Badge variant="outline">{filters.length}</Badge>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Explore filters</DropdownMenuLabel>
+        <DropdownMenuCheckboxItem
+          checked={draftFilters.includes("popular")}
+          onCheckedChange={(checked) =>
+            updateDraftFilter("popular", checked === true)
+          }
+          onSelect={(event) => event.preventDefault()}
+        >
+          Most popular
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        {searchFilters.slice(0, 2).map((filter) => (
+          <DropdownMenuCheckboxItem
+            key={filter.value}
+            checked={draftFilters.includes(filter.value)}
+            onCheckedChange={(checked) =>
+              updateDraftFilter(filter.value, checked === true)
+            }
+            onSelect={(event) => event.preventDefault()}
+          >
+            {filter.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        {searchFilters.slice(2).map((filter) => (
+          <DropdownMenuCheckboxItem
+            key={filter.value}
+            checked={draftFilters.includes(filter.value)}
+            onCheckedChange={(checked) =>
+              updateDraftFilter(filter.value, checked === true)
+            }
+            onSelect={(event) => event.preventDefault()}
+          >
+            {filter.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        <div className="p-1">
+          <Button className="w-full" size="sm" type="button" onClick={saveFilters}>
+            Save
+          </Button>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const ActiveExploreFilterBadges = ({
+  filters
+}: {
+  filters: ExploreFilter[];
+}) => (
+  <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
+    {filters.map((filter) => (
+      <Badge key={filter} variant="secondary">
+        {filterLabelByValue[filter]}
+      </Badge>
+    ))}
+  </div>
+);
+
+const parseExploreFilters = (searchParams: URLSearchParams): ExploreFilter[] => {
+  const filters = searchParams.get("filters");
+
+  if (filters) {
+    return normalizeExploreFilters(filters.split(","));
+  }
+
+  const legacyScope = searchParams.get("scope");
+
+  if (legacyScope === "clubs") {
+    return ["clubs"];
+  }
+
+  if (legacyScope === "posts") {
+    return ["safe", "spoiler", "posts"];
+  }
+
+  return [];
+};
+
+const normalizeExploreFilters = (filters: string[]): ExploreFilter[] =>
+  exploreFilters
+    .map((filter) => filter.value)
+    .filter(
+      (filter) => filters.includes(filter) && validExploreFilters.has(filter)
+    );
+
+const toggleExploreFilter = (
+  currentFilters: ExploreFilter[],
+  filter: ExploreFilter,
+  checked: boolean
+) => {
+  const nextFilters = checked
+    ? [...currentFilters, filter]
+    : currentFilters.filter((currentFilter) => currentFilter !== filter);
+
+  return exploreFilters
+    .map((filterOption) => filterOption.value)
+    .filter((filterOption) => nextFilters.includes(filterOption));
+};
+
+const getSearchResultFilters = (filters: ExploreFilter[]): SearchFilter[] =>
+  filters.filter((filter): filter is SearchFilter => filter !== "popular");

@@ -35,9 +35,19 @@ export const clubLinkNameSchema = z
 export const listClubsQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(50).default(20)
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    sort: z.enum(["newest", "popular"]).default("newest")
   })
-  .strict();
+  .strict()
+  .superRefine((query, context) => {
+    if (query.sort === "popular" && query.limit > 20) {
+      context.addIssue({
+        code: "custom",
+        path: ["limit"],
+        message: "Most popular discovery is limited to 20 clubs."
+      });
+    }
+  });
 
 export const listClubMembersQuerySchema = z
   .object({

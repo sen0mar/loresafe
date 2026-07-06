@@ -1746,67 +1746,87 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
   });
 
-  it("shows spoiler-safe onboarding on an empty homepage without seeded club content", async () => {
+  it("shows the homepage option grid", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       shellRoute("/api/users/me/clubs", emptyJoinedClubsResponse),
-      shellRoute("/api/notifications", notificationsResponse)
+      shellRoute("/api/notifications", notificationsResponse),
+      popularClubsRoute()
+    ]);
+
+    renderWithProviders(<HomePage />);
+    const main = within(await screen.findByRole("main"));
+
+    expect(
+      await main.findByRole("heading", { name: "What would you like to do?" })
+    ).toBeInTheDocument();
+    expect(main.getByRole("link", { name: /create a new club/i })).toHaveAttribute(
+      "href",
+      "/app/clubs/new"
+    );
+    expect(main.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
+      "href",
+      "/app/explore"
+    );
+    expect(main.getByRole("link", { name: /my clubs/i })).toHaveAttribute(
+      "href",
+      "/app/clubs"
+    );
+    expect(await main.findByRole("heading", { name: "Most popular clubs" })).toBeVisible();
+    expect(await main.findByText("Popular Club 1")).toBeVisible();
+    expect(main.getByRole("link", { name: "View all" })).toHaveAttribute(
+      "href",
+      "/app/explore?filters=popular"
+    );
+  });
+
+  it("keeps the homepage free of club dashboard previews", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", twoJoinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      popularClubsRoute()
     ]);
 
     renderWithProviders(<HomePage />);
 
-    expect(await screen.findByText("Start with a spoiler-safe space")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /create club/i })[0]).toHaveAttribute(
-      "href",
-      "/app/clubs/new"
-    );
-    expect(screen.getByText("Anime/Manga")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "What would you like to do?" })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Newest Club")).not.toBeInTheDocument();
+    expect(screen.queryByText("Featured from your joined clubs")).not.toBeInTheDocument();
     expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Glokta/i)).not.toBeInTheDocument();
+
+    const requestedPaths = fetchMock.mock.calls.map((call) =>
+      new URL(call[0].toString(), "http://localhost:5173").pathname
+    );
+    expect(requestedPaths).not.toContain("/api/clubs/newest-club/posts");
   });
 
-  it("features the most recently joined club on the homepage", async () => {
-    mockFetchRoutes([
+  it("requests and caps popular club previews on the homepage", async () => {
+    const fetchMock = mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
-      shellRoute("/api/users/me/clubs", twoJoinedClubsResponse),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
       shellRoute("/api/notifications", notificationsResponse),
-      homeDashboardRoute("/api/clubs/newest-club/posts", {
-        posts: [visiblePost],
-        pagination: {
-          limit: 20,
-          nextCursor: null,
-          hasMore: false
-        }
-      }),
-      homeDashboardRoute("/api/clubs/newest-club/progress/summary", {
-        progress: progressSummary
-      }),
-      homeDashboardRoute("/api/clubs/newest-club/stats", {
-        stats: dashboardStats
-      }),
-      homeDashboardRoute("/api/clubs/newest-club/popular-discussions", {
-        discussions: [],
-        pagination: {
-          limit: 5
-        }
-      }),
-      homeDashboardRoute("/api/clubs/newest-club/recently-unlocked/summary", {
-        unlock: emptyUnlockSummary,
-        posts: [],
-        pagination: {
-          limit: 3
-        }
+      popularClubsRoute({
+        ...popularClubsResponse,
+        clubs: Array.from({ length: 12 }, (_, index) =>
+          createPopularClub(index + 1)
+        )
       })
     ]);
 
     renderWithProviders(<HomePage />);
+    const main = within(await screen.findByRole("main"));
 
-    expect(await screen.findByRole("heading", { name: "Newest Club" })).toBeInTheDocument();
-    expect(screen.getByText("Featured from your joined clubs")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open club" })).toHaveAttribute(
-      "href",
-      "/app/clubs/newest-club"
-    );
+    expect(await main.findByText("Popular Club 3")).toBeVisible();
+    expect(main.queryByText("Popular Club 4")).not.toBeInTheDocument();
+
+    const popularClubsRequest = findFetchCall(fetchMock, "GET", "/api/clubs");
+    const url = new URL(popularClubsRequest?.[0]?.toString() ?? "", "http://localhost:5173");
+
+    expect(url.searchParams.get("sort")).toBe("popular");
+    expect(url.searchParams.get("limit")).toBe("3");
   });
 
   it("shows only matching joined clubs on the joined clubs page", async () => {
@@ -1951,49 +1971,28 @@ describe("frontend regression smoke", () => {
     );
   });
 
-  it("renders homepage safe previews without leaking locked post bodies", async () => {
+  it("navigates from the homepage option cards", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       shellRoute("/api/users/me/clubs", joinedClubsResponse),
       shellRoute("/api/notifications", notificationsResponse),
-      homeDashboardRoute("/api/clubs/safe-club/posts", {
-        posts: [visiblePost, lockedPost],
-        pagination: {
-          limit: 20,
-          nextCursor: null,
-          hasMore: false
-        }
-      }),
-      homeDashboardRoute("/api/clubs/safe-club/progress/summary", {
-        progress: progressSummary
-      }),
-      homeDashboardRoute("/api/clubs/safe-club/stats", {
-        stats: dashboardStats
-      }),
-      homeDashboardRoute("/api/clubs/safe-club/popular-discussions", {
-        discussions: [],
-        pagination: {
-          limit: 5
-        }
-      }),
-      homeDashboardRoute("/api/clubs/safe-club/recently-unlocked/summary", {
-        unlock: emptyUnlockSummary,
-        posts: [],
-        pagination: {
-          limit: 3
-        }
-      })
+      popularClubsRoute()
     ]);
+    const user = userEvent.setup();
+    const pathChanges: string[] = [];
 
-    renderWithProviders(<HomePage />);
+    renderWithProviders(<HomePage />, {
+      initialEntries: ["/app"],
+      routeObserver: (path) => pathChanges.push(path)
+    });
+    const main = within(await screen.findByRole("main"));
 
-    expect(await screen.findByText("Visible post body.")).toBeInTheDocument();
-    expect(screen.getByText("Locked discussion")).toBeInTheDocument();
-    expect(screen.queryByText("LOCKED_POST_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
-    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
+    await user.click(await main.findByRole("link", { name: /my clubs/i }));
+
+    await waitFor(() => expect(pathChanges.at(-1)).toBe("/app/clubs"));
   });
 
-  it("shows a homepage load error without falling back to seeded content", async () => {
+  it("keeps homepage options visible when joined clubs fail to load", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       {
@@ -2007,12 +2006,19 @@ describe("frontend regression smoke", () => {
           }
         }
       },
-      shellRoute("/api/notifications", notificationsResponse)
+      shellRoute("/api/notifications", notificationsResponse),
+      popularClubsRoute()
     ]);
 
     renderWithProviders(<HomePage />);
 
-    expect(await screen.findByText("Could not load your home dashboard")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "What would you like to do?" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
+      "href",
+      "/app/explore"
+    );
     expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
   });
 
@@ -2521,6 +2527,41 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("Public Story Club")).not.toBeInTheDocument();
   });
 
+  it("shows most popular clubs from the Explore filter", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      popularClubsRoute({
+        ...popularClubsResponse,
+        clubs: Array.from({ length: 21 }, (_, index) =>
+          createPopularClub(index + 1)
+        ),
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 21,
+          pageCount: 2
+        }
+      })
+    ]);
+
+    renderWithProviders(<ExplorePage />, {
+      initialEntries: ["/app/explore?filters=popular"]
+    });
+
+    expect(await screen.findByText("Popular Club 1")).toBeVisible();
+    expect(screen.getByText("Popular Club 20")).toBeVisible();
+    expect(screen.queryByText("Popular Club 21")).not.toBeInTheDocument();
+    expect(screen.getByText("Most popular")).toBeVisible();
+
+    const popularClubsRequest = findFetchCall(fetchMock, "GET", "/api/clubs");
+    const url = new URL(popularClubsRequest?.[0]?.toString() ?? "", "http://localhost:5173");
+
+    expect(url.searchParams.get("sort")).toBe("popular");
+    expect(url.searchParams.get("limit")).toBe("20");
+  });
+
   it("keeps Explore filter selections as a saved dropdown draft", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -2560,6 +2601,9 @@ describe("frontend regression smoke", () => {
     expect(screen.getByRole("button", { name: /add filters0/i })).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: /add filters/i }));
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Most popular" })
+    ).toBeVisible();
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Safe" }));
 
     expect(screen.getByRole("button", { name: "Save" })).toBeVisible();
@@ -2996,6 +3040,29 @@ const twoJoinedClubsResponse = {
   }
 };
 
+const createPopularClub = (index: number) => ({
+  id: `00000000-0000-4000-8000-${String(500 + index).padStart(12, "0")}`,
+  title: `Popular Club ${index}`,
+  linkName: `popular-club-${index}`,
+  description: `Popular public club ${index}.`,
+  category: "BOOKS",
+  coverUrl: null,
+  visibility: "PUBLIC",
+  memberCount: 100 - index,
+  createdAt: now,
+  updatedAt: now
+});
+
+const popularClubsResponse = {
+  clubs: Array.from({ length: 3 }, (_, index) => createPopularClub(index + 1)),
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 3,
+    pageCount: 1
+  }
+};
+
 const moderatedJoinedClubsResponse = {
   clubs: [
     {
@@ -3088,7 +3155,8 @@ const shellRoute = (path: string, response: unknown) => ({
   response
 });
 
-const homeDashboardRoute = shellRoute;
+const popularClubsRoute = (response: unknown = popularClubsResponse) =>
+  shellRoute("/api/clubs", response);
 
 const findFetchCall = (
   fetchMock: ReturnType<typeof mockFetchRoutes>,
@@ -3098,8 +3166,9 @@ const findFetchCall = (
   fetchMock.mock.calls.find((call) => {
     const url = new URL(String(call[0]), "http://localhost:5173");
     const init = call[1] as RequestInit | undefined;
+    const actualMethod = init?.method ?? "GET";
 
-    return init?.method === method && url.pathname === path;
+    return actualMethod === method && url.pathname === path;
   });
 
 const countFetchCalls = (

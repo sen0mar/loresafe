@@ -59,7 +59,7 @@ export const useAcceptInviteMutation = () => {
         { club: response.club }
       );
       void queryClient.invalidateQueries({
-        queryKey: clubsQueryKeys.discovery
+        queryKey: clubsQueryKeys.discoveryRoot
       });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined

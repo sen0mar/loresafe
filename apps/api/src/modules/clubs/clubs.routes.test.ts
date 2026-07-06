@@ -33,6 +33,7 @@ import type {
   ClubCategory,
   CreateClubRequest,
   ListClubBansQuery,
+  ListClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 
@@ -962,6 +963,65 @@ describe("clubs routes", () => {
     expect(JSON.stringify(response.body)).not.toContain("Invite Arc Watch");
   });
 
+  it("returns popular public clubs by member count with a requested cap", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    Array.from({ length: 12 }, (_, index) => {
+      const clubNumber = index + 1;
+      const club = repository.createClub({
+        title: `Public Club ${clubNumber}`,
+        linkName: `public-club-${clubNumber}`,
+        visibility: "PUBLIC"
+      });
+
+      Array.from({ length: clubNumber }, () => {
+        repository.createMembership(crypto.randomUUID(), club.id);
+      });
+    });
+
+    const privateClub = repository.createClub({
+      title: "Private Giant Club",
+      linkName: "private-giant-club",
+      visibility: "PRIVATE"
+    });
+
+    Array.from({ length: 30 }, () => {
+      repository.createMembership(crypto.randomUUID(), privateClub.id);
+    });
+
+    const response = await request(app)
+      .get("/api/clubs?sort=popular&limit=10")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
+      "Public Club 12",
+      "Public Club 11",
+      "Public Club 10",
+      "Public Club 9",
+      "Public Club 8",
+      "Public Club 7",
+      "Public Club 6",
+      "Public Club 5",
+      "Public Club 4",
+      "Public Club 3"
+    ]);
+    expect(
+      response.body.clubs.map((club: { memberCount: number }) => club.memberCount)
+    ).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
+    expect(response.body.pagination).toEqual({
+      page: 1,
+      limit: 10,
+      total: 12,
+      pageCount: 2
+    });
+    expect(JSON.stringify(response.body)).not.toContain("Private Giant Club");
+  });
+
   it("returns narrow public club DTO fields", async () => {
     const user = await repository.createUser({
       email: "reader@example.com",
@@ -1418,6 +1478,28 @@ describe("clubs routes", () => {
         code: "BAD_REQUEST",
         message: "Check the club discovery query and try again.",
         requestId: "clubs-invalid-query"
+      }
+    });
+  });
+
+  it("rejects popular discovery limits above 20", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .get("/api/clubs?sort=popular&limit=21")
+      .set("x-request-id", "clubs-popular-limit")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Check the club discovery query and try again.",
+        requestId: "clubs-popular-limit"
       }
     });
   });
@@ -2037,27 +2119,32 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
-  listPublicClubs = async (
-    userId: string,
-    { page, limit }: { page: number; limit: number }
-  ) => {
+  listPublicClubs = async (userId: string, { limit, page, sort }: ListClubsQuery) => {
     const publicClubs = Array.from(this.clubs.values())
       .filter(
         (club) =>
           club.visibility === "PUBLIC" && !this.hasActiveBan(userId, club.id)
       )
-      .sort(
-        (leftClub, rightClub) =>
+      .sort((leftClub, rightClub) => {
+        if (sort === "popular") {
+          const memberCountDifference =
+            this.countClubMembers(rightClub.id) - this.countClubMembers(leftClub.id);
+
+          if (memberCountDifference !== 0) {
+            return memberCountDifference;
+          }
+        }
+
+        return (
           rightClub.createdAt.getTime() - leftClub.createdAt.getTime() ||
           leftClub.id.localeCompare(rightClub.id)
-      );
+        );
+      });
     const start = (page - 1) * limit;
     const clubs = publicClubs.slice(start, start + limit).map((club) => ({
       ...club,
       visibility: "PUBLIC" as const,
-      memberCount: this.memberships.filter(
-        (membership) => membership.clubId === club.id
-      ).length
+      memberCount: this.countClubMembers(club.id)
     }));
 
     return {
@@ -2065,6 +2152,9 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       total: publicClubs.length
     };
   };
+
+  private countClubMembers = (clubId: string) =>
+    this.memberships.filter((membership) => membership.clubId === clubId).length;
 
   private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {
