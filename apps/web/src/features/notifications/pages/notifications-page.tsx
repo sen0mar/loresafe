@@ -219,9 +219,6 @@ export const NotificationsPage = () => {
                   className={cn("size-4", isRefreshing && "animate-spin")}
                 />
               </Button>
-              <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand">
-                <Bell className="size-5" />
-              </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
