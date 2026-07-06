@@ -121,7 +121,7 @@ const DeleteContentDialog = ({
           type="button"
           size="sm"
           variant="ghost"
-          className="text-warning hover:text-primary"
+          className="text-error hover:text-primary"
         >
           <Trash2 />
           Delete

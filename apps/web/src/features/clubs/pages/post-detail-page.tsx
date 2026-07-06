@@ -458,9 +458,7 @@ const CommentsPanel = ({
             <MessageSquareText className="size-5 text-brand" />
             Comments
           </h2>
-          <span className="text-xs text-faint">
-            {post.counts.commentCount} total
-          </span>
+          <span className="text-xs text-faint">{post.counts.commentCount}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

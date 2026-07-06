@@ -770,7 +770,14 @@ const VisiblePostCard = ({
         isUnlocking ? "post-unlock-content" : undefined
       )}
     >
-      <PostMetaRow post={post} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PostMetaRow post={post} />
+        <span className="flex items-center gap-2 text-xs text-faint">
+          <UserCircle className="size-4" />
+          {post.author.displayName}
+          {post.author.username ? ` / ${post.author.username}` : ""}
+        </span>
+      </div>
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-normal text-primary">
           {linked ? (
@@ -791,21 +798,8 @@ const VisiblePostCard = ({
           <PredictionStateBadges prediction={post.prediction} />
         ) : null}
       </div>
-      <div className="soft-section-divider flex flex-wrap items-center justify-between gap-3 pt-3">
-        <span className="flex items-center gap-2 text-xs text-faint">
-          <UserCircle className="size-4" />
-          {post.author.displayName}
-          {post.author.username ? ` / ${post.author.username}` : ""}
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-inset px-3 py-2">
         <div className="relative z-10 flex flex-wrap items-center gap-3">
-          <PostCounts post={post} />
-          <ReportDialog targetId={post.id} targetType="POST" />
-          {post.permissions.canDelete ? (
-            <DeletePostDialog
-              postId={post.id}
-              onDeleted={() => onDeleted?.(post.id)}
-            />
-          ) : null}
           <PostReactionButtons
             counts={post.counts}
             onOptimisticReaction={onOptimisticReaction}
@@ -813,6 +807,16 @@ const VisiblePostCard = ({
             onReactionRollback={onReactionRollback}
             postId={post.id}
           />
+          <PostCounts post={post} />
+        </div>
+        <div className="relative z-10 flex items-center gap-1">
+          <ReportDialog targetId={post.id} targetType="POST" />
+          {post.permissions.canDelete ? (
+            <DeletePostDialog
+              postId={post.id}
+              onDeleted={() => onDeleted?.(post.id)}
+            />
+          ) : null}
         </div>
       </div>
     </CardContent>
@@ -905,18 +909,20 @@ const LockedPostCard = ({
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
       {post.media ? <PostMediaPreview media={post.media} locked /> : null}
-      <div className="soft-section-divider flex flex-wrap items-center justify-between gap-3 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-inset px-3 py-2">
         <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />
           {formatDateTime(post.createdAt)}
         </span>
-        <div className="relative z-10 flex flex-wrap items-center gap-3">
+        <div className="relative z-10 flex flex-1 flex-wrap items-center justify-end gap-3">
           <PostCounts post={post} />
           {post.permissions.canDelete ? (
-            <DeletePostDialog
-              postId={post.id}
-              onDeleted={() => onDeleted?.(post.id)}
-            />
+            <div className="flex items-center gap-1">
+              <DeletePostDialog
+                postId={post.id}
+                onDeleted={() => onDeleted?.(post.id)}
+              />
+            </div>
           ) : null}
         </div>
       </div>

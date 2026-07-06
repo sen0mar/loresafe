@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Compass, Filter, Globe2, PlusCircle, Search } from "lucide-react";
+import { Filter, PlusCircle, Search } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { Badge } from "@/shared/components/ui/badge";
@@ -122,13 +122,9 @@ export const ExplorePage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
-        <section className="soft-section-divider-bottom space-y-4 pb-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <section className="space-y-4 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0 space-y-2">
-              <p className="flex items-center gap-2 text-sm font-medium text-brand">
-                <Compass className="size-4" />
-                Explore
-              </p>
               <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
                 Public clubs
               </h1>
@@ -136,11 +132,7 @@ export const ExplorePage = () => {
                 Find spoiler-safe spaces and discussions that are open for discovery.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge>
-                <Globe2 className="size-3" />
-                Public only
-              </Badge>
+            <div className="flex shrink-0">
               <Button asChild>
                 <Link to="/app/clubs/new">
                   <PlusCircle />

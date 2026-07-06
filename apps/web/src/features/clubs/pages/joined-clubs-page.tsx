@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Search,
   SearchX,
-  ShieldCheck,
   Users
 } from "lucide-react";
 
@@ -73,30 +72,21 @@ export const JoinedClubsPage = () => {
   return (
     <AuthenticatedAppShell>
       <div className="space-y-4">
-        <section className="soft-section-divider-bottom space-y-4 pb-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <section className="space-y-4 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0 space-y-2">
-              <p className="flex items-center gap-2 text-sm font-medium text-brand">
-                <Users className="size-4" />
-                Clubs
-              </p>
               <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
                 {hasQuery ? `Joined clubs matching "${query}"` : "Joined clubs"}
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-muted">
-                Browse the clubs you already belong to. Search here stays inside
-                your memberships.
+                Browse the clubs you already belong to.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                <ShieldCheck className="size-3" />
-                Member-only
-              </Badge>
+            <div className="flex shrink-0">
               <Button asChild variant="secondary">
                 <Link to="/app/explore">
                   <Compass />
-                  Explore
+                  Explore more clubs
                 </Link>
               </Button>
             </div>
@@ -131,21 +121,16 @@ export const JoinedClubsPage = () => {
           )
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted">
-                Showing {memberFormatter.format(clubs.length)} of{" "}
-                {memberFormatter.format(total)} joined{" "}
-                {total === 1 ? "club" : "clubs"}
-              </p>
-              {hasQuery ? (
+            {hasQuery ? (
+              <div className="flex justify-end">
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/app/clubs">
                     <SearchX />
                     Clear search
                   </Link>
                 </Button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {clubs.map((club) => (
                 <JoinedClubCard key={club.id} club={club} />

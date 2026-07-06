@@ -108,6 +108,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 102: Settings tab heading cleanup — Removed the redundant Safe settings wrapper heading and restored top spacing for the first Settings-tab panel.
 - Feature 103: Homepage option grid and popular clubs — Replaced the authenticated home dashboard with three navigation option cards, added popular public club discovery sorting with a 20-club cap, and added a homepage popular preview plus Explore's Most popular filter with focused backend/frontend regression coverage.
 - Feature 104: Section divider and shell polish — Added softened app-shell elevation, shared faded divider utilities across authenticated pages and menus, capped the desktop joined-club sidebar preview with View all links, made the top bar scroll in normal flow with a clickable home brand, and compacted the authenticated homepage viewport layout.
+- Feature 105: App page header and post action polish — Simplified My Clubs, Explore, and profile settings headers, refreshed post footer action grouping, and tightened comment count copy.
 
 ## Entry Format
 
