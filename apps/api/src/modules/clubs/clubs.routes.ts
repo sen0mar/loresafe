@@ -30,6 +30,13 @@ export const createClubsRouter = (
     controller.joinPublicClubByLinkName
   );
 
+  router.post(
+    "/:linkName/leave",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.leaveClubByLinkName
+  );
+
   router.get(
     "/:linkName/members",
     middleware.loadCurrentUser,

@@ -160,6 +160,22 @@ export type ClubSettingsMutationResult =
       status: "ACTOR_BANNED" | "ACTOR_NOT_ALLOWED" | "CLUB_NOT_FOUND";
     };
 
+export type LeaveClubResult =
+  | {
+      status: "SUCCESS";
+      club: {
+        id: string;
+        linkName: string;
+      };
+    }
+  | {
+      status:
+        | "ACTOR_BANNED"
+        | "CLUB_NOT_FOUND"
+        | "LAST_OWNER"
+        | "MEMBER_NOT_FOUND";
+    };
+
 export type JoinPublicClubResult =
   | {
       status: "SUCCESS";
@@ -183,6 +199,10 @@ export type ClubsRepository = {
     linkName: string,
     userId: string
   ) => Promise<JoinPublicClubResult>;
+  leaveClubByLinkName: (
+    linkName: string,
+    userId: string
+  ) => Promise<LeaveClubResult>;
   updateClubSettings: (
     linkName: string,
     actorId: string,
@@ -481,6 +501,89 @@ export const clubsRepository: ClubsRepository = {
       return {
         status: "SUCCESS",
         club: toClubDetailRecord(joinedClub)
+      };
+    }),
+
+  leaveClubByLinkName: (linkName, userId) =>
+    prisma.$transaction(async (transaction) => {
+      const now = new Date();
+      const club = await transaction.club.findUnique({
+        where: {
+          linkName
+        },
+        select: {
+          id: true,
+          linkName: true,
+          memberships: {
+            where: {
+              userId
+            },
+            select: {
+              id: true,
+              role: true
+            },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(userId, now),
+            select: {
+              id: true
+            },
+            take: 1
+          }
+        }
+      });
+
+      if (!club) {
+        return {
+          status: "CLUB_NOT_FOUND"
+        };
+      }
+
+      if (club.bans.length > 0) {
+        return {
+          status: "ACTOR_BANNED"
+        };
+      }
+
+      const membership = club.memberships[0];
+
+      if (!membership) {
+        return {
+          status: "MEMBER_NOT_FOUND"
+        };
+      }
+
+      if (membership.role === "OWNER") {
+        const ownerCount = await transaction.clubMembership.count({
+          where: {
+            clubId: club.id,
+            role: "OWNER"
+          }
+        });
+
+        if (ownerCount <= 1) {
+          return {
+            status: "LAST_OWNER"
+          };
+        }
+      }
+
+      await transaction.clubMembership.delete({
+        where: {
+          id: membership.id
+        },
+        select: {
+          id: true
+        }
+      });
+
+      return {
+        status: "SUCCESS",
+        club: {
+          id: club.id,
+          linkName: club.linkName
+        }
       };
     }),
 

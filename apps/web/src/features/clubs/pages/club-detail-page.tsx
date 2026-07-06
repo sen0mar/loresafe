@@ -1,4 +1,10 @@
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams
+} from "react-router-dom";
 import {
   ArrowLeft,
   BookOpen,
@@ -7,6 +13,7 @@ import {
   KeyRound,
   ListChecks,
   LockKeyhole,
+  LogOut,
   MessageSquareText,
   RefreshCw,
   ShieldCheck,
@@ -36,6 +43,16 @@ import {
   CardContent,
   CardHeader
 } from "@/shared/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/shared/components/ui/dialog";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
   Tabs,
@@ -49,7 +66,8 @@ import {
   type ClubMembershipRole,
   type ClubVisibility,
   useClubQuery,
-  useJoinClubMutation
+  useJoinClubMutation,
+  useLeaveClubMutation
 } from "../api/clubs.js";
 
 const visibilityMeta: Record<
@@ -125,8 +143,10 @@ export const ClubDetailPage = () => {
 
 const ClubDetailContent = ({ club }: { club: Club }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
   const joinClubMutation = useJoinClubMutation();
+  const leaveClubMutation = useLeaveClubMutation();
   const role = club.membership.role;
   const canModerate = role === "OWNER" || role === "MODERATOR";
   const canJoin =
@@ -156,6 +176,23 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
           error instanceof ApiError
             ? error.message
             : "Could not join club. Try again.";
+
+        toast.error(message);
+      }
+    });
+  };
+
+  const leaveClub = () => {
+    leaveClubMutation.mutate(club.linkName, {
+      onSuccess: () => {
+        toast.success("Left club");
+        navigate("/app/clubs", { replace: true });
+      },
+      onError: (error) => {
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : "Could not leave club. Try again.";
 
         toast.error(message);
       }
@@ -212,6 +249,13 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
               <UserPlus />
               {joinClubMutation.isPending ? "Joining" : "Join club"}
             </Button>
+          ) : null}
+          {club.membership.isMember ? (
+            <LeaveClubDialog
+              clubTitle={club.title}
+              isLeaving={leaveClubMutation.isPending}
+              onLeave={leaveClub}
+            />
           ) : null}
         </div>
       </section>
@@ -304,6 +348,63 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         </TabsContent>
       </Tabs>
     </>
+  );
+};
+
+const LeaveClubDialog = ({
+  clubTitle,
+  isLeaving,
+  onLeave
+}: {
+  clubTitle: string;
+  isLeaving: boolean;
+  onLeave: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isLeaving) {
+      setOpen(nextOpen);
+    }
+  };
+
+  const handleLeave = () => {
+    onLeave();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="destructive" disabled={isLeaving}>
+          <LogOut />
+          {isLeaving ? "Leaving" : "Leave club"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Leave {clubTitle}?</DialogTitle>
+          <DialogDescription>
+            You will lose member access until you join again or receive a new
+            invite.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" disabled={isLeaving}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            disabled={isLeaving}
+            onClick={handleLeave}
+          >
+            <LogOut />
+            {isLeaving ? "Leaving" : "Leave club"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

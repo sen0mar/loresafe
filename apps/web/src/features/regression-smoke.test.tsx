@@ -573,6 +573,55 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByText("Recent changes")).not.toBeInTheDocument();
   });
 
+  it("lets members leave a club from the club header", async () => {
+    const fetchMock = mockFetchRoutes([
+      shellRoute("/api/auth/me", { user: authUser }),
+      shellRoute("/api/users/me/clubs", joinedClubsResponse),
+      shellRoute("/api/notifications", notificationsResponse),
+      shellRoute("/api/clubs/safe-club", {
+        club
+      }),
+      {
+        method: "POST",
+        path: "/api/clubs/safe-club/leave",
+        response: {
+          left: true,
+          club: {
+            id: club.id,
+            linkName: club.linkName
+          }
+        }
+      }
+    ]);
+    const pathChanges: string[] = [];
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/app/clubs" element={<div>My Clubs</div>} />
+        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
+      </Routes>,
+      {
+        initialEntries: ["/app/clubs/safe-club"],
+        routeObserver: (path) => pathChanges.push(path)
+      }
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Leave club" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Leave Safe Club?"
+    });
+
+    await user.click(within(dialog).getByRole("button", { name: "Leave club" }));
+
+    await waitFor(() =>
+      expect(
+        findFetchCall(fetchMock, "POST", "/api/clubs/safe-club/leave")
+      ).toBeTruthy()
+    );
+    await waitFor(() => expect(pathChanges.at(-1)).toBe("/app/clubs"));
+  });
+
   it("does not flash the welcome setup dialog while progress is loading", async () => {
     const pendingFetch = vi.fn(
       () => new Promise<Response>(() => undefined)

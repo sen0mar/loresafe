@@ -111,6 +111,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 105: App page header and post action polish — Simplified My Clubs, Explore, and profile settings headers, refreshed post footer action grouping, and tightened comment count copy.
 - Feature 106: Club welcome progress setup — Added persisted per-club progress onboarding completion with a committed migration, required first-open welcome progress setup dialog, progress response flags, and focused backend/frontend regression coverage.
 - Feature 107: Notification management actions — Added owned mark-all-read, single-delete, and delete-all notification endpoints, confirmation dialogs on the notifications page, unread cache refreshes, and focused backend ownership regression coverage.
+- Feature 108: Leave club action — Added member self-service club leaving with last-owner protection, a red club-header leave button with confirmation, cache refresh and My Clubs redirect behavior, plus focused backend/frontend regression coverage.
 
 ## Entry Format
 

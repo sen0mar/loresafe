@@ -124,6 +124,14 @@ export type ClubBanResponse = {
   deletedPostCount: number;
 };
 
+export type LeaveClubResponse = {
+  left: true;
+  club: {
+    id: string;
+    linkName: string;
+  };
+};
+
 export const toClubDiscoveryDto = (
   club: ClubDiscoveryRecord
 ): ClubDiscoveryDto => ({

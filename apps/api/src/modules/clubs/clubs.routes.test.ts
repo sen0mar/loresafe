@@ -20,6 +20,7 @@ import type {
   ClubBanRecord,
   ClubDetailRecord,
   ClubDiscoveryRecord,
+  LeaveClubResult,
   ClubMemberMutationResult,
   ClubMemberRecord,
   ClubSettingsMutationResult,
@@ -476,6 +477,70 @@ describe("clubs routes", () => {
         role: "MODERATOR"
       }
     ]);
+  });
+
+  it("lets a club member leave their club", async () => {
+    const reader = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Leaveable Story Circle",
+      linkName: "leaveable-story-circle",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(reader.id, club.id, "MEMBER");
+
+    const response = await request(app)
+      .post("/api/clubs/leaveable-story-circle/leave")
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      left: true,
+      club: {
+        id: club.id,
+        linkName: "leaveable-story-circle"
+      }
+    });
+    expect(
+      repository.memberships.some(
+        (membership) =>
+          membership.userId === reader.id && membership.clubId === club.id
+      )
+    ).toBe(false);
+  });
+
+  it("prevents a sole owner from leaving their club", async () => {
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Owned Story Circle",
+      linkName: "owned-story-circle",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+
+    const response = await request(app)
+      .post("/api/clubs/owned-story-circle/leave")
+      .set("Cookie", await createSessionCookie(owner))
+      .set("x-request-id", "clubs-leave-last-owner")
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message: "This club must keep at least one owner.",
+        requestId: "clubs-leave-last-owner"
+      }
+    });
+    expect(repository.memberships).toHaveLength(1);
   });
 
   it("lists club members with safe public user fields for members only", async () => {
@@ -1786,6 +1851,48 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return {
       status: "SUCCESS" as const,
       club: this.toClubDetailRecord(club, userId)
+    };
+  };
+
+  leaveClubByLinkName = async (
+    linkName: string,
+    userId: string
+  ): Promise<LeaveClubResult> => {
+    const club = this.findStoredClubByLinkName(linkName);
+
+    if (!club) {
+      return { status: "CLUB_NOT_FOUND" };
+    }
+
+    if (this.hasActiveBan(userId, club.id)) {
+      return { status: "ACTOR_BANNED" };
+    }
+
+    const membership = this.findMembership(userId, club.id);
+
+    if (!membership) {
+      return { status: "MEMBER_NOT_FOUND" };
+    }
+
+    if (
+      membership.role === "OWNER" &&
+      this.memberships.filter(
+        (currentMembership) =>
+          currentMembership.clubId === club.id &&
+          currentMembership.role === "OWNER"
+      ).length <= 1
+    ) {
+      return { status: "LAST_OWNER" };
+    }
+
+    this.removeMembership(userId, club.id);
+
+    return {
+      status: "SUCCESS",
+      club: {
+        id: club.id,
+        linkName: club.linkName
+      }
     };
   };
 

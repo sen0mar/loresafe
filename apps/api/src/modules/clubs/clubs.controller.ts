@@ -21,6 +21,7 @@ export type ClubsController = {
   createClub: RequestHandler;
   getClubByLinkName: RequestHandler;
   joinPublicClubByLinkName: RequestHandler;
+  leaveClubByLinkName: RequestHandler;
   listClubBans: RequestHandler;
   listClubMembers: RequestHandler;
   listClubs: RequestHandler;
@@ -111,6 +112,41 @@ export const createClubsController = (
       }
 
       const response = await service.joinPublicClubByLinkName(
+        parseResult.data.linkName,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  leaveClubByLinkName: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const parseResult = clubLinkNameParamsSchema.safeParse(req.params);
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the leave club request and try again."
+        );
+      }
+
+      if (req.body && Object.keys(req.body).length > 0) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Leave club requests do not accept a body."
+        );
+      }
+
+      const response = await service.leaveClubByLinkName(
         parseResult.data.linkName,
         req.currentUser.id
       );
