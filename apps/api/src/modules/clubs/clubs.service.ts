@@ -3,6 +3,7 @@ import {
   type ClubBanResponse,
   type ClubBansResponse,
   type ClubResponse,
+  type LeaveClubResponse,
   type ClubMemberResponse,
   type ClubMembersResponse,
   type ClubsDiscoveryResponse,
@@ -15,6 +16,7 @@ import {
   type ClubBanMutationResult,
   clubsRepository,
   type ClubMemberMutationResult,
+  type LeaveClubResult,
   type ClubSettingsMutationResult,
   isUniqueConstraintError,
   type ClubsRepository
@@ -42,6 +44,10 @@ export type ClubsService = {
     linkName: string,
     userId: string
   ) => Promise<ClubResponse>;
+  leaveClubByLinkName: (
+    linkName: string,
+    userId: string
+  ) => Promise<LeaveClubResponse>;
   updateClubSettings: (
     linkName: string,
     userId: string,
@@ -134,6 +140,12 @@ export const createClubsService = (
       case "BANNED":
         throw bannedFromClubError();
     }
+  },
+
+  leaveClubByLinkName: async (linkName, userId) => {
+    const result = await repository.leaveClubByLinkName(linkName, userId);
+
+    return toLeaveClubResponse(result);
   },
 
   updateClubSettings: async (linkName, userId, input) => {
@@ -295,6 +307,27 @@ const toClubSettingsMutationResponse = (
         403,
         "FORBIDDEN",
         "Only club owners and moderators can update club settings."
+      );
+  }
+};
+
+const toLeaveClubResponse = (result: LeaveClubResult): LeaveClubResponse => {
+  switch (result.status) {
+    case "SUCCESS":
+      return {
+        left: true,
+        club: result.club
+      };
+    case "CLUB_NOT_FOUND":
+    case "MEMBER_NOT_FOUND":
+      throw new HttpError(404, "NOT_FOUND", "Club membership not found");
+    case "ACTOR_BANNED":
+      throw bannedFromClubError();
+    case "LAST_OWNER":
+      throw new HttpError(
+        409,
+        "CONFLICT",
+        "This club must keep at least one owner."
       );
   }
 };

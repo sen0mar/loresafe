@@ -344,6 +344,14 @@ export type ClubResponse = {
   club: Club;
 };
 
+export type LeaveClubResponse = {
+  left: true;
+  club: {
+    id: string;
+    linkName: string;
+  };
+};
+
 export type ClubMembersResponse = {
   members: ClubMember[];
   pagination: {
@@ -1258,6 +1266,9 @@ export const createClubMilestoneTemplate = (
 export const joinClub = (linkName: string) =>
   apiPost<ClubResponse>(`/api/clubs/${linkName}/join`);
 
+export const leaveClub = (linkName: string) =>
+  apiPost<LeaveClubResponse>(`/api/clubs/${linkName}/leave`);
+
 export const updateClubProgress = (
   linkName: string,
   input: UpdateClubProgressInput
@@ -2109,6 +2120,31 @@ export const useJoinClubMutation = () => {
       });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.dashboardRoot(response.club.linkName)
+      });
+    }
+  });
+};
+
+export const useLeaveClubMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: leaveClub,
+    onSuccess: (response) => {
+      queryClient.removeQueries({
+        queryKey: clubsQueryKeys.detail(response.club.linkName)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.discoveryRoot
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.joined
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.dashboardRoot(response.club.linkName)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.feedRoot(response.club.linkName)
       });
     }
   });
