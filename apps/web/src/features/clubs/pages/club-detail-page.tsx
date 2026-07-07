@@ -206,11 +206,11 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         isMember={club.membership.isMember}
         linkName={club.linkName}
       />
-      <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
+      <section className="soft-section-divider-bottom grid gap-4 pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
           {club.coverUrl ? (
             <img
-              className="size-28 shrink-0 rounded-full border border-default object-cover"
+              className="size-24 shrink-0 rounded-full border border-default object-cover sm:size-28"
               src={club.coverUrl}
               alt={`${club.title} cover`}
             />
@@ -228,7 +228,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
             <p className="text-sm text-faint">/{club.linkName}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2 md:justify-end">
           <Badge>
             <VisibilityIcon className="size-3" />
             {visibilityMeta[club.settings.visibility].label}

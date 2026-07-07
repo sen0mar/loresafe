@@ -147,13 +147,6 @@ export const MobileNav = ({
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="start" className="w-72">
-      <DropdownMenuLabel>
-        <span className="flex items-center gap-2 text-primary">
-          <ShieldCheck className="size-4 text-brand" />
-          ThreadSync
-        </span>
-      </DropdownMenuLabel>
-      <DropdownMenuSeparator />
       {primaryNavItems.map((navItem) => {
         const item = withNotificationBadge(navItem, notificationUnreadCount);
         const Icon = item.icon;

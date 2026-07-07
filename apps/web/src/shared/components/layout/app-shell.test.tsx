@@ -192,6 +192,9 @@ describe("AppShell layout", () => {
 
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
 
+    expect(
+      screen.queryByText("ThreadSync", { selector: "[role='menu'] *" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /^Home$/ })).toHaveAttribute(
       "href",
       "/app"
