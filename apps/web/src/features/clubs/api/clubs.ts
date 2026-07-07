@@ -362,6 +362,11 @@ export type ClubMembersResponse = {
   };
 };
 
+export type ClubMembersQueryInput = {
+  page?: number;
+  q?: string;
+};
+
 export type ClubBansResponse = {
   bans: ClubBan[];
   pagination: {
@@ -895,8 +900,8 @@ export const clubsQueryKeys = {
   progress: (linkName: string) => ["clubs", "detail", linkName, "progress"] as const,
   membersRoot: (linkName: string) =>
     ["clubs", "detail", linkName, "members"] as const,
-  members: (linkName: string, page: number) =>
-    ["clubs", "detail", linkName, "members", page] as const,
+  members: (linkName: string, { page = 1, q = "" }: ClubMembersQueryInput) =>
+    ["clubs", "detail", linkName, "members", { page, q: q.trim() }] as const,
   bansRoot: (linkName: string) =>
     ["clubs", "detail", linkName, "bans"] as const,
   bans: (linkName: string, page: number) =>
@@ -947,10 +952,24 @@ export const getPublicClubs = (input: PublicClubsQueryInput = {}) => {
 export const getClubByLinkName = (linkName: string) =>
   apiGet<ClubResponse>(`/api/clubs/${linkName}`);
 
-export const getClubMembers = (linkName: string, page = 1) =>
-  apiGet<ClubMembersResponse>(
-    `/api/clubs/${linkName}/members?page=${page}&limit=20`
+export const getClubMembers = (
+  linkName: string,
+  { page = 1, q = "" }: ClubMembersQueryInput = {}
+) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: "20"
+  });
+  const normalizedQuery = q.trim();
+
+  if (normalizedQuery) {
+    params.set("q", normalizedQuery);
+  }
+
+  return apiGet<ClubMembersResponse>(
+    `/api/clubs/${linkName}/members?${params.toString()}`
   );
+};
 
 export const getClubBans = (linkName: string, page = 1) =>
   apiGet<ClubBansResponse>(`/api/clubs/${linkName}/bans?page=${page}&limit=20`);
@@ -1319,11 +1338,12 @@ export const useClubProgressQuery = (linkName: string, enabled = true) =>
 export const useClubMembersQuery = (
   linkName: string,
   page: number,
+  q = "",
   enabled = true
 ) =>
   useQuery({
-    queryKey: clubsQueryKeys.members(linkName, page),
-    queryFn: () => getClubMembers(linkName, page),
+    queryKey: clubsQueryKeys.members(linkName, { page, q }),
+    queryFn: () => getClubMembers(linkName, { page, q }),
     enabled: enabled && linkName.length > 0
   });
 

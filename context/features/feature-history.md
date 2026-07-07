@@ -113,6 +113,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 107: Notification management actions — Added owned mark-all-read, single-delete, and delete-all notification endpoints, confirmation dialogs on the notifications page, unread cache refreshes, and focused backend ownership regression coverage.
 - Feature 108: Leave club action — Added member self-service club leaving with last-owner protection, a red club-header leave button with confirmation, cache refresh and My Clubs redirect behavior, plus focused backend/frontend regression coverage.
 - Feature 109: Mobile club header and menu polish — Stacked club header metadata/actions cleanly on mobile, removed the redundant mobile drawer brand row, and added focused shell regression coverage.
+- Feature 110: Club members search — Added bounded member roster search by display name or username, kept the existing member-only roster policy and pagination, added a Members-tab search bar, and covered backend/frontend behavior with focused regression tests.
 
 ## Entry Format
 

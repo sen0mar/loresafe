@@ -52,11 +52,22 @@ export const listClubsQuerySchema = z
 export const listClubMembersQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(50).default(20)
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    q: z
+      .string()
+      .trim()
+      .max(80)
+      .transform((value) => (value.length > 0 ? value : null))
+      .optional()
   })
   .strict();
 
-export const listClubBansQuerySchema = listClubMembersQuerySchema;
+export const listClubBansQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20)
+  })
+  .strict();
 
 export const createClubRequestSchema = z
   .object({

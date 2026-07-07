@@ -34,6 +34,7 @@ import type {
   ClubCategory,
   CreateClubRequest,
   ListClubBansQuery,
+  ListClubMembersQuery,
   ListClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
@@ -605,6 +606,72 @@ describe("clubs routes", () => {
 
     await request(app)
       .get("/api/clubs/member-list-club/members")
+      .set("Cookie", await createSessionCookie(outsider))
+      .expect(404);
+  });
+
+  it("searches club members by display name while preserving member-only access", async () => {
+    const owner = await repository.createUser({
+      email: "owner-search@example.com",
+      displayName: "Owner Search",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const matchingReader = await repository.createUser({
+      email: "matching-reader@example.com",
+      displayName: "Azure Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const otherReader = await repository.createUser({
+      email: "other-reader@example.com",
+      displayName: "Quiet Viewer",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const outsider = await repository.createUser({
+      email: "outsider-search@example.com",
+      displayName: "Roster Outsider",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Member Search Club",
+      linkName: "member-search-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const matchingMembershipId = repository.createMembership(
+      matchingReader.id,
+      club.id,
+      "MEMBER"
+    );
+    repository.createMembership(otherReader.id, club.id, "MEMBER");
+
+    const response = await request(app)
+      .get("/api/clubs/member-search-club/members?q=azure")
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      members: [
+        {
+          id: matchingMembershipId,
+          role: "MEMBER",
+          user: {
+            id: matchingReader.id,
+            displayName: "Azure Reader"
+          }
+        }
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        pageCount: 1
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("Quiet Viewer");
+
+    await request(app)
+      .get("/api/clubs/member-search-club/members?q=azure")
       .set("Cookie", await createSessionCookie(outsider))
       .expect(404);
   });
@@ -1934,8 +2001,9 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   listClubMembersByLinkName = async (
     linkName: string,
     userId: string,
-    { page, limit }: { page: number; limit: number }
+    query: ListClubMembersQuery
   ) => {
+    const { page, limit } = query;
     const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
@@ -1962,8 +2030,23 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       };
     }
 
+    const normalizedQuery = query.q?.toLowerCase() ?? null;
     const members = this.memberships
       .filter((membership) => membership.clubId === club.id)
+      .filter((membership) => {
+        if (!normalizedQuery) {
+          return true;
+        }
+
+        const user = this.findUserById(membership.userId);
+        const username = user?.username?.toLowerCase() ?? "";
+        const displayName = user?.displayName.toLowerCase() ?? "";
+
+        return (
+          displayName.includes(normalizedQuery) ||
+          username.includes(normalizedQuery)
+        );
+      })
       .sort(
         (left, right) =>
           roleSortValue(left.role) - roleSortValue(right.role) ||
