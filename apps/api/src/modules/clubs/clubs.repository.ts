@@ -668,7 +668,7 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  listClubMembersByLinkName: async (linkName, userId, { page, limit }) => {
+  listClubMembersByLinkName: async (linkName, userId, { page, limit, q }) => {
     const skip = (page - 1) * limit;
     const now = new Date();
     const club = await prisma.club.findUnique({
@@ -719,11 +719,33 @@ export const clubsRepository: ClubsRepository = {
       };
     }
 
+    const memberWhere: Prisma.ClubMembershipWhereInput = {
+      clubId: club.id,
+      ...(q
+        ? {
+            user: {
+              OR: [
+                {
+                  displayName: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                },
+                {
+                  username: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
+              ]
+            }
+          }
+        : {})
+    };
+
     const [members, total] = await prisma.$transaction([
       prisma.clubMembership.findMany({
-        where: {
-          clubId: club.id
-        },
+        where: memberWhere,
         orderBy: [
           {
             role: "asc"
@@ -740,9 +762,7 @@ export const clubsRepository: ClubsRepository = {
         select: clubMemberSelect(club.id, now)
       }),
       prisma.clubMembership.count({
-        where: {
-          clubId: club.id
-        }
+        where: memberWhere
       })
     ]);
 

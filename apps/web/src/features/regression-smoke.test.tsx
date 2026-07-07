@@ -1215,6 +1215,48 @@ describe("frontend regression smoke", () => {
     ).toBeUndefined();
   });
 
+  it("searches club members from the members tab", async () => {
+    const fetchMock = mockFetchRoutes([
+      {
+        method: "GET",
+        path: "/api/clubs/safe-club/members",
+        response: ({ searchParams }: { searchParams: URLSearchParams }) => {
+          const query = searchParams.get("q") ?? "";
+          const members = query === "target" ? [moderatedClubMember] : [];
+
+          return {
+            members,
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: members.length,
+              pageCount: 1
+            }
+          };
+        }
+      }
+    ]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<ClubMembersTab club={club} />);
+
+    await user.type(screen.getByLabelText("Search members"), " target ");
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some((call) => {
+          const url = new URL(String(call[0]), "http://localhost:5173");
+
+          return (
+            url.pathname === "/api/clubs/safe-club/members" &&
+            url.searchParams.get("q") === "target"
+          );
+        })
+      ).toBe(true);
+    });
+    expect(await screen.findByText("Target Member")).toBeVisible();
+  });
+
   it("does not show recently unlocked content on the club overview", async () => {
     const fetchMock = mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),

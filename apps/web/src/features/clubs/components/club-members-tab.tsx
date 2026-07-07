@@ -2,12 +2,13 @@ import {
   Ban,
   ChevronDown,
   RefreshCw,
+  Search,
   ShieldCheck,
   Trash2,
   UserCog,
   Users
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/shared/api/api-client";
@@ -42,6 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/shared/components/ui/dropdown-menu";
+import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { getUserInitials } from "@/shared/lib/user-display";
 
@@ -92,12 +94,25 @@ const canManageBans = (role: ClubMembershipRole | null) =>
 
 export const ClubMembersTab = ({ club }: { club: Club }) => {
   const [page, setPage] = useState(1);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchValue = searchValue.trim();
   const membersQuery = useClubMembersQuery(
     club.linkName,
     page,
+    searchQuery,
     club.membership.isMember
   );
   const pagination = membersQuery.data?.pagination;
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1);
+      setSearchQuery(normalizedSearchValue);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [normalizedSearchValue]);
 
   return (
     <div className="space-y-4">
@@ -110,6 +125,17 @@ export const ClubMembersTab = ({ club }: { club: Club }) => {
           <Badge variant="secondary">{club.memberCount} total</Badge>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="relative" role="search">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
+            <Input
+              type="search"
+              aria-label="Search members"
+              placeholder="Search members by name or username..."
+              className="h-10 pl-9"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+            />
+          </div>
           {membersQuery.isPending ? (
             <MembersLoading />
           ) : membersQuery.isError ? (
@@ -118,7 +144,7 @@ export const ClubMembersTab = ({ club }: { club: Club }) => {
               onRetry={() => void membersQuery.refetch()}
             />
           ) : membersQuery.data.members.length === 0 ? (
-            <MembersEmpty />
+            <MembersEmpty searchQuery={searchQuery} />
           ) : (
             <>
               <div className="space-y-3">
@@ -578,12 +604,17 @@ const BansError = ({
   );
 };
 
-const MembersEmpty = () => (
+const MembersEmpty = ({ searchQuery }: { searchQuery?: string }) => (
   <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-default bg-inset p-6 text-center">
     <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-active text-brand">
       <Users className="size-6" />
     </span>
-    <h3 className="text-base font-semibold text-primary">No members yet</h3>
+    <h3 className="text-base font-semibold text-primary">
+      {searchQuery ? "No members found" : "No members yet"}
+    </h3>
+    {searchQuery ? (
+      <p className="text-sm text-muted">Try another name or username.</p>
+    ) : null}
   </div>
 );
 
