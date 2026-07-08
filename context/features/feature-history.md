@@ -125,6 +125,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 119: Render web startup fix — Split API web startup from Prisma migration deploys so Render can bind the Express port immediately while migrations run through a pre-deploy command.
 - Feature 120: Custom production domains — Pointed public origins and SEO metadata to `loresafe.org`, updated Vercel API and sitemap rewrites for `api.loresafe.org`, documented Vercel/Render deployment domains, and refreshed focused config coverage.
 - Feature 121: Apex domain SEO cutover — Added permanent apex-host redirects for `www` and Vercel hosts, set the production CORS example to `loresafe.org`, and covered redirect plus legacy-host SEO regressions.
+- Feature 122: Landing footer polish — Replaced the public landing teaser strip with an animated scroll arrow, added a compact footer with centered navigation and copyright, refreshed FAQ copy, and added focused landing-page regression coverage.
 
 ## Entry Format
 
