@@ -1,4 +1,4 @@
-# ThreadSync Agent Context
+# LoreSafe Agent Context
 
 Read these before implementation:
 

@@ -58,7 +58,7 @@ const RouteErrorFallback = () => (
         <div>
           <h1 className="text-lg font-semibold">Something went wrong</h1>
           <p className="mt-2 text-sm leading-6 text-muted">
-            ThreadSync hit an unexpected error. Refresh the page and try again.
+            LoreSafe hit an unexpected error. Refresh the page and try again.
           </p>
         </div>
       </div>

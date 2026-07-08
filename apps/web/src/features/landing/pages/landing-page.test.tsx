@@ -11,7 +11,7 @@ describe("LandingPage", () => {
     renderWithProviders(<LandingPage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "ThreadSync" })
+      screen.getByRole("heading", { level: 1, name: "LoreSafe" })
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -28,7 +28,7 @@ describe("LandingPage", () => {
     );
     expect(
       screen.getByRole("img", {
-        name: /ThreadSync spoiler-safe discussion dashboard preview/i
+        name: /LoreSafe spoiler-safe discussion dashboard preview/i
       })
     ).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("LandingPage", () => {
     const publicRender = render(<App />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "ThreadSync" })
+      screen.getByRole("heading", { level: 1, name: "LoreSafe" })
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 

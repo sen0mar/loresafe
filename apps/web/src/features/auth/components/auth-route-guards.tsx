@@ -34,7 +34,7 @@ export const ProtectedRoute = ({ children }: AuthRouteGuardProps) => {
     return (
       <AuthRouteStatus
         title="Session check failed"
-        body="ThreadSync could not confirm your session."
+        body="LoreSafe could not confirm your session."
         actionLabel="Try again"
         onAction={() => void meQuery.refetch()}
       />

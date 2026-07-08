@@ -1,14 +1,14 @@
-# ThreadSync
+# LoreSafe
 
 ## Overview
 
-ThreadSync is a progress-aware social discussion app for books, shows, anime, manga, films, games, podcasts, courses, and custom story timelines. Users join clubs, set their progress, and only see discussions, comments, notifications, and media that are safe for their current point in the story.
+LoreSafe is a progress-aware social discussion app for books, shows, anime, manga, films, games, podcasts, courses, and custom story timelines. Users join clubs, set their progress, and only see discussions, comments, notifications, and media that are safe for their current point in the story.
 
 The initial version should stay focused on the spoiler-safe social loop: create/join a club, define milestones, update progress, discuss safely, and moderate mistakes.
 
 ## Core Problem
 
-Normal discussion spaces rely on manual spoiler tags. ThreadSync makes spoiler safety a system rule by attaching content visibility to each user's progress.
+Normal discussion spaces rely on manual spoiler tags. LoreSafe makes spoiler safety a system rule by attaching content visibility to each user's progress.
 
 ## Primary Users
 

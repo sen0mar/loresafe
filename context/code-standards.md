@@ -66,7 +66,7 @@
 Recommended structure:
 
 ```txt
-threadsync/
+loresafe/
   apps/
     web/
       src/

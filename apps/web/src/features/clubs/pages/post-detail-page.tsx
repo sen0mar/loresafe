@@ -354,7 +354,7 @@ const DeletedPostNotice = () => (
       <div>
         <h1 className="text-lg font-semibold text-primary">Post deleted</h1>
         <p className="mt-1 max-w-lg text-sm leading-6 text-muted">
-          This discussion is no longer available in normal ThreadSync views.
+          This discussion is no longer available in normal LoreSafe views.
         </p>
       </div>
     </CardContent>

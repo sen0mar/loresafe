@@ -679,9 +679,9 @@ const extractSessionCookie = (response: Response) => {
 const tamperToken = (token: string) => {
   const parts = token.split(".");
   const signature = parts[2] ?? "";
-  const replacement = signature.endsWith("a") ? "b" : "a";
+  const replacement = signature.startsWith("a") ? "b" : "a";
 
-  parts[2] = `${signature.slice(0, -1)}${replacement}`;
+  parts[2] = `${replacement}${signature.slice(1)}`;
 
   return parts.join(".");
 };

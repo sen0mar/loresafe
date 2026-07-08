@@ -100,7 +100,7 @@ describe("AppShell layout", () => {
     );
 
     expect(screen.getByRole("banner")).not.toHaveClass("sticky");
-    expect(screen.getByRole("link", { name: "ThreadSync home" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "LoreSafe home" })).toHaveAttribute(
       "href",
       "/app"
     );
@@ -193,7 +193,7 @@ describe("AppShell layout", () => {
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
 
     expect(
-      screen.queryByText("ThreadSync", { selector: "[role='menu'] *" })
+      screen.queryByText("LoreSafe", { selector: "[role='menu'] *" })
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /^Home$/ })).toHaveAttribute(
       "href",

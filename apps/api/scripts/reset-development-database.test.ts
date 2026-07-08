@@ -11,7 +11,7 @@ describe("reset development database script", () => {
     expect(() =>
       readDevelopmentResetConfig({
         DEV_DATABASE_RESET_DATABASE_URL:
-          "postgresql://dev_user:dev_pass@localhost:5432/threadsync_dev",
+          "postgresql://dev_user:dev_pass@localhost:5432/loresafe_dev",
         NODE_ENV: "production"
       })
     ).toThrow("NODE_ENV is exactly development");
@@ -19,7 +19,7 @@ describe("reset development database script", () => {
     expect(() =>
       readDevelopmentResetConfig({
         DEV_DATABASE_RESET_DATABASE_URL:
-          "postgresql://dev_user:dev_pass@localhost:5432/threadsync_dev",
+          "postgresql://dev_user:dev_pass@localhost:5432/loresafe_dev",
         NODE_ENV: "test"
       })
     ).toThrow("NODE_ENV is exactly development");
@@ -55,13 +55,13 @@ describe("reset development database script", () => {
 
   it("uses the development reset URL when running the existing seed", () => {
     const developmentDatabaseUrl =
-      "postgresql://dev_user:dev_pass@localhost:5432/threadsync_dev";
+      "postgresql://dev_user:dev_pass@localhost:5432/loresafe_dev";
     const command = buildSeedCommand(
       developmentDatabaseUrl,
       "/repo/apps/api",
       {
         DATABASE_URL:
-          "postgresql://prod_user:prod_pass@db.example.com:5432/threadsync_prod",
+          "postgresql://prod_user:prod_pass@db.example.com:5432/loresafe_prod",
         NODE_ENV: "production",
         PATH: "/usr/bin"
       }

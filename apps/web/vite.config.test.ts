@@ -12,7 +12,7 @@ describe("Vite environment config", () => {
       JWT_SECRET: "secret",
       R2_SECRET_ACCESS_KEY: "secret",
       UPSTASH_REDIS_REST_TOKEN: "secret",
-      VITE_API_BASE_URL: "https://api.threadsync.example",
+      VITE_API_BASE_URL: "https://api.loresafe.example",
       VITE_SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
     } as Partial<
       Record<(typeof publicClientEnvKeys)[number] | "VITE_API_BASE_URL", string>

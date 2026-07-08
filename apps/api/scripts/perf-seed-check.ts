@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { normalizeNameReservationKey } from "../src/core/identity/user-names.js";
 import { prisma } from "../src/core/prisma/client.js";
 
-const PERF_PREFIX = "threadsync-perf";
+const PERF_PREFIX = "loresafe-perf";
 const PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$perf$perf";
 const now = new Date("2026-06-17T12:00:00.000Z");
 const emojiSet = ["👍", "❤️", "😂", "😮", "👀"] as const;
@@ -45,7 +45,7 @@ const seedPerfData = async () => {
     id: uuidFor(`${PERF_PREFIX}:user:${index}`),
     email: `${PERF_PREFIX}-${index}@example.com`,
     displayName: `Perf Reader ${index}`,
-    username: `threadsync_perf_${index}`,
+    username: `loresafe_perf_${index}`,
     passwordHash: PASSWORD_HASH,
     createdAt: now,
     updatedAt: now
@@ -54,7 +54,7 @@ const seedPerfData = async () => {
     id: uuidFor(`${PERF_PREFIX}:outsider`),
     email: `${PERF_PREFIX}-outsider@example.com`,
     displayName: "Perf Outsider",
-    username: "threadsync_perf_outsider",
+    username: "loresafe_perf_outsider",
     passwordHash: PASSWORD_HASH,
     createdAt: now,
     updatedAt: now
@@ -62,7 +62,7 @@ const seedPerfData = async () => {
   const allUsers = [...users, outsider];
   const clubs = Array.from({ length: 8 }, (_, index) => ({
     id: uuidFor(`${PERF_PREFIX}:club:${index}`),
-    title: `ThreadSync Perf Club ${index}`,
+    title: `LoreSafe Perf Club ${index}`,
     linkName: `${PERF_PREFIX}-club-${index}`,
     description: `Volume club ${index} for feed search moderation checks.`,
     category: index % 2 === 0 ? "BOOKS" : "GAMES",

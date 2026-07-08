@@ -29,7 +29,7 @@ const notificationJobOptions = {
 
 export const notificationBoss = new PgBoss({
   connectionString: env.DATABASE_URL,
-  application_name: "threadsync-api-jobs"
+  application_name: "loresafe-api-jobs"
 });
 
 notificationBoss.on("error", (error) => {

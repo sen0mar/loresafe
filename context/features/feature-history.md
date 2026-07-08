@@ -5,7 +5,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 ## Completed Features
 
 - Feature 1: Runnable app shell — Added the pnpm workspace, database-free Express health API with validated env and credentialed CORS, Vite React home route with live TanStack Query health status, and focused API tests.
-- Feature 2: Frontend foundation — Added Tailwind CSS v4, ThreadSync semantic tokens, shadcn/ui basics, Sonner toast support, and a responsive app shell that keeps API health visible.
+- Feature 2: Frontend foundation — Added Tailwind CSS v4, LoreSafe semantic tokens, shadcn/ui basics, Sonner toast support, and a responsive app shell that keeps API health visible.
 - Feature 3: Signup auth foundation — Added Prisma/PostgreSQL config with the initial users migration, Argon2id password hashing, HttpOnly JWT signup sessions, a demo user seed, and a real `/signup` form.
 - Feature 4: Login/logout auth loop — Added login, logout, and current-user auth APIs with generic credential errors, safe profile responses, frontend auth hooks, a `/login` route, current-user header UI, and a smaller split app shell.
 - Feature 5: Auth middleware and protected profile — Added reusable session-loading middleware with `requireUser`, protected current-user API handling, frontend protected/public-only route guards, and a `/app/profile` page for the authenticated user.
@@ -58,7 +58,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 52: Explore club navigation — Made public club discovery cards link to their club detail pages with accessible focus states and focused frontend regression coverage.
 - Feature 53: Dark theme color refresh — Updated global UI tokens with a flatter near-black background, vivid steel-blue accents, simplified app background, and removed shared panel shadows.
 - Feature 54: Full-width app page layout — Made the authenticated shell reserve the right-rail column only when a page provides right-rail content, preserving Home while letting Explore, Settings, club detail, and Notifications fill the available width with focused layout regression coverage.
-- Feature 55: Public landing page hero — Added a public ThreadSync landing page with generated hero artwork, cursor-following demo tilt, signup/login entry points, `/app` authenticated home routing, and focused frontend regression coverage.
+- Feature 55: Public landing page hero — Added a public LoreSafe landing page with generated hero artwork, cursor-following demo tilt, signup/login entry points, `/app` authenticated home routing, and focused frontend regression coverage.
 - Feature 56: Login page copy refresh — Replaced the technical login page intro with warmer welcome copy and allowed auth pages to omit the eyebrow label when it would be redundant.
 - Feature 57: Login home navigation — Added a visible top-left login page button that returns visitors to the public home page, with focused route coverage.
 - Feature 58: Auth password form polish — Added signup password confirmation, animated password reveal controls for login and signup, request payload shaping to exclude confirmation, and focused frontend regression coverage.
@@ -114,6 +114,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 108: Leave club action — Added member self-service club leaving with last-owner protection, a red club-header leave button with confirmation, cache refresh and My Clubs redirect behavior, plus focused backend/frontend regression coverage.
 - Feature 109: Mobile club header and menu polish — Stacked club header metadata/actions cleanly on mobile, removed the redundant mobile drawer brand row, and added focused shell regression coverage.
 - Feature 110: Club members search — Added bounded member roster search by display name or username, kept the existing member-only roster policy and pagination, added a Members-tab search bar, and covered backend/frontend behavior with focused regression tests.
+- Feature 111: LoreSafe rename — Renamed former-brand references to LoreSafe across source, docs, package metadata, runtime defaults, deployment examples, test fixtures, tracked assets, and local integration naming, with clean old-name scans and full typecheck/test/build verification.
 
 ## Entry Format
 

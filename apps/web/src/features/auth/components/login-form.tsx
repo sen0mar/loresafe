@@ -145,7 +145,7 @@ export const LoginForm = () => {
         </form>
 
         <p className="mt-4 text-center text-sm text-faint">
-          New to ThreadSync?{" "}
+          New to LoreSafe?{" "}
           <Link className="text-brand hover:underline" to={signupPath}>
             Create an account
           </Link>

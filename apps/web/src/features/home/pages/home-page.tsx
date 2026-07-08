@@ -66,7 +66,7 @@ export const HomePage = () => {
             What would you like to do?
           </h1>
           <p className="max-w-2xl text-sm leading-5 text-muted">
-            Choose where to start in ThreadSync.
+            Choose where to start in LoreSafe.
           </p>
         </section>
 

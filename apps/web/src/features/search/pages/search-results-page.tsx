@@ -331,7 +331,7 @@ const SearchPrompt = () => (
       </span>
       <div>
         <h2 className="text-lg font-semibold text-primary">
-          Search ThreadSync
+          Search LoreSafe
         </h2>
         <p className="mt-1 max-w-md text-sm leading-6 text-muted">
           Use the search bar above to find clubs and spoiler-safe discussions.

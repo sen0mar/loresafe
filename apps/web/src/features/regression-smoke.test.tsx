@@ -237,7 +237,7 @@ describe("frontend regression smoke", () => {
   });
 
   it("deletes the account from danger zone and redirects home", async () => {
-    window.localStorage.setItem("threadsync:auth-session", "present");
+    window.localStorage.setItem("loresafe:auth-session", "present");
 
     const fetchMock = mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -276,7 +276,7 @@ describe("frontend regression smoke", () => {
       confirmation: "delete"
     });
     expect(queryClient.getQueryData(authQueryKeys.me)).toBeNull();
-    expect(window.localStorage.getItem("threadsync:auth-session")).toBeNull();
+    expect(window.localStorage.getItem("loresafe:auth-session")).toBeNull();
   });
 
   it("shows sole-owner guidance when account deletion is blocked", async () => {

@@ -1,11 +1,11 @@
 ---
 name: commenter
-description: Use after a ThreadSync feature or bug fix is implemented when the user asks to add comments, clarify code, or run commenter. Add only concise comments to changed non-obvious security, spoiler/progress, auth, async, query, or transaction logic; do not refactor, restyle, or comment obvious code.
+description: Use after a LoreSafe feature or bug fix is implemented when the user asks to add comments, clarify code, or run commenter. Add only concise comments to changed non-obvious security, spoiler/progress, auth, async, query, or transaction logic; do not refactor, restyle, or comment obvious code.
 ---
 
 # Commenter
 
-Add sparse, high-value comments to the current ThreadSync change.
+Add sparse, high-value comments to the current LoreSafe change.
 
 ## Inputs
 

@@ -1,11 +1,11 @@
 ---
 name: tester
-description: Use after a ThreadSync feature or bug fix is implemented when the user asks to add, update, or run tests. Create the smallest meaningful tests for changed behavior only, prioritizing backend auth, spoiler/progress visibility, policies, validation, and user-visible frontend behavior; do not broaden scope or add placeholder tests.
+description: Use after a LoreSafe feature or bug fix is implemented when the user asks to add, update, or run tests. Create the smallest meaningful tests for changed behavior only, prioritizing backend auth, spoiler/progress visibility, policies, validation, and user-visible frontend behavior; do not broaden scope or add placeholder tests.
 ---
 
 # Tester
 
-Add focused tests for the current ThreadSync change.
+Add focused tests for the current LoreSafe change.
 
 ## Inputs
 

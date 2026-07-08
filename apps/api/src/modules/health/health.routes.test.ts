@@ -11,7 +11,7 @@ describe("health routes", () => {
     const response = await request(app).get("/api/health").expect(200);
 
     expect(response.body).toMatchObject({
-      appName: "ThreadSync",
+      appName: "LoreSafe",
       status: "ok"
     });
     expect(new Date(response.body.timestamp).toISOString()).toBe(
@@ -35,9 +35,9 @@ describe("health routes", () => {
   it("allows only configured production CORS origins", async () => {
     const productionApp = createApp(
       parseEnv({
-        CLIENT_ORIGIN: "https://legacy.threadsync.example",
-        CLIENT_ORIGINS: "https://app.threadsync.example,https://admin.threadsync.example",
-        DATABASE_URL: "postgresql://user:pass@localhost:5432/threadsync",
+        CLIENT_ORIGIN: "https://legacy.loresafe.example",
+        CLIENT_ORIGINS: "https://app.loresafe.example,https://admin.loresafe.example",
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
         DEMO_USER_DISPLAY_NAME: "Demo Reader",
         DEMO_USER_EMAIL: "demo@example.com",
         DEMO_USER_PASSWORD: "correct horse battery",
@@ -45,8 +45,8 @@ describe("health routes", () => {
         NODE_ENV: "production",
         R2_ACCESS_KEY_ID: "r2-access-key",
         R2_ACCOUNT_ID: "r2-account",
-        R2_BUCKET_NAME: "threadsync-assets",
-        R2_PUBLIC_BASE_URL: "https://cdn.threadsync.example",
+        R2_BUCKET_NAME: "loresafe-assets",
+        R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
         R2_SECRET_ACCESS_KEY: "r2-secret-key",
         SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
         UPSTASH_REDIS_REST_TOKEN: "redis-token",
@@ -56,11 +56,11 @@ describe("health routes", () => {
 
     const allowedResponse = await request(productionApp)
       .get("/api/health")
-      .set("Origin", "https://app.threadsync.example")
+      .set("Origin", "https://app.loresafe.example")
       .expect(200);
 
     expect(allowedResponse.headers["access-control-allow-origin"]).toBe(
-      "https://app.threadsync.example"
+      "https://app.loresafe.example"
     );
     expect(allowedResponse.headers["access-control-allow-credentials"]).toBe(
       "true"

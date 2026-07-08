@@ -1,10 +1,10 @@
-# ThreadSync Codex Skills
+# LoreSafe Codex Skills
 
 This folder contains three Codex-compatible skills:
 
 - `tester` — adds focused tests for the feature just built.
 - `commenter` — adds concise comments to the non-obvious parts of the feature just built.
-- `cleaner` — performs precise cleanup refactors on user-directed ThreadSync code.
+- `cleaner` — performs precise cleanup refactors on user-directed LoreSafe code.
 
 ## Install
 

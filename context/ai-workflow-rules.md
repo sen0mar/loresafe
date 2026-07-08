@@ -2,7 +2,7 @@
 
 ## Development Approach
 
-Build ThreadSync incrementally. Context files define the product, architecture, UI direction, and current feature scope. Do not infer major behavior that is not documented.
+Build LoreSafe incrementally. Context files define the product, architecture, UI direction, and current feature scope. Do not infer major behavior that is not documented.
 
 ## Feature Branch Workflow
 

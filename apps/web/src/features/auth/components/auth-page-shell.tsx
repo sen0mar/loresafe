@@ -29,9 +29,7 @@ export const AuthPageShell = ({
           <span className="flex size-12 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
             <ShieldCheck className="size-7" />
           </span>
-          <span className="text-2xl font-semibold tracking-normal">
-            Thread<span className="text-brand">Sync</span>
-          </span>
+          <span className="text-2xl font-semibold tracking-normal">LoreSafe</span>
         </div>
 
         <div className="max-w-2xl space-y-4">

@@ -164,7 +164,7 @@ export const resetDevelopmentDatabase = async () => {
   loadDevelopmentResetEnv();
   const { databaseUrl } = readDevelopmentResetConfig(process.env);
   const client = new Client({
-    application_name: "threadsync-development-database-reset",
+    application_name: "loresafe-development-database-reset",
     connectionString: databaseUrl
   });
 

@@ -20,11 +20,11 @@ export const LandingPage = () => (
           </div>
           <div className="space-y-5">
             <h1 className="max-w-lg text-5xl font-semibold tracking-normal text-primary sm:text-6xl lg:text-7xl">
-              ThreadSync
+              LoreSafe
             </h1>
             <p className="max-w-lg text-base leading-7 text-secondary sm:text-lg sm:leading-8">
               Discuss books, shows, games, and courses without stumbling into
-              spoilers. ThreadSync keeps every club conversation matched to
+              spoilers. LoreSafe keeps every club conversation matched to
               where you are in the story.
             </p>
           </div>

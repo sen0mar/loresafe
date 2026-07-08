@@ -54,133 +54,133 @@ describe("rate limit defaults", () => {
       "auth-login": {
         limit: 60,
         skipSuccessfulRequests: true,
-        storePrefix: "threadsync:rl:auth:login:",
+        storePrefix: "loresafe:rl:auth:login:",
         windowMs: 15 * 60 * 1000
       },
       "auth-logout": {
         limit: 90,
         skipSuccessfulRequests: false,
-        storePrefix: "threadsync:rl:auth:logout:",
+        storePrefix: "loresafe:rl:auth:logout:",
         windowMs: 60 * 1000
       },
       "auth-passwordReset": {
         limit: 9,
         skipSuccessfulRequests: false,
-        storePrefix: "threadsync:rl:auth:password-reset:",
+        storePrefix: "loresafe:rl:auth:password-reset:",
         windowMs: 60 * 60 * 1000
       },
       "auth-signup": {
         limit: 60,
         skipSuccessfulRequests: false,
-        storePrefix: "threadsync:rl:auth:signup:",
+        storePrefix: "loresafe:rl:auth:signup:",
         windowMs: 60 * 60 * 1000
       },
       "users-profile-update": {
         limit: 60,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:users:profile-update:",
+        storePrefix: "loresafe:rl:users:profile-update:",
         windowMs: 10 * 60 * 1000
       },
       "users-account-delete": {
         limit: 6,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:users:account-delete:",
+        storePrefix: "loresafe:rl:users:account-delete:",
         windowMs: 60 * 60 * 1000
       },
       "uploads-public-assets": {
         limit: 90,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:uploads:public-assets:",
+        storePrefix: "loresafe:rl:uploads:public-assets:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-create": {
         limit: 45,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:create:",
+        storePrefix: "loresafe:rl:clubs:create:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-join": {
         limit: 90,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:join:",
+        storePrefix: "loresafe:rl:clubs:join:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-invites-create": {
         limit: 60,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:invites:create:",
+        storePrefix: "loresafe:rl:clubs:invites:create:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-members-manage": {
         limit: 180,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:members:manage:",
+        storePrefix: "loresafe:rl:clubs:members:manage:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-settings-update": {
         limit: 120,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:settings:update:",
+        storePrefix: "loresafe:rl:clubs:settings:update:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-milestones-create": {
         limit: 90,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:milestones:create:",
+        storePrefix: "loresafe:rl:clubs:milestones:create:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-posts-create": {
         limit: 90,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:posts:create:",
+        storePrefix: "loresafe:rl:clubs:posts:create:",
         windowMs: 10 * 60 * 1000
       },
       "posts-comments-create": {
         limit: 120,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:posts:comments:create:",
+        storePrefix: "loresafe:rl:posts:comments:create:",
         windowMs: 10 * 60 * 1000
       },
       "posts-reactions-toggle": {
         limit: 240,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:posts:reactions:toggle:",
+        storePrefix: "loresafe:rl:posts:reactions:toggle:",
         windowMs: 10 * 60 * 1000
       },
       "reports-create": {
         limit: 30,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:reports:create:",
+        storePrefix: "loresafe:rl:reports:create:",
         windowMs: 10 * 60 * 1000
       },
       search: {
         limit: 360,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:search:",
+        storePrefix: "loresafe:rl:search:",
         windowMs: 10 * 60 * 1000
       },
       "moderation-actions": {
         limit: 180,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:moderation:actions:",
+        storePrefix: "loresafe:rl:moderation:actions:",
         windowMs: 10 * 60 * 1000
       },
       "comments-reactions-toggle": {
         limit: 240,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:comments:reactions:toggle:",
+        storePrefix: "loresafe:rl:comments:reactions:toggle:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-progress-update": {
         limit: 120,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:clubs:progress:update:",
+        storePrefix: "loresafe:rl:clubs:progress:update:",
         windowMs: 10 * 60 * 1000
       },
       "invites-accept": {
         limit: 90,
         skipSuccessfulRequests: undefined,
-        storePrefix: "threadsync:rl:invites:accept:",
+        storePrefix: "loresafe:rl:invites:accept:",
         windowMs: 10 * 60 * 1000
       }
     });

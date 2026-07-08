@@ -49,7 +49,7 @@ const isValidUrl = (value: string) => {
 
 const envSchema = z
   .object({
-    APP_NAME: z.string().trim().min(1).default("ThreadSync"),
+    APP_NAME: z.string().trim().min(1).default("LoreSafe"),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -63,7 +63,7 @@ const envSchema = z
       .string()
       .trim()
       .min(1)
-      .default("threadsync_session"),
+      .default("loresafe_session"),
     SESSION_COOKIE_SECURE: booleanStringSchema.optional(),
     SESSION_TTL_SECONDS: z.coerce
       .number()

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import heroImage from "../assets/threadsync-landing-hero.png";
+import heroImage from "../assets/loresafe-landing-hero.png";
 
 const maxTiltDegrees = 4;
 
@@ -81,7 +81,7 @@ export const LandingHeroVisual = () => {
       <img
         ref={imageRef}
         src={heroImage}
-        alt="ThreadSync spoiler-safe discussion dashboard preview"
+        alt="LoreSafe spoiler-safe discussion dashboard preview"
         className="pointer-events-none h-full w-full origin-center object-cover object-center opacity-95 transition-transform duration-150 ease-out will-change-transform motion-reduce:transition-none"
       />
     </div>

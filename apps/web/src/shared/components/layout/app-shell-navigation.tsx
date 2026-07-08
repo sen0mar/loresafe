@@ -200,15 +200,13 @@ export const MobileNav = ({
 const ShellBrand = () => (
   <Link
     to={AUTHENTICATED_HOME_PATH}
-    aria-label="ThreadSync home"
+    aria-label="LoreSafe home"
     className="flex items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
   >
     <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
       <ShieldCheck className="size-6" />
     </span>
-    <span className="text-xl font-semibold tracking-normal">
-      Thread<span className="text-brand">Sync</span>
-    </span>
+    <span className="text-xl font-semibold tracking-normal">LoreSafe</span>
   </Link>
 );
 

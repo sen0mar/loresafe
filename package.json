@@ -1,14 +1,14 @@
 {
-  "name": "threadsync",
+  "name": "loresafe",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@11.5.3",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
-    "dev:api": "pnpm --filter @threadsync/api dev",
-    "dev:web": "pnpm --filter @threadsync/web dev",
+    "dev:api": "pnpm --filter @loresafe/api dev",
+    "dev:web": "pnpm --filter @loresafe/web dev",
     "build": "pnpm -r build",
-    "db:reset:development": "pnpm --filter @threadsync/api db:reset:development",
+    "db:reset:development": "pnpm --filter @loresafe/api db:reset:development",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
   }

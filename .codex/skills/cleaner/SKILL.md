@@ -1,11 +1,11 @@
 ---
 name: cleaner
-description: Use when the user directs Codex to clean up specific ThreadSync code, especially long functions, large files, tangled components, or duplicated logic. Perform precise, surgical refactors that preserve behavior, extract reusable logic only where justified, and organize code according to the existing frontend and backend app architecture.
+description: Use when the user directs Codex to clean up specific LoreSafe code, especially long functions, large files, tangled components, or duplicated logic. Perform precise, surgical refactors that preserve behavior, extract reusable logic only where justified, and organize code according to the existing frontend and backend app architecture.
 ---
 
 # Cleaner
 
-Refactor user-directed ThreadSync code into smaller, clearer pieces without changing behavior.
+Refactor user-directed LoreSafe code into smaller, clearer pieces without changing behavior.
 
 ## Inputs
 

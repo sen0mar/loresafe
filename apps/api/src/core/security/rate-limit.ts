@@ -33,24 +33,24 @@ const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
   login: {
     windowMs: 15 * 60 * 1000,
     limit: 60,
-    prefix: "threadsync:rl:auth:login:",
+    prefix: "loresafe:rl:auth:login:",
     // Successful logins are decremented after finish, leaving a failed-attempt bucket.
     skipSuccessfulRequests: true
   },
   logout: {
     windowMs: 60 * 1000,
     limit: 90,
-    prefix: "threadsync:rl:auth:logout:"
+    prefix: "loresafe:rl:auth:logout:"
   },
   passwordReset: {
     windowMs: 60 * 60 * 1000,
     limit: 9,
-    prefix: "threadsync:rl:auth:password-reset:"
+    prefix: "loresafe:rl:auth:password-reset:"
   },
   signup: {
     windowMs: 60 * 60 * 1000,
     limit: 60,
-    prefix: "threadsync:rl:auth:signup:"
+    prefix: "loresafe:rl:auth:signup:"
   }
 };
 
@@ -115,7 +115,7 @@ export const profileUpdateRateLimiter = rateLimit({
   limit: 60,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:users:profile-update:"),
+  store: createUpstashRateLimitStore("loresafe:rl:users:profile-update:"),
   identifier: "users-profile-update",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -127,7 +127,7 @@ export const accountDeleteRateLimiter = rateLimit({
   limit: 6,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:users:account-delete:"),
+  store: createUpstashRateLimitStore("loresafe:rl:users:account-delete:"),
   identifier: "users-account-delete",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -139,7 +139,7 @@ export const publicAssetUploadRateLimiter = rateLimit({
   limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:uploads:public-assets:"),
+  store: createUpstashRateLimitStore("loresafe:rl:uploads:public-assets:"),
   identifier: "uploads-public-assets",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -151,7 +151,7 @@ export const clubCreateRateLimiter = rateLimit({
   limit: 45,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:create:"),
   identifier: "clubs-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -163,7 +163,7 @@ export const clubJoinRateLimiter = rateLimit({
   limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:join:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:join:"),
   identifier: "clubs-join",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -175,7 +175,7 @@ export const clubInviteCreateRateLimiter = rateLimit({
   limit: 60,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:invites:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:invites:create:"),
   identifier: "clubs-invites-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -187,7 +187,7 @@ export const clubMemberManagementRateLimiter = rateLimit({
   limit: 180,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:members:manage:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:members:manage:"),
   identifier: "clubs-members-manage",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -199,7 +199,7 @@ export const clubSettingsUpdateRateLimiter = rateLimit({
   limit: 120,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:settings:update:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:settings:update:"),
   identifier: "clubs-settings-update",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -211,7 +211,7 @@ export const clubMilestoneCreateRateLimiter = rateLimit({
   limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:milestones:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:milestones:create:"),
   identifier: "clubs-milestones-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -223,7 +223,7 @@ export const clubPostCreateRateLimiter = rateLimit({
   limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:posts:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:posts:create:"),
   identifier: "clubs-posts-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -235,7 +235,7 @@ export const postCommentCreateRateLimiter = rateLimit({
   limit: 120,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:posts:comments:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:posts:comments:create:"),
   identifier: "posts-comments-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -247,7 +247,7 @@ export const postReactionToggleRateLimiter = rateLimit({
   limit: 240,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:posts:reactions:toggle:"),
+  store: createUpstashRateLimitStore("loresafe:rl:posts:reactions:toggle:"),
   identifier: "posts-reactions-toggle",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -259,7 +259,7 @@ export const reportCreateRateLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:reports:create:"),
+  store: createUpstashRateLimitStore("loresafe:rl:reports:create:"),
   identifier: "reports-create",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -271,7 +271,7 @@ export const searchRateLimiter = rateLimit({
   limit: 360,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:search:"),
+  store: createUpstashRateLimitStore("loresafe:rl:search:"),
   identifier: "search",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -283,7 +283,7 @@ export const moderationActionRateLimiter = rateLimit({
   limit: 180,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:moderation:actions:"),
+  store: createUpstashRateLimitStore("loresafe:rl:moderation:actions:"),
   identifier: "moderation-actions",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -296,7 +296,7 @@ export const commentReactionToggleRateLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   store: createUpstashRateLimitStore(
-    "threadsync:rl:comments:reactions:toggle:"
+    "loresafe:rl:comments:reactions:toggle:"
   ),
   identifier: "comments-reactions-toggle",
   handler: (_req, _res, next) => {
@@ -309,7 +309,7 @@ export const clubProgressUpdateRateLimiter = rateLimit({
   limit: 120,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:clubs:progress:update:"),
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:progress:update:"),
   identifier: "clubs-progress-update",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
@@ -321,7 +321,7 @@ export const inviteAcceptRateLimiter = rateLimit({
   limit: 90,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("threadsync:rl:invites:accept:"),
+  store: createUpstashRateLimitStore("loresafe:rl:invites:accept:"),
   identifier: "invites-accept",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));

@@ -4,9 +4,9 @@
 
 Primary reference image:
 
-- `context/images/dashboard/threadsync-dashboard-dark-reference.png`
+- `context/images/dashboard/loresafe-dashboard-dark-reference.png`
 
-Use it for visual direction only. The app name in the UI should be **ThreadSync**, not the older reference name.
+Use it for visual direction only. The app name in the UI should be **LoreSafe**, not the older reference name.
 
 Visual language: dark, compact, flat panels with thin borders, steel-blue brand accents, progress-aware cards, calm metadata, and clear locked/safe states.
 
@@ -106,7 +106,7 @@ Recommended CSS starting point:
 
 ## shadcn/ui Token Mapping
 
-Map shadcn primitives to the semantic ThreadSync tokens:
+Map shadcn primitives to the semantic LoreSafe tokens:
 
 - `background` → `--bg-base`
 - `foreground` → `--text-primary`
@@ -151,7 +151,7 @@ Map shadcn primitives to the semantic ThreadSync tokens:
 
 ## Radius and Borders
 
-ThreadSync uses a softer, more circular radius scale from `apps/web/src/styles.css`
+LoreSafe uses a softer, more circular radius scale from `apps/web/src/styles.css`
 with `--radius: 1.125rem`.
 
 | Context | Recommended class |

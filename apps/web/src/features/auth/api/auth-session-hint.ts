@@ -1,4 +1,4 @@
-const authSessionHintKey = "threadsync:auth-session";
+const authSessionHintKey = "loresafe:auth-session";
 const authSessionHintValue = "present";
 
 export const hasAuthSessionHint = () => {

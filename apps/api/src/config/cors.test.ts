@@ -5,7 +5,7 @@ import { parseEnv } from "./env.js";
 
 const baseEnv = {
   CLIENT_ORIGIN: "http://localhost:5173",
-  DATABASE_URL: "postgresql://user:pass@localhost:5432/threadsync",
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
   DEMO_USER_DISPLAY_NAME: "Demo Reader",
   DEMO_USER_EMAIL: "demo@example.com",
   DEMO_USER_PASSWORD: "correct horse battery",
@@ -15,8 +15,8 @@ const baseEnv = {
 const productionServiceEnv = {
   R2_ACCESS_KEY_ID: "r2-access-key",
   R2_ACCOUNT_ID: "r2-account",
-  R2_BUCKET_NAME: "threadsync-assets",
-  R2_PUBLIC_BASE_URL: "https://cdn.threadsync.example",
+  R2_BUCKET_NAME: "loresafe-assets",
+  R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
   R2_SECRET_ACCESS_KEY: "r2-secret-key",
   SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
@@ -28,13 +28,13 @@ describe("CORS config", () => {
     const env = parseEnv({
       ...baseEnv,
       ...productionServiceEnv,
-      CLIENT_ORIGINS: "https://app.threadsync.example,https://admin.threadsync.example",
+      CLIENT_ORIGINS: "https://app.loresafe.example,https://admin.loresafe.example",
       NODE_ENV: "production"
     });
 
     expect(getAllowedCorsOrigins(env)).toEqual([
-      "https://app.threadsync.example",
-      "https://admin.threadsync.example"
+      "https://app.loresafe.example",
+      "https://admin.loresafe.example"
     ]);
   });
 
@@ -42,12 +42,12 @@ describe("CORS config", () => {
     const env = parseEnv({
       ...baseEnv,
       ...productionServiceEnv,
-      CLIENT_ORIGIN: "https://app.threadsync.example",
+      CLIENT_ORIGIN: "https://app.loresafe.example",
       NODE_ENV: "production"
     });
 
     expect(getAllowedCorsOrigins(env)).toEqual([
-      "https://app.threadsync.example"
+      "https://app.loresafe.example"
     ]);
   });
 

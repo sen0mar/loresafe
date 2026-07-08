@@ -92,7 +92,7 @@ const apiRequest = async <TResponse,>(
     });
   } catch (error) {
     throw new ApiError(
-      "Could not reach the ThreadSync API. Check that the API server is running.",
+      "Could not reach the LoreSafe API. Check that the API server is running.",
       { cause: error }
     );
   }
