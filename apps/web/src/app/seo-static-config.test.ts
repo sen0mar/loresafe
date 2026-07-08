@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const canonicalOrigin = "https://loresafe-web.vercel.app";
+const canonicalOrigin = "https://loresafe.org";
 const webRoot = process.cwd();
 
 const readWebFile = (...pathSegments: string[]) =>
@@ -135,11 +135,11 @@ describe("static SEO configuration", () => {
 
     expect(vercelConfig.rewrites).toContainEqual({
       source: "/api/:path*",
-      destination: "https://loresafe-api.onrender.com/api/:path*"
+      destination: "https://api.loresafe.org/api/:path*"
     });
     expect(vercelConfig.rewrites).toContainEqual({
       source: "/sitemap.xml",
-      destination: "https://loresafe-api.onrender.com/sitemap.xml"
+      destination: "https://api.loresafe.org/sitemap.xml"
     });
     expect(rewriteSources).toEqual([
       "/api/:path*",

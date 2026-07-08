@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://loresafe-web.vercel.app/sitemap.xml
+Sitemap: https://loresafe.org/sitemap.xml

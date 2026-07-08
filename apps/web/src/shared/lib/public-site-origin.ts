@@ -1,4 +1,4 @@
-const defaultPublicSiteOrigin = "https://loresafe-web.vercel.app";
+const defaultPublicSiteOrigin = "https://loresafe.org";
 
 export const getPublicSiteOrigin = () =>
   (import.meta.env.VITE_PUBLIC_SITE_ORIGIN || defaultPublicSiteOrigin).replace(

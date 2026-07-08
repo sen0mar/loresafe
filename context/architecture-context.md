@@ -231,10 +231,10 @@ Important query paths/indexes:
 
 ## Deployment and Environment Model
 
-Production targets are not finalized. Until chosen:
-
-- Treat the frontend as a static Vite app.
-- Treat the backend as a long-running Node/Express service, not an edge-only function.
+- Public frontend domain: `https://loresafe.org`.
+- Frontend hosting: Vercel static Vite app.
+- Backend hosting: Render long-running Node/Express service at `https://api.loresafe.org`, not an edge-only function.
+- Browser API calls use same-origin `/api` paths through the Vercel rewrite to the Render API domain.
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
 - Verify cookie domain, SameSite, Secure, CORS, proxy, and HTTPS behavior before production.
 
