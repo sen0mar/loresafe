@@ -38,6 +38,18 @@ describe("CORS config", () => {
     ]);
   });
 
+  it("allows the apex production site origin", () => {
+    const env = parseEnv({
+      ...baseEnv,
+      ...productionServiceEnv,
+      CLIENT_ORIGINS: "https://loresafe.org",
+      NODE_ENV: "production",
+      PUBLIC_SITE_ORIGIN: "https://loresafe.org"
+    });
+
+    expect(getAllowedCorsOrigins(env)).toEqual(["https://loresafe.org"]);
+  });
+
   it("falls back to the legacy single production origin", () => {
     const env = parseEnv({
       ...baseEnv,

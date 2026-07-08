@@ -55,6 +55,30 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.loresafe.org"
+        }
+      ],
+      "destination": "https://loresafe.org/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "loresafe-web.vercel.app"
+        }
+      ],
+      "destination": "https://loresafe.org/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",

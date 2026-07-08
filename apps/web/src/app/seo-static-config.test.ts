@@ -115,10 +115,17 @@ describe("static SEO configuration", () => {
   });
 
   it("limits SPA rewrites and adds noindex headers to protected routes", () => {
-    const vercelConfig = JSON.parse(readWebFile("vercel.json")) as {
+    const vercelJson = readWebFile("vercel.json");
+    const vercelConfig = JSON.parse(vercelJson) as {
       headers: Array<{
         source: string;
         headers: Array<{ key: string; value: string }>;
+      }>;
+      redirects: Array<{
+        source: string;
+        has: Array<{ type: string; value: string }>;
+        destination: string;
+        permanent: boolean;
       }>;
       rewrites: Array<{ source: string; destination: string }>;
     };
@@ -133,6 +140,33 @@ describe("static SEO configuration", () => {
       )
       .map((headerConfig) => headerConfig.source);
 
+    expect(vercelJson.indexOf('"redirects"')).toBeLessThan(
+      vercelJson.indexOf('"rewrites"')
+    );
+    expect(vercelConfig.redirects).toEqual([
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "www.loresafe.org"
+          }
+        ],
+        destination: "https://loresafe.org/:path*",
+        permanent: true
+      },
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "loresafe-web.vercel.app"
+          }
+        ],
+        destination: "https://loresafe.org/:path*",
+        permanent: true
+      }
+    ]);
     expect(vercelConfig.rewrites).toContainEqual({
       source: "/api/:path*",
       destination: "https://api.loresafe.org/api/:path*"
@@ -163,6 +197,22 @@ describe("static SEO configuration", () => {
       "/login",
       "/signup"
     ]);
+  });
+
+  it("keeps legacy hosts out of crawler-facing SEO files", () => {
+    const seoSurfaceFiles = [
+      "index.html",
+      "public/robots.txt",
+      "public/manifest.webmanifest",
+      "src/shared/lib/public-site-origin.ts"
+    ];
+
+    for (const filePath of seoSurfaceFiles) {
+      const content = readWebFile(...filePath.split("/"));
+
+      expect(content).not.toContain("loresafe-web.vercel.app");
+      expect(content).not.toContain("www.loresafe.org");
+    }
   });
 });
 
