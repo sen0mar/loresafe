@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">LoreSafe icon</title>
+  <desc id="desc">A steel-blue shield with a reading progress mark.</desc>
+  <rect width="512" height="512" rx="112" fill="#07090c"/>
+  <path d="M256 72 392 126v100c0 94-54 172-136 214-82-42-136-120-136-214V126L256 72Z" fill="#101a27" stroke="#6091d6" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M184 236h144" stroke="#aacbfa" stroke-width="28" stroke-linecap="round"/>
+  <path d="M184 304h92" stroke="#91add4" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="328" cy="304" r="18" fill="#f4bd61"/>
+</svg>

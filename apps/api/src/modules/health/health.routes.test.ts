@@ -18,6 +18,7 @@ describe("health routes", () => {
       response.body.timestamp
     );
     expect(response.headers["x-request-id"]).toEqual(expect.any(String));
+    expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow");
   });
 
   it("allows the Vite fallback dev origin", async () => {
@@ -89,6 +90,7 @@ describe("health routes", () => {
         requestId: "test-request-id"
       }
     });
+    expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow");
   });
 
   it("keeps the debug Sentry route unavailable in tests", async () => {

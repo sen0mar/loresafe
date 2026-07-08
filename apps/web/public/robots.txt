@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://loresafe-web.vercel.app/sitemap.xml

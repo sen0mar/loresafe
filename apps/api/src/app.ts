@@ -5,6 +5,7 @@ import express from "express";
 import { getAllowedCorsOrigins } from "./config/cors.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
+import { noindexApiResponses } from "./core/http/seo-headers.js";
 import { requestLoggingMiddleware } from "./core/http/request-logging.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import { registerRateLimiters } from "./core/security/rate-limit-routes.js";
@@ -52,6 +53,7 @@ export const createApp = (appEnv = env) => {
     })
   );
 
+  app.use("/api", noindexApiResponses);
   registerRateLimiters(app);
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());
