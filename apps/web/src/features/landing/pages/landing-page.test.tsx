@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { App } from "@/app/app";
@@ -6,6 +6,10 @@ import { clearAuthSessionHint } from "@/features/auth/api/auth-session-hint";
 import { mockFetchRoutes, renderWithProviders } from "@/test/render";
 
 import { LandingPage } from "./landing-page";
+
+type MockIntersectionObserverEntry = {
+  isIntersecting: boolean;
+};
 
 describe("LandingPage", () => {
   it("renders the brand hero, entry actions, and dashboard preview image", () => {
@@ -19,14 +23,16 @@ describe("LandingPage", () => {
         /Discuss books, shows, games, and courses without stumbling into spoilers/i
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /create account/i })).toHaveAttribute(
-      "href",
-      "/signup"
+    expect(screen.getAllByRole("link", { name: /create account/i })).toHaveLength(
+      2
     );
-    expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
-      "href",
-      "/login"
-    );
+    screen
+      .getAllByRole("link", { name: /create account/i })
+      .forEach((link) => expect(link).toHaveAttribute("href", "/signup"));
+    expect(screen.getAllByRole("link", { name: /log in/i })).toHaveLength(2);
+    screen
+      .getAllByRole("link", { name: /log in/i })
+      .forEach((link) => expect(link).toHaveAttribute("href", "/login"));
     const heroImage = screen.getByRole("img", {
       name: /LoreSafe spoiler-safe discussion dashboard preview/i
     });
@@ -38,10 +44,145 @@ describe("LandingPage", () => {
     expect(container.querySelector('source[type="image/avif"]')).toBeTruthy();
     expect(container.querySelector('source[type="image/webp"]')).toBeTruthy();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Spoiler-safe by design" })
-    ).toBeInTheDocument();
+      screen.getByRole("button", { name: /scroll to landing page details/i })
+    ).toHaveAttribute("aria-controls", "landing-more");
+    expect(
+      screen.queryByText("Create clubs", { selector: "span" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Spoiler-safe by design"
+      })
+    ).toBeVisible();
     expect(screen.getByText("How does LoreSafe prevent spoilers?")).toBeVisible();
-    expect(screen.getByText("Can private clubs appear in search?")).toBeVisible();
+    expect(
+      screen.getByText("What kinds of stories can I create clubs for?")
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Can private clubs appear in search?")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Spoiler-safe clubs for every point in the story.")
+    ).toBeVisible();
+    expect(
+      screen.getByRole("navigation", { name: /footer navigation/i })
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "LoreSafe" })
+    ).toBeVisible();
+    expect(screen.queryByText("Navigation")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
+      "href",
+      "/clubs"
+    );
+    expect(screen.getAllByRole("link", { name: /create account/i })).toHaveLength(
+      2
+    );
+    expect(
+      screen.getByText(/© \d{4} LoreSafe\. All rights reserved\./i)
+    ).toBeVisible();
+  });
+
+  it("scrolls to the lower landing content from the arrow control", () => {
+    renderWithProviders(<LandingPage />);
+
+    const detailsScrollIntoView = vi.fn();
+    const heroScrollIntoView = vi.fn();
+    const detailsSection = document.getElementById("landing-more");
+    const heroSection = document.getElementById("landing-hero");
+
+    expect(detailsSection).not.toBeNull();
+    expect(heroSection).not.toBeNull();
+
+    detailsSection!.scrollIntoView = detailsScrollIntoView;
+    heroSection!.scrollIntoView = heroScrollIntoView;
+
+    const detailsButton = screen.getByRole("button", {
+      name: /scroll to landing page details/i
+    });
+
+    expect(detailsButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(detailsButton);
+
+    expect(detailsScrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start"
+    });
+    expect(heroScrollIntoView).not.toHaveBeenCalled();
+
+    const heroButton = screen.getByRole("button", {
+      name: /scroll to landing page hero/i
+    });
+
+    expect(heroButton).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(heroButton);
+
+    expect(heroScrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start"
+    });
+    expect(detailsScrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates the arrow direction when the lower landing content enters view", () => {
+    let observerCallback:
+      | ((entries: MockIntersectionObserverEntry[]) => void)
+      | undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    const OriginalIntersectionObserver = window.IntersectionObserver;
+
+    class MockIntersectionObserver {
+      readonly root = null;
+      readonly rootMargin = "";
+      readonly thresholds = [];
+
+      constructor(callback: IntersectionObserverCallback) {
+        observerCallback = callback as unknown as (
+          entries: MockIntersectionObserverEntry[]
+        ) => void;
+      }
+
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+    }
+
+    window.IntersectionObserver =
+      MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    try {
+      renderWithProviders(<LandingPage />);
+
+      expect(observe).toHaveBeenCalledWith(
+        document.getElementById("landing-more")
+      );
+      expect(
+        screen.getByRole("button", { name: /scroll to landing page details/i })
+      ).toHaveAttribute("aria-pressed", "false");
+
+      act(() => {
+        observerCallback?.([{ isIntersecting: true }]);
+      });
+
+      expect(
+        screen.getByRole("button", { name: /scroll to landing page hero/i })
+      ).toHaveAttribute("aria-pressed", "true");
+
+      act(() => {
+        observerCallback?.([{ isIntersecting: false }]);
+      });
+
+      expect(
+        screen.getByRole("button", { name: /scroll to landing page details/i })
+      ).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      window.IntersectionObserver = OriginalIntersectionObserver;
+    }
   });
 
   it("sets route-specific noindex metadata for auth pages", async () => {
