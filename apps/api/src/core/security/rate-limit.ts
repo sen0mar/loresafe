@@ -278,6 +278,18 @@ export const searchRateLimiter = rateLimit({
   }
 });
 
+export const publicSeoReadRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 600,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:public-seo:read:"),
+  identifier: "public-seo-read",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const moderationActionRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 180,

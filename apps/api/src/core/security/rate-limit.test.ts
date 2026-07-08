@@ -159,6 +159,12 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:search:",
         windowMs: 10 * 60 * 1000
       },
+      "public-seo-read": {
+        limit: 600,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:public-seo:read:",
+        windowMs: 10 * 60 * 1000
+      },
       "moderation-actions": {
         limit: 180,
         skipSuccessfulRequests: undefined,
@@ -189,7 +195,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(22);
+    expect(options).toHaveLength(23);
     expect(options).toEqual(
       options.map((option) =>
         expect.objectContaining({

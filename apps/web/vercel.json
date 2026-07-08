@@ -61,7 +61,19 @@
       "destination": "https://loresafe-api.onrender.com/api/:path*"
     },
     {
+      "source": "/sitemap.xml",
+      "destination": "https://loresafe-api.onrender.com/sitemap.xml"
+    },
+    {
       "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/clubs",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/clubs/:path*",
       "destination": "/index.html"
     },
     {

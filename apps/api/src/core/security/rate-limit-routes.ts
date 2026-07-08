@@ -18,6 +18,7 @@ import {
   postCommentCreateRateLimiter,
   postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
+  publicSeoReadRateLimiter,
   publicAssetUploadRateLimiter,
   reportCreateRateLimiter,
   searchRateLimiter,
@@ -34,6 +35,9 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.use("/api/auth/login", loginRateLimiter);
   app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
+  app.get("/sitemap.xml", publicSeoReadRateLimiter);
+  app.get("/api/public/clubs", publicSeoReadRateLimiter);
+  app.get("/api/public/clubs/:linkName", publicSeoReadRateLimiter);
   app.post("/api/clubs", clubCreateRateLimiter);
   app.post("/api/clubs/:linkName/invites", clubInviteCreateRateLimiter);
   app.post("/api/clubs/:linkName/join", clubJoinRateLimiter);

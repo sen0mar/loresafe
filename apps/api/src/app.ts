@@ -10,7 +10,10 @@ import { requestLoggingMiddleware } from "./core/http/request-logging.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import { registerRateLimiters } from "./core/security/rate-limit-routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
-import { clubsRouter } from "./modules/clubs/clubs.routes.js";
+import {
+  clubsRouter,
+  publicClubsRouter
+} from "./modules/clubs/clubs.routes.js";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import {
   commentReactionsRouter,
@@ -35,6 +38,7 @@ import {
   reportsRouter
 } from "./modules/reports/reports.routes.js";
 import { searchRouter } from "./modules/search/search.routes.js";
+import { createSitemapRouter } from "./modules/seo/sitemap.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
@@ -58,8 +62,10 @@ export const createApp = (appEnv = env) => {
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());
 
+  app.use("/sitemap.xml", createSitemapRouter(undefined, appEnv));
   app.use("/api/health", healthRouter);
   app.use("/api/debug", debugRouter);
+  app.use("/api/public/clubs", publicClubsRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);

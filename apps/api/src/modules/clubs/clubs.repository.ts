@@ -7,6 +7,7 @@ import type {
   ListClubBansQuery,
   ListClubMembersQuery,
   ListClubsQuery,
+  ListPublicSeoClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 import {
@@ -36,6 +37,15 @@ export type ClubDiscoveryRecord = {
   updatedAt: Date;
 };
 
+export type PublicClubDetailRecord = ClubDiscoveryRecord & {
+  rules: string | null;
+};
+
+export type PublicClubSitemapEntryRecord = {
+  linkName: string;
+  updatedAt: Date;
+};
+
 export type ClubDetailRecord = {
   id: string;
   title: string;
@@ -58,6 +68,10 @@ export type ClubDetailRecord = {
 export type ListPublicClubsResult = {
   clubs: ClubDiscoveryRecord[];
   total: number;
+};
+
+export type ListPublicClubSitemapEntriesResult = {
+  entries: PublicClubSitemapEntryRecord[];
 };
 
 export type ClubMemberRecord = {
@@ -239,6 +253,17 @@ export type ClubsRepository = {
     userId: string,
     input: ListClubsQuery
   ) => Promise<ListPublicClubsResult>;
+  listPublicSeoClubs: (
+    currentUserId: string | null,
+    input: ListPublicSeoClubsQuery
+  ) => Promise<ListPublicClubsResult>;
+  findPublicSeoClubByLinkName: (
+    linkName: string,
+    currentUserId: string | null
+  ) => Promise<PublicClubDetailRecord | null>;
+  listPublicClubSitemapEntries: (
+    limit: number
+  ) => Promise<ListPublicClubSitemapEntriesResult>;
 };
 
 const publicClubSelect = {
@@ -261,6 +286,11 @@ const publicClubSelect = {
       memberships: true
     }
   }
+} as const;
+
+const publicClubDetailSelect = {
+  ...publicClubSelect,
+  rules: true
 } as const;
 
 const clubDetailSelect = (userId: string) => {
@@ -1149,12 +1179,7 @@ export const clubsRepository: ClubsRepository = {
   listPublicClubs: async (userId, { limit, page, sort }) => {
     const skip = (page - 1) * limit;
     const now = new Date();
-    const publicClubWhere = {
-      visibility: "PUBLIC",
-      bans: {
-        none: activeUserBanWhere(userId, now)
-      }
-    } satisfies Prisma.ClubWhereInput;
+    const publicClubWhere = getPublicClubWhere(userId, now);
     const orderBy = getPublicClubOrder(sort);
 
     const [clubs, total] = await prisma.$transaction([
@@ -1178,11 +1203,102 @@ export const clubsRepository: ClubsRepository = {
       })),
       total
     };
+  },
+
+  listPublicSeoClubs: async (currentUserId, { limit, page, sort }) => {
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const publicClubWhere = getPublicClubWhere(currentUserId, now);
+    const orderBy = getPublicClubOrder(sort);
+
+    const [clubs, total] = await prisma.$transaction([
+      prisma.club.findMany({
+        where: publicClubWhere,
+        orderBy,
+        skip,
+        take: limit,
+        select: publicClubSelect
+      }),
+      prisma.club.count({
+        where: publicClubWhere
+      })
+    ]);
+
+    return {
+      clubs: clubs.map(({ _count, ...club }) => ({
+        ...club,
+        visibility: "PUBLIC",
+        memberCount: _count.memberships
+      })),
+      total
+    };
+  },
+
+  findPublicSeoClubByLinkName: async (linkName, currentUserId) => {
+    const now = new Date();
+    const club = await prisma.club.findFirst({
+      where: {
+        ...getPublicClubWhere(currentUserId, now),
+        linkName
+      },
+      select: publicClubDetailSelect
+    });
+
+    if (!club) {
+      return null;
+    }
+
+    const { _count, ...publicClub } = club;
+
+    return {
+      ...publicClub,
+      visibility: "PUBLIC",
+      memberCount: _count.memberships
+    };
+  },
+
+  listPublicClubSitemapEntries: async (limit) => {
+    const entries = await prisma.club.findMany({
+      where: {
+        visibility: "PUBLIC"
+      },
+      orderBy: [
+        {
+          updatedAt: "desc"
+        },
+        {
+          id: "asc"
+        }
+      ],
+      take: limit,
+      select: {
+        linkName: true,
+        updatedAt: true
+      }
+    });
+
+    return {
+      entries
+    };
   }
 };
 
+const getPublicClubWhere = (
+  currentUserId: string | null,
+  now: Date
+): Prisma.ClubWhereInput => ({
+  visibility: "PUBLIC",
+  ...(currentUserId
+    ? {
+        bans: {
+          none: activeUserBanWhere(currentUserId, now)
+        }
+      }
+    : {})
+});
+
 const getPublicClubOrder = (
-  sort: ListClubsQuery["sort"]
+  sort: ListClubsQuery["sort"] | ListPublicSeoClubsQuery["sort"]
 ): Prisma.ClubOrderByWithRelationInput[] => {
   if (sort === "popular") {
     return [

@@ -8,7 +8,8 @@ export const publicClientEnvKeys = [
   "VITE_SENTRY_DSN",
   "VITE_SENTRY_ENVIRONMENT",
   "VITE_SENTRY_TRACES_SAMPLE_RATE",
-  "VITE_SENTRY_ENABLE_DEBUG_ROUTE"
+  "VITE_SENTRY_ENABLE_DEBUG_ROUTE",
+  "VITE_PUBLIC_SITE_ORIGIN"
 ] as const;
 
 export default defineConfig(({ mode }) => {
@@ -29,6 +30,10 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/api": {
+          target: "http://localhost:3000",
+          changeOrigin: true
+        },
+        "/sitemap.xml": {
           target: "http://localhost:3000",
           changeOrigin: true
         }
