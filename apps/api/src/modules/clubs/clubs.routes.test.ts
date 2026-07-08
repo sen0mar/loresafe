@@ -26,7 +26,10 @@ import type {
   ClubSettingsMutationResult,
   ClubsRepository
 } from "./clubs.repository.js";
-import { createClubsController } from "./clubs.controller.js";
+import {
+  createClubsController,
+  type ClubsController
+} from "./clubs.controller.js";
 import { createClubsRouter } from "./clubs.routes.js";
 import { createClubsService } from "./clubs.service.js";
 import type {
@@ -46,6 +49,21 @@ describe("clubs routes", () => {
   beforeEach(() => {
     repository = new InMemoryClubsRepository();
     app = createClubsTestApp(repository);
+  });
+
+  it("fails fast if the unban route handler is not registered", () => {
+    const authService = createAuthService(repository);
+    const authMiddleware = createAuthMiddleware(authService);
+    const clubsService = createClubsService(repository);
+    const clubsController = createClubsController(clubsService);
+    const incompleteController: ClubsController = {
+      ...clubsController,
+      unbanClubBan: undefined as unknown as ClubsController["unbanClubBan"]
+    };
+
+    expect(() =>
+      createClubsRouter(incompleteController, authMiddleware)
+    ).toThrow(/handler must be a function/i);
   });
 
   it("rejects club creation without an authenticated session", async () => {
