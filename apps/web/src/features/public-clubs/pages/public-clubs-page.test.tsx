@@ -66,7 +66,7 @@ describe("public club SEO pages", () => {
     await waitFor(() => {
       expect(document.title).toBe("Public spoiler-safe clubs | LoreSafe");
       expect(getMeta("description")).toContain("Browse public LoreSafe clubs");
-      expect(getCanonical()).toBe("https://loresafe.org/clubs");
+      expect(getCanonical()).toBe("https://www.loresafe.org/clubs");
       expect(getRouteJsonLd()).toContain("CollectionPage");
       expect(getRouteJsonLd()).toContain("/clubs/story-circle");
     });
@@ -110,7 +110,7 @@ describe("public club SEO pages", () => {
     await waitFor(() => {
       expect(document.title).toBe("Story Circle | LoreSafe public club");
       expect(getCanonical()).toBe(
-        "https://loresafe.org/clubs/story-circle"
+        "https://www.loresafe.org/clubs/story-circle"
       );
       expect(getRouteJsonLd()).toContain("BreadcrumbList");
       expect(getRouteJsonLd()).toContain("Story Circle");
@@ -146,7 +146,7 @@ describe("public club SEO pages", () => {
       expect(document.title).toBe("Club not found | LoreSafe");
       expect(getMeta("robots")).toBe("noindex, nofollow");
       expect(getCanonical()).toBe(
-        "https://loresafe.org/clubs/missing-club"
+        "https://www.loresafe.org/clubs/missing-club"
       );
     });
   });

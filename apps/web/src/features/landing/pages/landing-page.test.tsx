@@ -224,7 +224,7 @@ describe("LandingPage", () => {
       expect(document.title).toBe("Create club | LoreSafe");
       expect(getMeta("robots")).toBe("noindex, nofollow");
       expect(getCanonical()).toBe(
-        "https://loresafe.org/app/clubs/new"
+        "https://www.loresafe.org/app/clubs/new"
       );
     });
   });

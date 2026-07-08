@@ -61,10 +61,10 @@
       "has": [
         {
           "type": "host",
-          "value": "www.loresafe.org"
+          "value": "loresafe.org"
         }
       ],
-      "destination": "https://loresafe.org/",
+      "destination": "https://www.loresafe.org/",
       "permanent": true
     },
     {
@@ -72,10 +72,10 @@
       "has": [
         {
           "type": "host",
-          "value": "www.loresafe.org"
+          "value": "loresafe.org"
         }
       ],
-      "destination": "https://loresafe.org/:path*",
+      "destination": "https://www.loresafe.org/:path*",
       "permanent": true
     },
     {
@@ -86,7 +86,7 @@
           "value": "loresafe-web.vercel.app"
         }
       ],
-      "destination": "https://loresafe.org/",
+      "destination": "https://www.loresafe.org/",
       "permanent": true
     },
     {
@@ -97,7 +97,7 @@
           "value": "loresafe-web.vercel.app"
         }
       ],
-      "destination": "https://loresafe.org/:path*",
+      "destination": "https://www.loresafe.org/:path*",
       "permanent": true
     }
   ],
