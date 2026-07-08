@@ -145,6 +145,17 @@ describe("static SEO configuration", () => {
     );
     expect(vercelConfig.redirects).toEqual([
       {
+        source: "/",
+        has: [
+          {
+            type: "host",
+            value: "www.loresafe.org"
+          }
+        ],
+        destination: "https://loresafe.org/",
+        permanent: true
+      },
+      {
         source: "/:path*",
         has: [
           {
@@ -153,6 +164,17 @@ describe("static SEO configuration", () => {
           }
         ],
         destination: "https://loresafe.org/:path*",
+        permanent: true
+      },
+      {
+        source: "/",
+        has: [
+          {
+            type: "host",
+            value: "loresafe-web.vercel.app"
+          }
+        ],
+        destination: "https://loresafe.org/",
         permanent: true
       },
       {
