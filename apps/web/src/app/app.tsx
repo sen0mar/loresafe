@@ -40,10 +40,19 @@ const queryClient = new QueryClient({
   }
 });
 
+type DebugSentryRouteEnv = {
+  MODE?: string;
+  PROD?: boolean;
+  VITE_SENTRY_ENABLE_DEBUG_ROUTE?: string;
+};
+
+export const shouldEnableDebugSentryRoute = (clientEnv: DebugSentryRouteEnv) =>
+  clientEnv.VITE_SENTRY_ENABLE_DEBUG_ROUTE === "true" &&
+  clientEnv.MODE !== "test" &&
+  clientEnv.PROD !== true;
+
 const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
-const isDebugSentryRouteEnabled =
-  import.meta.env.VITE_SENTRY_ENABLE_DEBUG_ROUTE === "true" &&
-  import.meta.env.PROD !== true;
+const isDebugSentryRouteEnabled = shouldEnableDebugSentryRoute(import.meta.env);
 
 export const App = () => (
   <QueryClientProvider client={queryClient}>

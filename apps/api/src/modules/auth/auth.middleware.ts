@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 
 import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
+import { isDatabaseConnectivityError } from "../../core/prisma/errors.js";
 import { authService, type AuthService } from "./auth.service.js";
 import "./auth.request.js";
 
@@ -21,6 +22,11 @@ export const createAuthMiddleware = (
       req.currentUser = await service.resolveCurrentUser(sessionToken);
       next();
     } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        next(databaseUnavailableError());
+        return;
+      }
+
       next(error);
     }
   },
@@ -51,3 +57,10 @@ const getSessionCookie = (cookies: unknown) => {
 
 const authenticationRequiredError = () =>
   new HttpError(401, "UNAUTHORIZED", "Authentication required");
+
+const databaseUnavailableError = () =>
+  new HttpError(
+    503,
+    "SERVICE_UNAVAILABLE",
+    "The service is temporarily unavailable. Please try again shortly."
+  );

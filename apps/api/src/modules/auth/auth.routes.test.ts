@@ -491,6 +491,43 @@ describe("auth routes", () => {
         }
       });
   });
+
+  it("returns a safe service unavailable response when current-user loading cannot reach the database", async () => {
+    const user = await repository.createUser({
+      email: "neon-outage@example.com",
+      displayName: "Neon Outage",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+    const sessionToken = await createSessionToken({
+      userId: user.id,
+      sessionVersion: user.sessionVersion
+    });
+
+    repository.findActiveUserById = async () => {
+      throw {
+        code: "P1001",
+        message:
+          "Can't reach database server at ep-patient-thunder-apqqxlnj-pooler.c-7.us-east-1.aws.neon.tech"
+      };
+    };
+
+    const response = await request(app)
+      .get("/api/auth/me")
+      .set("x-request-id", "me-db-unavailable")
+      .set("Cookie", `${env.SESSION_COOKIE_NAME}=${sessionToken}`)
+      .expect(503);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "SERVICE_UNAVAILABLE",
+        message:
+          "The service is temporarily unavailable. Please try again shortly.",
+        requestId: "me-db-unavailable"
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain("neon.tech");
+    expect(JSON.stringify(response.body)).not.toContain("P1001");
+  });
 });
 
 const createAuthTestApp = (

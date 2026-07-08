@@ -117,6 +117,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 111: LoreSafe rename — Renamed former-brand references to LoreSafe across source, docs, package metadata, runtime defaults, deployment examples, test fixtures, tracked assets, and local integration naming, with clean old-name scans and full typecheck/test/build verification.
 - Feature 112: High-priority Sentry regressions — Added focused regression coverage for mobile navigation imports, club progress/feed hook-order stability, and clubs router handler registration.
 - Feature 113: Medium-priority Sentry fixes — Added Prisma drift checks for the club link-name rename, race-safe post reaction toggles, stale feed-card permission guards, progress-panel refresh ordering, and focused backend/frontend regression coverage.
+- Feature 114: Low-priority Sentry fixes — Mapped auth-time database connectivity failures to safe `503` responses, kept controlled Sentry verification routes gated outside production/tests, resolved low-priority Sentry noise, and added focused backend/frontend regression coverage.
 
 ## Entry Format
 
