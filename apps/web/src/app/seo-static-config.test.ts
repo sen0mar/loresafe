@@ -29,6 +29,8 @@ describe("static SEO configuration", () => {
     expect(html).toContain(
       `<meta\n      property="og:image"\n      content="${canonicalOrigin}/og/loresafe-home.png"\n    />`
     );
+    expect(html).toContain('<meta property="og:image:width" content="1200" />');
+    expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain('<script type="application/ld+json">');
     expect(html).toContain(`"url": "${canonicalOrigin}/"`);
     expect(html).toContain("<h1>LoreSafe</h1>");
@@ -37,9 +39,8 @@ describe("static SEO configuration", () => {
     );
   });
 
-  it("ships robots, sitemap, manifest, icon, and stable OG image assets", () => {
+  it("ships robots, manifest, icon, and stable social image assets", () => {
     const robots = readWebFile("public", "robots.txt");
-    const sitemap = readWebFile("public", "sitemap.xml");
     const manifest = JSON.parse(
       readWebFile("public", "manifest.webmanifest")
     ) as {
@@ -53,9 +54,7 @@ describe("static SEO configuration", () => {
     );
     expect(robots).not.toContain("Disallow: /app");
     expect(robots).not.toContain("Disallow: /api");
-    expect(sitemap).toContain(`<loc>${canonicalOrigin}/</loc>`);
-    expect(sitemap).not.toContain(`${canonicalOrigin}/app`);
-    expect(sitemap).not.toContain(`${canonicalOrigin}/login`);
+    expect(existsSync(join(webRoot, "public", "sitemap.xml"))).toBe(false);
     expect(manifest.name).toBe("LoreSafe");
     expect(manifest.start_url).toBe("/");
     expect(manifest.icons).toContainEqual({
@@ -68,6 +67,17 @@ describe("static SEO configuration", () => {
     expect(
       existsSync(join(webRoot, "public", "og", "loresafe-home.png"))
     ).toBe(true);
+    expect(
+      existsSync(join(webRoot, "public", "og", "loresafe-square.png"))
+    ).toBe(true);
+    expect(getPngDimensions("public", "og", "loresafe-home.png")).toEqual({
+      width: 1200,
+      height: 630
+    });
+    expect(getPngDimensions("public", "og", "loresafe-square.png")).toEqual({
+      width: 512,
+      height: 512
+    });
   });
 
   it("limits SPA rewrites and adds noindex headers to protected routes", () => {
@@ -93,9 +103,16 @@ describe("static SEO configuration", () => {
       source: "/api/:path*",
       destination: "https://loresafe-api.onrender.com/api/:path*"
     });
+    expect(vercelConfig.rewrites).toContainEqual({
+      source: "/sitemap.xml",
+      destination: "https://loresafe-api.onrender.com/sitemap.xml"
+    });
     expect(rewriteSources).toEqual([
       "/api/:path*",
+      "/sitemap.xml",
       "/",
+      "/clubs",
+      "/clubs/:path*",
       "/app",
       "/app/:path*",
       "/invite/:path*",
@@ -114,3 +131,12 @@ describe("static SEO configuration", () => {
     ]);
   });
 });
+
+const getPngDimensions = (...pathSegments: string[]) => {
+  const png = readFileSync(join(webRoot, ...pathSegments));
+
+  return {
+    width: png.readUInt32BE(16),
+    height: png.readUInt32BE(20)
+  };
+};

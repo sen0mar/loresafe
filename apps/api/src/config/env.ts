@@ -37,6 +37,8 @@ const parseOriginList = (value: string | undefined) =>
     .map((origin) => origin.trim())
     .filter(Boolean) ?? [];
 
+const normalizeOrigin = (origin: string) => origin.replace(/\/+$/, "");
+
 const isValidUrl = (value: string) => {
   try {
     new URL(value);
@@ -56,6 +58,7 @@ const envSchema = z
     PORT: z.coerce.number().int().positive().max(65535).default(3000),
     CLIENT_ORIGIN: optionalUrlSchema,
     CLIENT_ORIGINS: optionalStringSchema,
+    PUBLIC_SITE_ORIGIN: optionalUrlSchema,
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).optional(),
     DATABASE_URL: z.string().trim().min(1),
     JWT_SECRET: z.string().min(32),
@@ -153,6 +156,7 @@ type ParsedEnv = z.infer<typeof envSchema>;
 export type AppEnv = Omit<ParsedEnv, "CLIENT_ORIGIN"> & {
   CLIENT_ORIGIN: string;
   CLIENT_ORIGIN_ALLOWLIST: string[];
+  PUBLIC_SITE_ORIGIN: string;
   SESSION_COOKIE_SECURE: boolean;
   TRUST_PROXY_HOPS: number;
 };
@@ -170,6 +174,9 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
     ...parsedEnv,
     CLIENT_ORIGIN: parsedEnv.CLIENT_ORIGIN ?? "http://localhost:5173",
     CLIENT_ORIGIN_ALLOWLIST: parseOriginList(parsedEnv.CLIENT_ORIGINS),
+    PUBLIC_SITE_ORIGIN: normalizeOrigin(
+      parsedEnv.PUBLIC_SITE_ORIGIN ?? "https://loresafe-web.vercel.app"
+    ),
     TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (isProduction ? 1 : 0),
     SESSION_COOKIE_SECURE: isProduction
       ? true

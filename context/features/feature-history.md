@@ -120,6 +120,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 114: Low-priority Sentry fixes — Mapped auth-time database connectivity failures to safe `503` responses, kept controlled Sentry verification routes gated outside production/tests, resolved low-priority Sentry noise, and added focused backend/frontend regression coverage.
 - Feature 115: Recruiter project deep dive — Added a standalone recruiter-facing Markdown guide covering LoreSafe's product story, architecture, routes, business logic, data model, security, storage, jobs, testing, tradeoffs, and presentation talking points.
 - Feature 116: High-priority SEO foundation — Added real crawler/PWA assets, homepage metadata and crawlable initial HTML, narrowed Vercel SPA rewrites with protected-route noindex headers, API noindex responses, and focused regression coverage.
+- Feature 117: Medium-priority SEO surface — Added safe public club directory/detail APIs, generated public sitemap output, public club SEO pages with metadata and structured data, route-split authenticated pages, optimized social/hero assets, and focused leak/regression coverage.
 
 ## Entry Format
 

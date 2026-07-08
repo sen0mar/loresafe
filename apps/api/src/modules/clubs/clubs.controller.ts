@@ -11,6 +11,7 @@ import {
   listClubBansQuerySchema,
   listClubMembersQuerySchema,
   listClubsQuerySchema,
+  listPublicSeoClubsQuerySchema,
   updateClubSettingsRequestSchema,
   updateClubMemberRoleRequestSchema
 } from "./clubs.schema.js";
@@ -25,6 +26,8 @@ export type ClubsController = {
   listClubBans: RequestHandler;
   listClubMembers: RequestHandler;
   listClubs: RequestHandler;
+  listPublicSeoClubs: RequestHandler;
+  getPublicSeoClubByLinkName: RequestHandler;
   unbanClubBan: RequestHandler;
   updateClubSettings: RequestHandler;
   updateClubMemberRole: RequestHandler;
@@ -79,6 +82,29 @@ export const createClubsController = (
       const response = await service.getVisibleClubByLinkName(
         parseResult.data.linkName,
         req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getPublicSeoClubByLinkName: async (req, res, next) => {
+    try {
+      const parseResult = clubLinkNameParamsSchema.safeParse(req.params);
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the public club URL and try again."
+        );
+      }
+
+      const response = await service.getPublicSeoClubByLinkName(
+        parseResult.data.linkName,
+        req.currentUser?.id ?? null
       );
 
       res.status(200).json(response);
@@ -350,6 +376,29 @@ export const createClubsController = (
 
       const response = await service.listPublicClubs(
         req.currentUser.id,
+        parseResult.data
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  listPublicSeoClubs: async (req, res, next) => {
+    try {
+      const parseResult = listPublicSeoClubsQuerySchema.safeParse(req.query);
+
+      if (!parseResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the public club discovery query and try again."
+        );
+      }
+
+      const response = await service.listPublicSeoClubs(
+        req.currentUser?.id ?? null,
         parseResult.data
       );
 

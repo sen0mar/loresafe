@@ -2,7 +2,9 @@ import type {
   ClubBanRecord,
   ClubDetailRecord,
   ClubDiscoveryRecord,
-  ClubMemberRecord
+  ClubMemberRecord,
+  PublicClubDetailRecord,
+  PublicClubSitemapEntryRecord
 } from "./clubs.repository.js";
 import { r2Storage } from "../../core/storage/r2-storage.js";
 import type { ClubCategory } from "./clubs.schema.js";
@@ -21,6 +23,12 @@ export type ClubDiscoveryDto = {
   memberCount: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PublicClubDto = ClubDiscoveryDto;
+
+export type PublicClubDetailDto = PublicClubDto & {
+  rules: string | null;
 };
 
 export type ClubDto = {
@@ -54,6 +62,25 @@ export type ClubsDiscoveryResponse = {
     total: number;
     pageCount: number;
   };
+};
+
+export type PublicClubsResponse = {
+  clubs: PublicClubDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
+export type PublicClubResponse = {
+  club: PublicClubDetailDto;
+};
+
+export type PublicClubSitemapEntryDto = {
+  linkName: string;
+  updatedAt: string;
 };
 
 export type ClubMemberDto = {
@@ -145,6 +172,23 @@ export const toClubDiscoveryDto = (
   memberCount: club.memberCount,
   createdAt: club.createdAt.toISOString(),
   updatedAt: club.updatedAt.toISOString()
+});
+
+export const toPublicClubDto = (club: ClubDiscoveryRecord): PublicClubDto =>
+  toClubDiscoveryDto(club);
+
+export const toPublicClubDetailDto = (
+  club: PublicClubDetailRecord
+): PublicClubDetailDto => ({
+  ...toClubDiscoveryDto(club),
+  rules: club.rules
+});
+
+export const toPublicClubSitemapEntryDto = (
+  entry: PublicClubSitemapEntryRecord
+): PublicClubSitemapEntryDto => ({
+  linkName: entry.linkName,
+  updatedAt: entry.updatedAt.toISOString()
 });
 
 export const toClubDto = (club: ClubDetailRecord): ClubDto => ({

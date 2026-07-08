@@ -89,4 +89,21 @@ export const createClubsRouter = (
   return router;
 };
 
+export const createPublicClubsRouter = (
+  controller: ClubsController = clubsController,
+  middleware: AuthMiddleware = authMiddleware
+) => {
+  const router = Router();
+
+  router.get("/", middleware.loadCurrentUser, controller.listPublicSeoClubs);
+  router.get(
+    "/:linkName",
+    middleware.loadCurrentUser,
+    controller.getPublicSeoClubByLinkName
+  );
+
+  return router;
+};
+
 export const clubsRouter = createClubsRouter();
+export const publicClubsRouter = createPublicClubsRouter();

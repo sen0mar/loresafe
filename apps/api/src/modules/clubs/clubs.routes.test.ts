@@ -21,6 +21,8 @@ import type {
   ClubDetailRecord,
   ClubDiscoveryRecord,
   LeaveClubResult,
+  PublicClubDetailRecord,
+  PublicClubSitemapEntryRecord,
   ClubMemberMutationResult,
   ClubMemberRecord,
   ClubSettingsMutationResult,
@@ -30,8 +32,12 @@ import {
   createClubsController,
   type ClubsController
 } from "./clubs.controller.js";
-import { createClubsRouter } from "./clubs.routes.js";
+import {
+  createClubsRouter,
+  createPublicClubsRouter
+} from "./clubs.routes.js";
 import { createClubsService } from "./clubs.service.js";
+import { createSitemapRouter } from "../seo/sitemap.routes.js";
 import type {
   BanClubMemberRequest,
   ClubCategory,
@@ -39,6 +45,7 @@ import type {
   ListClubBansQuery,
   ListClubMembersQuery,
   ListClubsQuery,
+  ListPublicSeoClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 
@@ -1050,6 +1057,231 @@ describe("clubs routes", () => {
     });
   });
 
+  it("returns safe public club SEO list data without a session", async () => {
+    const publicClub = repository.createClub({
+      title: "Public Story Circle",
+      linkName: "public-story-circle",
+      description: "Safe public discussion.",
+      category: "BOOKS",
+      rules: "Rules stay on detail only.",
+      visibility: "PUBLIC"
+    });
+    repository.createClub({
+      title: "Private Plot Room",
+      linkName: "private-plot-room",
+      description: "Hidden private discussion.",
+      category: "TV_SHOWS",
+      visibility: "PRIVATE"
+    });
+    repository.createClub({
+      title: "Invite Arc Watch",
+      linkName: "invite-arc-watch",
+      description: "Hidden invite-only discussion.",
+      category: "ANIME",
+      visibility: "INVITE_ONLY"
+    });
+
+    repository.createMembership(crypto.randomUUID(), publicClub.id);
+
+    const response = await request(app).get("/api/public/clubs").expect(200);
+
+    expect(response.body).toEqual({
+      clubs: [
+        {
+          id: publicClub.id,
+          title: "Public Story Circle",
+          linkName: "public-story-circle",
+          description: "Safe public discussion.",
+          category: "BOOKS",
+          coverUrl: null,
+          visibility: "PUBLIC",
+          memberCount: 1,
+          createdAt: publicClub.createdAt.toISOString(),
+          updatedAt: publicClub.updatedAt.toISOString()
+        }
+      ],
+      pagination: {
+        page: 1,
+        limit: 12,
+        total: 1,
+        pageCount: 1
+      }
+    });
+    expect(Object.keys(response.body.clubs[0]).sort()).toEqual(
+      [
+        "category",
+        "coverUrl",
+        "createdAt",
+        "description",
+        "id",
+        "linkName",
+        "memberCount",
+        "title",
+        "updatedAt",
+        "visibility"
+      ].sort()
+    );
+    expect(JSON.stringify(response.body)).not.toContain("Rules stay on detail");
+    expect(JSON.stringify(response.body)).not.toContain("Private Plot Room");
+    expect(JSON.stringify(response.body)).not.toContain("Invite Arc Watch");
+  });
+
+  it("returns safe public club SEO detail data without membership fields", async () => {
+    const publicClub = repository.createClub({
+      title: "Public Rules Club",
+      linkName: "public-rules-club",
+      description: "Public metadata only.",
+      category: "COURSES",
+      rules: "Keep future lessons out of early threads.",
+      visibility: "PUBLIC"
+    });
+
+    const response = await request(app)
+      .get("/api/public/clubs/public-rules-club")
+      .expect(200);
+
+    expect(response.body.club).toEqual({
+      id: publicClub.id,
+      title: "Public Rules Club",
+      linkName: "public-rules-club",
+      description: "Public metadata only.",
+      category: "COURSES",
+      coverUrl: null,
+      visibility: "PUBLIC",
+      memberCount: 0,
+      rules: "Keep future lessons out of early threads.",
+      createdAt: publicClub.createdAt.toISOString(),
+      updatedAt: publicClub.updatedAt.toISOString()
+    });
+    expect(Object.keys(response.body.club).sort()).toEqual(
+      [
+        "category",
+        "coverUrl",
+        "createdAt",
+        "description",
+        "id",
+        "linkName",
+        "memberCount",
+        "rules",
+        "title",
+        "updatedAt",
+        "visibility"
+      ].sort()
+    );
+    expect(response.body.club).not.toHaveProperty("membership");
+    expect(response.body.club).not.toHaveProperty("settings");
+  });
+
+  it("filters public SEO club reads for signed-in banned users", async () => {
+    const bannedUser = await repository.createUser({
+      email: "banned@example.com",
+      displayName: "Banned Reader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const visibleClub = repository.createClub({
+      title: "Visible Public Club",
+      linkName: "visible-public-club",
+      visibility: "PUBLIC"
+    });
+    const bannedClub = repository.createClub({
+      title: "Banned Public Club",
+      linkName: "banned-public-club",
+      visibility: "PUBLIC"
+    });
+
+    repository.createMembership(bannedUser.id, visibleClub.id);
+    repository.createMembership(bannedUser.id, bannedClub.id);
+    repository.createBan(bannedUser.id, bannedClub.id);
+
+    const listResponse = await request(app)
+      .get("/api/public/clubs")
+      .set("Cookie", await createSessionCookie(bannedUser))
+      .expect(200);
+
+    expect(
+      listResponse.body.clubs.map((club: { linkName: string }) => club.linkName)
+    ).toEqual(["visible-public-club"]);
+
+    await request(app)
+      .get("/api/public/clubs/banned-public-club")
+      .set("x-request-id", "public-club-banned")
+      .set("Cookie", await createSessionCookie(bannedUser))
+      .expect(404)
+      .expect((response) => {
+        expect(response.body).toEqual({
+          error: {
+            code: "NOT_FOUND",
+            message: "Club not found",
+            requestId: "public-club-banned"
+          }
+        });
+      });
+  });
+
+  it("rejects invalid public SEO club query and detail params", async () => {
+    await request(app)
+      .get("/api/public/clubs?page=0&limit=51&sort=unknown")
+      .set("x-request-id", "public-clubs-invalid-query")
+      .expect(400)
+      .expect((response) => {
+        expect(response.body).toEqual({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Check the public club discovery query and try again.",
+            requestId: "public-clubs-invalid-query"
+          }
+        });
+      });
+
+    await request(app)
+      .get("/api/public/clubs/not%20ok")
+      .set("x-request-id", "public-club-invalid-url")
+      .expect(400)
+      .expect((response) => {
+        expect(response.body).toEqual({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Check the public club URL and try again.",
+            requestId: "public-club-invalid-url"
+          }
+        });
+      });
+  });
+
+  it("generates a sitemap with only homepage, public directory, and public club URLs", async () => {
+    repository.createClub({
+      title: "Public Sitemap Club",
+      linkName: "public-sitemap-club",
+      visibility: "PUBLIC",
+      createdAt: new Date("2026-01-02T00:00:00.000Z")
+    });
+    repository.createClub({
+      title: "Private Sitemap Club",
+      linkName: "private-sitemap-club",
+      visibility: "PRIVATE",
+      createdAt: new Date("2026-01-03T00:00:00.000Z")
+    });
+
+    const response = await request(app).get("/sitemap.xml").expect(200);
+
+    expect(response.headers["content-type"]).toContain("application/xml");
+    expect(response.text).toContain(
+      "<loc>https://loresafe-web.vercel.app/</loc>"
+    );
+    expect(response.text).toContain(
+      "<loc>https://loresafe-web.vercel.app/clubs</loc>"
+    );
+    expect(response.text).toContain(
+      "<loc>https://loresafe-web.vercel.app/clubs/public-sitemap-club</loc>"
+    );
+    expect(response.text).not.toContain("/app");
+    expect(response.text).not.toContain("/login");
+    expect(response.text).not.toContain("/signup");
+    expect(response.text).not.toContain("/invite");
+    expect(response.text).not.toContain("/api");
+    expect(response.text).not.toContain("private-sitemap-club");
+  });
+
   it("returns only public clubs to signed-in users", async () => {
     const user = await repository.createUser({
       email: "reader@example.com",
@@ -1667,6 +1899,17 @@ const createClubsTestApp = (
   app.use(requestIdMiddleware);
   app.use(express.json());
   app.use(cookieParser());
+  app.use(
+    "/sitemap.xml",
+    createSitemapRouter(clubsService, {
+      ...env,
+      PUBLIC_SITE_ORIGIN: "https://loresafe-web.vercel.app"
+    })
+  );
+  app.use(
+    "/api/public/clubs",
+    createPublicClubsRouter(clubsController, authMiddleware)
+  );
   app.use("/api/clubs", createClubsRouter(clubsController, authMiddleware));
   app.use(errorHandler);
 
@@ -2361,8 +2604,81 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
+  listPublicSeoClubs = async (
+    currentUserId: string | null,
+    { limit, page, sort }: ListPublicSeoClubsQuery
+  ) => {
+    const publicClubs = this.getPublicSeoClubs(currentUserId)
+      .sort((leftClub, rightClub) => {
+        if (sort === "popular") {
+          const memberCountDifference =
+            this.countClubMembers(rightClub.id) - this.countClubMembers(leftClub.id);
+
+          if (memberCountDifference !== 0) {
+            return memberCountDifference;
+          }
+        }
+
+        return (
+          rightClub.createdAt.getTime() - leftClub.createdAt.getTime() ||
+          leftClub.id.localeCompare(rightClub.id)
+        );
+      });
+    const start = (page - 1) * limit;
+
+    return {
+      clubs: publicClubs.slice(start, start + limit).map((club) => ({
+        ...club,
+        visibility: "PUBLIC" as const,
+        memberCount: this.countClubMembers(club.id)
+      })),
+      total: publicClubs.length
+    };
+  };
+
+  findPublicSeoClubByLinkName = async (
+    linkName: string,
+    currentUserId: string | null
+  ): Promise<PublicClubDetailRecord | null> => {
+    const club = this.getPublicSeoClubs(currentUserId).find(
+      (candidate) => candidate.linkName === linkName
+    );
+
+    return club
+      ? {
+          ...club,
+          visibility: "PUBLIC" as const,
+          memberCount: this.countClubMembers(club.id)
+        }
+      : null;
+  };
+
+  listPublicClubSitemapEntries = async (
+    limit: number
+  ): Promise<{ entries: PublicClubSitemapEntryRecord[] }> => ({
+    entries: Array.from(this.clubs.values())
+      .filter((club) => club.visibility === "PUBLIC")
+      .sort(
+        (leftClub, rightClub) =>
+          rightClub.updatedAt.getTime() - leftClub.updatedAt.getTime() ||
+          leftClub.id.localeCompare(rightClub.id)
+      )
+      .slice(0, limit)
+      .map((club) => ({
+        linkName: club.linkName,
+        updatedAt: club.updatedAt
+      }))
+  });
+
   private countClubMembers = (clubId: string) =>
     this.memberships.filter((membership) => membership.clubId === clubId).length;
+
+  private getPublicSeoClubs = (currentUserId: string | null) =>
+    Array.from(this.clubs.values()).filter(
+      (club) =>
+        club.visibility === "PUBLIC" &&
+        (!currentUserId || !this.hasActiveBan(currentUserId, club.id))
+    );
 
   private findStoredClubByLinkName = (linkName: string) => {
     for (const club of this.clubs.values()) {

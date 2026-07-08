@@ -7,10 +7,16 @@ import {
   type ClubMemberResponse,
   type ClubMembersResponse,
   type ClubsDiscoveryResponse,
+  type PublicClubResponse,
+  type PublicClubsResponse,
+  type PublicClubSitemapEntryDto,
   toClubBanDto,
   toClubDto,
   toClubDiscoveryDto,
-  toClubMemberDto
+  toClubMemberDto,
+  toPublicClubDetailDto,
+  toPublicClubDto,
+  toPublicClubSitemapEntryDto
 } from "./clubs.dto.js";
 import {
   type ClubBanMutationResult,
@@ -28,6 +34,7 @@ import type {
   ListClubBansQuery,
   ListClubMembersQuery,
   ListClubsQuery,
+  ListPublicSeoClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 
@@ -84,6 +91,17 @@ export type ClubsService = {
     userId: string,
     query: ListClubsQuery
   ) => Promise<ClubsDiscoveryResponse>;
+  listPublicSeoClubs: (
+    currentUserId: string | null,
+    query: ListPublicSeoClubsQuery
+  ) => Promise<PublicClubsResponse>;
+  getPublicSeoClubByLinkName: (
+    linkName: string,
+    currentUserId: string | null
+  ) => Promise<PublicClubResponse>;
+  listPublicClubSitemapEntries: (
+    limit: number
+  ) => Promise<PublicClubSitemapEntryDto[]>;
 };
 
 export const createClubsService = (
@@ -254,6 +272,41 @@ export const createClubsService = (
         pageCount: Math.ceil(result.total / query.limit)
       }
     };
+  },
+
+  listPublicSeoClubs: async (currentUserId, query) => {
+    const result = await repository.listPublicSeoClubs(currentUserId, query);
+
+    return {
+      clubs: result.clubs.map(toPublicClubDto),
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: result.total,
+        pageCount: Math.ceil(result.total / query.limit)
+      }
+    };
+  },
+
+  getPublicSeoClubByLinkName: async (linkName, currentUserId) => {
+    const club = await repository.findPublicSeoClubByLinkName(
+      linkName,
+      currentUserId
+    );
+
+    if (!club) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    return {
+      club: toPublicClubDetailDto(club)
+    };
+  },
+
+  listPublicClubSitemapEntries: async (limit) => {
+    const result = await repository.listPublicClubSitemapEntries(limit);
+
+    return result.entries.map(toPublicClubSitemapEntryDto);
   }
 });
 

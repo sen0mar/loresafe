@@ -8,7 +8,7 @@ import { LandingPage } from "./landing-page";
 
 describe("LandingPage", () => {
   it("renders the brand hero, entry actions, and dashboard preview image", () => {
-    renderWithProviders(<LandingPage />);
+    const { container } = renderWithProviders(<LandingPage />);
 
     expect(
       screen.getByRole("heading", { level: 1, name: "LoreSafe" })
@@ -26,11 +26,16 @@ describe("LandingPage", () => {
       "href",
       "/login"
     );
-    expect(
-      screen.getByRole("img", {
-        name: /LoreSafe spoiler-safe discussion dashboard preview/i
-      })
-    ).toBeInTheDocument();
+    const heroImage = screen.getByRole("img", {
+      name: /LoreSafe spoiler-safe discussion dashboard preview/i
+    });
+
+    expect(heroImage).toBeInTheDocument();
+    expect(heroImage).toHaveAttribute("width", "1672");
+    expect(heroImage).toHaveAttribute("height", "941");
+    expect(heroImage).toHaveAttribute("fetchpriority", "high");
+    expect(container.querySelector('source[type="image/avif"]')).toBeTruthy();
+    expect(container.querySelector('source[type="image/webp"]')).toBeTruthy();
   });
 
   it("keeps the root route public while protecting the app home", async () => {

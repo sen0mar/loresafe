@@ -15,16 +15,20 @@ import { formatClubCategory } from "../lib/club-categories.js";
 
 type ClubDiscoveryCardProps = {
   club: ClubDiscoveryClub;
+  to?: string;
 };
 
 const memberFormatter = new Intl.NumberFormat();
 
-export const ClubDiscoveryCard = ({ club }: ClubDiscoveryCardProps) => (
+export const ClubDiscoveryCard = ({
+  club,
+  to = `/app/clubs/${club.linkName}`
+}: ClubDiscoveryCardProps) => (
   <Card className="group h-full transition-colors hover:border-strong">
     <Link
       aria-label={`Open ${club.title}`}
       className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      to={`/app/clubs/${club.linkName}`}
+      to={to}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">

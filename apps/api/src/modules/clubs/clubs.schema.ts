@@ -49,6 +49,23 @@ export const listClubsQuerySchema = z
     }
   });
 
+export const listPublicSeoClubsQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(12),
+    sort: z.enum(["newest", "popular"]).default("newest")
+  })
+  .strict()
+  .superRefine((query, context) => {
+    if (query.sort === "popular" && query.limit > 20) {
+      context.addIssue({
+        code: "custom",
+        path: ["limit"],
+        message: "Most popular public club pages are limited to 20 clubs."
+      });
+    }
+  });
+
 export const listClubMembersQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
@@ -141,6 +158,9 @@ export const banClubMemberRequestSchema = z
   .strict();
 
 export type ListClubsQuery = z.infer<typeof listClubsQuerySchema>;
+export type ListPublicSeoClubsQuery = z.infer<
+  typeof listPublicSeoClubsQuerySchema
+>;
 export type ListClubMembersQuery = z.infer<typeof listClubMembersQuerySchema>;
 export type ListClubBansQuery = z.infer<typeof listClubBansQuerySchema>;
 export type ClubCategory = z.infer<typeof clubCategorySchema>;
