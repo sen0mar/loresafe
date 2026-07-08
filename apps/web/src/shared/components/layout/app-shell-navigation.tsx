@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import { BrandWordmark } from "@/shared/components/brand-wordmark";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -206,7 +207,7 @@ const ShellBrand = () => (
     <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
       <ShieldCheck className="size-6" />
     </span>
-    <span className="text-xl font-semibold tracking-normal">LoreSafe</span>
+    <BrandWordmark className="text-xl font-semibold" />
   </Link>
 );
 

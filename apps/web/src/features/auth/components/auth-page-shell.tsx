@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
 
+import { BrandWordmark } from "@/shared/components/brand-wordmark";
+
 export const AuthPageShell = ({
   eyebrow,
   title,
@@ -29,7 +31,7 @@ export const AuthPageShell = ({
           <span className="flex size-12 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
             <ShieldCheck className="size-7" />
           </span>
-          <span className="text-2xl font-semibold tracking-normal">LoreSafe</span>
+          <BrandWordmark className="text-2xl font-semibold" />
         </div>
 
         <div className="max-w-2xl space-y-4">
