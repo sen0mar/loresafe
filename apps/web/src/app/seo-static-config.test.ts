@@ -22,7 +22,11 @@ describe("static SEO configuration", () => {
       `<link rel="canonical" href="${canonicalOrigin}/" />`
     );
     expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
+    expect(html).toContain('<link rel="icon" href="/favicon.ico" sizes="any" />');
     expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml" />');
+    expect(html).toContain(
+      '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />'
+    );
     expect(html).toContain(
       `<meta property="og:url" content="${canonicalOrigin}/" />`
     );
@@ -63,6 +67,24 @@ describe("static SEO configuration", () => {
       type: "image/svg+xml",
       purpose: "any maskable"
     });
+    expect(manifest.icons).toContainEqual({
+      src: "/pwa-192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any maskable"
+    });
+    expect(manifest.icons).toContainEqual({
+      src: "/pwa-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any maskable"
+    });
+    expect(existsSync(join(webRoot, "public", "favicon.ico"))).toBe(true);
+    expect(existsSync(join(webRoot, "public", "apple-touch-icon.png"))).toBe(
+      true
+    );
+    expect(existsSync(join(webRoot, "public", "pwa-192.png"))).toBe(true);
+    expect(existsSync(join(webRoot, "public", "pwa-512.png"))).toBe(true);
     expect(readWebFile("public", "icon.svg")).toContain("<title");
     expect(
       existsSync(join(webRoot, "public", "og", "loresafe-home.png"))
@@ -75,6 +97,18 @@ describe("static SEO configuration", () => {
       height: 630
     });
     expect(getPngDimensions("public", "og", "loresafe-square.png")).toEqual({
+      width: 512,
+      height: 512
+    });
+    expect(getPngDimensions("public", "apple-touch-icon.png")).toEqual({
+      width: 180,
+      height: 180
+    });
+    expect(getPngDimensions("public", "pwa-192.png")).toEqual({
+      width: 192,
+      height: 192
+    });
+    expect(getPngDimensions("public", "pwa-512.png")).toEqual({
       width: 512,
       height: 512
     });

@@ -45,6 +45,12 @@ export const useDocumentMetadata = ({
   }, [canonicalPath, description, imageUrl, robots, structuredData, title]);
 };
 
+export const RouteDocumentMetadata = (metadata: DocumentMetadata) => {
+  useDocumentMetadata(metadata);
+
+  return null;
+};
+
 const setMetaTag = (
   attribute: "name" | "property",
   key: string,

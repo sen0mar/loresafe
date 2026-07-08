@@ -61,5 +61,61 @@ export const LandingPage = () => (
         </p>
       </div>
     </section>
+    <section className="soft-section-divider relative z-10 bg-background px-5 py-10 sm:px-8 lg:px-12">
+      <div className="max-w-5xl space-y-5">
+        <div className="max-w-2xl space-y-2">
+          <h2 className="text-2xl font-semibold tracking-normal text-primary">
+            Spoiler-safe by design
+          </h2>
+          <p className="text-sm leading-6 text-muted">
+            LoreSafe keeps club conversations matched to each member's progress
+            across stories, series, games, courses, and custom timelines.
+          </p>
+        </div>
+        <dl className="grid gap-3 md:grid-cols-2">
+          {landingFaqItems.map((item) => (
+            <div
+              key={item.question}
+              className="rounded-xl border border-default bg-surface p-4"
+            >
+              <dt className="text-sm font-medium text-primary">
+                {item.question}
+              </dt>
+              <dd className="mt-2 text-sm leading-6 text-muted">
+                {item.answer}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
   </main>
 );
+
+const landingFaqItems = [
+  {
+    question: "How does LoreSafe prevent spoilers?",
+    answer:
+      "Posts and comments are tied to milestones, so members only unlock discussions that match their saved progress."
+  },
+  {
+    question: "What can clubs follow?",
+    answer:
+      "Clubs can organize books, shows, anime, games, courses, podcasts, films, or any custom story timeline."
+  },
+  {
+    question: "What are milestones?",
+    answer:
+      "Milestones are ordered checkpoints like chapters, episodes, missions, timestamps, lessons, or custom beats."
+  },
+  {
+    question: "Can private clubs appear in search?",
+    answer:
+      "No. Public SEO pages only show safe metadata for public clubs; private and invite-only clubs stay hidden."
+  },
+  {
+    question: "What changes when progress updates?",
+    answer:
+      "LoreSafe refreshes what is safe for you and opens newly available conversations without exposing future content early."
+  }
+];
