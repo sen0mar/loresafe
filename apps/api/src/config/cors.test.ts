@@ -42,12 +42,12 @@ describe("CORS config", () => {
     const env = parseEnv({
       ...baseEnv,
       ...productionServiceEnv,
-      CLIENT_ORIGINS: "https://loresafe.org",
+      CLIENT_ORIGINS: "https://www.loresafe.org",
       NODE_ENV: "production",
-      PUBLIC_SITE_ORIGIN: "https://loresafe.org"
+      PUBLIC_SITE_ORIGIN: "https://www.loresafe.org"
     });
 
-    expect(getAllowedCorsOrigins(env)).toEqual(["https://loresafe.org"]);
+    expect(getAllowedCorsOrigins(env)).toEqual(["https://www.loresafe.org"]);
   });
 
   it("falls back to the legacy single production origin", () => {

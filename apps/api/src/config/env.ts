@@ -175,7 +175,7 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
     CLIENT_ORIGIN: parsedEnv.CLIENT_ORIGIN ?? "http://localhost:5173",
     CLIENT_ORIGIN_ALLOWLIST: parseOriginList(parsedEnv.CLIENT_ORIGINS),
     PUBLIC_SITE_ORIGIN: normalizeOrigin(
-      parsedEnv.PUBLIC_SITE_ORIGIN ?? "https://loresafe.org"
+      parsedEnv.PUBLIC_SITE_ORIGIN ?? "https://www.loresafe.org"
     ),
     TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (isProduction ? 1 : 0),
     SESSION_COOKIE_SECURE: isProduction

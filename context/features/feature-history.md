@@ -127,6 +127,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 121: Apex domain SEO cutover — Added permanent apex-host redirects for `www` and Vercel hosts, set the production CORS example to `loresafe.org`, and covered redirect plus legacy-host SEO regressions.
 - Feature 122: Landing footer polish — Replaced the public landing teaser strip with an animated scroll arrow, added a compact footer with centered navigation and copyright, refreshed FAQ copy, and added focused landing-page regression coverage.
 - Feature 123: Brand wordmark accent — Colored the `Safe` portion of visible LoreSafe wordmarks with a stronger steel-blue accent across public, auth, and app shell surfaces, including static SEO fallback coverage.
+- Feature 124: Production redirect loop fix — Aligned Vercel redirects, canonical SEO metadata, public-origin defaults, production env examples, and sitemap output on `www.loresafe.org`, with focused config regression coverage.
 
 ## Entry Format
 

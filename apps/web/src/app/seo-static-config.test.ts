@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const canonicalOrigin = "https://loresafe.org";
+const canonicalOrigin = "https://www.loresafe.org";
 const webRoot = process.cwd();
 
 const readWebFile = (...pathSegments: string[]) =>
@@ -155,10 +155,10 @@ describe("static SEO configuration", () => {
         has: [
           {
             type: "host",
-            value: "www.loresafe.org"
+            value: "loresafe.org"
           }
         ],
-        destination: "https://loresafe.org/",
+        destination: "https://www.loresafe.org/",
         permanent: true
       },
       {
@@ -166,10 +166,10 @@ describe("static SEO configuration", () => {
         has: [
           {
             type: "host",
-            value: "www.loresafe.org"
+            value: "loresafe.org"
           }
         ],
-        destination: "https://loresafe.org/:path*",
+        destination: "https://www.loresafe.org/:path*",
         permanent: true
       },
       {
@@ -180,7 +180,7 @@ describe("static SEO configuration", () => {
             value: "loresafe-web.vercel.app"
           }
         ],
-        destination: "https://loresafe.org/",
+        destination: "https://www.loresafe.org/",
         permanent: true
       },
       {
@@ -191,10 +191,19 @@ describe("static SEO configuration", () => {
             value: "loresafe-web.vercel.app"
           }
         ],
-        destination: "https://loresafe.org/:path*",
+        destination: "https://www.loresafe.org/:path*",
         permanent: true
       }
     ]);
+    expect(
+      vercelConfig.redirects.some((redirect) =>
+        redirect.has.some(
+          (condition) =>
+            condition.type === "host" &&
+            condition.value === "www.loresafe.org"
+        )
+      )
+    ).toBe(false);
     expect(vercelConfig.rewrites).toContainEqual({
       source: "/api/:path*",
       destination: "https://api.loresafe.org/api/:path*"
@@ -239,7 +248,7 @@ describe("static SEO configuration", () => {
       const content = readWebFile(...filePath.split("/"));
 
       expect(content).not.toContain("loresafe-web.vercel.app");
-      expect(content).not.toContain("www.loresafe.org");
+      expect(content).not.toContain("https://loresafe.org");
     }
   });
 });

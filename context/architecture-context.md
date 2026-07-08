@@ -231,7 +231,7 @@ Important query paths/indexes:
 
 ## Deployment and Environment Model
 
-- Public frontend domain: `https://loresafe.org`.
+- Public frontend domain: `https://www.loresafe.org`.
 - Frontend hosting: Vercel static Vite app.
 - Backend hosting: Render long-running Node/Express service at `https://api.loresafe.org`, not an edge-only function.
 - Browser API calls use same-origin `/api` paths through the Vercel rewrite to the Render API domain.

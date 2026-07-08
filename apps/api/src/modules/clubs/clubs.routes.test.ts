@@ -1266,13 +1266,13 @@ describe("clubs routes", () => {
 
     expect(response.headers["content-type"]).toContain("application/xml");
     expect(response.text).toContain(
-      "<loc>https://loresafe.org/</loc>"
+      "<loc>https://www.loresafe.org/</loc>"
     );
     expect(response.text).toContain(
-      "<loc>https://loresafe.org/clubs</loc>"
+      "<loc>https://www.loresafe.org/clubs</loc>"
     );
     expect(response.text).toContain(
-      "<loc>https://loresafe.org/clubs/public-sitemap-club</loc>"
+      "<loc>https://www.loresafe.org/clubs/public-sitemap-club</loc>"
     );
     expect(response.text).not.toContain("/app");
     expect(response.text).not.toContain("/login");
@@ -1903,7 +1903,7 @@ const createClubsTestApp = (
     "/sitemap.xml",
     createSitemapRouter(clubsService, {
       ...env,
-      PUBLIC_SITE_ORIGIN: "https://loresafe.org"
+      PUBLIC_SITE_ORIGIN: "https://www.loresafe.org"
     })
   );
   app.use(
