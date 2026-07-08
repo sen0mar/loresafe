@@ -635,35 +635,33 @@ export const postsRepository: PostsRepository = {
 
   togglePostReaction: async (postId, userId, input) => {
     await prisma.$transaction(async (transaction) => {
-      const existingReaction = await transaction.postReaction.findUnique({
+      const deletedReaction = await transaction.postReaction.deleteMany({
         where: {
-          userId_postId_emoji: {
-            userId,
-            postId,
-            emoji: input.emoji
-          }
-        },
-        select: {
-          id: true
-        }
-      });
-
-      if (existingReaction) {
-        await transaction.postReaction.delete({
-          where: {
-            id: existingReaction.id
-          }
-        });
-        return;
-      }
-
-      await transaction.postReaction.create({
-        data: {
-          postId,
           userId,
+          postId,
           emoji: input.emoji
         }
       });
+
+      if (deletedReaction.count > 0) {
+        return;
+      }
+
+      try {
+        await transaction.postReaction.create({
+          data: {
+            postId,
+            userId,
+            emoji: input.emoji
+          }
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          return;
+        }
+
+        throw error;
+      }
     });
 
     return postsRepository.findPostForDetail(postId, userId);
@@ -711,6 +709,12 @@ export const postsRepository: PostsRepository = {
       };
     })
 };
+
+const isUniqueConstraintError = (error: unknown) =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as Prisma.PrismaClientKnownRequestError).code === "P2002";
 
 export type SelectedPost = Prisma.PostGetPayload<{
   select: typeof postSelect;

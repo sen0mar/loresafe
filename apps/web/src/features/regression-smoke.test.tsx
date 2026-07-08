@@ -2116,6 +2116,35 @@ describe("frontend regression smoke", () => {
     expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
   });
 
+  it("renders stale feed cards without permissions safely", async () => {
+    const visiblePostWithoutPermissions = {
+      ...visiblePost
+    } as Partial<ClubPostCard>;
+    const lockedPostWithoutPermissions = {
+      ...lockedPost
+    } as Partial<ClubPostCard>;
+    delete visiblePostWithoutPermissions.permissions;
+    delete lockedPostWithoutPermissions.permissions;
+
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/posts", {
+        posts: [visiblePostWithoutPermissions, lockedPostWithoutPermissions],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    ]);
+    renderWithProviders(<ClubFeedTab club={club} />);
+
+    expect(await screen.findByText("Visible post title")).toBeInTheDocument();
+    expect(screen.getByText("Locked discussion")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^delete$/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the homepage option grid", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),

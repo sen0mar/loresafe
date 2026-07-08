@@ -248,6 +248,16 @@ Environment variables must be validated at startup. Required groups:
 - Sentry DSNs.
 - Optional email provider once password reset/email verification is implemented.
 
+Prisma drift checks:
+
+- Run `pnpm db:check` before investigating API errors that mention missing
+  columns or unknown Prisma fields.
+- For the club link-name rename, the committed
+  `20260630120000_rename_club_slug_to_link_name` migration is the source of
+  truth for `clubs.link_name`.
+- Repair drift by applying committed migrations and regenerating Prisma Client;
+  never use `prisma db push`.
+
 ## Failure Modes to Guard Against
 
 - Client-side-only spoiler filtering leaks unsafe data in API responses.
