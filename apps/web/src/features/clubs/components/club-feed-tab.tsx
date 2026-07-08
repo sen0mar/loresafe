@@ -811,7 +811,7 @@ const VisiblePostCard = ({
         </div>
         <div className="relative z-10 flex items-center gap-1">
           <ReportDialog targetId={post.id} targetType="POST" />
-          {post.permissions.canDelete ? (
+          {post.permissions?.canDelete === true ? (
             <DeletePostDialog
               postId={post.id}
               onDeleted={() => onDeleted?.(post.id)}
@@ -916,7 +916,7 @@ const LockedPostCard = ({
         </span>
         <div className="relative z-10 flex flex-1 flex-wrap items-center justify-end gap-3">
           <PostCounts post={post} />
-          {post.permissions.canDelete ? (
+          {post.permissions?.canDelete === true ? (
             <div className="flex items-center gap-1">
               <DeletePostDialog
                 postId={post.id}

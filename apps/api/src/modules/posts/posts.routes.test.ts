@@ -1271,6 +1271,51 @@ describe("posts routes", () => {
     });
   });
 
+  it("handles concurrent post reaction toggles without returning a server error", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("reaction-concurrent-story-circle");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    const post = repository.createPost(club.id, user.id, milestone.id, {
+      title: "Concurrent reaction title",
+      body: "Concurrent reaction body"
+    });
+    const cookie = await createSessionCookie(user);
+
+    const responses = await Promise.all([
+      request(app)
+        .post(`/api/posts/${post.id}/reactions/toggle`)
+        .set("Cookie", cookie)
+        .send({ emoji: "👍" }),
+      request(app)
+        .post(`/api/posts/${post.id}/reactions/toggle`)
+        .set("Cookie", cookie)
+        .send({ emoji: "👍" })
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(repository.postReactions.length).toBeLessThanOrEqual(1);
+    for (const response of responses) {
+      expect(response.body).not.toHaveProperty("error");
+      expect(response.body.post).toMatchObject({
+        id: post.id,
+        visibility: "VISIBLE"
+      });
+      expect(response.body.post.counts.reactions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            emoji: "👍",
+            reactedByMe: expect.any(Boolean)
+          })
+        ])
+      );
+    }
+  });
+
   it("aggregates different users and emojis without exposing identities", async () => {
     const firstUser = repository.createStoredUser(validUserInput());
     const secondUser = repository.createStoredUser({

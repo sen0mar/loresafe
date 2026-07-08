@@ -71,6 +71,74 @@ const progressModeOptions: ProgressModeOption[] = [
   }
 ];
 
+const ReadingModeButton = ({
+  currentProgressMode,
+  disabled,
+  isRewindSelection,
+  mode,
+  onSelect,
+  selectedMode
+}: {
+  currentProgressMode: ProgressMode;
+  disabled: boolean;
+  isRewindSelection: boolean;
+  mode: ProgressModeOption;
+  onSelect: () => void;
+  selectedMode: ProgressMode;
+}) => {
+  const isSelected = selectedMode === mode.value;
+  const isDisabled =
+    disabled ||
+    (isRewindSelection &&
+      (mode.value === "FINISHED" ||
+        (currentProgressMode === "FINISHED" && mode.value !== "STRICT")));
+
+  return (
+    <button
+      data-active={isSelected ? "true" : "false"}
+      data-liquid-selection-item
+      data-liquid-selection-value={mode.value}
+      type="button"
+      className={cn(
+        "relative z-10 rounded-lg border border-default px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
+        isSelected
+          ? "border-transparent text-brand hover:text-brand"
+          : "bg-inset hover:border-strong hover:bg-active"
+      )}
+      disabled={isDisabled}
+      onClick={onSelect}
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "text-sm font-medium",
+            isSelected ? "text-brand" : "text-primary"
+          )}
+        >
+          {mode.label}
+        </span>
+        {isSelected ? <Check className="size-4 text-brand" /> : null}
+      </span>
+      <span className="mt-1 block text-xs leading-5 text-faint">
+        {mode.description}
+      </span>
+    </button>
+  );
+};
+
+const getProgressSelectionMilestoneId = (
+  progress: ClubProgress,
+  finalMilestone: ClubMilestone | null
+) => {
+  if (progress.mode === "FINISHED") {
+    return (
+      finalMilestone?.id ?? progress.currentMilestone?.id ?? notStartedValue
+    );
+  }
+
+  return progress.currentMilestone?.id ?? notStartedValue;
+};
+
 export const ClubProgressPanel = ({
   linkName,
   clubTitle,
@@ -438,61 +506,6 @@ export const ClubProgressPanel = ({
   );
 };
 
-const ReadingModeButton = ({
-  currentProgressMode,
-  disabled,
-  isRewindSelection,
-  mode,
-  onSelect,
-  selectedMode
-}: {
-  currentProgressMode: ProgressMode;
-  disabled: boolean;
-  isRewindSelection: boolean;
-  mode: ProgressModeOption;
-  onSelect: () => void;
-  selectedMode: ProgressMode;
-}) => {
-  const isSelected = selectedMode === mode.value;
-  const isDisabled =
-    disabled ||
-    (isRewindSelection &&
-      (mode.value === "FINISHED" ||
-        (currentProgressMode === "FINISHED" && mode.value !== "STRICT")));
-
-  return (
-    <button
-      data-active={isSelected ? "true" : "false"}
-      data-liquid-selection-item
-      data-liquid-selection-value={mode.value}
-      type="button"
-      className={cn(
-        "relative z-10 rounded-lg border border-default px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
-        isSelected
-          ? "border-transparent text-brand hover:text-brand"
-          : "bg-inset hover:border-strong hover:bg-active"
-      )}
-      disabled={isDisabled}
-      onClick={onSelect}
-    >
-      <span className="flex items-center justify-between gap-3">
-        <span
-          className={cn(
-            "text-sm font-medium",
-            isSelected ? "text-brand" : "text-primary"
-          )}
-        >
-          {mode.label}
-        </span>
-        {isSelected ? <Check className="size-4 text-brand" /> : null}
-      </span>
-      <span className="mt-1 block text-xs leading-5 text-faint">
-        {mode.description}
-      </span>
-    </button>
-  );
-};
-
 const ProgressMembershipRequired = () => (
   <Card>
     <CardContent className="flex min-h-44 flex-col justify-center gap-3">
@@ -551,19 +564,6 @@ const getSelectedMilestonePosition = (
   return (
     milestones.find((milestone) => milestone.id === milestoneId)?.position ?? 0
   );
-};
-
-const getProgressSelectionMilestoneId = (
-  progress: ClubProgress,
-  finalMilestone: ClubMilestone | null
-) => {
-  if (progress.mode === "FINISHED") {
-    return (
-      finalMilestone?.id ?? progress.currentMilestone?.id ?? notStartedValue
-    );
-  }
-
-  return progress.currentMilestone?.id ?? notStartedValue;
 };
 
 const getPreviousMilestone = (

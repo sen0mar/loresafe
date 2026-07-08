@@ -8,6 +8,7 @@
     "dev:api": "pnpm --filter @loresafe/api dev",
     "dev:web": "pnpm --filter @loresafe/web dev",
     "build": "pnpm -r build",
+    "db:check": "pnpm --filter @loresafe/api prisma:check",
     "db:reset:development": "pnpm --filter @loresafe/api db:reset:development",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
