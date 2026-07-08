@@ -13,7 +13,7 @@ describe("Vite environment config", () => {
       R2_SECRET_ACCESS_KEY: "secret",
       UPSTASH_REDIS_REST_TOKEN: "secret",
       VITE_API_BASE_URL: "https://api.loresafe.example",
-      VITE_PUBLIC_SITE_ORIGIN: "https://loresafe-web.vercel.app",
+      VITE_PUBLIC_SITE_ORIGIN: "https://loresafe.org",
       VITE_SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
     } as Partial<
       Record<(typeof publicClientEnvKeys)[number] | "VITE_API_BASE_URL", string>
@@ -24,7 +24,7 @@ describe("Vite environment config", () => {
         "https://public@example.ingest.sentry.io/1"
       ),
       "import.meta.env.VITE_PUBLIC_SITE_ORIGIN": JSON.stringify(
-        "https://loresafe-web.vercel.app"
+        "https://loresafe.org"
       )
     });
     expect(Object.keys(defineValues)).not.toEqual(

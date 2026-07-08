@@ -58,11 +58,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://loresafe-api.onrender.com/api/:path*"
+      "destination": "https://api.loresafe.org/api/:path*"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "https://loresafe-api.onrender.com/sitemap.xml"
+      "destination": "https://api.loresafe.org/sitemap.xml"
     },
     {
       "source": "/",

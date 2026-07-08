@@ -72,7 +72,7 @@ describe("env validation", () => {
 
     expect(env.SESSION_COOKIE_SECURE).toBe(true);
     expect(env.TRUST_PROXY_HOPS).toBe(1);
-    expect(env.PUBLIC_SITE_ORIGIN).toBe("https://loresafe-web.vercel.app");
+    expect(env.PUBLIC_SITE_ORIGIN).toBe("https://loresafe.org");
     expect(env.CLIENT_ORIGIN_ALLOWLIST).toEqual([
       "https://app.loresafe.example",
       "https://admin.loresafe.example"
@@ -116,7 +116,7 @@ describe("env validation", () => {
     expect(env.NODE_ENV).toBe("development");
     expect(env.CLIENT_ORIGIN).toBe("http://localhost:5173");
     expect(env.CLIENT_ORIGIN_ALLOWLIST).toEqual([]);
-    expect(env.PUBLIC_SITE_ORIGIN).toBe("https://loresafe-web.vercel.app");
+    expect(env.PUBLIC_SITE_ORIGIN).toBe("https://loresafe.org");
     expect(env.SESSION_COOKIE_SECURE).toBe(false);
     expect(env.TRUST_PROXY_HOPS).toBe(0);
   });

@@ -123,6 +123,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 117: Medium-priority SEO surface — Added safe public club directory/detail APIs, generated public sitemap output, public club SEO pages with metadata and structured data, route-split authenticated pages, optimized social/hero assets, and focused leak/regression coverage.
 - Feature 118: Low-priority SEO cleanup — Added full favicon/PWA icon coverage, compact noindex route metadata for auth/protected pages, a concise homepage FAQ, low-priority SEO report notes, and focused frontend/static SEO coverage.
 - Feature 119: Render web startup fix — Split API web startup from Prisma migration deploys so Render can bind the Express port immediately while migrations run through a pre-deploy command.
+- Feature 120: Custom production domains — Pointed public origins and SEO metadata to `loresafe.org`, updated Vercel API and sitemap rewrites for `api.loresafe.org`, documented Vercel/Render deployment domains, and refreshed focused config coverage.
 
 ## Entry Format
 

@@ -80,7 +80,7 @@ describe("LandingPage", () => {
       expect(document.title).toBe("Create club | LoreSafe");
       expect(getMeta("robots")).toBe("noindex, nofollow");
       expect(getCanonical()).toBe(
-        "https://loresafe-web.vercel.app/app/clubs/new"
+        "https://loresafe.org/app/clubs/new"
       );
     });
   });
