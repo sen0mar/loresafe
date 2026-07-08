@@ -238,6 +238,11 @@ Production targets are not finalized. Until chosen:
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
 - Verify cookie domain, SameSite, Secure, CORS, proxy, and HTTPS behavior before production.
 
+Render API deployment:
+
+- The web service start command must run only the built Express server, for example `pnpm --filter @loresafe/api start`.
+- Run committed Prisma migrations in a pre-deploy/release command, for example `pnpm --filter @loresafe/api prisma:migrate:deploy`, not in the web start command. This keeps advisory-lock retries from delaying port binding long enough for Render's web-service port scan to fail.
+
 Environment variables must be validated at startup. Required groups:
 
 - App URLs and environment mode.
