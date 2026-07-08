@@ -79,9 +79,12 @@ describe("LandingPage", () => {
     expect(screen.getAllByRole("link", { name: /create account/i })).toHaveLength(
       2
     );
-    expect(
-      screen.getByText(/© \d{4} LoreSafe\. All rights reserved\./i)
-    ).toBeVisible();
+    const copyright = container.querySelector("footer p.text-faint");
+
+    expect(copyright).toBeVisible();
+    expect(copyright?.textContent).toMatch(
+      /© \d{4} LoreSafe\. All rights reserved\./i
+    );
   });
 
   it("scrolls to the lower landing content from the arrow control", () => {

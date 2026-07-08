@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogIn, ShieldCheck, UserPlus } from "lucide-react";
 
+import { BrandWordmark } from "@/shared/components/brand-wordmark";
 import { Button } from "@/shared/components/ui/button";
 
 type PublicClubShellProps = {
@@ -17,7 +18,7 @@ export const PublicClubShell = ({ children }: PublicClubShellProps) => (
           className="inline-flex items-center gap-2 rounded-lg text-lg font-semibold tracking-normal text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
           <ShieldCheck className="size-5 text-brand" />
-          LoreSafe
+          <BrandWordmark />
         </Link>
         <nav className="flex items-center gap-2" aria-label="Public navigation">
           <Button asChild variant="ghost" size="sm">

@@ -37,7 +37,13 @@ describe("static SEO configuration", () => {
     expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain('<script type="application/ld+json">');
     expect(html).toContain(`"url": "${canonicalOrigin}/"`);
-    expect(html).toContain("<h1>LoreSafe</h1>");
+    expect(html).toContain(
+      [
+        "<h1>",
+        '            Lore<span style="color: #4f7fc0">S</span><span style="color: #4f7fc0">afe</span>',
+        "          </h1>"
+      ].join("\n")
+    );
     expect(html).toContain(
       "Discuss books, shows, games, and courses without stumbling into"
     );
