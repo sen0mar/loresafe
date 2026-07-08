@@ -115,6 +115,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 109: Mobile club header and menu polish — Stacked club header metadata/actions cleanly on mobile, removed the redundant mobile drawer brand row, and added focused shell regression coverage.
 - Feature 110: Club members search — Added bounded member roster search by display name or username, kept the existing member-only roster policy and pagination, added a Members-tab search bar, and covered backend/frontend behavior with focused regression tests.
 - Feature 111: LoreSafe rename — Renamed former-brand references to LoreSafe across source, docs, package metadata, runtime defaults, deployment examples, test fixtures, tracked assets, and local integration naming, with clean old-name scans and full typecheck/test/build verification.
+- Feature 112: High-priority Sentry regressions — Added focused regression coverage for mobile navigation imports, club progress/feed hook-order stability, and clubs router handler registration.
 
 ## Entry Format
 

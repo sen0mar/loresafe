@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "@/test/render";
@@ -178,11 +178,15 @@ describe("AppShell layout", () => {
     expect(clubsLink).toHaveAttribute("aria-current", "page");
   });
 
-  it("routes mobile Home navigation to the authenticated homepage", async () => {
+  it("routes mobile Home navigation and renders joined clubs", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
-      <AppShell currentUser={currentUser}>
+      <AppShell
+        currentUser={currentUser}
+        joinedClubs={joinedClubs}
+        joinedClubsTotal={joinedClubs.length}
+      >
         <div data-testid="page-content">Page content</div>
       </AppShell>,
       {
@@ -203,6 +207,12 @@ describe("AppShell layout", () => {
       "href",
       "/app/clubs"
     );
+    const mobileMenu = within(screen.getByRole("menu"));
+
+    expect(mobileMenu.getByText("Joined clubs")).toBeVisible();
+    expect(
+      mobileMenu.getByRole("menuitem", { name: /First Club/ })
+    ).toHaveAttribute("href", "/app/clubs/first-club");
   });
 
   it("does not render a global search bar in the app shell", () => {

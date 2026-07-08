@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import userEvent from "@testing-library/user-event";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 import { vi } from "vitest";
 
@@ -1604,6 +1604,41 @@ describe("frontend regression smoke", () => {
     expect(milestoneSelect).toHaveValue(secondMilestoneId);
   });
 
+  it("keeps progress panel hooks stable when membership-gated content loads", async () => {
+    mockFetchRoutes([
+      shellRoute("/api/clubs/safe-club/progress", {
+        progress
+      }),
+      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse)
+    ]);
+    const { rerender } = renderWithProviders(
+      <ClubProgressPanel
+        linkName="safe-club"
+        clubTitle="Safe Club"
+        isMember={false}
+      />
+    );
+
+    expect(screen.getByText("Progress is member-only")).toBeInTheDocument();
+
+    rerender(
+      <ClubProgressPanel
+        linkName="safe-club"
+        clubTitle="Safe Club"
+        isMember
+      />
+    );
+
+    expect(await screen.findByLabelText("Current milestone")).toHaveValue(
+      firstMilestoneId
+    );
+    const activeStrictButton = screen
+      .getAllByRole("button", { name: /strict/i })
+      .find((button) => button.getAttribute("data-active") === "true");
+
+    expect(activeStrictButton).toBeDefined();
+  });
+
   it("switches to Finished after quick advance reaches the final milestone", async () => {
     let hasAdvancedToFinished = false;
     const finishedProgress: ClubProgress = {
@@ -1735,6 +1770,60 @@ describe("frontend regression smoke", () => {
     expect(
       within(unlockedCard as HTMLElement).getByText("Freshly safe body preview.")
     ).toBeInTheDocument();
+  });
+
+  it("keeps feed unlock hooks stable while post and progress data load", async () => {
+    const postsDeferred = createDeferred<unknown>();
+    const progressDeferred = createDeferred<unknown>();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = normalizeFetchRequest(input, init);
+
+        if (
+          request.method === "GET" &&
+          request.url.pathname === "/api/clubs/safe-club/posts"
+        ) {
+          return Response.json(await postsDeferred.promise);
+        }
+
+        if (
+          request.method === "GET" &&
+          request.url.pathname === "/api/clubs/safe-club/progress"
+        ) {
+          return Response.json(await progressDeferred.promise);
+        }
+
+        throw new Error(
+          `Unhandled fetch ${request.method} ${request.url.pathname}`
+        );
+      })
+    );
+
+    renderWithProviders(<ClubFeedTab club={club} />);
+
+    expect(await screen.findByText("New post")).toBeInTheDocument();
+    expect(
+      document.querySelectorAll('[data-slot="skeleton"]').length
+    ).toBeGreaterThan(0);
+
+    await act(async () => {
+      postsDeferred.resolve({
+        posts: [visiblePost],
+        pagination: {
+          limit: 20,
+          nextCursor: null,
+          hasMore: false
+        }
+      });
+      progressDeferred.resolve({
+        progress
+      });
+    });
+
+    expect(await screen.findByText("Visible post title")).toBeInTheDocument();
+    expect(screen.getByText("Visible post body.")).toBeInTheDocument();
   });
 
   it("rewinds Finished progress and refetches open spoiler content as locked", async () => {
@@ -3487,3 +3576,32 @@ const countFetchCalls = (
 
     return init?.method === method && url.pathname === path;
   }).length;
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+
+  return {
+    promise,
+    resolve
+  };
+};
+
+const normalizeFetchRequest = (
+  input: RequestInfo | URL,
+  init?: RequestInit
+) => {
+  if (input instanceof Request) {
+    return {
+      method: input.method,
+      url: new URL(input.url)
+    };
+  }
+
+  return {
+    method: init?.method ?? "GET",
+    url: new URL(input.toString(), "http://localhost:5173")
+  };
+};
