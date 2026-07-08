@@ -18,6 +18,8 @@ import { LandingPage } from "../features/landing/pages/landing-page.js";
 import { PublicClubProfilePage } from "../features/public-clubs/pages/public-club-profile-page.js";
 import { PublicClubsPage } from "../features/public-clubs/pages/public-clubs-page.js";
 import { Toaster } from "../shared/components/ui/sonner.js";
+import { RouteDocumentMetadata } from "../shared/hooks/use-document-metadata.js";
+import { toPublicUrl } from "../shared/lib/public-site-origin.js";
 import { AUTHENTICATED_HOME_PATH } from "./routes.js";
 
 const queryClient = new QueryClient({
@@ -114,6 +116,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <HomePage />
+                  <NoindexRouteMetadata
+                    title="Home | LoreSafe"
+                    description="Your LoreSafe home for spoiler-safe clubs and conversations."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -130,6 +136,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <JoinedClubsPage />
+                  <NoindexRouteMetadata
+                    title="My clubs | LoreSafe"
+                    description="Search and open the LoreSafe clubs you have joined."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -138,6 +148,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <ExplorePage />
+                  <NoindexRouteMetadata
+                    title="Explore clubs | LoreSafe"
+                    description="Find public LoreSafe clubs to join."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -146,6 +160,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <CreateClubPage />
+                  <NoindexRouteMetadata
+                    title="Create club | LoreSafe"
+                    description="Create a LoreSafe club for spoiler-safe discussion."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -154,6 +172,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <RecentlyUnlockedPage />
+                  <NoindexRouteMetadata
+                    title="Recently unlocked | LoreSafe"
+                    description="Review LoreSafe discussions unlocked by your latest progress."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -162,6 +184,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <ClubModerationReportsPage />
+                  <NoindexRouteMetadata
+                    title="Moderation reports | LoreSafe"
+                    description="Review spoiler and safety reports for your LoreSafe club."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -170,6 +196,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <ClubDetailPage />
+                  <NoindexRouteMetadata
+                    title="Club | LoreSafe"
+                    description="Open your LoreSafe club dashboard, feed, progress, and settings."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -178,6 +208,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <NotificationsPage />
+                  <NoindexRouteMetadata
+                    title="Notifications | LoreSafe"
+                    description="Manage your spoiler-safe LoreSafe notifications."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -186,6 +220,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <SearchRedirect />
+                  <NoindexRouteMetadata
+                    title="Search | LoreSafe"
+                    description="Search LoreSafe clubs and spoiler-safe discussions."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -194,6 +232,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <PostDetailPage />
+                  <NoindexRouteMetadata
+                    title="Discussion | LoreSafe"
+                    description="Read a LoreSafe discussion when it is safe for your progress."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -202,6 +244,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <InviteAcceptPage />
+                  <NoindexRouteMetadata
+                    title="Club invite | LoreSafe"
+                    description="Accept a private LoreSafe club invitation."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -210,6 +256,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <ProfileSettingsPage />
+                  <NoindexRouteMetadata
+                    title="Profile settings | LoreSafe"
+                    description="Update your LoreSafe profile and account settings."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -224,6 +274,10 @@ export const App = () => (
               element={
                 <ProtectedRoute>
                   <Navigate to={AUTHENTICATED_HOME_PATH} replace />
+                  <NoindexRouteMetadata
+                    title="Home | LoreSafe"
+                    description="Your LoreSafe home for spoiler-safe clubs and conversations."
+                  />
                 </ProtectedRoute>
               }
             />
@@ -232,6 +286,10 @@ export const App = () => (
               element={
                 <PublicOnlyRoute>
                   <LoginPage />
+                  <NoindexRouteMetadata
+                    title="Log in | LoreSafe"
+                    description="Log in to LoreSafe to continue spoiler-safe club discussions."
+                  />
                 </PublicOnlyRoute>
               }
             />
@@ -240,6 +298,10 @@ export const App = () => (
               element={
                 <PublicOnlyRoute>
                   <SignupPage />
+                  <NoindexRouteMetadata
+                    title="Sign up | LoreSafe"
+                    description="Create a LoreSafe account for spoiler-safe story clubs."
+                  />
                 </PublicOnlyRoute>
               }
             />
@@ -255,6 +317,25 @@ const SearchRedirect = () => {
   const location = useLocation();
 
   return <Navigate to={`/app/explore${location.search}`} replace />;
+};
+
+const NoindexRouteMetadata = ({
+  title,
+  description
+}: {
+  title: string;
+  description: string;
+}) => {
+  const location = useLocation();
+
+  return (
+    <RouteDocumentMetadata
+      title={title}
+      description={description}
+      canonicalPath={toPublicUrl(location.pathname)}
+      robots="noindex, nofollow"
+    />
+  );
 };
 
 const RouteFallback = () => (

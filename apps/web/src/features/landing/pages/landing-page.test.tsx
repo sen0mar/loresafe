@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { App } from "@/app/app";
+import { clearAuthSessionHint } from "@/features/auth/api/auth-session-hint";
 import { mockFetchRoutes, renderWithProviders } from "@/test/render";
 
 import { LandingPage } from "./landing-page";
@@ -36,6 +37,52 @@ describe("LandingPage", () => {
     expect(heroImage).toHaveAttribute("fetchpriority", "high");
     expect(container.querySelector('source[type="image/avif"]')).toBeTruthy();
     expect(container.querySelector('source[type="image/webp"]')).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Spoiler-safe by design" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("How does LoreSafe prevent spoilers?")).toBeVisible();
+    expect(screen.getByText("Can private clubs appear in search?")).toBeVisible();
+  });
+
+  it("sets route-specific noindex metadata for auth pages", async () => {
+    clearAuthSessionHint();
+    window.history.pushState({}, "", "/login");
+
+    const loginRender = render(<App />);
+
+    await waitFor(() => {
+      expect(document.title).toBe("Log in | LoreSafe");
+      expect(getMeta("robots")).toBe("noindex, nofollow");
+    });
+
+    loginRender.unmount();
+    clearAuthSessionHint();
+    window.history.pushState({}, "", "/signup");
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.title).toBe("Sign up | LoreSafe");
+      expect(getMeta("robots")).toBe("noindex, nofollow");
+    });
+  });
+
+  it("sets route-specific noindex metadata for protected app pages", async () => {
+    mockAuthenticatedShellRequests();
+    window.history.pushState({}, "", "/app/clubs/new");
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Create a spoiler-safe club" })
+    ).toBeVisible();
+    await waitFor(() => {
+      expect(document.title).toBe("Create club | LoreSafe");
+      expect(getMeta("robots")).toBe("noindex, nofollow");
+      expect(getCanonical()).toBe(
+        "https://loresafe-web.vercel.app/app/clubs/new"
+      );
+    });
   });
 
   it("keeps the root route public while protecting the app home", async () => {
@@ -80,3 +127,52 @@ describe("LandingPage", () => {
     expect(window.location.search).toBe("?redirectTo=%2Fapp");
   });
 });
+
+const mockAuthenticatedShellRequests = () =>
+  mockFetchRoutes([
+    {
+      path: "/api/auth/me",
+      response: {
+        user: {
+          id: "00000000-0000-4000-8000-000000000001",
+          email: "reader@example.com",
+          displayName: "Reader",
+          username: "reader",
+          bio: null,
+          avatarUrl: null,
+          createdAt: "2026-01-01T12:00:00.000Z",
+          updatedAt: "2026-01-01T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      path: "/api/users/me/clubs",
+      response: {
+        clubs: [],
+        pagination: {
+          page: 1,
+          limit: 3,
+          total: 0,
+          pageCount: 0
+        }
+      }
+    },
+    {
+      path: "/api/notifications",
+      response: {
+        notifications: [],
+        unreadCount: 0,
+        pagination: {
+          limit: 1,
+          nextCursor: null,
+          hasMore: false
+        }
+      }
+    }
+  ]);
+
+const getMeta = (name: string) =>
+  document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content;
+
+const getCanonical = () =>
+  document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href;
