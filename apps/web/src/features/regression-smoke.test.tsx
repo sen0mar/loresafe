@@ -2259,7 +2259,7 @@ describe("frontend regression smoke", () => {
     expect(main.queryByText("Newest Club")).not.toBeInTheDocument();
     expect(main.getByRole("link", { name: /open older club/i })).toHaveAttribute(
       "href",
-      "/app/clubs/older-club"
+      "/app/clubs/older-club?tab=feed"
     );
   });
 
@@ -2799,7 +2799,7 @@ describe("frontend regression smoke", () => {
     );
     expect(
       screen.getByRole("link", { name: /public story club/i })
-    ).toHaveAttribute("href", "/app/clubs/public-story-club");
+    ).toHaveAttribute("href", "/app/clubs/public-story-club?tab=feed");
     expect(screen.queryByText("PRIVATE_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
     discovery.unmount();
 
@@ -3053,7 +3053,7 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Visible post title")).toBeVisible();
     expect(screen.getByRole("link", { name: /in safe club/i })).toHaveAttribute(
       "href",
-      "/app/clubs/safe-club"
+      "/app/clubs/safe-club?tab=feed"
     );
     expect(screen.queryByRole("heading", { name: "Clubs" })).not.toBeInTheDocument();
   });

@@ -212,7 +212,7 @@ describe("AppShell layout", () => {
     expect(mobileMenu.getByText("Joined clubs")).toBeVisible();
     expect(
       mobileMenu.getByRole("menuitem", { name: /First Club/ })
-    ).toHaveAttribute("href", "/app/clubs/first-club");
+    ).toHaveAttribute("href", "/app/clubs/first-club?tab=feed");
   });
 
   it("does not render a global search bar in the app shell", () => {

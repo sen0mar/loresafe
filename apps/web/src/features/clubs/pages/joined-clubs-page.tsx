@@ -19,6 +19,7 @@ import {
   useJoinedClubsInfiniteQuery
 } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -166,7 +167,7 @@ const JoinedClubCard = ({ club }: { club: JoinedClub }) => {
       <Link
         aria-label={`Open ${club.title}`}
         className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        to={`/app/clubs/${club.linkName}`}
+        to={getClubFeedPath(club.linkName)}
       >
         <CardHeader>
           <div className="flex items-start justify-between gap-3">

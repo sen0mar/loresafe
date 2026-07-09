@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import {
   type NotificationItem,
   notificationsQueryKeys,
@@ -290,12 +291,12 @@ const NotificationRow = ({
   const isLocked = notification.visibility === "LOCKED";
   const targetPath =
     notification.type === "MODERATION_WARNING"
-      ? `/app/clubs/${notification.club.linkName}`
+      ? getClubFeedPath(notification.club.linkName)
       : notification.postId
     ? `/app/posts/${notification.postId}`
     : notification.type === "PROGRESS_UNLOCK"
       ? `/app/clubs/${notification.club.linkName}/recently-unlocked`
-    : `/app/clubs/${notification.club.linkName}`;
+    : getClubFeedPath(notification.club.linkName);
 
   return (
     <article

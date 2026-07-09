@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { BrandMark } from "@/shared/components/brand-mark";
 import { BrandWordmark } from "@/shared/components/brand-wordmark";
 import { Badge } from "@/shared/components/ui/badge";
@@ -361,7 +362,7 @@ const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
     <NavLink
       data-liquid-selection-item
       data-liquid-selection-value={club.linkName}
-      to={`/app/clubs/${club.linkName}`}
+      to={getClubFeedPath(club.linkName)}
       className={({ isActive }) =>
         cn(
           "relative z-10 block min-h-14 rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
@@ -442,7 +443,7 @@ const MobileJoinedClubs = ({
 
         return (
           <DropdownMenuItem key={club.id} asChild>
-            <NavLink to={`/app/clubs/${club.linkName}`}>
+            <NavLink to={getClubFeedPath(club.linkName)}>
               <VisibilityIcon className="size-4" />
               <span className="min-w-0 flex-1 truncate">{club.title}</span>
               <Badge variant="secondary">{roleLabels[club.role]}</Badge>

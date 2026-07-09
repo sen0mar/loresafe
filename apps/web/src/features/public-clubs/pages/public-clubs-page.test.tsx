@@ -100,11 +100,11 @@ describe("public club SEO pages", () => {
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /create account/i })).toHaveAttribute(
       "href",
-      "/signup?redirectTo=%2Fapp%2Fclubs%2Fstory-circle"
+      "/signup?redirectTo=%2Fapp%2Fclubs%2Fstory-circle%3Ftab%3Dfeed"
     );
     expect(screen.getByRole("link", { name: /log in to join/i })).toHaveAttribute(
       "href",
-      "/login?redirectTo=%2Fapp%2Fclubs%2Fstory-circle"
+      "/login?redirectTo=%2Fapp%2Fclubs%2Fstory-circle%3Ftab%3Dfeed"
     );
 
     await waitFor(() => {
@@ -156,7 +156,7 @@ describe("public club SEO pages", () => {
 
     expect(screen.getByRole("link", { name: "Open Story Circle" })).toHaveAttribute(
       "href",
-      "/app/clubs/story-circle"
+      "/app/clubs/story-circle?tab=feed"
     );
   });
 });

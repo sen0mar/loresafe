@@ -19,6 +19,7 @@ import {
   useRecentlyUnlockedQuery
 } from "../api/clubs.js";
 import { PostCard } from "../components/club-feed-tab.js";
+import { getClubFeedPath } from "../lib/club-paths.js";
 
 const countFormatter = new Intl.NumberFormat();
 
@@ -41,7 +42,7 @@ export const RecentlyUnlockedPage = () => {
         <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
           <div className="min-w-0 space-y-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/app/clubs/${linkName}`}>
+              <Link to={getClubFeedPath(linkName)}>
                 <ArrowLeft />
                 Club
               </Link>

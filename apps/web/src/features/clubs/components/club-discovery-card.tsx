@@ -12,6 +12,7 @@ import {
 
 import { ClubAvatar } from "./club-avatar.js";
 import { formatClubCategory } from "../lib/club-categories.js";
+import { getClubFeedPath } from "../lib/club-paths.js";
 
 type ClubDiscoveryCardProps = {
   club: ClubDiscoveryClub;
@@ -22,7 +23,7 @@ const memberFormatter = new Intl.NumberFormat();
 
 export const ClubDiscoveryCard = ({
   club,
-  to = `/app/clubs/${club.linkName}`
+  to = getClubFeedPath(club.linkName)
 }: ClubDiscoveryCardProps) => (
   <Card className="group h-full transition-colors hover:border-strong">
     <Link

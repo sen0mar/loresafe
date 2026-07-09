@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -119,7 +120,7 @@ const InviteSuccessCard = ({
         </p>
         <div className="flex flex-wrap gap-3">
           <Button asChild>
-            <Link to={`/app/clubs/${result.club.linkName}`}>
+            <Link to={getClubFeedPath(result.club.linkName)}>
               <KeyRound />
               Open club
             </Link>

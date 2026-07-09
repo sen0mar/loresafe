@@ -16,6 +16,7 @@ import {
 } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -185,7 +186,7 @@ const PopularClubsSection = ({
 const HomePopularClubCard = ({ club }: { club: ClubDiscoveryClub }) => (
   <Link
     aria-label={`Open ${club.title}`}
-    to={`/app/clubs/${club.linkName}`}
+    to={getClubFeedPath(club.linkName)}
     className="group flex h-full min-h-44 flex-col rounded-xl border border-default bg-elevated p-4 text-primary transition-colors duration-150 hover:border-strong hover:bg-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
   >
     <div className="flex items-start justify-between gap-3">

@@ -14,6 +14,7 @@ import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -274,7 +275,7 @@ const SearchPostResult = ({ result }: { result: SearchPost }) => (
   <div className="space-y-2">
     <Link
       className="inline-flex w-fit items-center gap-2 rounded-md text-xs text-faint transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      to={`/app/clubs/${result.club.linkName}`}
+      to={getClubFeedPath(result.club.linkName)}
     >
       <Building2 className="size-3.5" />
       In {result.club.title}
@@ -292,7 +293,7 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
           <h2 className="truncate text-base font-semibold text-primary">
             <Link
               className="rounded-md transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              to={`/app/clubs/${club.linkName}`}
+              to={getClubFeedPath(club.linkName)}
             >
               {club.title}
             </Link>

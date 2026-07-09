@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Globe2, LogIn, Sparkles, UserPlus, Users } from "lucide-react";
 
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import {
   type PublicClubDetail,
   usePublicSeoClubQuery
@@ -53,7 +54,7 @@ export const PublicClubProfilePage = () => {
 const PublicClubProfile = ({ club }: { club: PublicClubDetail }) => {
   useProfileMetadata(club);
 
-  const appClubPath = `/app/clubs/${club.linkName}`;
+  const appClubPath = getClubFeedPath(club.linkName);
   const redirectTo = encodeURIComponent(appClubPath);
 
   return (
