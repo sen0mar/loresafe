@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { ShieldCheck } from "lucide-react";
 
+import { BrandMark } from "@/shared/components/brand-mark";
 import { BrandWordmark } from "@/shared/components/brand-wordmark";
 
 export const AuthPageShell = ({
@@ -28,9 +28,10 @@ export const AuthPageShell = ({
     <main className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_minmax(320px,448px)] md:px-6">
       <section className="min-w-0 space-y-6">
         <div className="flex items-center gap-3">
-          <span className="flex size-12 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
-            <ShieldCheck className="size-7" />
-          </span>
+          <BrandMark
+            isDecorative
+            className="size-12"
+          />
           <BrandWordmark className="text-2xl font-semibold" />
         </div>
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, LogIn, ShieldCheck, UserPlus } from "lucide-react";
+import { ChevronDown, LogIn, UserPlus } from "lucide-react";
 
+import { BrandMark } from "@/shared/components/brand-mark";
 import { BrandWordmark } from "@/shared/components/brand-wordmark";
 import { Button } from "@/shared/components/ui/button";
 
@@ -74,12 +75,12 @@ export const LandingPage = () => {
 
         <div className="pointer-events-none relative z-10 flex min-h-[calc(100svh-4rem)] items-center px-5 py-12 sm:px-8 lg:px-12">
           <div className="pointer-events-auto w-full max-w-xl space-y-7 pt-10 sm:pt-0">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-brand bg-active px-3 py-2 text-sm font-medium text-brand">
-              <ShieldCheck className="size-4" />
-              Spoiler-safe clubs
-            </div>
             <div className="space-y-5">
-              <h1 className="max-w-lg text-5xl font-semibold tracking-normal text-primary sm:text-6xl lg:text-7xl">
+              <h1 className="flex max-w-lg items-center gap-4 text-5xl font-semibold tracking-normal text-primary sm:text-6xl lg:text-7xl">
+                <BrandMark
+                  isDecorative
+                  className="size-16 sm:size-20 lg:size-24"
+                />
                 <BrandWordmark />
               </h1>
               <p className="max-w-lg text-base leading-7 text-secondary sm:text-lg sm:leading-8">
@@ -185,8 +186,9 @@ const LandingFooter = () => (
       <section aria-labelledby="landing-footer-brand" className="space-y-1.5">
         <h2
           id="landing-footer-brand"
-          className="text-sm font-semibold tracking-normal text-primary"
+          className="inline-flex items-center gap-2 text-sm font-semibold tracking-normal text-primary"
         >
+          <BrandMark isDecorative className="size-6" />
           <BrandWordmark />
         </h2>
         <p className="max-w-md leading-5">
@@ -208,7 +210,7 @@ const LandingFooter = () => (
         ))}
       </nav>
       <p className="text-faint sm:text-right">
-        © {copyrightYear} <BrandWordmark />. All rights reserved.
+        © {copyrightYear} LoreSafe. All rights reserved.
       </p>
     </div>
   </footer>
