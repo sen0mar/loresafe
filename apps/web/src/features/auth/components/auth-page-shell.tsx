@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { BrandMark } from "@/shared/components/brand-mark";
 import { BrandWordmark } from "@/shared/components/brand-wordmark";
+import { cn } from "@/shared/lib/utils";
 
 export const AuthPageShell = ({
   eyebrow,
@@ -25,7 +26,12 @@ export const AuthPageShell = ({
       </div>
     ) : null}
 
-    <main className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_minmax(320px,448px)] md:px-6">
+    <main
+      className={cn(
+        "mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 pb-8 md:grid-cols-[minmax(0,1fr)_minmax(320px,448px)] md:px-6",
+        topLeftAction ? "pt-28 sm:pt-32 md:pt-8" : "pt-8"
+      )}
+    >
       <section className="min-w-0 space-y-6">
         <div className="flex items-center gap-3">
           <BrandMark

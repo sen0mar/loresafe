@@ -1,15 +1,21 @@
-import type * as React from "react";
 import { toast, Toaster as Sonner, type ToasterProps } from "sonner";
 
-const TOAST_DURATION_MS = 2500;
+const TOAST_DURATION_MS = 1600;
+const MOBILE_TOAST_OFFSET = "0.75rem";
 
 const Toaster = ({
+  className,
+  mobileOffset,
   toastOptions,
   ...props
 }: ToasterProps & { className?: string }) => (
   <Sonner
     theme="dark"
     richColors={false}
+    className={["loresafe-toaster", className]
+      .filter(Boolean)
+      .join(" ")}
+    mobileOffset={mobileOffset ?? MOBILE_TOAST_OFFSET}
     toastOptions={{
       duration: TOAST_DURATION_MS,
       ...toastOptions,
