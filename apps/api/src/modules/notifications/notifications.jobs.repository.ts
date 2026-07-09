@@ -24,6 +24,7 @@ export type ProgressUnlockNotificationSource = {
   clubId: string;
   clubTitle: string;
   requiredMilestoneId: string | null;
+  unlockedPostId: string | null;
 };
 
 export type NotificationsJobsRepository = {
@@ -178,29 +179,39 @@ export const notificationsJobsRepository: NotificationsJobsRepository = {
         userId: history.userId,
         clubId: history.clubId,
         clubTitle: history.club.title,
-        requiredMilestoneId: null
+        requiredMilestoneId: null,
+        unlockedPostId: null
       };
     }
 
-    const highestUnlockedMilestone = await prisma.milestone.findFirst({
+    const unlockedPost = await prisma.post.findFirst({
       where: {
         clubId: history.clubId,
-        position: {
-          gt: fromPosition,
-          lte: effectiveToPosition
-        },
-        posts: {
-          some: {
-            status: "VISIBLE",
-            deletedAt: null
+        status: "VISIBLE",
+        deletedAt: null,
+        requiredMilestone: {
+          position: {
+            gt: fromPosition,
+            lte: effectiveToPosition
           }
+        },
+      },
+      orderBy: [
+        {
+          requiredMilestone: {
+            position: "desc"
+          }
+        },
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "asc"
         }
-      },
-      orderBy: {
-        position: "desc"
-      },
+      ],
       select: {
-        id: true
+        id: true,
+        requiredMilestoneId: true
       }
     });
 
@@ -209,7 +220,8 @@ export const notificationsJobsRepository: NotificationsJobsRepository = {
       userId: history.userId,
       clubId: history.clubId,
       clubTitle: history.club.title,
-      requiredMilestoneId: highestUnlockedMilestone?.id ?? null
+      requiredMilestoneId: unlockedPost?.requiredMilestoneId ?? null,
+      unlockedPostId: unlockedPost?.id ?? null
     };
   },
 

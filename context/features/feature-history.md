@@ -131,6 +131,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 125: Text-free logo mark — Added the approved white LoreSafe mark as a reusable frontend brand asset, applied it across public/auth/app branding, refreshed favicon/PWA/social icons, and removed extra landing/auth logo chrome.
 - Feature 126: Clean app shell logo — Removed the remaining framed sidebar treatment so the authenticated app shell uses the same bare LoreSafe logo mark as the rest of the app.
 - Feature 127: Notification preview dropdown — Replaced the top-bar notification icon link with a compact spoiler-safe preview dropdown, added See all and preview-item routing to Notifications, and covered the shell behavior with focused frontend tests.
+- Feature 128: Selectable notification cleanup — Added owned selected-notification bulk deletion, selection-mode notification controls, clickable notification cards, direct post targets for unlock/previews, and focused backend/frontend regression coverage.
 
 ## Entry Format
 

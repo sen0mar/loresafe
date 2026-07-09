@@ -100,7 +100,8 @@ describe("notification job handlers", () => {
     const repository = new InMemoryNotificationsJobsRepository();
     const eventPublisher = createMockEventsService();
     const source = repository.createProgressSource({
-      requiredMilestoneId: crypto.randomUUID()
+      requiredMilestoneId: crypto.randomUUID(),
+      unlockedPostId: crypto.randomUUID()
     });
 
     await processProgressUnlockedJob(
@@ -122,7 +123,7 @@ describe("notification job handlers", () => {
       eventKey: `progress-unlock:${source.userId}:${source.progressHistoryId}`,
       safeText: "New discussions unlocked in Fixture Story Club",
       clubId: source.clubId,
-      postId: null,
+      postId: source.unlockedPostId,
       commentId: null,
       requiredMilestoneId: source.requiredMilestoneId
     });
@@ -273,6 +274,7 @@ class InMemoryNotificationsJobsRepository
       clubId: crypto.randomUUID(),
       clubTitle: "Fixture Story Club",
       requiredMilestoneId: crypto.randomUUID(),
+      unlockedPostId: crypto.randomUUID(),
       ...overrides
     };
 

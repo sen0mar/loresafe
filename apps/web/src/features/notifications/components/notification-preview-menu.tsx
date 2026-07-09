@@ -1,13 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bell,
-  ChevronRight,
-  LockKeyhole,
-  MessageCircle,
-  Sparkles
-} from "lucide-react";
+import { Bell, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import {
   getNotifications,
   type NotificationItem,
@@ -104,33 +99,17 @@ const NotificationPreviewItem = ({
   notification: NotificationItem;
 }) => {
   const isUnread = !notification.readAt;
-  const isLocked = notification.visibility === "LOCKED";
+  const targetPath = getNotificationTargetPath(notification);
 
   return (
     <DropdownMenuItem asChild className="block p-0">
       <Link
-        to="/app/notifications"
+        to={targetPath}
         className={cn(
-          "flex cursor-pointer items-start gap-3 rounded-lg p-3 outline-none transition-colors hover:bg-active focus:bg-active",
+          "block cursor-pointer rounded-lg p-3 outline-none transition-colors hover:bg-active focus:bg-active",
           isUnread && "bg-active"
         )}
       >
-        <span
-          className={cn(
-            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-default bg-inset text-muted",
-            isUnread && "border-brand text-brand"
-          )}
-        >
-          {notification.type === "PROGRESS_UNLOCK" ? (
-            <Sparkles className="size-4" />
-          ) : notification.type === "MODERATION_WARNING" ? (
-            <Bell className="size-4" />
-          ) : isLocked ? (
-            <LockKeyhole className="size-4" />
-          ) : (
-            <MessageCircle className="size-4" />
-          )}
-        </span>
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 text-sm font-medium leading-5 text-primary">
             {notification.safeText}
@@ -163,3 +142,15 @@ const formatNotificationPreviewTime = (value: string) =>
 
 const formatNotificationBadgeCount = (count: number) =>
   count > 99 ? "99+" : String(count);
+
+const getNotificationTargetPath = (notification: NotificationItem) => {
+  if (notification.postId) {
+    return `/app/posts/${notification.postId}`;
+  }
+
+  if (notification.type === "PROGRESS_UNLOCK") {
+    return `/app/clubs/${notification.club.linkName}/recently-unlocked`;
+  }
+
+  return getClubFeedPath(notification.club.linkName);
+};

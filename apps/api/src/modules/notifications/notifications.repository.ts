@@ -18,6 +18,7 @@ export type NotificationRecord = {
     id: string;
     position: number;
     safeTitle: string;
+    targetPostId: string | null;
   };
   progress: {
     mode: ProgressMode;
@@ -91,6 +92,13 @@ export type NotificationsRepository = {
     deletedCount: number;
     unreadCount: number;
   } | null>;
+  deleteSelectedNotifications: (
+    notificationIds: string[],
+    userId: string
+  ) => Promise<{
+    deletedCount: number;
+    unreadCount: number;
+  }>;
   deleteAllNotifications: (userId: string) => Promise<{
     deletedCount: number;
     unreadCount: number;
@@ -129,7 +137,25 @@ const notificationSelect = (userId: string) =>
       select: {
         id: true,
         position: true,
-        safeTitle: true
+        safeTitle: true,
+        posts: {
+          where: {
+            status: "VISIBLE",
+            deletedAt: null
+          },
+          orderBy: [
+            {
+              createdAt: "desc"
+            },
+            {
+              id: "asc"
+            }
+          ] satisfies Prisma.PostOrderByWithRelationInput[],
+          select: {
+            id: true
+          },
+          take: 1
+        }
       }
     },
     readAt: true,
@@ -279,6 +305,31 @@ export const notificationsRepository: NotificationsRepository = {
       };
     }),
 
+  deleteSelectedNotifications: async (notificationIds, userId) =>
+    prisma.$transaction(async (transaction) => {
+      const uniqueNotificationIds = [...new Set(notificationIds)];
+      const result = await transaction.notification.deleteMany({
+        where: {
+          id: {
+            in: uniqueNotificationIds
+          },
+          userId
+        }
+      });
+
+      const unreadCount = await transaction.notification.count({
+        where: {
+          userId,
+          readAt: null
+        }
+      });
+
+      return {
+        deletedCount: result.count,
+        unreadCount
+      };
+    }),
+
   deleteAllNotifications: async (userId) =>
     prisma.$transaction(async (transaction) => {
       const result = await transaction.notification.deleteMany({
@@ -380,7 +431,12 @@ const toNotificationRecord = (
     },
     postId: notification.postId,
     commentId: notification.commentId,
-    requiredMilestone: notification.requiredMilestone,
+    requiredMilestone: {
+      id: notification.requiredMilestone.id,
+      position: notification.requiredMilestone.position,
+      safeTitle: notification.requiredMilestone.safeTitle,
+      targetPostId: notification.requiredMilestone.posts[0]?.id ?? null
+    },
     progress: {
       mode: (progress?.mode ?? "STRICT") as ProgressMode,
       currentMilestonePosition:
