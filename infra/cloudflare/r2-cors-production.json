@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://threadsync-web.vercel.app"],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]

@@ -237,6 +237,10 @@ Important query paths/indexes:
 - Browser API calls use same-origin `/api` paths through the Vercel rewrite to the Render API domain.
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
 - Verify cookie domain, SameSite, Secure, CORS, proxy, and HTTPS behavior before production.
+- R2 buckets that receive browser presigned uploads must allow the deployed frontend
+  origin, `PUT`, `GET`, `HEAD`, the `Content-Type` request header, and `ETag`
+  exposure. The production policy template lives at
+  `infra/cloudflare/r2-cors-production.json`.
 
 Render API deployment:
 
