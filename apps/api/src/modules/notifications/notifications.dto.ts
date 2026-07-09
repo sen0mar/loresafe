@@ -70,7 +70,11 @@ export const toNotificationDto = (
     type: notification.type,
     safeText: notification.safeText,
     club: notification.club,
-    postId: notification.postId,
+    postId:
+      notification.postId ??
+      (notification.type === "PROGRESS_UNLOCK"
+        ? notification.requiredMilestone.targetPostId
+        : null),
     commentId: notification.commentId,
     requiredMilestone,
     readAt: notification.readAt?.toISOString() ?? null,

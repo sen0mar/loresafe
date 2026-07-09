@@ -33,6 +33,13 @@ export const createNotificationsRouter = (
     controller.deleteAllNotifications
   );
 
+  router.delete(
+    "/selected",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.deleteSelectedNotifications
+  );
+
   router.post(
     "/:id/read",
     middleware.loadCurrentUser,

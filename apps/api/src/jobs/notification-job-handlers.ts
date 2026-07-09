@@ -154,7 +154,7 @@ export const processProgressUnlockedJob = async (
     }),
     safeText: `New discussions unlocked in ${source.clubTitle}`,
     clubId: source.clubId,
-    postId: null,
+    postId: source.unlockedPostId,
     commentId: null,
     requiredMilestoneId: source.requiredMilestoneId
   });

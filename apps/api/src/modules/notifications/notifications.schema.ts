@@ -20,8 +20,17 @@ export const notificationParamsSchema = z
   })
   .strict();
 
+export const deleteSelectedNotificationsBodySchema = z
+  .object({
+    notificationIds: z.array(z.uuid()).min(1).max(50)
+  })
+  .strict();
+
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type ListNotificationsQuery = z.infer<
   typeof listNotificationsQuerySchema
 >;
 export type NotificationParams = z.infer<typeof notificationParamsSchema>;
+export type DeleteSelectedNotificationsBody = z.infer<
+  typeof deleteSelectedNotificationsBodySchema
+>;

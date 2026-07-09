@@ -94,6 +94,11 @@ export const markAllNotificationsRead = () =>
 export const deleteNotification = (notificationId: string) =>
   apiDelete<DeleteNotificationResponse>(`/api/notifications/${notificationId}`);
 
+export const deleteSelectedNotifications = (notificationIds: string[]) =>
+  apiDelete<DeleteNotificationResponse>("/api/notifications/selected", {
+    notificationIds
+  });
+
 export const deleteAllNotifications = () =>
   apiDelete<DeleteNotificationResponse>("/api/notifications");
 
@@ -204,6 +209,39 @@ export const useDeleteNotificationMutation = () => {
                   unreadCount: response.unreadCount,
                   notifications: page.notifications.filter(
                     (notification) => notification.id !== notificationId
+                  )
+                }))
+              }
+            : currentData
+      );
+      void queryClient.invalidateQueries({
+        queryKey: notificationsQueryKeys.root
+      });
+    }
+  });
+};
+
+export const useDeleteSelectedNotificationsMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteSelectedNotifications,
+    onSuccess: (response, notificationIds) => {
+      const selectedNotificationIds = new Set(notificationIds);
+
+      updateUnreadQueryCount(queryClient, response.unreadCount);
+      queryClient.setQueryData<InfiniteData<NotificationsResponse>>(
+        notificationsQueryKeys.list,
+        (currentData) =>
+          currentData
+            ? {
+                ...currentData,
+                pages: currentData.pages.map((page) => ({
+                  ...page,
+                  unreadCount: response.unreadCount,
+                  notifications: page.notifications.filter(
+                    (notification) =>
+                      !selectedNotificationIds.has(notification.id)
                   )
                 }))
               }

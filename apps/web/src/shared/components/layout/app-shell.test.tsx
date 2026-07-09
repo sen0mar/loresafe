@@ -276,7 +276,7 @@ describe("AppShell layout", () => {
     );
   });
 
-  it("routes notification preview clicks to the notifications page", async () => {
+  it("routes notification preview clicks to the linked post", async () => {
     const user = userEvent.setup();
     const observedRoutes: string[] = [];
 
@@ -288,6 +288,7 @@ describe("AppShell layout", () => {
           notifications: [
             previewNotification({
               id: "notification-1",
+              type: "MODERATION_WARNING",
               safeText: "A fresh safe notification."
             })
           ],
@@ -315,7 +316,7 @@ describe("AppShell layout", () => {
       screen.getByRole("menuitem", { name: /A fresh safe notification/ })
     );
 
-    expect(observedRoutes.at(-1)).toBe("/app/notifications");
+    expect(observedRoutes.at(-1)).toBe("/app/posts/post-1");
   });
 });
 

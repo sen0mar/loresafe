@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
+  deleteSelectedNotificationsBodySchema,
   listNotificationsQuerySchema,
   notificationParamsSchema
 } from "./notifications.schema.js";
@@ -16,6 +17,7 @@ export type NotificationsController = {
   markNotificationRead: RequestHandler;
   markAllNotificationsRead: RequestHandler;
   deleteNotification: RequestHandler;
+  deleteSelectedNotifications: RequestHandler;
   deleteAllNotifications: RequestHandler;
 };
 
@@ -110,6 +112,35 @@ export const createNotificationsController = (
 
       const response = await service.deleteNotification(
         paramsResult.data.id,
+        req.currentUser.id
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteSelectedNotifications: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const bodyResult = deleteSelectedNotificationsBodySchema.safeParse(
+        req.body
+      );
+
+      if (!bodyResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the notification request and try again."
+        );
+      }
+
+      const response = await service.deleteSelectedNotifications(
+        bodyResult.data.notificationIds,
         req.currentUser.id
       );
 

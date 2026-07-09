@@ -34,6 +34,10 @@ export type NotificationsService = {
     notificationId: string,
     userId: string
   ) => Promise<DeleteNotificationResponse>;
+  deleteSelectedNotifications: (
+    notificationIds: string[],
+    userId: string
+  ) => Promise<DeleteNotificationResponse>;
   deleteAllNotifications: (
     userId: string
   ) => Promise<DeleteNotificationResponse>;
@@ -102,6 +106,9 @@ export const createNotificationsService = (
 
     return result;
   },
+
+  deleteSelectedNotifications: async (notificationIds, userId) =>
+    repository.deleteSelectedNotifications(notificationIds, userId),
 
   deleteAllNotifications: async (userId) =>
     repository.deleteAllNotifications(userId)

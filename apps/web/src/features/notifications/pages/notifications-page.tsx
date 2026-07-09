@@ -2,16 +2,13 @@ import {
   Bell,
   Check,
   CheckCheck,
-  ChevronRight,
-  LockKeyhole,
-  MessageCircle,
+  ListChecks,
   RefreshCw,
-  Sparkles,
   Trash2
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -22,6 +19,7 @@ import {
   notificationsQueryKeys,
   useDeleteAllNotificationsMutation,
   useDeleteNotificationMutation,
+  useDeleteSelectedNotificationsMutation,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsInfiniteQuery
@@ -60,14 +58,48 @@ export const NotificationsPage = () => {
   const markReadMutation = useMarkNotificationReadMutation();
   const markAllReadMutation = useMarkAllNotificationsReadMutation();
   const deleteNotificationMutation = useDeleteNotificationMutation();
+  const deleteSelectedNotificationsMutation =
+    useDeleteSelectedNotificationsMutation();
   const deleteAllNotificationsMutation = useDeleteAllNotificationsMutation();
-  const notifications =
-    notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<
+    Set<string>
+  >(() => new Set());
+  const notifications = useMemo(
+    () =>
+      notificationsQuery.data?.pages.flatMap((page) => page.notifications) ??
+      [],
+    [notificationsQuery.data]
+  );
+  const visibleNotificationIds = useMemo(
+    () => notifications.map((notification) => notification.id),
+    [notifications]
+  );
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  const selectedCount = selectedNotificationIds.size;
+  const allVisibleSelected =
+    visibleNotificationIds.length > 0 &&
+    visibleNotificationIds.every((notificationId) =>
+      selectedNotificationIds.has(notificationId)
+    );
   const hasMore =
     notificationsQuery.data?.pages.at(-1)?.pagination.hasMore ?? false;
   const isRefreshing =
     notificationsQuery.isFetching && !notificationsQuery.isFetchingNextPage;
+
+  useEffect(() => {
+    const visibleNotificationIdSet = new Set(visibleNotificationIds);
+
+    setSelectedNotificationIds((currentIds) => {
+      const retainedIds = [...currentIds].filter((notificationId) =>
+        visibleNotificationIdSet.has(notificationId)
+      );
+
+      return retainedIds.length === currentIds.size
+        ? currentIds
+        : new Set(retainedIds);
+    });
+  }, [visibleNotificationIds]);
 
   const refreshNotifications = () => {
     void queryClient.invalidateQueries({
@@ -109,12 +141,48 @@ export const NotificationsPage = () => {
   const deleteNotification = (notification: NotificationItem) => {
     deleteNotificationMutation.mutate(notification.id, {
       onSuccess: () => {
+        setSelectedNotificationIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+
+          nextIds.delete(notification.id);
+
+          return nextIds;
+        });
         toast.success("Notification deleted.");
       },
       onError: () => {
         toast.error("Could not delete notification.");
       }
     });
+  };
+
+  const deleteSelectedNotifications = () => {
+    if (
+      selectedNotificationIds.size === 0 ||
+      deleteSelectedNotificationsMutation.isPending
+    ) {
+      return;
+    }
+
+    deleteSelectedNotificationsMutation.mutate(
+      [...selectedNotificationIds],
+      {
+        onSuccess: (response) => {
+          setSelectedNotificationIds(new Set());
+          setIsSelecting(false);
+          toast.success(
+            response.deletedCount === 0
+              ? "No selected notifications were deleted."
+              : `${response.deletedCount} selected notification${
+                  response.deletedCount === 1 ? "" : "s"
+                } deleted.`
+          );
+        },
+        onError: () => {
+          toast.error("Could not delete selected notifications.");
+        }
+      }
+    );
   };
 
   const deleteAllNotifications = () => {
@@ -127,6 +195,8 @@ export const NotificationsPage = () => {
 
     deleteAllNotificationsMutation.mutate(undefined, {
       onSuccess: (response) => {
+        setSelectedNotificationIds(new Set());
+        setIsSelecting(false);
         toast.success(
           response.deletedCount === 0
             ? "No notifications to delete."
@@ -136,6 +206,43 @@ export const NotificationsPage = () => {
       onError: () => {
         toast.error("Could not delete notifications.");
       }
+    });
+  };
+
+  const startSelecting = () => {
+    setIsSelecting(true);
+  };
+
+  const cancelSelecting = () => {
+    setSelectedNotificationIds(new Set());
+    setIsSelecting(false);
+  };
+
+  const toggleNotificationSelection = (notificationId: string) => {
+    setSelectedNotificationIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (nextIds.has(notificationId)) {
+        nextIds.delete(notificationId);
+      } else {
+        nextIds.add(notificationId);
+      }
+
+      return nextIds;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedNotificationIds((currentIds) => {
+      if (allVisibleSelected) {
+        return new Set(
+          [...currentIds].filter(
+            (notificationId) => !visibleNotificationIds.includes(notificationId)
+          )
+        );
+      }
+
+      return new Set([...currentIds, ...visibleNotificationIds]);
     });
   };
 
@@ -152,74 +259,145 @@ export const NotificationsPage = () => {
                   : `${unreadCount} unread`}
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <ConfirmNotificationActionDialog
-                title="Mark all notifications as read?"
-                description="This will mark every unread notification in your inbox as read."
-                confirmLabel="Mark all read"
-                pendingLabel="Marking..."
-                confirmIcon={<CheckCheck className="size-4" />}
-                disabled={unreadCount === 0 || markAllReadMutation.isPending}
-                isPending={markAllReadMutation.isPending}
-                onConfirm={markAllRead}
-                trigger={
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {notifications.length > 0 && !isSelecting ? (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={
-                      unreadCount === 0 || markAllReadMutation.isPending
-                    }
+                    onClick={startSelecting}
                   >
-                    <CheckCheck className="size-4" />
-                    {markAllReadMutation.isPending
-                      ? "Marking..."
-                      : "Mark all read"}
+                    <ListChecks className="size-4" />
+                    Select
                   </Button>
-                }
-              />
-              <ConfirmNotificationActionDialog
-                title="Delete all notifications?"
-                description="This permanently removes every notification from your inbox. Posts, comments, and clubs are not affected."
-                confirmLabel="Delete all"
-                pendingLabel="Deleting..."
-                confirmIcon={<Trash2 className="size-4" />}
-                confirmVariant="destructive"
-                disabled={
-                  notifications.length === 0 ||
-                  deleteAllNotificationsMutation.isPending
-                }
-                isPending={deleteAllNotificationsMutation.isPending}
-                onConfirm={deleteAllNotifications}
-                trigger={
+                ) : null}
+                <ConfirmNotificationActionDialog
+                  title="Mark all notifications as read?"
+                  description="This will mark every unread notification in your inbox as read."
+                  confirmLabel="Mark all read"
+                  pendingLabel="Marking..."
+                  confirmIcon={<CheckCheck className="size-4" />}
+                  disabled={unreadCount === 0 || markAllReadMutation.isPending}
+                  isPending={markAllReadMutation.isPending}
+                  onConfirm={markAllRead}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        unreadCount === 0 || markAllReadMutation.isPending
+                      }
+                    >
+                      <CheckCheck className="size-4" />
+                      {markAllReadMutation.isPending
+                        ? "Marking..."
+                        : "Mark all read"}
+                    </Button>
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Refresh notifications"
+                  disabled={isRefreshing}
+                  onClick={refreshNotifications}
+                >
+                  <RefreshCw
+                    className={cn("size-4", isRefreshing && "animate-spin")}
+                  />
+                </Button>
+              </div>
+              {isSelecting ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={deleteSelectedNotificationsMutation.isPending}
+                    onClick={toggleVisibleSelection}
+                  >
+                    <ListChecks className="size-4" />
+                    {allVisibleSelected ? "Clear all" : "Select all"}
+                  </Button>
+                  <ConfirmNotificationActionDialog
+                    title="Delete selected notifications?"
+                    description="This permanently removes only the notifications you selected. Original discussions are not affected."
+                    confirmLabel="Delete selected"
+                    pendingLabel="Deleting..."
+                    confirmIcon={<Trash2 className="size-4" />}
+                    confirmVariant="destructive"
+                    disabled={
+                      selectedCount === 0 ||
+                      deleteSelectedNotificationsMutation.isPending
+                    }
+                    isPending={deleteSelectedNotificationsMutation.isPending}
+                    onConfirm={deleteSelectedNotifications}
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-[11px] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
+                        disabled={
+                          selectedCount === 0 ||
+                          deleteSelectedNotificationsMutation.isPending
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                        {deleteSelectedNotificationsMutation.isPending
+                          ? "Deleting..."
+                          : "Delete selected"}
+                      </Button>
+                    }
+                  />
+                  <ConfirmNotificationActionDialog
+                    title="Delete all notifications?"
+                    description="This permanently removes every notification from your inbox. Posts, comments, and clubs are not affected."
+                    confirmLabel="Delete all"
+                    pendingLabel="Deleting..."
+                    confirmIcon={<Trash2 className="size-4" />}
+                    confirmVariant="destructive"
                     disabled={
                       notifications.length === 0 ||
                       deleteAllNotificationsMutation.isPending
                     }
+                    isPending={deleteAllNotificationsMutation.isPending}
+                    onConfirm={deleteAllNotifications}
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-[11px] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
+                        disabled={
+                          notifications.length === 0 ||
+                          deleteAllNotificationsMutation.isPending
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                        {deleteAllNotificationsMutation.isPending
+                          ? "Deleting..."
+                          : "Delete all"}
+                      </Button>
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={
+                      deleteSelectedNotificationsMutation.isPending ||
+                      deleteAllNotificationsMutation.isPending
+                    }
+                    onClick={cancelSelecting}
                   >
-                    <Trash2 className="size-4" />
-                    {deleteAllNotificationsMutation.isPending
-                      ? "Deleting..."
-                      : "Delete all"}
+                    Cancel
                   </Button>
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Refresh notifications"
-                disabled={isRefreshing}
-                onClick={refreshNotifications}
-              >
-                <RefreshCw
-                  className={cn("size-4", isRefreshing && "animate-spin")}
-                />
-              </Button>
+                </div>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -238,6 +416,10 @@ export const NotificationsPage = () => {
                     <NotificationRow
                       key={notification.id}
                       notification={notification}
+                      isSelecting={isSelecting}
+                      isSelected={selectedNotificationIds.has(
+                        notification.id
+                      )}
                       isMarkingRead={
                         markReadMutation.isPending &&
                         markReadMutation.variables === notification.id
@@ -246,6 +428,9 @@ export const NotificationsPage = () => {
                         deleteNotificationMutation.isPending &&
                         deleteNotificationMutation.variables ===
                           notification.id
+                      }
+                      onSelectChange={() =>
+                        toggleNotificationSelection(notification.id)
                       }
                       onMarkRead={() => markRead(notification)}
                       onDelete={() => deleteNotification(notification)}
@@ -276,23 +461,27 @@ export const NotificationsPage = () => {
 
 const NotificationRow = ({
   notification,
+  isSelecting,
+  isSelected,
   isMarkingRead,
   isDeleting,
+  onSelectChange,
   onMarkRead,
   onDelete
 }: {
   notification: NotificationItem;
+  isSelecting: boolean;
+  isSelected: boolean;
   isMarkingRead: boolean;
   isDeleting: boolean;
+  onSelectChange: () => void;
   onMarkRead: () => void;
   onDelete: () => void;
 }) => {
   const isUnread = !notification.readAt;
   const isLocked = notification.visibility === "LOCKED";
   const targetPath =
-    notification.type === "MODERATION_WARNING"
-      ? getClubFeedPath(notification.club.linkName)
-      : notification.postId
+    notification.postId
     ? `/app/posts/${notification.postId}`
     : notification.type === "PROGRESS_UNLOCK"
       ? `/app/clubs/${notification.club.linkName}/recently-unlocked`
@@ -301,58 +490,71 @@ const NotificationRow = ({
   return (
     <article
       className={cn(
-        "rounded-xl border border-default bg-surface p-4 transition-colors duration-150",
-        isUnread && "border-brand bg-active"
+        "rounded-xl border border-default bg-surface transition-colors duration-150 hover:border-strong hover:bg-active",
+        isUnread && "border-brand bg-active",
+        isSelected && "ring-1 ring-brand"
       )}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-default bg-inset text-muted",
-            isUnread && "border-brand text-brand"
-          )}
-        >
-          {notification.type === "PROGRESS_UNLOCK" ? (
-            <Sparkles className="size-4" />
-          ) : notification.type === "MODERATION_WARNING" ? (
-            <Bell className="size-4" />
-          ) : isLocked ? (
-            <LockKeyhole className="size-4" />
-          ) : (
-            <MessageCircle className="size-4" />
-          )}
-        </span>
+      <div className="flex items-start gap-3 p-4">
+        {isSelecting ? (
+          <input
+            type="checkbox"
+            className="mt-2 size-4 shrink-0 rounded border-default bg-inset accent-[var(--accent-primary)]"
+            checked={isSelected}
+            aria-label={`Select notification: ${notification.safeText}`}
+            onChange={onSelectChange}
+          />
+        ) : null}
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={isUnread ? "default" : "secondary"}>
-              {notificationTypeLabels[notification.type]}
-            </Badge>
-            {isLocked ? <Badge variant="outline">Locked</Badge> : null}
-            <span className="text-xs text-faint">
-              {formatNotificationTime(notification.createdAt)}
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-medium leading-5 text-primary">
-              {notification.safeText}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-faint">
-              Milestone {notification.requiredMilestone.position}:{" "}
-              {notification.requiredMilestone.label}
-            </p>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <Link
+              to={targetPath}
+              className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={isUnread ? "default" : "secondary"}>
+                  {notificationTypeLabels[notification.type]}
+                </Badge>
+                {isLocked ? <Badge variant="outline">Locked</Badge> : null}
+                <span className="text-xs text-faint">
+                  {formatNotificationTime(notification.createdAt)}
+                </span>
+              </div>
+              <div className="mt-2">
+                <p className="text-sm font-medium leading-5 text-primary">
+                  {notification.safeText}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-faint">
+                  Milestone {notification.requiredMilestone.position}:{" "}
+                  {notification.requiredMilestone.label}
+                </p>
+              </div>
+            </Link>
+            <ConfirmNotificationActionDialog
+              title="Delete this notification?"
+              description="This permanently removes the notification from your inbox. The original discussion is not affected."
+              confirmLabel="Delete"
+              pendingLabel="Deleting..."
+              confirmIcon={<Trash2 className="size-4" />}
+              confirmVariant="destructive"
+              disabled={isDeleting}
+              isPending={isDeleting}
+              onConfirm={onDelete}
+              trigger={
+                <Button
+                  className="h-7 w-full justify-self-end gap-1 px-2 text-[11px] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="size-4" />
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              }
+            />
           </div>
           <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <Button
-              asChild
-              className="w-full sm:w-fit"
-              variant="ghost"
-              size="sm"
-            >
-              <Link to={targetPath}>
-                Open
-                <ChevronRight className="size-4" />
-              </Link>
-            </Button>
             {isUnread ? (
               <Button
                 className="w-full sm:w-fit"
@@ -366,29 +568,6 @@ const NotificationRow = ({
                 {isMarkingRead ? "Marking..." : "Mark read"}
               </Button>
             ) : null}
-            <ConfirmNotificationActionDialog
-              title="Delete this notification?"
-              description="This permanently removes the notification from your inbox. The original discussion is not affected."
-              confirmLabel="Delete"
-              pendingLabel="Deleting..."
-              confirmIcon={<Trash2 className="size-4" />}
-              confirmVariant="destructive"
-              disabled={isDeleting}
-              isPending={isDeleting}
-              onConfirm={onDelete}
-              trigger={
-                <Button
-                  className="w-full sm:w-fit"
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isDeleting}
-                >
-                  <Trash2 className="size-4" />
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </Button>
-              }
-            />
           </div>
         </div>
       </div>
