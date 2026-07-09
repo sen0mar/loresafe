@@ -10,6 +10,7 @@ import {
   canActorBanTarget
 } from "../clubs/club-bans.js";
 import { softDeleteAuthoredPostsForBan } from "../clubs/club-ban-cleanup.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   CreateReportRequest,
@@ -137,6 +138,7 @@ export type ModerationActionRepositoryResult =
         | "REPORT_CLOSED"
         | "TARGET_NOT_FOUND"
         | "MILESTONE_NOT_FOUND"
+        | "ACCESS_DENIED"
         | "TARGET_PROTECTED"
         | "LAST_OWNER";
     };
@@ -813,7 +815,7 @@ export const reportsRepository: ReportsRepository = {
 
       return {
         status: "SUCCESS",
-        notification
+        ...(notification ? { notification } : {})
       };
     }),
 
@@ -905,6 +907,13 @@ export const reportsRepository: ReportsRepository = {
         });
       }
 
+      await transaction.notification.deleteMany({
+        where: {
+          clubId,
+          userId: target.authorId
+        }
+      });
+
       await resolveReportInTransaction(transaction, report.id);
       await createAuditLogInTransaction(transaction, {
         action: "USER_BANNED",
@@ -933,15 +942,11 @@ export const reportsRepository: ReportsRepository = {
     }),
 
   resolveModerationReport: (clubId, reportId, actorId, input) =>
-    prisma.$transaction(async (transaction) => {
-      const report = await findReportForAction(transaction, clubId, reportId);
-
-      if (!report) {
-        return {
-          status: "REPORT_NOT_FOUND"
-        };
-      }
-
+    runContentActionTransaction(clubId, reportId, actorId, async ({
+      report,
+      target,
+      transaction
+    }) => {
       await transaction.report.update({
         where: {
           id: report.id
@@ -960,7 +965,7 @@ export const reportsRepository: ReportsRepository = {
         reportId: report.id,
         postId: report.postId,
         commentId: report.commentId,
-        targetUserId: getActionTarget(report)?.authorId ?? null,
+        targetUserId: target.authorId,
         moderatorNote: input.moderatorNote,
         metadata: {
           previousStatus: report.status,
@@ -968,15 +973,8 @@ export const reportsRepository: ReportsRepository = {
         }
       });
 
-      const updatedReport = await findSelectedModerationReportById(
-        transaction,
-        clubId,
-        report.id
-      );
-
       return {
-        status: "SUCCESS",
-        report: toModerationReportRecord(updatedReport)
+        status: "SUCCESS"
       };
     })
 };
@@ -1073,6 +1071,39 @@ const runContentActionTransaction = (
   >
 ): Promise<ModerationActionRepositoryResult> =>
   prisma.$transaction(async (transaction) => {
+    if (!(await lockClubAuthorizationChanges(transaction, clubId))) {
+      return {
+        status: "ACCESS_DENIED"
+      };
+    }
+
+    const now = new Date();
+    const actorAccess = await transaction.club.findFirst({
+      where: {
+        id: clubId,
+        memberships: {
+          some: {
+            userId: actorId,
+            role: {
+              in: ["OWNER", "MODERATOR"]
+            }
+          }
+        },
+        bans: {
+          none: activeUserBanWhere(actorId, now)
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!actorAccess) {
+      return {
+        status: "ACCESS_DENIED"
+      };
+    }
+
     const report = await findReportForAction(transaction, clubId, reportId);
 
     if (!report) {

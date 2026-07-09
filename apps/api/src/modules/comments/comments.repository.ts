@@ -1,6 +1,21 @@
 import { prisma } from "../../core/prisma/client.js";
+import type { Prisma } from "../../generated/prisma/client.js";
 import { enqueueCommentCreatedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
+import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
+import {
+  canCreatePostComment,
+  canDeleteComment,
+  canToggleCommentReaction,
+  canViewPostComments
+} from "./comments.policy.js";
+import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import {
+  lockCommentForReadAuthorization,
+  lockCommentForWriteAuthorization,
+  lockPostForReadAuthorization
+} from "../spoilers/content-authorization-lock.js";
 import {
   commentReactionEmojis,
   type CommentReactionEmoji,
@@ -502,8 +517,52 @@ export const commentsRepository: CommentsRepository = {
 
   createPostComment: async (postId, authorId, input) =>
     prisma.$transaction(async (transaction) => {
-      if (input.parentId) {
-        const parent = await transaction.comment.findFirst({
+      const postTarget = await transaction.post.findFirst({
+        where: {
+          id: postId,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        select: {
+          clubId: true
+        }
+      });
+
+      if (
+        !postTarget ||
+        !(await lockClubAuthorization(transaction, postTarget.clubId))
+      ) {
+        return null;
+      }
+
+      if (!(await lockPostForReadAuthorization(transaction, postId))) {
+        return null;
+      }
+
+      if (
+        input.parentId &&
+        !(await lockCommentForReadAuthorization(transaction, input.parentId))
+      ) {
+        return null;
+      }
+
+      const post = await findCommentPostForCommand(
+        transaction,
+        postId,
+        authorId
+      );
+      const selectedMilestone = await transaction.milestone.findFirst({
+        where: {
+          id: input.requiredMilestoneId,
+          clubId: postTarget.clubId
+        },
+        select: {
+          id: true,
+          position: true
+        }
+      });
+      const parent = input.parentId
+        ? await transaction.comment.findFirst({
           where: {
             id: input.parentId,
             postId,
@@ -512,13 +571,28 @@ export const commentsRepository: CommentsRepository = {
           },
           select: {
             id: true,
-            parentId: true
+            parentId: true,
+            requiredMilestone: {
+              select: {
+                position: true
+              }
+            }
           }
-        });
+        })
+        : null;
+      const inheritedPosition =
+        parent?.requiredMilestone.position ?? post?.requiredMilestone.position;
 
-        if (!parent || parent.parentId !== null) {
-          return null;
-        }
+      if (
+        !post ||
+        !selectedMilestone ||
+        (input.parentId && (!parent || parent.parentId !== null)) ||
+        inheritedPosition === undefined ||
+        selectedMilestone.position < inheritedPosition ||
+        !canViewPostComments(post) ||
+        !canCreatePostComment(post, selectedMilestone.position)
+      ) {
+        return null;
       }
 
       const comment = await transaction.comment.create({
@@ -539,7 +613,77 @@ export const commentsRepository: CommentsRepository = {
     }),
 
   toggleCommentReaction: async (commentId, userId, input) => {
-    await prisma.$transaction(async (transaction) => {
+    const wasAuthorized = await prisma.$transaction(async (transaction) => {
+      const target = await transaction.comment.findFirst({
+        where: {
+          id: commentId,
+          status: "VISIBLE",
+          deletedAt: null,
+          post: {
+            status: "VISIBLE",
+            deletedAt: null
+          }
+        },
+        select: {
+          post: {
+            select: {
+              id: true,
+              clubId: true
+            }
+          }
+        }
+      });
+
+      if (
+        !target ||
+        !(await lockClubAuthorization(transaction, target.post.clubId))
+      ) {
+        return false;
+      }
+
+      if (
+        !(await lockPostForReadAuthorization(transaction, target.post.id)) ||
+        !(await lockCommentForWriteAuthorization(transaction, commentId))
+      ) {
+        return false;
+      }
+
+      const post = await findCommentPostForCommand(
+        transaction,
+        target.post.id,
+        userId
+      );
+      const authorizedComment = await transaction.comment.findFirst({
+        where: {
+          id: commentId,
+          postId: target.post.id,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        select: {
+          requiredMilestone: {
+            select: {
+              position: true
+            }
+          }
+        }
+      });
+
+      if (
+        !post ||
+        !authorizedComment ||
+        !canViewPostComments(post) ||
+        !canToggleCommentReaction(post) ||
+        !canViewRequiredMilestone({
+          mode: post.club.progress.mode,
+          currentMilestonePosition: post.club.progress.currentMilestonePosition,
+          requiredMilestonePosition:
+            authorizedComment.requiredMilestone.position
+        })
+      ) {
+        return false;
+      }
+
       const existingReaction = await transaction.commentReaction.findUnique({
         where: {
           userId_commentId_emoji: {
@@ -559,7 +703,7 @@ export const commentsRepository: CommentsRepository = {
             id: existingReaction.id
           }
         });
-        return;
+        return true;
       }
 
       await transaction.commentReaction.create({
@@ -569,7 +713,13 @@ export const commentsRepository: CommentsRepository = {
           emoji: input.emoji
         }
       });
+
+      return true;
     });
+
+    if (!wasAuthorized) {
+      return null;
+    }
 
     return commentsRepository.findVisibleCommentForReaction(commentId, userId);
   },
@@ -582,6 +732,48 @@ export const commentsRepository: CommentsRepository = {
     targetUserId
   }) =>
     prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return null;
+      }
+
+      if (
+        !(await lockPostForReadAuthorization(transaction, postId)) ||
+        !(await lockCommentForWriteAuthorization(transaction, commentId))
+      ) {
+        return null;
+      }
+
+      const authorizedComment = await transaction.comment.findFirst({
+        where: {
+          id: commentId,
+          postId,
+          status: "VISIBLE",
+          deletedAt: null,
+          post: {
+            clubId,
+            status: "VISIBLE",
+            deletedAt: null
+          }
+        },
+        select: {
+          authorId: true
+        }
+      });
+      const post = await findCommentPostForCommand(transaction, postId, actorId);
+
+      if (
+        !authorizedComment ||
+        !post ||
+        !canViewPostComments(post) ||
+        !canDeleteComment({
+          authorId: authorizedComment.authorId,
+          currentUserId: actorId,
+          currentUserRole: post.club.currentUserRole
+        })
+      ) {
+        return null;
+      }
+
       const deletedAt = new Date();
       const updateResult = await transaction.comment.updateMany({
         where: {
@@ -627,6 +819,71 @@ export const commentsRepository: CommentsRepository = {
         deletedAt
       };
     })
+};
+
+const findCommentPostForCommand = async (
+  transaction: Prisma.TransactionClient,
+  postId: string,
+  userId: string
+): Promise<CommentPostRecord | null> => {
+  const now = new Date();
+  const post = await transaction.post.findFirst({
+    where: {
+      id: postId,
+      status: "VISIBLE",
+      deletedAt: null
+    },
+    select: {
+      id: true,
+      clubId: true,
+      authorId: true,
+      requiredMilestone: {
+        select: {
+          id: true,
+          position: true,
+          safeTitle: true
+        }
+      },
+      club: {
+        select: {
+          title: true,
+          visibility: true,
+          memberships: {
+            where: {
+              userId
+            },
+            select: {
+              role: true
+            },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(userId, now),
+            select: {
+              id: true
+            },
+            take: 1
+          },
+          progress: {
+            where: {
+              userId
+            },
+            select: {
+              mode: true,
+              currentMilestone: {
+                select: {
+                  position: true
+                }
+              }
+            },
+            take: 1
+          }
+        }
+      }
+    }
+  });
+
+  return post ? toCommentPostRecord(post) : null;
 };
 
 type ReactionMap = Map<

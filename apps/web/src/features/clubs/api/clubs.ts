@@ -270,7 +270,6 @@ export type LockedClubPostCard = {
   status: PostStatus;
   requiredMilestone: ClubPostRequiredMilestone;
   counts: ClubPostCounts;
-  media?: ClubPostMedia;
   permissions: ContentPermissions;
   lockReason: string;
   createdAt: string;

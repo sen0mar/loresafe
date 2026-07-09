@@ -96,6 +96,22 @@ describe("notification job handlers", () => {
     });
   });
 
+  it("does not publish when current club access rejects the recipient", async () => {
+    const repository = new InMemoryNotificationsJobsRepository();
+    const eventPublisher = createMockEventsService();
+    const source = repository.createCommentSource();
+    repository.allowNotificationCreation = false;
+
+    await processCommentCreatedJob(
+      { commentId: source.commentId },
+      repository,
+      eventPublisher
+    );
+
+    expect(repository.notifications).toHaveLength(0);
+    expect(eventPublisher.publishNotificationCreated).not.toHaveBeenCalled();
+  });
+
   it("processes progress unlock jobs idempotently", async () => {
     const repository = new InMemoryNotificationsJobsRepository();
     const eventPublisher = createMockEventsService();
@@ -194,6 +210,7 @@ class InMemoryNotificationsJobsRepository
       createdAt: Date;
     }
   > = [];
+  allowNotificationCreation = true;
 
   findCommentNotificationSource = async (commentId: string) =>
     this.commentSources.get(commentId) ?? null;
@@ -203,7 +220,11 @@ class InMemoryNotificationsJobsRepository
 
   createNotificationIfMissing = async (
     input: CreateCommentNotificationInput
-  ): Promise<CreateNotificationResult> => {
+  ): Promise<CreateNotificationResult | null> => {
+    if (!this.allowNotificationCreation) {
+      return null;
+    }
+
     const existingNotification = this.notifications.find(
       (notification) => notification.eventKey === input.eventKey
     );

@@ -1,6 +1,8 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
+import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
 import type { NotificationType } from "./notifications.schema.js";
 
 export type NotificationRecord = {
@@ -162,32 +164,92 @@ const notificationSelect = (userId: string) =>
     createdAt: true
   }) as const;
 
+export const buildAccessibleNotificationWhere = (
+  userId: string,
+  now = new Date()
+): Prisma.NotificationWhereInput => ({
+  userId,
+  club: {
+    bans: {
+      none: activeUserBanWhere(userId, now)
+    },
+    OR: [
+      {
+        visibility: "PUBLIC"
+      },
+      {
+        memberships: {
+          some: {
+            userId
+          }
+        }
+      }
+    ]
+  },
+  OR: [
+    {
+      commentId: {
+        not: null
+      },
+      comment: {
+        status: "VISIBLE",
+        deletedAt: null,
+        post: {
+          status: "VISIBLE",
+          deletedAt: null
+        }
+      }
+    },
+    {
+      commentId: null,
+      postId: {
+        not: null
+      },
+      post: {
+        status: "VISIBLE",
+        deletedAt: null
+      }
+    },
+    {
+      commentId: null,
+      postId: null
+    }
+  ]
+});
+
+export const buildNotificationListWhere = (
+  userId: string,
+  cursor: NotificationsCursor | null,
+  now = new Date()
+): Prisma.NotificationWhereInput => {
+  const cursorWhere: Prisma.NotificationWhereInput = cursor
+    ? {
+        OR: [
+          {
+            createdAt: {
+              lt: cursor.createdAt
+            }
+          },
+          {
+            createdAt: cursor.createdAt,
+            id: {
+              gt: cursor.id
+            }
+          }
+        ]
+      }
+    : {};
+
+  return {
+    AND: [buildAccessibleNotificationWhere(userId, now), cursorWhere]
+  };
+};
+
 export const notificationsRepository: NotificationsRepository = {
   listNotificationsForUser: async (userId, { cursor, limit }) => {
-    const cursorWhere: Prisma.NotificationWhereInput = cursor
-      ? {
-          OR: [
-            {
-              createdAt: {
-                lt: cursor.createdAt
-              }
-            },
-            {
-              createdAt: cursor.createdAt,
-              id: {
-                gt: cursor.id
-              }
-            }
-          ]
-        }
-      : {};
-
     const [notifications, unreadCount] = await Promise.all([
       prisma.notification.findMany({
-        where: {
-          userId,
-          ...cursorWhere
-        },
+        where: buildNotificationListWhere(userId, cursor),
         orderBy: [
           {
             createdAt: "desc"
@@ -201,7 +263,7 @@ export const notificationsRepository: NotificationsRepository = {
       }),
       prisma.notification.count({
         where: {
-          userId,
+          ...buildAccessibleNotificationWhere(userId),
           readAt: null
         }
       })
@@ -228,14 +290,35 @@ export const notificationsRepository: NotificationsRepository = {
       const existingNotification = await transaction.notification.findFirst({
         where: {
           id: notificationId,
-          userId
+          ...buildAccessibleNotificationWhere(userId)
+        },
+        select: {
+          id: true,
+          clubId: true
+        }
+      });
+
+      if (
+        !existingNotification ||
+        !(await lockClubAuthorization(
+          transaction,
+          existingNotification.clubId
+        ))
+      ) {
+        return null;
+      }
+
+      const currentlyAccessible = await transaction.notification.findFirst({
+        where: {
+          id: notificationId,
+          ...buildAccessibleNotificationWhere(userId)
         },
         select: {
           id: true
         }
       });
 
-      if (!existingNotification) {
+      if (!currentlyAccessible) {
         return null;
       }
 
@@ -250,7 +333,7 @@ export const notificationsRepository: NotificationsRepository = {
       });
       const unreadCount = await transaction.notification.count({
         where: {
-          userId,
+          ...buildAccessibleNotificationWhere(userId),
           readAt: null
         }
       });
@@ -265,7 +348,7 @@ export const notificationsRepository: NotificationsRepository = {
     prisma.$transaction(async (transaction) => {
       const result = await transaction.notification.updateMany({
         where: {
-          userId,
+          ...buildAccessibleNotificationWhere(userId),
           readAt: null
         },
         data: {
@@ -284,7 +367,7 @@ export const notificationsRepository: NotificationsRepository = {
       const result = await transaction.notification.deleteMany({
         where: {
           id: notificationId,
-          userId
+          ...buildAccessibleNotificationWhere(userId)
         }
       });
 
@@ -294,7 +377,7 @@ export const notificationsRepository: NotificationsRepository = {
 
       const unreadCount = await transaction.notification.count({
         where: {
-          userId,
+          ...buildAccessibleNotificationWhere(userId),
           readAt: null
         }
       });
@@ -313,13 +396,13 @@ export const notificationsRepository: NotificationsRepository = {
           id: {
             in: uniqueNotificationIds
           },
-          userId
+          ...buildAccessibleNotificationWhere(userId)
         }
       });
 
       const unreadCount = await transaction.notification.count({
         where: {
-          userId,
+          ...buildAccessibleNotificationWhere(userId),
           readAt: null
         }
       });
@@ -354,7 +437,20 @@ export const createNotificationInTransaction = (
 const createNotificationIfMissingInTransaction = async (
   transaction: Prisma.TransactionClient,
   input: CreateCommentNotificationInput
-): Promise<CreateNotificationResult> => {
+): Promise<CreateNotificationResult | null> => {
+  if (!(await lockClubAuthorization(transaction, input.clubId))) {
+    return null;
+  }
+
+  const canReceiveNotification = await hasCurrentNotificationAccess(
+    transaction,
+    input
+  );
+
+  if (!canReceiveNotification) {
+    return null;
+  }
+
   try {
     const notification = await transaction.notification.create({
       data: {
@@ -395,6 +491,79 @@ const createNotificationIfMissingInTransaction = async (
       wasCreated: false
     };
   }
+};
+
+const hasCurrentNotificationAccess = async (
+  transaction: Prisma.TransactionClient,
+  input: CreateCommentNotificationInput
+) => {
+  const now = new Date();
+  const club = await transaction.club.findFirst({
+    where: {
+      id: input.clubId,
+      bans: {
+        none: activeUserBanWhere(input.userId, now)
+      },
+      OR: [
+        {
+          visibility: "PUBLIC"
+        },
+        {
+          memberships: {
+            some: {
+              userId: input.userId
+            }
+          }
+        }
+      ]
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!club) {
+    return false;
+  }
+
+  if (input.commentId) {
+    const comment = await transaction.comment.findFirst({
+      where: {
+        id: input.commentId,
+        postId: input.postId ?? undefined,
+        status: "VISIBLE",
+        deletedAt: null,
+        post: {
+          clubId: input.clubId,
+          status: "VISIBLE",
+          deletedAt: null
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    return Boolean(comment);
+  }
+
+  if (input.postId) {
+    const post = await transaction.post.findFirst({
+      where: {
+        id: input.postId,
+        clubId: input.clubId,
+        status: "VISIBLE",
+        deletedAt: null
+      },
+      select: {
+        id: true
+      }
+    });
+
+    return Boolean(post);
+  }
+
+  return true;
 };
 
 const notificationEventSelect = {

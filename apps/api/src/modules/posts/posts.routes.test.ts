@@ -960,7 +960,7 @@ describe("posts routes", () => {
     expect(storage.signedKeys).toEqual([]);
   });
 
-  it("signs locked post media only when the image is marked safe to preview", async () => {
+  it("never signs locked post media even when the author marks it safe", async () => {
     const storage = new FakeReadStorage();
     app = createPostsTestApp(repository, storage);
     const user = repository.createStoredUser(validUserInput());
@@ -988,18 +988,11 @@ describe("posts routes", () => {
       .expect(200);
 
     expect(response.body.posts[0]).toMatchObject({
-      visibility: "LOCKED",
-      media: {
-        id: media.id,
-        contentType: "image/jpeg",
-        sizeBytes: 1024,
-        safePreview: true,
-        url: "https://reads.example/private/post-images/club/safe.jpg",
-        urlExpiresAt: "2026-06-16T12:05:00.000Z"
-      }
+      visibility: "LOCKED"
     });
-    expect(response.body.posts[0].media).not.toHaveProperty("objectKey");
-    expect(storage.signedKeys).toEqual(["private/post-images/club/safe.jpg"]);
+    expect(response.body.posts[0]).not.toHaveProperty("media");
+    expect(JSON.stringify(response.body)).not.toContain(media.objectKey);
+    expect(storage.signedKeys).toEqual([]);
   });
 
   it("signs visible and Brave-revealed post media with expirations", async () => {

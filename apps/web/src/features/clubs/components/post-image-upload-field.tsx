@@ -21,7 +21,6 @@ export const PostImageUploadField = ({
 }: PostImageUploadFieldProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [safePreview, setSafePreview] = useState(false);
   const [completedAsset, setCompletedAsset] = useState<FileAsset | null>(null);
   const upload = usePostImageUpload({
     clubLinkName,
@@ -55,16 +54,6 @@ export const PostImageUploadField = ({
     onPendingImageChange(!!file);
   };
 
-  const handleSafePreviewChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSafePreview(event.target.checked);
-
-    if (completedAsset) {
-      setCompletedAsset(null);
-      onAssetChange(undefined);
-      onPendingImageChange(true);
-    }
-  };
-
   const clearImage = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -78,10 +67,7 @@ export const PostImageUploadField = ({
       return;
     }
 
-    void upload.uploadFile({
-      file: selectedFile,
-      safePreview
-    });
+    void upload.uploadFile(selectedFile);
   };
 
   return (
@@ -119,23 +105,6 @@ export const PostImageUploadField = ({
         disabled={disabled || upload.isUploading}
         onChange={handleFileChange}
       />
-
-      {selectedFile ? (
-        <label
-          className="flex items-start gap-2 text-xs leading-5 text-muted"
-          htmlFor="post-image-safe-preview"
-        >
-          <input
-            id="post-image-safe-preview"
-            type="checkbox"
-            className="mt-1 size-4 rounded border-subtle bg-surface accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
-            checked={safePreview}
-            disabled={disabled || upload.isUploading}
-            onChange={handleSafePreviewChange}
-          />
-          This image is safe to preview on locked post cards.
-        </label>
-      ) : null}
 
       {upload.error ? (
         <p className="text-xs text-warning">{upload.error}</p>

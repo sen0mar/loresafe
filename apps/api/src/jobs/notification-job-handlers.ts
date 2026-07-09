@@ -120,7 +120,7 @@ export const processCommentCreatedJob = async (
     requiredMilestoneId: source.requiredMilestoneId
   });
 
-  if (notification.wasCreated) {
+  if (notification?.wasCreated) {
     eventPublisher.publishNotificationCreated(notification.userId, {
       notificationId: notification.id,
       club: notification.club,
@@ -159,7 +159,7 @@ export const processProgressUnlockedJob = async (
     requiredMilestoneId: source.requiredMilestoneId
   });
 
-  if (notification.wasCreated) {
+  if (notification?.wasCreated) {
     eventPublisher.publishNotificationCreated(notification.userId, {
       notificationId: notification.id,
       club: notification.club,

@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import { enqueueProgressUnlockedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
@@ -264,6 +265,7 @@ export const progressRepository: ProgressRepository = {
 
   advanceProgressToNextMilestoneForUserClub: async (userId, clubId) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChanges(transaction, clubId);
       const existingProgress = await transaction.clubProgress.findUnique({
         where: {
           userId_clubId: {
@@ -509,6 +511,7 @@ export const progressRepository: ProgressRepository = {
 
   updateProgressForUserClub: async (userId, clubId, input) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChanges(transaction, clubId);
       if (input.currentMilestoneId) {
         const milestone = await transaction.milestone.findFirst({
           where: {

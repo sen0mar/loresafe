@@ -121,7 +121,7 @@ export const createUploadsService = (
       clubId: club.id,
       purpose: "POST_IMAGE",
       visibility: "PRIVATE",
-      safePreview: input.safePreview,
+      safePreview: false,
       objectKey,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes

@@ -17,6 +17,7 @@ import {
   canActorUnbanRole
 } from "./club-bans.js";
 import { softDeleteAuthoredPostsForBan } from "./club-ban-cleanup.js";
+import { lockClubAuthorizationChangesByLinkName } from "./club-authorization-lock.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -536,6 +537,7 @@ export const clubsRepository: ClubsRepository = {
 
   leaveClubByLinkName: (linkName, userId) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const now = new Date();
       const club = await transaction.club.findUnique({
         where: {
@@ -608,6 +610,13 @@ export const clubsRepository: ClubsRepository = {
         }
       });
 
+      await transaction.notification.deleteMany({
+        where: {
+          clubId: club.id,
+          userId
+        }
+      });
+
       return {
         status: "SUCCESS",
         club: {
@@ -619,6 +628,7 @@ export const clubsRepository: ClubsRepository = {
 
   updateClubSettings: (linkName, actorId, input) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const now = new Date();
       const club = await transaction.club.findUnique({
         where: {
@@ -899,6 +909,7 @@ export const clubsRepository: ClubsRepository = {
 
   updateClubMemberRole: (linkName, membershipId, actorId, role) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const context = await findMemberManagementContext(
         transaction,
         linkName,
@@ -978,6 +989,7 @@ export const clubsRepository: ClubsRepository = {
 
   banClubMember: (linkName, membershipId, actorId, input) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const context = await findMemberManagementContext(
         transaction,
         linkName,
@@ -1070,6 +1082,13 @@ export const clubsRepository: ClubsRepository = {
         },
         select: {
           id: true
+        }
+      });
+
+      await transaction.notification.deleteMany({
+        where: {
+          clubId: context.club.id,
+          userId: context.member.userId
         }
       });
 

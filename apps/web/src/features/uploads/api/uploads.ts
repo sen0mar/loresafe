@@ -36,7 +36,6 @@ export type CreatePostImageUploadInput = {
   clubLinkName: string;
   contentType: string;
   sizeBytes: number;
-  safePreview: boolean;
 };
 
 export type CreatePostImageUploadResponse = CreatePublicAssetUploadResponse;

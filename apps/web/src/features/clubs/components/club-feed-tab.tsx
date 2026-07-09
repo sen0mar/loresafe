@@ -833,11 +833,11 @@ const PostUnlockOverlay = () => (
 );
 
 const PostMediaPreview = ({
-  locked = false,
   media
 }: {
-  locked?: boolean;
-  media: NonNullable<ClubPostCard["media"]>;
+  media: NonNullable<
+    Extract<ClubPostCard, { visibility: "VISIBLE" }>["media"]
+  >;
 }) => (
   <figure className="overflow-hidden rounded-lg border border-subtle bg-inset">
     <img
@@ -848,7 +848,7 @@ const PostMediaPreview = ({
     />
     <figcaption className="flex items-center gap-2 px-3 py-2 text-xs text-faint">
       <Image className="size-3.5" />
-      {locked ? "Safe preview" : "Post image"}
+      Post image
     </figcaption>
   </figure>
 );
@@ -908,7 +908,6 @@ const LockedPostCard = ({
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted">{post.lockReason}</p>
       </div>
-      {post.media ? <PostMediaPreview media={post.media} locked /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-inset px-3 py-2">
         <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />

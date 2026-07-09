@@ -11,6 +11,7 @@ import {
 import { generateMilestoneTemplateRows } from "./milestone-templates.js";
 import { canCreateClubMilestone } from "./milestones.policy.js";
 import {
+  MilestoneAuthorizationChangedError,
   MilestoneTemplateConflictError,
   MilestoneMoveConflictError,
   milestonesRepository,
@@ -85,6 +86,7 @@ export const createMilestonesService = (
     try {
       const milestones = await repository.createMilestonesFromTemplateIfEmpty({
         clubId: club.id,
+        actorId: userId,
         ...input,
         milestones: generateMilestoneTemplateRows(
           input.template,
@@ -99,6 +101,10 @@ export const createMilestonesService = (
     } catch (error) {
       if (error instanceof MilestoneTemplateConflictError) {
         throw new HttpError(409, "CONFLICT", templateConflictMessage);
+      }
+
+      if (error instanceof MilestoneAuthorizationChangedError) {
+        throw new HttpError(403, "FORBIDDEN", manageMilestonesMessage);
       }
 
       throw error;
@@ -124,10 +130,13 @@ export const createMilestonesService = (
       );
     }
 
-    const milestone = await repository.createMilestoneAtNextPosition({
-      clubId: club.id,
-      ...input
-    });
+    const milestone = await runAuthorizedMilestoneWrite(() =>
+      repository.createMilestoneAtNextPosition({
+        clubId: club.id,
+        actorId: userId,
+        ...input
+      })
+    );
 
     return {
       milestone: toMilestoneDto(milestone)
@@ -149,11 +158,14 @@ export const createMilestonesService = (
       throw new HttpError(403, "FORBIDDEN", manageMilestonesMessage);
     }
 
-    const milestone = await repository.updateMilestoneForClub({
-      clubId: club.id,
-      milestoneId,
-      ...input
-    });
+    const milestone = await runAuthorizedMilestoneWrite(() =>
+      repository.updateMilestoneForClub({
+        clubId: club.id,
+        actorId: userId,
+        milestoneId,
+        ...input
+      })
+    );
 
     if (!milestone) {
       throw new HttpError(404, "NOT_FOUND", "Milestone not found");
@@ -182,6 +194,7 @@ export const createMilestonesService = (
     try {
       const milestones = await repository.moveMilestoneForClub({
         clubId: club.id,
+        actorId: userId,
         milestoneId,
         direction: input.direction
       });
@@ -196,6 +209,10 @@ export const createMilestonesService = (
     } catch (error) {
       if (error instanceof MilestoneMoveConflictError) {
         throw new HttpError(409, "CONFLICT", timelineChangedMessage);
+      }
+
+      if (error instanceof MilestoneAuthorizationChangedError) {
+        throw new HttpError(403, "FORBIDDEN", manageMilestonesMessage);
       }
 
       throw error;
@@ -232,3 +249,17 @@ export const createMilestonesService = (
 });
 
 export const milestonesService = createMilestonesService();
+
+const runAuthorizedMilestoneWrite = async <Result>(
+  write: () => Promise<Result>
+) => {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof MilestoneAuthorizationChangedError) {
+      throw new HttpError(403, "FORBIDDEN", manageMilestonesMessage);
+    }
+
+    throw error;
+  }
+};

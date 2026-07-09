@@ -201,10 +201,19 @@ describe("uploads routes", () => {
       })
       .expect(400);
 
+    await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", await createSessionCookie(member))
+      .send({
+        ...validPostImageIntent("story-room"),
+        safePreview: true
+      })
+      .expect(400);
+
     const response = await request(app)
       .post("/api/uploads/post-images")
       .set("Cookie", await createSessionCookie(member))
-      .send(validPostImageIntent("story-room", true))
+      .send(validPostImageIntent("story-room"))
       .expect(201);
     const createdAsset = repository.getOnlyAsset();
 
@@ -215,7 +224,7 @@ describe("uploads routes", () => {
       status: "PENDING",
       contentType: "image/jpeg",
       sizeBytes: 512,
-      safePreview: true,
+      safePreview: false,
       url: null,
       createdAt: createdAsset.createdAt.toISOString(),
       updatedAt: createdAsset.updatedAt.toISOString()
@@ -359,11 +368,10 @@ const validClubCoverIntent = (clubLinkName: string) => ({
   sizeBytes: 256
 });
 
-const validPostImageIntent = (clubLinkName: string, safePreview = false) => ({
+const validPostImageIntent = (clubLinkName: string) => ({
   clubLinkName,
   contentType: "image/jpeg",
-  sizeBytes: 512,
-  safePreview
+  sizeBytes: 512
 });
 
 const createUploadsTestApp = (

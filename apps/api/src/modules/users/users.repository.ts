@@ -6,6 +6,7 @@ import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ListCurrentUserClubsQuery } from "./users.schema.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 
 export type UpdateCurrentUserProfileInput = {
   displayName?: string;
@@ -76,18 +77,33 @@ const userSelect = {
 export const usersRepository: UsersRepository = {
   deleteCurrentUserAccount: (userId) =>
     prisma.$transaction(async (transaction) => {
-      const currentUser = await transaction.user.findFirst({
-        where: {
-          id: userId,
-          deletedAt: null
-        },
-        select: {
-          id: true
-        }
-      });
+      const currentUsers = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "users"
+        WHERE "id" = ${userId}::uuid
+          AND "deleted_at" IS NULL
+        FOR UPDATE
+      `;
+      const currentUser = currentUsers[0] ?? null;
 
       if (!currentUser) {
         return "USER_NOT_FOUND";
+      }
+
+      const memberships = await transaction.clubMembership.findMany({
+        where: {
+          userId
+        },
+        orderBy: {
+          clubId: "asc"
+        },
+        select: {
+          clubId: true
+        }
+      });
+
+      for (const membership of memberships) {
+        await lockClubAuthorizationChanges(transaction, membership.clubId);
       }
 
       const soleOwnerMembership = await transaction.clubMembership.findFirst({

@@ -90,7 +90,6 @@ export type LockedClubPostCardDto = {
   status: PostStatusDto;
   requiredMilestone: RequiredMilestoneDto;
   counts: PostCountsDto;
-  media?: PostMediaDto;
   permissions: ContentPermissionsDto;
   lockReason: string;
   createdAt: string;
@@ -155,7 +154,7 @@ export type PostVisibilityContext = {
   currentUserRole: ClubMembershipRole | null;
 };
 
-export const toClubPostCardDto = (
+export const toClubPostCardDto = async (
   post: ClubPostRecord,
   context: PostVisibilityContext,
   storage: Pick<ObjectStorage, "createPresignedRead">
@@ -190,9 +189,7 @@ export const toClubPostCardDto = (
   if (!isVisible) {
     return toLockedPostDto({
       base,
-      post,
-      requiredMilestone,
-      storage
+      requiredMilestone
     });
   }
 
@@ -243,28 +240,17 @@ export const toRevealedClubPostDto = async (
   };
 };
 
-const toLockedPostDto = async ({
+const toLockedPostDto = ({
   base,
-  post,
-  requiredMilestone,
-  storage
+  requiredMilestone
 }: {
   base: Omit<LockedClubPostCardDto, "visibility" | "lockReason">;
-  post: ClubPostRecord;
   requiredMilestone: RequiredMilestoneDto;
-  storage: Pick<ObjectStorage, "createPresignedRead">;
-}): Promise<LockedClubPostCardDto> => {
-  const media = post.media?.safePreview
-    ? await toPostMediaDto(post.media, storage)
-    : null;
-
-  return {
+}): LockedClubPostCardDto => ({
     ...base,
-    ...(media ? { media } : {}),
     visibility: "LOCKED",
     lockReason: `Reach milestone ${requiredMilestone.position}: ${requiredMilestone.label} to unlock this discussion.`
-  };
-};
+  });
 
 const toVisiblePostDto = async ({
   base,

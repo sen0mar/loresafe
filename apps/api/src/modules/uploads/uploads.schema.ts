@@ -59,8 +59,7 @@ export const createPostImageUploadRequestSchema = z
     contentType: z.enum(allowedPostImageContentTypes),
     sizeBytes: z.number().int().positive().max(postImageMaxSizeBytes, {
       message: "File is too large."
-    }),
-    safePreview: z.boolean().default(false)
+    })
   })
   .strict();
 

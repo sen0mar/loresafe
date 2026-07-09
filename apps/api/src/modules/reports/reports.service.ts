@@ -251,6 +251,12 @@ const runModerationAction = async (
   }
 
   switch (result.status) {
+    case "ACCESS_DENIED":
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "Only club owners and moderators can review reports."
+      );
     case "REPORT_NOT_FOUND":
       throw new HttpError(404, "NOT_FOUND", "Report not found");
     case "TARGET_NOT_FOUND":

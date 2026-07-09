@@ -4,8 +4,7 @@ import type { CookieOptions } from "express";
 import { env } from "../../config/env.js";
 
 const secretKey = new TextEncoder().encode(env.JWT_SECRET);
-const sessionCookieSameSite: CookieOptions["sameSite"] =
-  env.NODE_ENV === "production" ? "none" : "lax";
+const sessionCookieSameSite: CookieOptions["sameSite"] = "lax";
 
 type CreateSessionTokenInput = {
   userId: string;

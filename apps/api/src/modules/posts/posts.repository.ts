@@ -9,6 +9,10 @@ import type {
   TogglePostReactionRequest
 } from "./posts.schema.js";
 import { postReactionEmojis } from "./posts.schema.js";
+import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import { canDeletePost, canViewClubFeed } from "./posts.policy.js";
+import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
+import { lockPostForWriteAuthorization } from "../spoilers/content-authorization-lock.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -349,6 +353,39 @@ export const postsRepository: PostsRepository = {
 
   createClubPost: async (clubId, authorId, input) =>
     prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return null;
+      }
+
+      const now = new Date();
+      const clubAccess = await transaction.club.findUnique({
+        where: {
+          id: clubId
+        },
+        select: {
+          memberships: {
+            where: {
+              userId: authorId
+            },
+            select: {
+              id: true
+            },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(authorId, now),
+            select: {
+              id: true
+            },
+            take: 1
+          }
+        }
+      });
+
+      if (!clubAccess?.memberships.length || clubAccess.bans.length > 0) {
+        return null;
+      }
+
       const requiredMilestone = await transaction.milestone.findFirst({
         where: {
           id: input.requiredMilestoneId,
@@ -634,7 +671,108 @@ export const postsRepository: PostsRepository = {
   },
 
   togglePostReaction: async (postId, userId, input) => {
-    await prisma.$transaction(async (transaction) => {
+    const wasAuthorized = await prisma.$transaction(async (transaction) => {
+      const target = await transaction.post.findFirst({
+        where: {
+          id: postId,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        select: {
+          clubId: true
+        }
+      });
+
+      if (!target || !(await lockClubAuthorization(transaction, target.clubId))) {
+        return false;
+      }
+
+      if (!(await lockPostForWriteAuthorization(transaction, postId))) {
+        return false;
+      }
+
+      const now = new Date();
+      const authorizedPost = await transaction.post.findFirst({
+        where: {
+          id: postId,
+          clubId: target.clubId,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        select: {
+          requiredMilestone: {
+            select: {
+              position: true
+            }
+          },
+          club: {
+            select: {
+              visibility: true,
+              memberships: {
+                where: {
+                  userId
+                },
+                select: {
+                  role: true
+                },
+                take: 1
+              },
+              bans: {
+                where: activeUserBanWhere(userId, now),
+                select: {
+                  id: true
+                },
+                take: 1
+              },
+              progress: {
+                where: {
+                  userId
+                },
+                select: {
+                  mode: true,
+                  currentMilestone: {
+                    select: {
+                      position: true
+                    }
+                  }
+                },
+                take: 1
+              }
+            }
+          }
+        }
+      });
+
+      const progress = authorizedPost?.club.progress[0];
+      const access = authorizedPost
+        ? {
+            id: target.clubId,
+            visibility: authorizedPost.club.visibility,
+            currentUserRole: authorizedPost.club.memberships[0]?.role ?? null,
+            isCurrentUserBanned: authorizedPost.club.bans.length > 0,
+            progress: {
+              mode: (progress?.mode ?? "STRICT") as ProgressMode,
+              currentMilestonePosition:
+                progress?.currentMilestone?.position ?? null
+            }
+          }
+        : null;
+
+      if (
+        !access ||
+        access.isCurrentUserBanned ||
+        !canViewClubFeed(access) ||
+        !canViewRequiredMilestone({
+          mode: access.progress.mode,
+          currentMilestonePosition: access.progress.currentMilestonePosition,
+          requiredMilestonePosition:
+            authorizedPost?.requiredMilestone.position ??
+            Number.MAX_SAFE_INTEGER
+        })
+      ) {
+        return false;
+      }
+
       const deletedReaction = await transaction.postReaction.deleteMany({
         where: {
           userId,
@@ -644,7 +782,7 @@ export const postsRepository: PostsRepository = {
       });
 
       if (deletedReaction.count > 0) {
-        return;
+        return true;
       }
 
       try {
@@ -657,18 +795,84 @@ export const postsRepository: PostsRepository = {
         });
       } catch (error) {
         if (isUniqueConstraintError(error)) {
-          return;
+          return true;
         }
 
         throw error;
       }
+
+      return true;
     });
+
+    if (!wasAuthorized) {
+      return null;
+    }
 
     return postsRepository.findPostForDetail(postId, userId);
   },
 
   softDeletePost: async ({ actorId, clubId, postId, targetUserId }) =>
     prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return null;
+      }
+
+      if (!(await lockPostForWriteAuthorization(transaction, postId))) {
+        return null;
+      }
+
+      const now = new Date();
+      const authorizedPost = await transaction.post.findFirst({
+        where: {
+          id: postId,
+          clubId,
+          status: "VISIBLE",
+          deletedAt: null
+        },
+        select: {
+          authorId: true,
+          club: {
+            select: {
+              visibility: true,
+              memberships: {
+                where: {
+                  userId: actorId
+                },
+                select: {
+                  role: true
+                },
+                take: 1
+              },
+              bans: {
+                where: activeUserBanWhere(actorId, now),
+                select: {
+                  id: true
+                },
+                take: 1
+              }
+            }
+          }
+        }
+      });
+      const currentUserRole = authorizedPost?.club.memberships[0]?.role ?? null;
+
+      if (
+        !authorizedPost ||
+        authorizedPost.club.bans.length > 0 ||
+        !canViewClubFeed({
+          visibility: authorizedPost.club.visibility,
+          currentUserRole,
+          isCurrentUserBanned: false
+        }) ||
+        !canDeletePost({
+          authorId: authorizedPost.authorId,
+          currentUserId: actorId,
+          currentUserRole
+        })
+      ) {
+        return null;
+      }
+
       const deletedAt = new Date();
       const updateResult = await transaction.post.updateMany({
         where: {

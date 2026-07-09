@@ -36,7 +36,7 @@ export type NotificationsJobsRepository = {
   ) => Promise<ProgressUnlockNotificationSource | null>;
   createNotificationIfMissing: (
     input: CreateCommentNotificationInput
-  ) => Promise<CreateNotificationResult>;
+  ) => Promise<CreateNotificationResult | null>;
 };
 
 export const notificationsJobsRepository: NotificationsJobsRepository = {

@@ -23,13 +23,7 @@ export const usePostImageUpload = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadFile = async ({
-    file,
-    safePreview
-  }: {
-    file: File;
-    safePreview: boolean;
-  }) => {
+  const uploadFile = async (file: File) => {
     const validationError = validatePostImageFile(file);
 
     if (validationError) {
@@ -46,8 +40,7 @@ export const usePostImageUpload = ({
       const intent = await createPostImageUpload({
         clubLinkName,
         contentType: file.type,
-        sizeBytes: file.size,
-        safePreview
+        sizeBytes: file.size
       });
 
       setStatus("uploading");

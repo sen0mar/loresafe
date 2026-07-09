@@ -9,6 +9,7 @@ import type {
 } from "./milestones.schema.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -68,21 +69,25 @@ export type MilestonesRepository = {
 
 type CreateMilestoneAtNextPositionInput = CreateMilestoneRequest & {
   clubId: string;
+  actorId: string;
 };
 
 type UpdateMilestoneForClubInput = UpdateMilestoneRequest & {
   clubId: string;
   milestoneId: string;
+  actorId: string;
 };
 
 type MoveMilestoneForClubInput = MoveMilestoneRequest & {
   clubId: string;
   milestoneId: string;
+  actorId: string;
 };
 
 type CreateMilestonesFromTemplateIfEmptyInput =
   CreateMilestoneTemplateRequest & {
     clubId: string;
+    actorId: string;
     milestones: Array<{
       safeTitle: string;
       fullTitle: null;
@@ -105,6 +110,13 @@ export class MilestoneMoveConflictError extends Error {
   }
 }
 
+export class MilestoneAuthorizationChangedError extends Error {
+  constructor() {
+    super("Milestone authorization changed before the update completed.");
+    this.name = "MilestoneAuthorizationChangedError";
+  }
+}
+
 const milestoneSelect = {
   id: true,
   position: true,
@@ -118,6 +130,7 @@ export const milestonesRepository: MilestonesRepository = {
   createMilestonesFromTemplateIfEmpty: async (input) => {
     try {
       return await prisma.$transaction(async (transaction) => {
+        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
         const existingMilestoneCount = await transaction.milestone.count({
           where: {
             clubId: input.clubId
@@ -164,6 +177,7 @@ export const milestonesRepository: MilestonesRepository = {
   createMilestoneAtNextPosition: async (input) => {
     const createMilestone = async () =>
       prisma.$transaction(async (transaction) => {
+        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
         const lastMilestone = await transaction.milestone.findFirst({
           where: {
             clubId: input.clubId
@@ -200,38 +214,41 @@ export const milestonesRepository: MilestonesRepository = {
     }
   },
 
-  updateMilestoneForClub: async (input) => {
-    const existingMilestone = await prisma.milestone.findFirst({
-      where: {
-        id: input.milestoneId,
-        clubId: input.clubId
-      },
-      select: {
-        id: true
+  updateMilestoneForClub: (input) =>
+    prisma.$transaction(async (transaction) => {
+      await assertCanManageMilestones(transaction, input.clubId, input.actorId);
+      const existingMilestone = await transaction.milestone.findFirst({
+        where: {
+          id: input.milestoneId,
+          clubId: input.clubId
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (!existingMilestone) {
+        return null;
       }
-    });
 
-    if (!existingMilestone) {
-      return null;
-    }
-
-    return prisma.milestone.update({
-      where: {
-        id: input.milestoneId
-      },
-      data: {
-        safeTitle: input.safeTitle,
-        fullTitle: input.fullTitle ?? null,
-        description: input.description ?? null,
-        spoilerName: input.spoilerName
-      },
-      select: milestoneSelect
-    });
-  },
+      return transaction.milestone.update({
+        where: {
+          id: input.milestoneId
+        },
+        data: {
+          safeTitle: input.safeTitle,
+          fullTitle: input.fullTitle ?? null,
+          description: input.description ?? null,
+          spoilerName: input.spoilerName
+        },
+        select: milestoneSelect
+      });
+    }),
 
   moveMilestoneForClub: async (input) => {
     try {
       return await prisma.$transaction(async (transaction) => {
+        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
         const milestone = await transaction.milestone.findFirst({
           where: {
             id: input.milestoneId,
@@ -469,6 +486,41 @@ export const milestonesRepository: MilestonesRepository = {
         currentMilestonePosition: progress?.currentMilestone?.position ?? null
       }
     };
+  }
+};
+
+const assertCanManageMilestones = async (
+  transaction: Prisma.TransactionClient,
+  clubId: string,
+  actorId: string
+) => {
+  if (!(await lockClubAuthorizationChanges(transaction, clubId))) {
+    throw new MilestoneAuthorizationChangedError();
+  }
+
+  const now = new Date();
+  const club = await transaction.club.findFirst({
+    where: {
+      id: clubId,
+      memberships: {
+        some: {
+          userId: actorId,
+          role: {
+            in: ["OWNER", "MODERATOR"]
+          }
+        }
+      },
+      bans: {
+        none: activeUserBanWhere(actorId, now)
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!club) {
+    throw new MilestoneAuthorizationChangedError();
   }
 };
 

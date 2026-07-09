@@ -77,6 +77,39 @@ describe("health routes", () => {
     );
   });
 
+  it("rejects unsafe production requests without a trusted origin", async () => {
+    const productionApp = createApp(
+      parseEnv({
+        CLIENT_ORIGIN: "https://legacy.loresafe.example",
+        CLIENT_ORIGINS: "https://app.loresafe.example",
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
+        DEMO_USER_DISPLAY_NAME: "Demo Reader",
+        DEMO_USER_EMAIL: "demo@example.com",
+        DEMO_USER_PASSWORD: "correct horse battery",
+        JWT_SECRET: "a".repeat(32),
+        NODE_ENV: "production",
+        R2_ACCESS_KEY_ID: "r2-access-key",
+        R2_ACCOUNT_ID: "r2-account",
+        R2_BUCKET_NAME: "loresafe-assets",
+        R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
+        R2_SECRET_ACCESS_KEY: "r2-secret-key",
+        SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+        UPSTASH_REDIS_REST_TOKEN: "redis-token",
+        UPSTASH_REDIS_REST_URL: "https://redis.example"
+      })
+    );
+
+    await request(productionApp).post("/api/missing").expect(403);
+    await request(productionApp)
+      .post("/api/missing")
+      .set("Origin", "https://evil.example")
+      .expect(403);
+    await request(productionApp)
+      .post("/api/missing")
+      .set("Origin", "https://app.loresafe.example")
+      .expect(404);
+  });
+
   it("returns the shared error shape for unknown API routes", async () => {
     const response = await request(app)
       .get("/api/missing")
