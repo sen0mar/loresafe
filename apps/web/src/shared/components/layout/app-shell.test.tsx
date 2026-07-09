@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { renderWithProviders } from "@/test/render";
+import { mockFetchRoutes, renderWithProviders } from "@/test/render";
 
 import { AppShell } from "./app-shell";
 
@@ -227,4 +227,126 @@ describe("AppShell layout", () => {
 
     expect(screen.queryByRole("search")).not.toBeInTheDocument();
   });
+
+  it("opens a notification preview dropdown from the top-bar icon", async () => {
+    const user = userEvent.setup();
+
+    mockFetchRoutes([
+      {
+        method: "GET",
+        path: "/api/notifications",
+        response: {
+          notifications: [
+            previewNotification({
+              id: "notification-1",
+              safeText: "Someone replied without spoilers.",
+              readAt: null
+            }),
+            previewNotification({
+              id: "notification-2",
+              safeText: "New safe discussion unlocked.",
+              type: "PROGRESS_UNLOCK"
+            })
+          ],
+          unreadCount: 2,
+          pagination: {
+            limit: 3,
+            nextCursor: null,
+            hasMore: false
+          }
+        }
+      }
+    ]);
+
+    renderWithProviders(
+      <AppShell currentUser={currentUser} notificationUnreadCount={2}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(screen.getByRole("menu")).toBeVisible();
+    expect(screen.getByText("2 unread")).toBeVisible();
+    expect(screen.getByText("Someone replied without spoilers.")).toBeVisible();
+    expect(screen.getByText("New safe discussion unlocked.")).toBeVisible();
+    expect(screen.getByRole("link", { name: /See all/ })).toHaveAttribute(
+      "href",
+      "/app/notifications"
+    );
+  });
+
+  it("routes notification preview clicks to the notifications page", async () => {
+    const user = userEvent.setup();
+    const observedRoutes: string[] = [];
+
+    mockFetchRoutes([
+      {
+        method: "GET",
+        path: "/api/notifications",
+        response: {
+          notifications: [
+            previewNotification({
+              id: "notification-1",
+              safeText: "A fresh safe notification."
+            })
+          ],
+          unreadCount: 1,
+          pagination: {
+            limit: 3,
+            nextCursor: null,
+            hasMore: false
+          }
+        }
+      }
+    ]);
+
+    renderWithProviders(
+      <AppShell currentUser={currentUser} notificationUnreadCount={1}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>,
+      {
+        routeObserver: (path) => observedRoutes.push(path)
+      }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: /A fresh safe notification/ })
+    );
+
+    expect(observedRoutes.at(-1)).toBe("/app/notifications");
+  });
+});
+
+const previewNotification = (
+  overrides: Partial<{
+    id: string;
+    type:
+      | "POST_COMMENT"
+      | "COMMENT_REPLY"
+      | "PROGRESS_UNLOCK"
+      | "MODERATION_WARNING";
+    safeText: string;
+    readAt: string | null;
+  }> = {}
+) => ({
+  id: overrides.id ?? "notification",
+  visibility: "VISIBLE" as const,
+  type: overrides.type ?? ("POST_COMMENT" as const),
+  safeText: overrides.safeText ?? "A safe notification.",
+  club: {
+    id: "club-1",
+    title: "First Club",
+    linkName: "first-club"
+  },
+  postId: "post-1",
+  commentId: "comment-1",
+  requiredMilestone: {
+    id: "milestone-1",
+    position: 1,
+    label: "Opening"
+  },
+  readAt: overrides.readAt ?? "2026-07-06T08:00:00.000Z",
+  createdAt: "2026-07-06T08:00:00.000Z"
 });

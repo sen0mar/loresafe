@@ -64,7 +64,8 @@ export type DeleteNotificationResponse = {
 export const notificationsQueryKeys = {
   root: ["notifications"] as const,
   unread: ["notifications", "unread"] as const,
-  list: ["notifications", "list"] as const
+  list: ["notifications", "list"] as const,
+  preview: ["notifications", "preview"] as const
 };
 
 export const getNotifications = (

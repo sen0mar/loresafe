@@ -1,9 +1,6 @@
 import { type ReactNode } from "react";
-import { Bell } from "lucide-react";
-import { Link } from "react-router-dom";
 
-import { Badge } from "@/shared/components/ui/badge";
-import { Button } from "@/shared/components/ui/button";
+import { NotificationPreviewMenu } from "@/features/notifications/components/notification-preview-menu";
 import { cn } from "@/shared/lib/utils";
 
 import {
@@ -68,22 +65,7 @@ export const AppShell = ({
               notificationUnreadCount={notificationUnreadCount}
             />
             <div className="min-w-0 flex-1" />
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="relative"
-              aria-label="Notifications"
-            >
-              <Link to="/app/notifications">
-                <Bell />
-                {notificationUnreadCount > 0 ? (
-                  <Badge className="absolute -right-1 -top-1 px-1.5 py-0 text-[10px]">
-                    {formatNotificationBadgeCount(notificationUnreadCount)}
-                  </Badge>
-                ) : null}
-              </Link>
-            </Button>
+            <NotificationPreviewMenu unreadCount={notificationUnreadCount} />
             <SessionMenu
               currentUser={currentUser}
               isLoading={isCurrentUserLoading}
@@ -113,6 +95,3 @@ export const AppShell = ({
     </div>
   );
 };
-
-const formatNotificationBadgeCount = (count: number) =>
-  count > 99 ? "99+" : String(count);
