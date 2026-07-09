@@ -11,13 +11,13 @@ import {
   Menu,
   RefreshCw,
   Settings,
-  ShieldCheck,
   TrendingUp,
   Users,
   type LucideIcon
 } from "lucide-react";
 
 import { AUTHENTICATED_HOME_PATH } from "@/app/routes";
+import { BrandMark } from "@/shared/components/brand-mark";
 import { BrandWordmark } from "@/shared/components/brand-wordmark";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -204,9 +204,10 @@ const ShellBrand = () => (
     aria-label="LoreSafe home"
     className="flex items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
   >
-    <span className="flex size-10 items-center justify-center rounded-xl border border-brand bg-active text-brand shadow-glow">
-      <ShieldCheck className="size-6" />
-    </span>
+    <BrandMark
+      isDecorative
+      className="size-10 rounded-xl border border-brand bg-active p-1.5 shadow-glow"
+    />
     <BrandWordmark className="text-xl font-semibold" />
   </Link>
 );
