@@ -129,6 +129,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 123: Brand wordmark accent — Colored the `Safe` portion of visible LoreSafe wordmarks with a stronger steel-blue accent across public, auth, and app shell surfaces, including static SEO fallback coverage.
 - Feature 124: Production redirect loop fix — Aligned Vercel redirects, canonical SEO metadata, public-origin defaults, production env examples, and sitemap output on `www.loresafe.org`, with focused config regression coverage.
 - Feature 125: Text-free logo mark — Added the approved white LoreSafe mark as a reusable frontend brand asset, applied it across public/auth/app branding, refreshed favicon/PWA/social icons, and removed extra landing/auth logo chrome.
+- Feature 126: Clean app shell logo — Removed the remaining framed sidebar treatment so the authenticated app shell uses the same bare LoreSafe logo mark as the rest of the app.
 
 ## Entry Format
 

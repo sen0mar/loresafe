@@ -204,10 +204,7 @@ const ShellBrand = () => (
     aria-label="LoreSafe home"
     className="flex items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
   >
-    <BrandMark
-      isDecorative
-      className="size-10 rounded-xl border border-brand bg-active p-1.5 shadow-glow"
-    />
+    <BrandMark isDecorative className="size-10" />
     <BrandWordmark className="text-xl font-semibold" />
   </Link>
 );
