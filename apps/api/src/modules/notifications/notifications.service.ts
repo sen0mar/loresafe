@@ -77,7 +77,7 @@ export const createNotificationsService = (
       throw new HttpError(404, "NOT_FOUND", "Notification not found");
     }
 
-    eventPublisher.publishNotificationRead(userId, {
+    await eventPublisher.publishNotificationRead(userId, {
       notificationId: result.notification.id,
       club: {
         id: result.notification.club.id,

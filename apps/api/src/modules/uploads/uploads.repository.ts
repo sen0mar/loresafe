@@ -1,4 +1,10 @@
 import { prisma } from "../../core/prisma/client.js";
+import {
+  markStorageDeletionsCompleted,
+  requestStorageObjectDeletion
+} from "../../core/storage/storage-deletion.repository.js";
+import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
+import type { ValidatedImage } from "./image-validation.js";
 
 export type FileAssetPurpose = "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
 export type FileAssetVisibility = "PUBLIC" | "PRIVATE";
@@ -18,6 +24,10 @@ export type FileAssetRecord = {
   contentType: string;
   sizeBytes: number;
   status: FileAssetStatus;
+  widthPx: number | null;
+  heightPx: number | null;
+  isAnimated: boolean | null;
+  validatedAt: Date | null;
   readyAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,10 +58,14 @@ export type UploadsRepository = {
     linkName: string,
     userId: string
   ) => Promise<UploadClubRecord | null>;
-  markAssetFailed: (assetId: string) => Promise<FileAssetRecord | null>;
+  markAssetFailedAndRequestDeletion: (
+    assetId: string
+  ) => Promise<{ asset: FileAssetRecord; deletionId: string } | null>;
+  markDeletionCompleted: (deletionId: string) => Promise<void>;
   markAssetReadyAndAttach: (
     asset: FileAssetRecord,
-    readyAt: Date
+    readyAt: Date,
+    validation: ValidatedImage
   ) => Promise<FileAssetRecord>;
 };
 
@@ -68,6 +82,10 @@ const fileAssetSelect = {
   contentType: true,
   sizeBytes: true,
   status: true,
+  widthPx: true,
+  heightPx: true,
+  isAnimated: true,
+  validatedAt: true,
   readyAt: true,
   createdAt: true,
   updatedAt: true
@@ -158,30 +176,50 @@ export const uploadsRepository: UploadsRepository = {
     };
   },
 
-  markAssetFailed: async (assetId) => {
-    const updateResult = await prisma.fileAsset.updateMany({
-      where: {
-        id: assetId,
-        status: "PENDING"
-      },
-      data: {
-        status: "FAILED"
+  markAssetFailedAndRequestDeletion: (assetId) =>
+    prisma.$transaction(async (transaction) => {
+      const asset = await transaction.fileAsset.findUnique({
+        where: {
+          id: assetId
+        },
+        select: fileAssetSelect
+      });
+
+      if (!asset || asset.status !== "PENDING") {
+        return null;
       }
-    });
 
-    if (updateResult.count === 0) {
-      return null;
-    }
+      const failedAsset = await transaction.fileAsset.update({
+        where: {
+          id: asset.id,
+          status: "PENDING"
+        },
+        data: {
+          status: "FAILED"
+        },
+        select: fileAssetSelect
+      });
+      const deletion = await requestStorageObjectDeletion(
+        transaction,
+        asset.objectKey,
+        "INVALID_UPLOAD"
+      );
 
-    return prisma.fileAsset.findUnique({
-      where: {
-        id: assetId
-      },
-      select: fileAssetSelect
-    });
+      if (deletion.status === "PENDING") {
+        await enqueueStorageObjectDeleteJob([deletion.id], transaction);
+      }
+
+      return {
+        asset: failedAsset,
+        deletionId: deletion.id
+      };
+    }),
+
+  markDeletionCompleted: async (deletionId) => {
+    await markStorageDeletionsCompleted([deletionId]);
   },
 
-  markAssetReadyAndAttach: (asset, readyAt) =>
+  markAssetReadyAndAttach: (asset, readyAt, validation) =>
     prisma.$transaction(async (transaction) => {
       const updatedAsset = await transaction.fileAsset.update({
         where: {
@@ -190,12 +228,30 @@ export const uploadsRepository: UploadsRepository = {
         },
         data: {
           status: "READY",
-          readyAt
+          readyAt,
+          widthPx: validation.widthPx,
+          heightPx: validation.heightPx,
+          isAnimated: validation.isAnimated,
+          validatedAt: readyAt
         },
         select: fileAssetSelect
       });
 
       if (asset.purpose === "AVATAR") {
+        const previousAsset = await transaction.user.findUnique({
+          where: {
+            id: asset.ownerId
+          },
+          select: {
+            avatarAsset: {
+              select: {
+                id: true,
+                objectKey: true
+              }
+            }
+          }
+        });
+
         await transaction.user.update({
           where: {
             id: asset.ownerId
@@ -207,7 +263,33 @@ export const uploadsRepository: UploadsRepository = {
             id: true
           }
         });
+
+        if (previousAsset?.avatarAsset?.id !== asset.id && previousAsset?.avatarAsset) {
+          const deletion = await requestStorageObjectDeletion(
+            transaction,
+            previousAsset.avatarAsset.objectKey,
+            "REPLACED_ASSET"
+          );
+
+          if (deletion.status === "PENDING") {
+            await enqueueStorageObjectDeleteJob([deletion.id], transaction);
+          }
+        }
       } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
+        const previousAsset = await transaction.club.findUnique({
+          where: {
+            id: asset.clubId
+          },
+          select: {
+            coverAsset: {
+              select: {
+                id: true,
+                objectKey: true
+              }
+            }
+          }
+        });
+
         await transaction.club.update({
           where: {
             id: asset.clubId
@@ -219,6 +301,18 @@ export const uploadsRepository: UploadsRepository = {
             id: true
           }
         });
+
+        if (previousAsset?.coverAsset?.id !== asset.id && previousAsset?.coverAsset) {
+          const deletion = await requestStorageObjectDeletion(
+            transaction,
+            previousAsset.coverAsset.objectKey,
+            "REPLACED_ASSET"
+          );
+
+          if (deletion.status === "PENDING") {
+            await enqueueStorageObjectDeleteJob([deletion.id], transaction);
+          }
+        }
       }
 
       return updatedAsset;

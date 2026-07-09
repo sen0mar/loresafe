@@ -1293,11 +1293,24 @@ export const updateClubProgress = (
 ) =>
   apiPatch<ClubProgressResponse, UpdateClubProgressInput>(
     `/api/clubs/${linkName}/progress`,
-    input
+    input,
+    {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID()
+      }
+    }
   );
 
 export const advanceClubProgressToNextMilestone = (linkName: string) =>
-  apiPost<ClubProgressResponse>(`/api/clubs/${linkName}/progress/next`);
+  apiPost<ClubProgressResponse>(
+    `/api/clubs/${linkName}/progress/next`,
+    undefined,
+    {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID()
+      }
+    }
+  );
 
 export const usePublicClubsQuery = (
   enabled = true,

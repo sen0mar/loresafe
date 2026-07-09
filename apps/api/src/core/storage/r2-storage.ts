@@ -28,11 +28,13 @@ export type StoredObjectMetadata = {
 export type ObjectStorage = {
   createPresignedRead: (objectKey: string) => Promise<PresignedRead>;
   createPresignedUpload: (input: {
+    contentLength: number;
     contentType: string;
     objectKey: string;
   }) => Promise<PresignedUpload>;
   deleteObjects: (objectKeys: string[]) => Promise<void>;
   getObjectMetadata: (objectKey: string) => Promise<StoredObjectMetadata | null>;
+  getObjectBytes: (objectKey: string, maxBytes: number) => Promise<Uint8Array>;
   getPublicUrl: (objectKey: string) => string;
 };
 
@@ -61,11 +63,12 @@ export const r2Storage: ObjectStorage = {
     };
   },
 
-  createPresignedUpload: async ({ contentType, objectKey }) => {
+  createPresignedUpload: async ({ contentLength, contentType, objectKey }) => {
     const command = new PutObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
       Key: objectKey,
-      ContentType: contentType
+      ContentType: contentType,
+      ContentLength: contentLength
     });
     const expiresIn = env.R2_PRESIGNED_URL_TTL_SECONDS;
     const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
@@ -123,6 +126,26 @@ export const r2Storage: ObjectStorage = {
 
       throw error;
     }
+  },
+
+  getObjectBytes: async (objectKey, maxBytes) => {
+    const response = await r2Client.send(
+      new GetObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: objectKey
+      })
+    );
+    const bytes = await response.Body?.transformToByteArray();
+
+    if (!bytes) {
+      throw new Error("Stored object body was empty.");
+    }
+
+    if (bytes.byteLength > maxBytes) {
+      throw new Error("Stored object exceeds the allowed size.");
+    }
+
+    return bytes;
   },
 
   getPublicUrl: (objectKey) =>

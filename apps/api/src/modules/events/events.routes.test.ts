@@ -75,7 +75,7 @@ describe("events routes", () => {
 
     server = response.server;
 
-    events.publishNotificationCreated(user.id, {
+    await events.publishNotificationCreated(user.id, {
       notificationId: crypto.randomUUID(),
       club: {
         id: crypto.randomUUID(),
@@ -96,17 +96,35 @@ describe("events routes", () => {
     expect(streamText).not.toContain("UNSAFE_STORY_CONTENT");
     expect(streamText).not.toContain("Milestone");
   });
+
+  it("closes an open stream when periodic session revalidation fails", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    app = createEventsTestApp(repository, events, async () => false);
+    const response = await openEventsStream(
+      app,
+      await createSessionCookie(user)
+    );
+
+    server = response.server;
+
+    const streamText = await readUntil(response, () => false);
+
+    expect(streamText).toContain(": connected");
+    expect(streamText).not.toContain(": heartbeat");
+  });
 });
 
 const createEventsTestApp = (
   repository: InMemoryEventsAuthRepository,
-  events: EventsService
+  events: EventsService,
+  isSessionValid: () => Promise<boolean> = async () => true
 ) => {
   const app = express();
   const authService = createAuthService(repository);
   const authMiddleware = createAuthMiddleware(authService);
   const eventsController = createEventsController(events, {
-    heartbeatMs: 10
+    heartbeatMs: 10,
+    isSessionValid
   });
 
   app.disable("x-powered-by");

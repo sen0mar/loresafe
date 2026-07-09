@@ -134,6 +134,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 128: Selectable notification cleanup — Added owned selected-notification bulk deletion, selection-mode notification controls, clickable notification cards, direct post targets for unlock/previews, and focused backend/frontend regression coverage.
 - Feature 129: Notification delete animation — Added immediate transform-based notification delete motion with a left fade/disintegration effect, smooth remaining-row movement, reduced-motion fallback, and matched compact row actions.
 - Feature 130: Top-five production audit hardening — Removed locked spoiler media previews, added SameSite and trusted-origin CSRF defenses, enforced current notification access, made sensitive authorization writes transactional, serialized last-owner mutations, and added focused plus real PostgreSQL concurrency coverage.
+- Feature 131: Production audit hardening 6–10 — Added idempotent versioned progress commands, revocation-safe cross-instance SSE over direct PostgreSQL, verified and size-constrained image uploads, durable storage cleanup reconciliation, and committed cross-club database invariants with focused real PostgreSQL coverage.
 
 ## Entry Format
 

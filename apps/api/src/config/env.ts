@@ -61,6 +61,7 @@ const envSchema = z
     PUBLIC_SITE_ORIGIN: optionalUrlSchema,
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).optional(),
     DATABASE_URL: z.string().trim().min(1),
+    EVENTS_DATABASE_URL: optionalStringSchema,
     JWT_SECRET: z.string().min(32),
     SESSION_COOKIE_NAME: z
       .string()
@@ -109,6 +110,7 @@ const envSchema = z
 
     const productionRequiredFields = [
       "DATABASE_URL",
+      "EVENTS_DATABASE_URL",
       "JWT_SECRET",
       "UPSTASH_REDIS_REST_URL",
       "UPSTASH_REDIS_REST_TOKEN",
@@ -153,10 +155,14 @@ const envSchema = z
 
 type ParsedEnv = z.infer<typeof envSchema>;
 
-export type AppEnv = Omit<ParsedEnv, "CLIENT_ORIGIN"> & {
+export type AppEnv = Omit<
+  ParsedEnv,
+  "CLIENT_ORIGIN" | "EVENTS_DATABASE_URL"
+> & {
   CLIENT_ORIGIN: string;
   CLIENT_ORIGIN_ALLOWLIST: string[];
   PUBLIC_SITE_ORIGIN: string;
+  EVENTS_DATABASE_URL: string;
   SESSION_COOKIE_SECURE: boolean;
   TRUST_PROXY_HOPS: number;
 };
@@ -177,6 +183,8 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
     PUBLIC_SITE_ORIGIN: normalizeOrigin(
       parsedEnv.PUBLIC_SITE_ORIGIN ?? "https://www.loresafe.org"
     ),
+    EVENTS_DATABASE_URL:
+      parsedEnv.EVENTS_DATABASE_URL ?? parsedEnv.DATABASE_URL,
     TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (isProduction ? 1 : 0),
     SESSION_COOKIE_SECURE: isProduction
       ? true

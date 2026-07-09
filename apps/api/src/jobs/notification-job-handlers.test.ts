@@ -306,7 +306,13 @@ class InMemoryNotificationsJobsRepository
 }
 
 const createMockEventsService = (): EventsService => ({
-  subscribe: vi.fn(),
+  start: vi.fn(async () => undefined),
+  stop: vi.fn(async () => undefined),
+  subscribe: vi.fn(() => ({
+    heartbeat: () => true,
+    close: () => undefined
+  })),
+  disconnectUser: vi.fn(async () => undefined),
   publishNotificationCreated: vi.fn(),
   publishNotificationRead: vi.fn()
 });

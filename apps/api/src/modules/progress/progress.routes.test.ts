@@ -636,6 +636,12 @@ describe("progress routes", () => {
         mode: "SOFT"
       })
       .expect(400);
+
+    await request(app)
+      .post("/api/clubs/public-story-circle/progress/next")
+      .set("Cookie", await createSessionCookie(user))
+      .set("Idempotency-Key", "not-a-uuid")
+      .expect(400);
   });
 
   it("returns narrow spoiler-safe progress DTO fields", async () => {

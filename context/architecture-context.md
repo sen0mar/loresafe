@@ -49,6 +49,7 @@ Explicit exclusions for MVP:
 - Frontend — renders UI, calls the API with credentials, owns optimistic UX and local UI state only.
 - API/backend — owns authentication, authorization, progress checks, club policies, validation, and response shaping.
 - PostgreSQL — stores normalized application data, metadata, audit logs, and pg-boss jobs.
+- PostgreSQL realtime connection — uses a direct/session URL for `LISTEN/NOTIFY`; transaction-pooler URLs are not valid for the SSE transport.
 - R2 — stores avatars, covers, and post/comment media; PostgreSQL stores metadata and access rules.
 - Upstash Redis — stores rate-limit counters only in the initial architecture.
 - External services — accessed through small integration modules.
@@ -251,6 +252,7 @@ Environment variables must be validated at startup. Required groups:
 
 - App URLs and environment mode.
 - Database URLs and migration/deploy credentials.
+- A direct/session PostgreSQL events URL for cross-instance SSE delivery.
 - JWT/session secrets and cookie settings.
 - R2 account, bucket, endpoint, access key, and secret.
 - Upstash Redis connection details.

@@ -1681,6 +1681,18 @@ describe("frontend regression smoke", () => {
         findFetchCall(fetchMock, "POST", "/api/clubs/safe-club/progress/next")
       ).toBeTruthy()
     );
+    const progressCall = findFetchCall(
+      fetchMock,
+      "POST",
+      "/api/clubs/safe-club/progress/next"
+    );
+    const progressHeaders = new Headers(
+      (progressCall?.[1] as RequestInit | undefined)?.headers
+    );
+
+    expect(progressHeaders.get("Idempotency-Key")).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /finished/i })).toHaveAttribute(
         "data-active",

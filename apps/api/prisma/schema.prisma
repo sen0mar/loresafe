@@ -40,6 +40,11 @@ enum ProgressMode {
   FINISHED
 }
 
+enum ProgressCommandType {
+  UPDATE
+  ADVANCE_NEXT
+}
+
 enum PostType {
   DISCUSSION
   QUESTION
@@ -129,6 +134,19 @@ enum FileAssetStatus {
   FAILED
 }
 
+enum StorageDeletionReason {
+  INVALID_UPLOAD
+  EXPIRED_UPLOAD
+  UNATTACHED_POST_IMAGE
+  REPLACED_ASSET
+  ACCOUNT_DELETION
+}
+
+enum StorageDeletionStatus {
+  PENDING
+  COMPLETED
+}
+
 model User {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String    @db.VarChar(320)
@@ -142,21 +160,22 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  avatarAsset       FileAsset? @relation("UserAvatarAsset", fields: [avatarAssetId], references: [id], onDelete: SetNull)
-  clubMemberships   ClubMembership[]
-  clubBans          ClubBan[]
-  createdClubInvites ClubInvite[] @relation("ClubInviteCreator")
+  avatarAsset        FileAsset?            @relation("UserAvatarAsset", fields: [avatarAssetId], references: [id], onDelete: SetNull)
+  clubMemberships    ClubMembership[]
+  clubBans           ClubBan[]
+  createdClubInvites ClubInvite[]          @relation("ClubInviteCreator")
   clubProgresses     ClubProgress[]
   progressHistory    ProgressHistory[]
+  progressCommands   ProgressCommand[]
   posts              Post[]
   comments           Comment[]
   postReactions      PostReaction[]
   commentReactions   CommentReaction[]
   notifications      Notification[]
   reports            Report[]
-  fileAssets         FileAsset[] @relation("FileAssetOwner")
-  auditLogsAuthored  AuditLog[] @relation("AuditLogActor")
-  auditLogsTargeting AuditLog[] @relation("AuditLogTargetUser")
+  fileAssets         FileAsset[]           @relation("FileAssetOwner")
+  auditLogsAuthored  AuditLog[]            @relation("AuditLogActor")
+  auditLogsTargeting AuditLog[]            @relation("AuditLogTargetUser")
   nameReservations   UserNameReservation[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
@@ -178,29 +197,30 @@ model UserNameReservation {
 }
 
 model Club {
-  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String         @db.VarChar(120)
-  linkName    String         @map("link_name") @db.VarChar(80)
-  description String?        @db.VarChar(280)
-  category    ClubCategory
-  rules       String?        @db.VarChar(2000)
-  visibility  ClubVisibility @default(PUBLIC)
-  coverAssetId String?       @unique(map: "clubs_cover_asset_id_unique") @map("cover_asset_id") @db.Uuid
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String         @db.VarChar(120)
+  linkName     String         @map("link_name") @db.VarChar(80)
+  description  String?        @db.VarChar(280)
+  category     ClubCategory
+  rules        String?        @db.VarChar(2000)
+  visibility   ClubVisibility @default(PUBLIC)
+  coverAssetId String?        @unique(map: "clubs_cover_asset_id_unique") @map("cover_asset_id") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  coverAsset  FileAsset? @relation("ClubCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
-  memberships ClubMembership[]
-  invites     ClubInvite[]
-  bans        ClubBan[]
-  milestones  Milestone[]
-  progress    ClubProgress[]
-  history     ProgressHistory[]
-  posts       Post[]
-  notifications Notification[]
-  reports     Report[]
-  fileAssets  FileAsset[]
-  auditLogs   AuditLog[]
+  coverAsset       FileAsset?        @relation("ClubCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  memberships      ClubMembership[]
+  invites          ClubInvite[]
+  bans             ClubBan[]
+  milestones       Milestone[]
+  progress         ClubProgress[]
+  history          ProgressHistory[]
+  progressCommands ProgressCommand[]
+  posts            Post[]
+  notifications    Notification[]
+  reports          Report[]
+  fileAssets       FileAsset[]
+  auditLogs        AuditLog[]
 
   @@unique([linkName], map: "clubs_link_name_unique")
   @@index([visibility], map: "clubs_visibility_idx")
@@ -229,15 +249,15 @@ model ClubMembership {
 }
 
 model ClubBan {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clubId    String    @map("club_id") @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  reason    String?   @db.VarChar(500)
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId    String              @map("club_id") @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  reason    String?             @db.VarChar(500)
   roleAtBan ClubMembershipRole? @map("role_at_ban")
-  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
-  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresAt DateTime?           @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime?           @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -270,15 +290,15 @@ model ClubInvite {
 }
 
 model Milestone {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clubId      String    @map("club_id") @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId      String   @map("club_id") @db.Uuid
   position    Int
-  safeTitle   String    @map("safe_title") @db.VarChar(120)
-  fullTitle   String?   @map("full_title") @db.VarChar(160)
-  description String?   @db.VarChar(500)
-  spoilerName Boolean   @default(false) @map("spoiler_name")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  safeTitle   String   @map("safe_title") @db.VarChar(120)
+  fullTitle   String?  @map("full_title") @db.VarChar(160)
+  description String?  @db.VarChar(500)
+  spoilerName Boolean  @default(false) @map("spoiler_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   club                    Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
   currentClubProgresses   ClubProgress[]
@@ -295,14 +315,15 @@ model Milestone {
 }
 
 model ClubProgress {
-  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clubId             String       @map("club_id") @db.Uuid
-  userId             String       @map("user_id") @db.Uuid
-  currentMilestoneId String?      @map("current_milestone_id") @db.Uuid
-  mode               ProgressMode @default(STRICT)
-  onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz(6)
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clubId                String       @map("club_id") @db.Uuid
+  userId                String       @map("user_id") @db.Uuid
+  currentMilestoneId    String?      @map("current_milestone_id") @db.Uuid
+  mode                  ProgressMode @default(STRICT)
+  version               Int          @default(0)
+  onboardingCompletedAt DateTime?    @map("onboarding_completed_at") @db.Timestamptz(6)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   club             Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
   user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -315,6 +336,23 @@ model ClubProgress {
   @@map("club_progress")
 }
 
+model ProgressCommand {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commandId   String              @map("command_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  clubId      String              @map("club_id") @db.Uuid
+  type        ProgressCommandType
+  fingerprint String              @db.VarChar(160)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId, commandId], map: "progress_commands_user_club_command_unique")
+  @@index([createdAt], map: "progress_commands_created_at_idx")
+  @@map("progress_commands")
+}
+
 model ProgressHistory {
   id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clubId          String       @map("club_id") @db.Uuid
@@ -323,6 +361,7 @@ model ProgressHistory {
   toMilestoneId   String?      @map("to_milestone_id") @db.Uuid
   fromMode        ProgressMode @map("from_mode")
   toMode          ProgressMode @map("to_mode")
+  version         Int          @map("progress_version")
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
   club          Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -330,6 +369,7 @@ model ProgressHistory {
   fromMilestone Milestone? @relation("ProgressHistoryFromMilestone", fields: [fromMilestoneId], references: [id], onDelete: SetNull)
   toMilestone   Milestone? @relation("ProgressHistoryToMilestone", fields: [toMilestoneId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, clubId, version], map: "progress_history_user_club_version_unique")
   @@index([userId, clubId, createdAt], map: "progress_history_user_id_club_id_created_at_idx")
   @@index([clubId, createdAt], map: "progress_history_club_id_created_at_idx")
   @@index([fromMilestoneId], map: "progress_history_from_milestone_id_idx")
@@ -350,14 +390,14 @@ model Post {
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club              Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  club              Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  author            User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  requiredMilestone Milestone      @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   comments          Comment[]
   reactions         PostReaction[]
   prediction        Prediction?
   notifications     Notification[]
-  mediaAssets       FileAsset[] @relation("PostMediaAssets")
+  mediaAssets       FileAsset[]    @relation("PostMediaAssets")
   reports           Report[]
   auditLogs         AuditLog[]
 
@@ -416,14 +456,14 @@ model Comment {
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  post              Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author            User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent            Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies           Comment[] @relation("CommentReplies")
-  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  post              Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author            User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent            Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies           Comment[]         @relation("CommentReplies")
+  requiredMilestone Milestone         @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   reactions         CommentReaction[]
   notifications     Notification[]
-  mediaAssets       FileAsset[] @relation("CommentMediaAssets")
+  mediaAssets       FileAsset[]       @relation("CommentMediaAssets")
   reports           Report[]
   auditLogs         AuditLog[]
 
@@ -497,10 +537,10 @@ model Report {
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  reporter User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
-  club     Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  post     Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporter  User       @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  club      Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post      Post?      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment?   @relation(fields: [commentId], references: [id], onDelete: Cascade)
   auditLogs AuditLog[]
 
   @@unique([reporterId, postId], map: "reports_reporter_id_post_id_open_unique", where: raw("\"status\" = 'OPEN' AND \"post_id\" IS NOT NULL"))
@@ -514,17 +554,17 @@ model Report {
 }
 
 model AuditLog {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  action         AuditLogAction
-  actorId        String         @map("actor_id") @db.Uuid
-  clubId         String         @map("club_id") @db.Uuid
-  reportId       String?        @map("report_id") @db.Uuid
-  postId         String?        @map("post_id") @db.Uuid
-  commentId      String?        @map("comment_id") @db.Uuid
-  targetUserId   String?        @map("target_user_id") @db.Uuid
-  moderatorNote  String?        @map("moderator_note") @db.VarChar(1000)
-  metadata       Json?
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action        AuditLogAction
+  actorId       String         @map("actor_id") @db.Uuid
+  clubId        String         @map("club_id") @db.Uuid
+  reportId      String?        @map("report_id") @db.Uuid
+  postId        String?        @map("post_id") @db.Uuid
+  commentId     String?        @map("comment_id") @db.Uuid
+  targetUserId  String?        @map("target_user_id") @db.Uuid
+  moderatorNote String?        @map("moderator_note") @db.VarChar(1000)
+  metadata      Json?
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
   actor      User     @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: Cascade)
   club       Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -556,16 +596,20 @@ model FileAsset {
   contentType String              @map("content_type") @db.VarChar(120)
   sizeBytes   Int                 @map("size_bytes")
   status      FileAssetStatus     @default(PENDING)
+  widthPx     Int?                @map("width_px")
+  heightPx    Int?                @map("height_px")
+  isAnimated  Boolean?            @map("is_animated")
+  validatedAt DateTime?           @map("validated_at") @db.Timestamptz(6)
   readyAt     DateTime?           @map("ready_at") @db.Timestamptz(6)
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  owner         User   @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  club          Club?  @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  post          Post?  @relation("PostMediaAssets", fields: [postId], references: [id], onDelete: Cascade)
+  owner         User     @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  club          Club?    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post          Post?    @relation("PostMediaAssets", fields: [postId], references: [id], onDelete: Cascade)
   comment       Comment? @relation("CommentMediaAssets", fields: [commentId], references: [id], onDelete: Cascade)
-  avatarForUser User?  @relation("UserAvatarAsset")
-  coverForClub  Club?  @relation("ClubCoverAsset")
+  avatarForUser User?    @relation("UserAvatarAsset")
+  coverForClub  Club?    @relation("ClubCoverAsset")
 
   @@index([ownerId, purpose, status, createdAt], map: "file_assets_owner_purpose_status_created_at_idx")
   @@index([clubId, purpose, status, createdAt], map: "file_assets_club_purpose_status_created_at_idx")
@@ -573,4 +617,19 @@ model FileAsset {
   @@index([commentId, purpose, status], map: "file_assets_comment_purpose_status_idx")
   @@index([status, createdAt], map: "file_assets_status_created_at_idx")
   @@map("file_assets")
+}
+
+model StorageObjectDeletion {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  objectKey   String                @unique(map: "storage_object_deletions_object_key_unique") @map("object_key") @db.VarChar(512)
+  reason      StorageDeletionReason
+  status      StorageDeletionStatus @default(PENDING)
+  attempts    Int                   @default(0)
+  lastError   String?               @map("last_error") @db.VarChar(500)
+  completedAt DateTime?             @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, updatedAt], map: "storage_object_deletions_status_updated_at_idx")
+  @@map("storage_object_deletions")
 }

@@ -233,7 +233,7 @@ const runModerationAction = async (
 
   if (result.status === "SUCCESS") {
     if (result.notification?.wasCreated) {
-      eventPublisher.publishNotificationCreated(result.notification.userId, {
+      await eventPublisher.publishNotificationCreated(result.notification.userId, {
         notificationId: result.notification.id,
         club: result.notification.club,
         postId: result.notification.postId,

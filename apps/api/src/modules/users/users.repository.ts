@@ -2,6 +2,7 @@ import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
+import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
@@ -138,7 +139,19 @@ export const usersRepository: UsersRepository = {
           objectKey: true
         }
       });
-      const objectKeys = ownedFileAssets.map((asset) => asset.objectKey);
+      const deletionIds: string[] = [];
+
+      for (const asset of ownedFileAssets) {
+        const deletion = await requestStorageObjectDeletion(
+          transaction,
+          asset.objectKey,
+          "ACCOUNT_DELETION"
+        );
+
+        if (deletion.status === "PENDING") {
+          deletionIds.push(deletion.id);
+        }
+      }
 
       await transaction.comment.updateMany({
         where: {
@@ -156,8 +169,8 @@ export const usersRepository: UsersRepository = {
         }
       });
 
-      if (objectKeys.length > 0) {
-        await enqueueStorageObjectDeleteJob(objectKeys, transaction);
+      if (deletionIds.length > 0) {
+        await enqueueStorageObjectDeleteJob(deletionIds, transaction);
       }
 
       await transaction.user.delete({

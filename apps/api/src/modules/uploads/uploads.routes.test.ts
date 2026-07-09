@@ -27,6 +27,7 @@ import type {
 } from "./uploads.repository.js";
 import { createUploadsRouter } from "./uploads.routes.js";
 import { createUploadsService } from "./uploads.service.js";
+import type { ValidatedImage } from "./image-validation.js";
 
 describe("uploads routes", () => {
   let repository: InMemoryUploadsRepository;
@@ -136,6 +137,10 @@ describe("uploads routes", () => {
       new RegExp(`^public/avatars/${user.id}/[a-f0-9-]+\\.png$`)
     );
     expect(response.body.asset).not.toHaveProperty("objectKey");
+    expect(storage.presignedUploads[0]).toMatchObject({
+      contentLength: 128,
+      contentType: "image/png"
+    });
   });
 
   it("allows only club owners and moderators to create club cover uploads", async () => {
@@ -263,6 +268,69 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
     expect(repository.fileAssets.get(asset.id)?.status).toBe("FAILED");
+    expect(storage.deletedObjectKeys).toEqual([asset.objectKey]);
+  });
+
+  it("rejects and deletes objects whose bytes or dimensions are unsafe", async () => {
+    const user = await repository.createUser({
+      email: "unsafe-image@example.com",
+      displayName: "Unsafe image test",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const firstResponse = await request(app)
+      .post("/api/uploads/public-assets")
+      .set("Cookie", await createSessionCookie(user))
+      .send(validAvatarIntent())
+      .expect(201);
+    const invalidBytesAsset = repository.fileAssets.get(firstResponse.body.asset.id);
+
+    if (!invalidBytesAsset) {
+      throw new Error("Expected invalid-byte asset fixture.");
+    }
+
+    storage.metadata.set(invalidBytesAsset.objectKey, {
+      contentLength: invalidBytesAsset.sizeBytes,
+      contentType: invalidBytesAsset.contentType
+    });
+    storage.objectBytes.set(
+      invalidBytesAsset.objectKey,
+      new Uint8Array(invalidBytesAsset.sizeBytes)
+    );
+
+    await request(app)
+      .post(`/api/uploads/${invalidBytesAsset.id}/complete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    const secondResponse = await request(app)
+      .post("/api/uploads/public-assets")
+      .set("Cookie", await createSessionCookie(user))
+      .send(validAvatarIntent())
+      .expect(201);
+    const oversizedAsset = repository.fileAssets.get(secondResponse.body.asset.id);
+
+    if (!oversizedAsset) {
+      throw new Error("Expected oversized-image asset fixture.");
+    }
+
+    storage.metadata.set(oversizedAsset.objectKey, {
+      contentLength: oversizedAsset.sizeBytes,
+      contentType: oversizedAsset.contentType
+    });
+    storage.objectBytes.set(
+      oversizedAsset.objectKey,
+      createPngBytes(oversizedAsset.sizeBytes, 5_000, 5_000)
+    );
+
+    await request(app)
+      .post(`/api/uploads/${oversizedAsset.id}/complete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(400);
+
+    expect(storage.deletedObjectKeys).toEqual([
+      invalidBytesAsset.objectKey,
+      oversizedAsset.objectKey
+    ]);
   });
 
   it("marks matching uploads ready and attaches them to the owning resource", async () => {
@@ -493,6 +561,10 @@ class InMemoryUploadsRepository
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
       status: "PENDING",
+      widthPx: null,
+      heightPx: null,
+      isAnimated: null,
+      validatedAt: null,
       readyAt: null,
       createdAt: now,
       updatedAt: now
@@ -529,7 +601,7 @@ class InMemoryUploadsRepository
 	    };
 	  };
 
-  markAssetFailed = async (assetId: string) => {
+  markAssetFailedAndRequestDeletion = async (assetId: string) => {
     const asset = this.fileAssets.get(assetId);
 
     if (!asset || asset.status !== "PENDING") {
@@ -542,13 +614,26 @@ class InMemoryUploadsRepository
       updatedAt: new Date()
     };
     this.fileAssets.set(assetId, failedAsset);
-    return failedAsset;
+    return {
+      asset: failedAsset,
+      deletionId: randomUUID()
+    };
   };
 
-  markAssetReadyAndAttach = async (asset: FileAssetRecord, readyAt: Date) => {
+  markDeletionCompleted = async (_deletionId: string) => undefined;
+
+  markAssetReadyAndAttach = async (
+    asset: FileAssetRecord,
+    readyAt: Date,
+    validation: ValidatedImage
+  ) => {
     const readyAsset = {
       ...asset,
       status: "READY" as const,
+      widthPx: validation.widthPx,
+      heightPx: validation.heightPx,
+      isAnimated: validation.isAnimated,
+      validatedAt: readyAt,
       readyAt,
       updatedAt: readyAt
     };
@@ -588,7 +673,10 @@ class FakeObjectStorage implements ObjectStorage {
       contentType: string | null;
     }
   >();
+	  readonly objectBytes = new Map<string, Uint8Array>();
+	  readonly deletedObjectKeys: string[] = [];
 	  readonly presignedUploads: Array<{
+	    contentLength: number;
 	    contentType: string;
 	    objectKey: string;
 	  }> = [];
@@ -599,13 +687,15 @@ class FakeObjectStorage implements ObjectStorage {
 	  });
 
   createPresignedUpload = async ({
+    contentLength,
     contentType,
     objectKey
   }: {
+    contentLength: number;
     contentType: string;
     objectKey: string;
   }): Promise<PresignedUpload> => {
-    this.presignedUploads.push({ contentType, objectKey });
+    this.presignedUploads.push({ contentLength, contentType, objectKey });
 
     return {
       uploadUrl: `https://uploads.example/${objectKey}`,
@@ -619,7 +709,58 @@ class FakeObjectStorage implements ObjectStorage {
   getObjectMetadata = async (objectKey: string) =>
     this.metadata.get(objectKey) ?? null;
 
-  deleteObjects = async (_objectKeys: string[]) => undefined;
+  getObjectBytes = async (objectKey: string, maxBytes: number) => {
+    const configuredBytes = this.objectBytes.get(objectKey);
+
+    if (configuredBytes) {
+      return configuredBytes;
+    }
+
+    const metadata = this.metadata.get(objectKey);
+
+    if (!metadata?.contentLength || !metadata.contentType) {
+      throw new Error("Object bytes are unavailable.");
+    }
+
+    return createValidImageBytes(
+      metadata.contentType,
+      Math.min(metadata.contentLength, maxBytes)
+    );
+  };
+
+  deleteObjects = async (objectKeys: string[]) => {
+    this.deletedObjectKeys.push(...objectKeys);
+  };
 
   getPublicUrl = (objectKey: string) => `https://assets.example/${objectKey}`;
 }
+
+const createValidImageBytes = (contentType: string, size: number) => {
+  const bytes = new Uint8Array(size);
+
+  if (contentType === "image/png") {
+    return createPngBytes(size, 64, 64);
+  }
+
+  if (contentType === "image/webp") {
+    bytes.set([82, 73, 70, 70], 0);
+    bytes.set([87, 69, 66, 80], 8);
+    bytes.set([86, 80, 56, 88], 12);
+    bytes.set([63, 0, 0, 63, 0, 0], 24);
+    return bytes;
+  }
+
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 64, 0, 64], 0);
+  return bytes;
+};
+
+const createPngBytes = (size: number, width: number, height: number) => {
+  const bytes = new Uint8Array(size);
+  const view = new DataView(bytes.buffer);
+
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  bytes.set([73, 72, 68, 82], 12);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  return bytes;
+};

@@ -8,7 +8,7 @@ import type {
 import { SignJWT } from "jose";
 import request from "supertest";
 import type { Response } from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { env } from "../../config/env.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
@@ -31,6 +31,7 @@ import {
 } from "./auth.repository.js";
 import { createAuthRouter } from "./auth.routes.js";
 import { createAuthService } from "./auth.service.js";
+import type { EventsService } from "../events/events.service.js";
 
 describe("auth routes", () => {
   let repository: InMemoryAuthUsersRepository;
@@ -312,6 +313,31 @@ describe("auth routes", () => {
     expect(cookie).toContain("SameSite=Lax");
   });
 
+  it("revokes open realtime connections on authenticated logout", async () => {
+    const user = await repository.createUser({
+      email: "logout-reader@example.com",
+      displayName: "Logout Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+    const disconnectUser = vi.fn(async () => undefined);
+    app = createAuthTestApp(repository, {
+      eventPublisher: {
+        disconnectUser
+      }
+    });
+    const sessionToken = await createSessionToken({
+      userId: user.id,
+      sessionVersion: user.sessionVersion
+    });
+
+    await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", `${env.SESSION_COOKIE_NAME}=${sessionToken}`)
+      .expect(204);
+
+    expect(disconnectUser).toHaveBeenCalledWith(user.id);
+  });
+
   it("rate limits signup with the shared 429 response shape", async () => {
     app = createAuthTestApp(repository, {
       rateLimiters: createAuthTestRateLimiters({ signup: 1 })
@@ -532,11 +558,14 @@ describe("auth routes", () => {
 
 const createAuthTestApp = (
   repository: AuthUsersRepository,
-  options: { rateLimiters?: AuthRateLimiters } = {}
+  options: {
+    rateLimiters?: AuthRateLimiters;
+    eventPublisher?: Pick<EventsService, "disconnectUser">;
+  } = {}
 ) => {
   const app = express();
   const service = createAuthService(repository);
-  const controller = createAuthController(service);
+  const controller = createAuthController(service, options.eventPublisher);
   const middleware = createAuthMiddleware(service);
 
   app.use(requestIdMiddleware);

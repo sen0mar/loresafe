@@ -121,7 +121,7 @@ export const processCommentCreatedJob = async (
   });
 
   if (notification?.wasCreated) {
-    eventPublisher.publishNotificationCreated(notification.userId, {
+    await eventPublisher.publishNotificationCreated(notification.userId, {
       notificationId: notification.id,
       club: notification.club,
       postId: notification.postId,
@@ -160,7 +160,7 @@ export const processProgressUnlockedJob = async (
   });
 
   if (notification?.wasCreated) {
-    eventPublisher.publishNotificationCreated(notification.userId, {
+    await eventPublisher.publishNotificationCreated(notification.userId, {
       notificationId: notification.id,
       club: notification.club,
       postId: notification.postId,

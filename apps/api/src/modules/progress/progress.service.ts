@@ -24,7 +24,8 @@ const membershipRequiredMessage =
 export type ProgressService = {
   advanceProgressToNextMilestoneForClubLinkName: (
     linkName: string,
-    userId: string
+    userId: string,
+    commandId: string
   ) => Promise<ClubProgressResponse>;
   getProgressForClubLinkName: (
     linkName: string,
@@ -38,7 +39,8 @@ export type ProgressService = {
   updateProgressForClubLinkName: (
     linkName: string,
     userId: string,
-    input: UpdateProgressRequest
+    input: UpdateProgressRequest,
+    commandId: string
   ) => Promise<ClubProgressResponse>;
 };
 
@@ -46,7 +48,11 @@ export const createProgressService = (
   repository: ProgressRepository = progressRepository,
   storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): ProgressService => ({
-  advanceProgressToNextMilestoneForClubLinkName: async (linkName, userId) => {
+  advanceProgressToNextMilestoneForClubLinkName: async (
+    linkName,
+    userId,
+    commandId
+  ) => {
     const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
@@ -63,7 +69,8 @@ export const createProgressService = (
 
     const progress = await repository.advanceProgressToNextMilestoneForUserClub(
       userId,
-      club.id
+      club.id,
+      commandId
     );
 
     return {
@@ -133,7 +140,12 @@ export const createProgressService = (
     );
   },
 
-  updateProgressForClubLinkName: async (linkName, userId, input) => {
+  updateProgressForClubLinkName: async (
+    linkName,
+    userId,
+    input,
+    commandId
+  ) => {
     const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {
@@ -151,7 +163,8 @@ export const createProgressService = (
     const progress = await repository.updateProgressForUserClub(
       userId,
       club.id,
-      input
+      input,
+      commandId
     );
 
     if (!progress) {

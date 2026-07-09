@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
-import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
+import { HttpError } from "../../core/errors/http-error.js";
+import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
 import { enqueueProgressUnlockedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
@@ -76,7 +77,8 @@ export type ProgressRepository = {
   ) => Promise<ProgressClubRecord | null>;
   advanceProgressToNextMilestoneForUserClub: (
     userId: string,
-    clubId: string
+    clubId: string,
+    commandId: string
   ) => Promise<ClubProgressRecord>;
   getProgressForUserClub: (
     userId: string,
@@ -85,7 +87,8 @@ export type ProgressRepository = {
   updateProgressForUserClub: (
     userId: string,
     clubId: string,
-    input: UpdateProgressRequest
+    input: UpdateProgressRequest,
+    commandId: string
   ) => Promise<ClubProgressRecord | null>;
   listRecentlyUnlockedPostsForUserClub: (
     userId: string,
@@ -263,9 +266,26 @@ export const progressRepository: ProgressRepository = {
     };
   },
 
-  advanceProgressToNextMilestoneForUserClub: async (userId, clubId) =>
+  advanceProgressToNextMilestoneForUserClub: async (
+    userId,
+    clubId,
+    commandId
+  ) =>
     prisma.$transaction(async (transaction) => {
-      await lockClubAuthorizationChanges(transaction, clubId);
+      await lockClubAuthorization(transaction, clubId);
+      await lockUserClubProgress(transaction, userId, clubId);
+      const isDuplicate = await isDuplicateProgressCommand(transaction, {
+        userId,
+        clubId,
+        commandId,
+        type: "ADVANCE_NEXT",
+        fingerprint: "next"
+      });
+
+      if (isDuplicate) {
+        return readProgressRecord(transaction, userId, clubId);
+      }
+
       const existingProgress = await transaction.clubProgress.findUnique({
         where: {
           userId_clubId: {
@@ -275,6 +295,7 @@ export const progressRepository: ProgressRepository = {
         },
         select: {
           mode: true,
+          version: true,
           currentMilestoneId: true,
           onboardingCompletedAt: true,
           currentMilestone: {
@@ -311,6 +332,10 @@ export const progressRepository: ProgressRepository = {
         const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
         const onboardingCompletedAt =
           existingProgress?.onboardingCompletedAt ?? new Date();
+        const hasProgressStateChange =
+          currentPosition !== null && mode !== "FINISHED";
+        const nextVersion =
+          (existingProgress?.version ?? 0) + (hasProgressStateChange ? 1 : 0);
 
         if (
           existingProgress &&
@@ -326,7 +351,12 @@ export const progressRepository: ProgressRepository = {
             },
             data: {
               mode: "FINISHED",
-              onboardingCompletedAt
+              onboardingCompletedAt,
+              ...(hasProgressStateChange
+                ? {
+                    version: nextVersion
+                  }
+                : {})
             },
             select: {
               id: true
@@ -342,7 +372,8 @@ export const progressRepository: ProgressRepository = {
               fromMilestoneId,
               toMilestoneId: fromMilestoneId,
               fromMode: mode,
-              toMode: "FINISHED"
+              toMode: "FINISHED",
+              version: nextVersion
             },
             select: {
               id: true
@@ -355,57 +386,22 @@ export const progressRepository: ProgressRepository = {
           );
         }
 
-        const [progress, totalMilestones, history] = await Promise.all([
-          transaction.clubProgress.findUnique({
-            where: {
-              userId_clubId: {
-                userId,
-                clubId
-              }
-            },
-            select: {
-              id: true,
-              mode: true,
-              currentMilestone: {
-                select: milestoneSelect
-              },
-              onboardingCompletedAt: true,
-              updatedAt: true
-            }
-          }),
-          transaction.milestone.count({
-            where: {
-              clubId
-            }
-          }),
-          transaction.progressHistory.findMany({
-            where: {
-              userId,
-              clubId
-            },
-            orderBy: {
-              createdAt: "desc"
-            },
-            take: 5,
-            select: historySelect
-          })
-        ]);
+        await recordProgressCommand(transaction, {
+          userId,
+          clubId,
+          commandId,
+          type: "ADVANCE_NEXT",
+          fingerprint: "next"
+        });
 
-        return {
-          id: progress?.id ?? null,
-          mode: (progress?.mode ?? "STRICT") as ProgressMode,
-          currentMilestone: progress?.currentMilestone ?? null,
-          totalMilestones,
-          history: history.map(toProgressHistoryRecord),
-          onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
-          updatedAt: progress?.updatedAt ?? null
-        };
+        return readProgressRecord(transaction, userId, clubId);
       }
 
       const mode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
       const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
       const onboardingCompletedAt =
         existingProgress?.onboardingCompletedAt ?? new Date();
+      const nextVersion = (existingProgress?.version ?? 0) + 1;
       const laterMilestone = await transaction.milestone.findFirst({
         where: {
           clubId,
@@ -431,12 +427,14 @@ export const progressRepository: ProgressRepository = {
           clubId,
           currentMilestoneId: nextMilestone.id,
           mode: nextMode,
-          onboardingCompletedAt
+          onboardingCompletedAt,
+          version: nextVersion
         },
         update: {
           currentMilestoneId: nextMilestone.id,
           mode: nextMode,
-          onboardingCompletedAt
+          onboardingCompletedAt,
+          version: nextVersion
         },
         select: {
           id: true
@@ -450,7 +448,8 @@ export const progressRepository: ProgressRepository = {
           fromMilestoneId,
           toMilestoneId: nextMilestone.id,
           fromMode: mode,
-          toMode: nextMode
+          toMode: nextMode,
+          version: nextVersion
         },
         select: {
           id: true
@@ -461,57 +460,34 @@ export const progressRepository: ProgressRepository = {
         progressHistory.id,
         transaction
       );
+      await recordProgressCommand(transaction, {
+        userId,
+        clubId,
+        commandId,
+        type: "ADVANCE_NEXT",
+        fingerprint: "next"
+      });
 
-      const [progress, totalMilestones, history] = await Promise.all([
-        transaction.clubProgress.findUniqueOrThrow({
-          where: {
-            userId_clubId: {
-              userId,
-              clubId
-            }
-          },
-          select: {
-            id: true,
-            mode: true,
-            currentMilestone: {
-              select: milestoneSelect
-            },
-            onboardingCompletedAt: true,
-            updatedAt: true
-          }
-        }),
-        transaction.milestone.count({
-          where: {
-            clubId
-          }
-        }),
-        transaction.progressHistory.findMany({
-          where: {
-            userId,
-            clubId
-          },
-          orderBy: {
-            createdAt: "desc"
-          },
-          take: 5,
-          select: historySelect
-        })
-      ]);
-
-      return {
-        id: progress.id,
-        mode: progress.mode as ProgressMode,
-        currentMilestone: progress.currentMilestone,
-        totalMilestones,
-        history: history.map(toProgressHistoryRecord),
-        onboardingCompletedAt: progress.onboardingCompletedAt,
-        updatedAt: progress.updatedAt
-      };
+      return readProgressRecord(transaction, userId, clubId);
     }),
 
-  updateProgressForUserClub: async (userId, clubId, input) =>
+  updateProgressForUserClub: async (userId, clubId, input, commandId) =>
     prisma.$transaction(async (transaction) => {
-      await lockClubAuthorizationChanges(transaction, clubId);
+      await lockClubAuthorization(transaction, clubId);
+      await lockUserClubProgress(transaction, userId, clubId);
+      const fingerprint = `${input.mode}:${input.currentMilestoneId ?? "none"}`;
+      const isDuplicate = await isDuplicateProgressCommand(transaction, {
+        userId,
+        clubId,
+        commandId,
+        type: "UPDATE",
+        fingerprint
+      });
+
+      if (isDuplicate) {
+        return readProgressRecord(transaction, userId, clubId);
+      }
+
       if (input.currentMilestoneId) {
         const milestone = await transaction.milestone.findFirst({
           where: {
@@ -539,7 +515,8 @@ export const progressRepository: ProgressRepository = {
           id: true,
           mode: true,
           currentMilestoneId: true,
-          onboardingCompletedAt: true
+          onboardingCompletedAt: true,
+          version: true
         }
       });
 
@@ -550,6 +527,8 @@ export const progressRepository: ProgressRepository = {
       const hasChanged =
         fromMode !== input.mode ||
         fromMilestoneId !== input.currentMilestoneId;
+      const nextVersion =
+        (existingProgress?.version ?? 0) + (hasChanged ? 1 : 0);
 
       await transaction.clubProgress.upsert({
         where: {
@@ -563,12 +542,18 @@ export const progressRepository: ProgressRepository = {
           clubId,
           currentMilestoneId: input.currentMilestoneId,
           mode: input.mode,
-          onboardingCompletedAt
+          onboardingCompletedAt,
+          version: nextVersion
         },
         update: {
           currentMilestoneId: input.currentMilestoneId,
           mode: input.mode,
-          onboardingCompletedAt
+          onboardingCompletedAt,
+          ...(hasChanged
+            ? {
+                version: nextVersion
+              }
+            : {})
         },
         select: {
           id: true
@@ -583,7 +568,8 @@ export const progressRepository: ProgressRepository = {
             fromMilestoneId,
             toMilestoneId: input.currentMilestoneId,
             fromMode,
-            toMode: input.mode
+            toMode: input.mode,
+            version: nextVersion
           },
           select: {
             id: true
@@ -595,52 +581,15 @@ export const progressRepository: ProgressRepository = {
           transaction
         );
       }
+      await recordProgressCommand(transaction, {
+        userId,
+        clubId,
+        commandId,
+        type: "UPDATE",
+        fingerprint
+      });
 
-      const [progress, totalMilestones, history] = await Promise.all([
-        transaction.clubProgress.findUniqueOrThrow({
-          where: {
-            userId_clubId: {
-              userId,
-              clubId
-            }
-          },
-          select: {
-            id: true,
-            mode: true,
-            currentMilestone: {
-              select: milestoneSelect
-            },
-            onboardingCompletedAt: true,
-            updatedAt: true
-          }
-        }),
-        transaction.milestone.count({
-          where: {
-            clubId
-          }
-        }),
-        transaction.progressHistory.findMany({
-          where: {
-            userId,
-            clubId
-          },
-          orderBy: {
-            createdAt: "desc"
-          },
-          take: 5,
-          select: historySelect
-        })
-      ]);
-
-      return {
-        id: progress.id,
-        mode: progress.mode as ProgressMode,
-        currentMilestone: progress.currentMilestone,
-        totalMilestones,
-        history: history.map(toProgressHistoryRecord),
-        onboardingCompletedAt: progress.onboardingCompletedAt,
-        updatedAt: progress.updatedAt
-      };
+      return readProgressRecord(transaction, userId, clubId);
     }),
 
   listRecentlyUnlockedPostsForUserClub: async (
@@ -802,6 +751,130 @@ export const progressRepository: ProgressRepository = {
       currentProgress
     };
   }
+};
+
+type ProgressCommandInput = {
+  userId: string;
+  clubId: string;
+  commandId: string;
+  type: "UPDATE" | "ADVANCE_NEXT";
+  fingerprint: string;
+};
+
+const lockUserClubProgress = async (
+  transaction: Prisma.TransactionClient,
+  userId: string,
+  clubId: string
+) => {
+  await transaction.$executeRaw`
+    SELECT pg_advisory_xact_lock(
+      hashtextextended(${`${userId}:${clubId}`}, 0)
+    )
+  `;
+
+  await transaction.$queryRaw`
+    SELECT "id"
+    FROM "club_progress"
+    WHERE "user_id" = ${userId}::uuid
+      AND "club_id" = ${clubId}::uuid
+    FOR UPDATE
+  `;
+};
+
+const isDuplicateProgressCommand = async (
+  transaction: Prisma.TransactionClient,
+  input: ProgressCommandInput
+) => {
+  const command = await transaction.progressCommand.findUnique({
+    where: {
+      userId_clubId_commandId: {
+        userId: input.userId,
+        clubId: input.clubId,
+        commandId: input.commandId
+      }
+    },
+    select: {
+      type: true,
+      fingerprint: true
+    }
+  });
+
+  if (!command) {
+    return false;
+  }
+
+  if (command.type !== input.type || command.fingerprint !== input.fingerprint) {
+    throw new HttpError(
+      409,
+      "CONFLICT",
+      "This progress command ID was already used for a different update."
+    );
+  }
+
+  return true;
+};
+
+const recordProgressCommand = (
+  transaction: Prisma.TransactionClient,
+  input: ProgressCommandInput
+) =>
+  transaction.progressCommand.create({
+    data: input,
+    select: {
+      id: true
+    }
+  });
+
+const readProgressRecord = async (
+  transaction: Prisma.TransactionClient,
+  userId: string,
+  clubId: string
+): Promise<ClubProgressRecord> => {
+  const [progress, totalMilestones, history] = await Promise.all([
+    transaction.clubProgress.findUnique({
+      where: {
+        userId_clubId: {
+          userId,
+          clubId
+        }
+      },
+      select: {
+        id: true,
+        mode: true,
+        currentMilestone: {
+          select: milestoneSelect
+        },
+        onboardingCompletedAt: true,
+        updatedAt: true
+      }
+    }),
+    transaction.milestone.count({
+      where: {
+        clubId
+      }
+    }),
+    transaction.progressHistory.findMany({
+      where: {
+        userId,
+        clubId
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 5,
+      select: historySelect
+    })
+  ]);
+
+  return {
+    id: progress?.id ?? null,
+    mode: (progress?.mode ?? "STRICT") as ProgressMode,
+    currentMilestone: progress?.currentMilestone ?? null,
+    totalMilestones,
+    history: history.map(toProgressHistoryRecord),
+    onboardingCompletedAt: progress?.onboardingCompletedAt ?? null,
+    updatedAt: progress?.updatedAt ?? null
+  };
 };
 
 const toProgressHistoryRecord = (history: {

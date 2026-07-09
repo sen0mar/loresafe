@@ -1,4 +1,5 @@
 import type { RequestHandler } from "express";
+import { randomUUID } from "node:crypto";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
@@ -9,6 +10,7 @@ import {
 } from "./progress.service.js";
 import {
   recentlyUnlockedQuerySchema,
+  progressCommandIdSchema,
   updateProgressRequestSchema
 } from "./progress.schema.js";
 
@@ -41,7 +43,8 @@ export const createProgressController = (
       const response =
         await service.advanceProgressToNextMilestoneForClubLinkName(
           paramsResult.data.linkName,
-          req.currentUser.id
+          req.currentUser.id,
+          getProgressCommandId(req.get("idempotency-key"))
         );
 
       res.status(200).json(response);
@@ -135,7 +138,8 @@ export const createProgressController = (
       const response = await service.updateProgressForClubLinkName(
         paramsResult.data.linkName,
         req.currentUser.id,
-        bodyResult.data
+        bodyResult.data,
+        getProgressCommandId(req.get("idempotency-key"))
       );
 
       res.status(200).json(response);
@@ -146,3 +150,21 @@ export const createProgressController = (
 });
 
 export const progressController = createProgressController();
+
+const getProgressCommandId = (value: string | undefined) => {
+  if (!value) {
+    return randomUUID();
+  }
+
+  const result = progressCommandIdSchema.safeParse(value);
+
+  if (!result.success) {
+    throw new HttpError(
+      400,
+      "BAD_REQUEST",
+      "The progress command ID is invalid."
+    );
+  }
+
+  return result.data;
+};

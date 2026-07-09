@@ -19,6 +19,7 @@ import {
   type CreatePublicAssetUploadResponse,
   toFileAssetDto
 } from "./uploads.dto.js";
+import { validateUploadedImage } from "./image-validation.js";
 
 export type UploadsService = {
   completePublicAssetUpload: (
@@ -79,7 +80,8 @@ export const createUploadsService = (
     });
     const upload = await storage.createPresignedUpload({
       objectKey,
-      contentType: input.contentType
+      contentType: input.contentType,
+      contentLength: input.sizeBytes
     });
 
     return {
@@ -128,7 +130,8 @@ export const createUploadsService = (
     });
     const upload = await storage.createPresignedUpload({
       objectKey,
-      contentType: input.contentType
+      contentType: input.contentType,
+      contentLength: input.sizeBytes
     });
 
     return {
@@ -164,7 +167,7 @@ export const createUploadsService = (
     }
 
     if (!doesMetadataMatchAsset(metadata, asset)) {
-      await repository.markAssetFailed(asset.id);
+      await rejectInvalidUpload(repository, storage, asset);
       throw new HttpError(
         400,
         "BAD_REQUEST",
@@ -172,7 +175,29 @@ export const createUploadsService = (
       );
     }
 
-    const readyAsset = await repository.markAssetReadyAndAttach(asset, new Date());
+    const bytes = await storage.getObjectBytes(asset.objectKey, asset.sizeBytes);
+    let validation;
+
+    try {
+      if (bytes.byteLength !== asset.sizeBytes) {
+        throw new Error("Stored object length did not match the upload request.");
+      }
+
+      validation = validateUploadedImage(bytes, asset.contentType, asset.purpose);
+    } catch {
+      await rejectInvalidUpload(repository, storage, asset);
+      throw new HttpError(
+        400,
+        "BAD_REQUEST",
+        "The uploaded file is not a supported safe image."
+      );
+    }
+
+    const readyAsset = await repository.markAssetReadyAndAttach(
+      asset,
+      new Date(),
+      validation
+    );
 
     return {
       asset: toFileAssetDto(readyAsset, storage)
@@ -231,3 +256,22 @@ const doesMetadataMatchAsset = (
 ) =>
   metadata.contentLength === asset.sizeBytes &&
   metadata.contentType?.toLowerCase() === asset.contentType.toLowerCase();
+
+const rejectInvalidUpload = async (
+  repository: UploadsRepository,
+  storage: ObjectStorage,
+  asset: FileAssetRecord
+) => {
+  const rejected = await repository.markAssetFailedAndRequestDeletion(asset.id);
+
+  if (!rejected) {
+    return;
+  }
+
+  try {
+    await storage.deleteObjects([asset.objectKey]);
+    await repository.markDeletionCompleted(rejected.deletionId);
+  } catch {
+    // The durable deletion ledger and queued retry keep failed R2 cleanup recoverable.
+  }
+};

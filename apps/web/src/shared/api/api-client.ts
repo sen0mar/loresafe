@@ -41,21 +41,25 @@ export const apiGet = async <TResponse,>(
 
 export const apiPost = async <TResponse, TBody = unknown>(
   path: string,
-  body?: TBody
+  body?: TBody,
+  options?: ApiRequestOptions
 ): Promise<TResponse> => {
   return apiRequest<TResponse>(path, {
     method: "POST",
-    body
+    body,
+    ...options
   });
 };
 
 export const apiPatch = async <TResponse, TBody = unknown>(
   path: string,
-  body?: TBody
+  body?: TBody,
+  options?: ApiRequestOptions
 ): Promise<TResponse> => {
   return apiRequest<TResponse>(path, {
     method: "PATCH",
-    body
+    body,
+    ...options
   });
 };
 
@@ -74,6 +78,7 @@ const apiRequest = async <TResponse,>(
   options: {
     method: "DELETE" | "GET" | "PATCH" | "POST";
     body?: unknown;
+    headers?: Record<string, string>;
   }
 ): Promise<TResponse> => {
   let response: Response;
@@ -86,7 +91,8 @@ const apiRequest = async <TResponse,>(
       credentials: "include",
       headers: {
         Accept: "application/json",
-        ...(hasBody ? { "Content-Type": "application/json" } : {})
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+        ...options.headers
       },
       body: hasBody ? JSON.stringify(options.body) : undefined
     });
@@ -114,6 +120,10 @@ const apiRequest = async <TResponse,>(
   }
 
   return payload as TResponse;
+};
+
+type ApiRequestOptions = {
+  headers?: Record<string, string>;
 };
 
 const readJson = async (response: Response): Promise<unknown> => {

@@ -9,6 +9,7 @@ import {
 import { authService, type AuthService } from "./auth.service.js";
 import { loginRequestSchema, signupRequestSchema } from "./auth.schema.js";
 import "./auth.request.js";
+import { eventsService, type EventsService } from "../events/events.service.js";
 
 export type AuthController = {
   login: RequestHandler;
@@ -18,7 +19,8 @@ export type AuthController = {
 };
 
 export const createAuthController = (
-  service: AuthService = authService
+  service: AuthService = authService,
+  eventPublisher: Pick<EventsService, "disconnectUser"> = eventsService
 ): AuthController => ({
   signup: async (req, res, next) => {
     try {
@@ -75,9 +77,17 @@ export const createAuthController = (
     }
   },
 
-  logout: (_req, res) => {
-    res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
-    res.status(204).send();
+  logout: async (req, res, next) => {
+    try {
+      if (req.currentUser) {
+        await eventPublisher.disconnectUser(req.currentUser.id);
+      }
+
+      res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
   },
 
   me: (req, res, next) => {

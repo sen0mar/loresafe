@@ -20,6 +20,8 @@ export const recentlyUnlockedQuerySchema = z
   })
   .strict();
 
+export const progressCommandIdSchema = z.uuid();
+
 export type ProgressMode = z.infer<typeof progressModeSchema>;
 export type UpdateProgressRequest = z.infer<
   typeof updateProgressRequestSchema

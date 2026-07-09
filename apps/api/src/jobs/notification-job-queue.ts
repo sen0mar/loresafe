@@ -9,7 +9,8 @@ export const notificationJobNames = {
 } as const;
 
 export const storageJobNames = {
-  objectDelete: "storage.object-delete"
+  objectDelete: "storage.object-delete",
+  assetReconcile: "storage.asset-reconcile"
 } as const;
 
 type NotificationJobName =
@@ -57,6 +58,19 @@ export const startNotificationJobQueue = async () => {
       notificationBoss.createQueue(name, notificationJobOptions)
     )
   );
+  await notificationBoss.schedule(
+    storageJobNames.assetReconcile,
+    "*/15 * * * *",
+    null,
+    {
+      tz: "UTC"
+    }
+  );
+  await notificationBoss.send(
+    storageJobNames.assetReconcile,
+    {},
+    notificationJobOptions
+  );
 };
 
 export const stopNotificationJobQueue = () =>
@@ -90,13 +104,13 @@ export const enqueueProgressUnlockedNotificationJob = (
   );
 
 export const enqueueStorageObjectDeleteJob = (
-  objectKeys: string[],
+  deletionIds: string[],
   transaction?: TransactionLike
 ) =>
   sendJob(
     storageJobNames.objectDelete,
     {
-      objectKeys
+      deletionIds
     },
     transaction
   );
