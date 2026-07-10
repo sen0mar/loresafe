@@ -2,6 +2,10 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  authQueryKeys,
+  getMe
+} from "@/features/auth/api/auth";
+import {
   clubsQueryKeys,
   invalidateClubProgressDependencies
 } from "@/features/clubs/api/clubs";
@@ -20,6 +24,8 @@ type NotificationEventPayload = {
 };
 
 const notificationEventNames = ["notification.created", "notification.read"];
+const initialReconnectDelayMs = 3_000;
+const maximumReconnectDelayMs = 60_000;
 
 export const useAuthenticatedEvents = (enabled: boolean) => {
   const queryClient = useQueryClient();
@@ -31,6 +37,8 @@ export const useAuthenticatedEvents = (enabled: boolean) => {
 
     let eventSource: EventSource | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempt = 0;
+    let isRecovering = false;
     let isClosed = false;
     const onNotificationEvent = (event: MessageEvent<string>) => {
       const payload = parseNotificationEventPayload(event.data);
@@ -53,6 +61,46 @@ export const useAuthenticatedEvents = (enabled: boolean) => {
         });
       }
     };
+    const scheduleReconnect = () => {
+      if (isClosed || reconnectTimer) {
+        return;
+      }
+
+      const delay = Math.min(
+        initialReconnectDelayMs * 2 ** reconnectAttempt,
+        maximumReconnectDelayMs
+      );
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    };
+    const recoverConnection = async () => {
+      if (isClosed || isRecovering || reconnectTimer) {
+        return;
+      }
+
+      isRecovering = true;
+
+      try {
+        const currentUser = await getMe();
+
+        if (isClosed) {
+          return;
+        }
+
+        queryClient.setQueryData(authQueryKeys.me, currentUser);
+
+        if (currentUser) {
+          scheduleReconnect();
+        }
+      } catch {
+        scheduleReconnect();
+      } finally {
+        isRecovering = false;
+      }
+    };
     const connect = () => {
       eventSource?.close();
       eventSource = new EventSource(`${apiBaseUrl}/api/events`, {
@@ -63,21 +111,16 @@ export const useAuthenticatedEvents = (enabled: boolean) => {
         eventSource.addEventListener(eventName, onNotificationEvent);
       }
 
+      eventSource.onopen = () => {
+        reconnectAttempt = 0;
+      };
       eventSource.onerror = () => {
         if (isClosed) {
           return;
         }
 
         eventSource?.close();
-
-        if (reconnectTimer) {
-          return;
-        }
-
-        reconnectTimer = setTimeout(() => {
-          reconnectTimer = null;
-          connect();
-        }, 3000);
+        void recoverConnection();
       };
     };
 

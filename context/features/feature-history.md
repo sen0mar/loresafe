@@ -140,6 +140,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 134: Production audit hardening 21–25 — Added revocable rotating sessions, member-only idempotent reactions, centralized bounded cursors and keyset pagination, stable upload completion retries, committed auth-session migrations, and focused real-PostgreSQL concurrency coverage.
 - Feature 135: Production audit hardening 27–30 — Added cancelable deadline-bound requests/uploads, bounded dependency readiness and protected operational metrics, fail-closed demo seed isolation, and focused frontend/backend module decomposition with recovery documentation and regression coverage.
 - Feature 136: Direct migration database URL — Routed Prisma CLI and production migrations through a required direct PostgreSQL URL while keeping runtime traffic pooled, updated CI and environment guidance, and added focused configuration regression coverage.
+- Feature 137: Session-aware SSE reconnection — Revalidated and refreshed authentication before event-stream reconnects, stopped retries for signed-out sessions, added bounded exponential backoff, and covered recovery behavior with focused frontend tests.
 
 ## Entry Format
 
