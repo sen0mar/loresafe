@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import { getBoundedPageOffset } from "../../core/http/pagination.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type {
   CreateMilestoneRequest,
@@ -435,7 +436,7 @@ export const milestonesRepository: MilestonesRepository = {
       return null;
     }
 
-    const skip = (page - 1) * limit;
+    const skip = getBoundedPageOffset(page, limit);
 
     const [milestones, total, progress] = await prisma.$transaction([
       prisma.milestone.findMany({

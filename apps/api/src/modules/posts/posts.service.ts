@@ -24,7 +24,7 @@ import {
 import type { ListClubPostsQuery } from "./posts.schema.js";
 import type {
   CreateClubPostRequest,
-  TogglePostReactionRequest
+  SetPostReactionRequest
 } from "./posts.schema.js";
 import {
   canRevealRequiredMilestone,
@@ -32,6 +32,10 @@ import {
 } from "../spoilers/spoiler.policy.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
 
 export type PostsService = {
   createClubPostForLinkName: (
@@ -49,10 +53,10 @@ export type PostsService = {
     postId: string,
     userId: string
   ) => Promise<RevealPostResponse>;
-  togglePostReactionById: (
+  setPostReactionById: (
     postId: string,
     userId: string,
-    input: TogglePostReactionRequest
+    input: SetPostReactionRequest
   ) => Promise<TogglePostReactionResponse>;
   deletePostById: (
     postId: string,
@@ -117,7 +121,7 @@ export const createPostsService = (
       throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
-    const cursor = decodeClubPostsCursor(query.cursor);
+    const cursor = decodeTimestampUuidCursor(query.cursor);
     const result = await repository.listClubPosts(club.id, {
       tab: query.tab,
       cursor,
@@ -140,7 +144,7 @@ export const createPostsService = (
       pagination: {
         limit: query.limit,
         nextCursor: result.nextCursor
-          ? encodeClubPostsCursor(result.nextCursor)
+          ? encodeTimestampUuidCursor(result.nextCursor)
           : null,
         hasMore: result.hasMore
       }
@@ -218,7 +222,7 @@ export const createPostsService = (
     };
   },
 
-  togglePostReactionById: async (postId, userId, input) => {
+  setPostReactionById: async (postId, userId, input) => {
     const detail = await repository.findPostForDetail(postId, userId);
 
     if (!detail) {
@@ -231,6 +235,10 @@ export const createPostsService = (
 
     if (!canViewClubFeed(detail.club)) {
       throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (detail.club.currentUserRole === null) {
+      throw new HttpError(403, "FORBIDDEN", "Join this club before reacting.");
     }
 
     if (
@@ -248,7 +256,7 @@ export const createPostsService = (
       );
     }
 
-    const toggledDetail = await repository.togglePostReaction(
+    const toggledDetail = await repository.setPostReaction(
       postId,
       userId,
       input
@@ -319,56 +327,6 @@ export const createPostsService = (
 });
 
 export const postsService = createPostsService();
-
-const encodeClubPostsCursor = ({ createdAt, id }: ClubPostsCursor) =>
-  Buffer.from(
-    JSON.stringify({
-      createdAt: createdAt.toISOString(),
-      id
-    })
-  ).toString("base64url");
-
-const decodeClubPostsCursor = (
-  cursor: string | undefined
-): ClubPostsCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("createdAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.id !== "string"
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    const createdAt = new Date(parsed.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      createdAt,
-      id: parsed.id
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the feed request and try again."
-    );
-  }
-};
 
 const toPostVisibilityContext = (
   currentUserId: string,

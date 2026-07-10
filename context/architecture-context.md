@@ -101,10 +101,13 @@ Storage invariants:
 Authentication:
 
 - Password hashing: Argon2id.
-- Login result: short-lived signed JWT stored in an HttpOnly, Secure, SameSite cookie.
-- JWT payload should be minimal: user ID, token version/session version, issued/expiry times.
+- Login result: a short-lived signed access JWT plus a rotating opaque refresh token, both stored in scoped HttpOnly, Secure, SameSite cookies.
+- Access JWTs include a minimal user/session version payload plus validated issuer, audience, subject, timestamps, and a unique session identifier.
+- PostgreSQL stores only SHA-256 hashes of access-session and refresh-token identifiers, with expiry and revocation timestamps for per-device and all-session revocation.
+- Logout revokes the current persisted session before clearing both cookies; logout-all revokes every current user session.
+- Access-token verification accepts the current signing key and one explicitly configured previous key during a bounded rotation window. Refresh rotation invalidates the previous refresh token and access-session identifier.
 - Do not trust roles, progress, or membership from the JWT; load fresh authorization data from PostgreSQL.
-- Logout clears the cookie. Password change should invalidate existing tokens through a token/session version.
+- Password change should invalidate existing access and refresh sessions through the user/session version and persisted session revocation.
 - Permanent account deletion requires current-password reauthentication and
   rejects stale session versions; the deletion transaction increments the
   session version before destructive writes.
@@ -216,7 +219,7 @@ Frontend:
 
 Backend/database:
 
-- All list endpoints use cursor or page/limit pagination.
+- Growing discovery, joined-club, feed, comment, notification, report, and unlock lists use bounded keyset cursors. Smaller member, ban, and milestone administrative lists may retain page/limit pagination only with the shared maximum-page guard.
 - Use Prisma `select` for DTO-shaped responses.
 - Avoid loading nested relations unless needed by the route.
 - Add indexes for common filters, joins, and ordering paths.
@@ -272,7 +275,7 @@ Environment variables must be validated at startup. Required groups:
 - App URLs and environment mode.
 - Database URLs and migration/deploy credentials.
 - A direct/session PostgreSQL events URL for cross-instance SSE delivery.
-- JWT/session secrets and cookie settings.
+- Current/previous JWT signing secrets, issuer/audience, access/session lifetimes, and cookie settings.
 - R2 account, bucket, endpoint, access key, and secret.
 - Upstash Redis connection details.
 - Sentry DSNs.

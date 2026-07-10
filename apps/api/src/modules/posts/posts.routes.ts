@@ -46,11 +46,18 @@ export const createPostDetailsRouter = (
     controller.revealPostById
   );
 
-  router.post(
-    "/:postId/reactions/toggle",
+  router.put(
+    "/:postId/reactions/:emoji",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.togglePostReactionById
+    controller.addPostReactionById
+  );
+
+  router.delete(
+    "/:postId/reactions/:emoji",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.removePostReactionById
   );
 
   router.post(

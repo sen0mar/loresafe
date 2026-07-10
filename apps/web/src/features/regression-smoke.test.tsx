@@ -2334,19 +2334,17 @@ describe("frontend regression smoke", () => {
         method: "GET",
         path: "/api/users/me/clubs",
         response: ({ searchParams }: { searchParams: URLSearchParams }) => {
-          const page = searchParams.get("page") ?? "1";
+          const cursor = searchParams.get("cursor");
 
-          if (searchParams.has("page")) {
+          if (searchParams.has("limit")) {
             return {
-              clubs:
-                page === "1"
-                  ? [twoJoinedClubsResponse.clubs[0]]
-                  : [twoJoinedClubsResponse.clubs[1]],
+              clubs: cursor
+                ? [twoJoinedClubsResponse.clubs[1]]
+                : [twoJoinedClubsResponse.clubs[0]],
               pagination: {
-                page: Number(page),
                 limit: 1,
-                total: 2,
-                pageCount: 2
+                nextCursor: cursor ? null : "joined-cursor",
+                hasMore: !cursor
               }
             };
           }

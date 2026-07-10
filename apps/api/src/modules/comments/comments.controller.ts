@@ -4,11 +4,11 @@ import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import {
   commentReactionParamsSchema,
+  commentReactionCommandParamsSchema,
   createPostCommentRequestSchema,
   listPostCommentsQuerySchema,
   postCommentsParamsSchema,
   revealPostCommentParamsSchema,
-  toggleCommentReactionRequestSchema
 } from "./comments.schema.js";
 import {
   commentsService,
@@ -19,7 +19,8 @@ export type CommentsController = {
   listPostComments: RequestHandler;
   createPostComment: RequestHandler;
   revealPostComment: RequestHandler;
-  toggleCommentReactionById: RequestHandler;
+  addCommentReactionById: RequestHandler;
+  removeCommentReactionById: RequestHandler;
   deleteCommentById: RequestHandler;
 };
 
@@ -112,16 +113,15 @@ export const createCommentsController = (
     }
   },
 
-  toggleCommentReactionById: async (req, res, next) => {
+  addCommentReactionById: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = commentReactionParamsSchema.safeParse(req.params);
-      const bodyResult = toggleCommentReactionRequestSchema.safeParse(req.body);
+      const paramsResult = commentReactionCommandParamsSchema.safeParse(req.params);
 
-      if (!paramsResult.success || !bodyResult.success) {
+      if (!paramsResult.success) {
         throw new HttpError(
           400,
           "BAD_REQUEST",
@@ -129,10 +129,40 @@ export const createCommentsController = (
         );
       }
 
-      const response = await service.toggleCommentReactionById(
+      const response = await service.setCommentReactionById(
         paramsResult.data.commentId,
         req.currentUser.id,
-        bodyResult.data
+        { emoji: paramsResult.data.emoji, active: true }
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  removeCommentReactionById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = commentReactionCommandParamsSchema.safeParse(
+        req.params
+      );
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the reaction request and try again."
+        );
+      }
+
+      const response = await service.setCommentReactionById(
+        paramsResult.data.commentId,
+        req.currentUser.id,
+        { emoji: paramsResult.data.emoji, active: false }
       );
 
       res.status(200).json(response);

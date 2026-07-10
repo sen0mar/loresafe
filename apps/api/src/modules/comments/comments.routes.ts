@@ -44,11 +44,18 @@ export const createCommentReactionsRouter = (
 ) => {
   const router = Router();
 
-  router.post(
-    "/:commentId/reactions/toggle",
+  router.put(
+    "/:commentId/reactions/:emoji",
     middleware.loadCurrentUser,
     middleware.requireUser,
-    controller.toggleCommentReactionById
+    controller.addCommentReactionById
+  );
+
+  router.delete(
+    "/:commentId/reactions/:emoji",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.removeCommentReactionById
   );
 
   router.post(

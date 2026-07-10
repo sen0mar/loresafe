@@ -57,20 +57,18 @@ export type ClubDto = {
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryDto[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 
 export type PublicClubsResponse = {
   clubs: PublicClubDto[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 

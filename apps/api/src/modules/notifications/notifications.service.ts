@@ -1,5 +1,9 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
+import {
   eventsService,
   type EventsService
 } from "../events/events.service.js";
@@ -49,7 +53,7 @@ export const createNotificationsService = (
 ): NotificationsService => ({
   listNotifications: async (userId, query) => {
     const input: ListNotificationsInput = {
-      cursor: decodeNotificationsCursor(query.cursor),
+      cursor: decodeTimestampUuidCursor(query.cursor),
       limit: query.limit
     };
     const result = await repository.listNotificationsForUser(userId, input);
@@ -60,7 +64,7 @@ export const createNotificationsService = (
       pagination: {
         limit: query.limit,
         nextCursor: result.nextCursor
-          ? encodeNotificationsCursor(result.nextCursor)
+          ? encodeTimestampUuidCursor(result.nextCursor)
           : null,
         hasMore: result.hasMore
       }
@@ -115,53 +119,3 @@ export const createNotificationsService = (
 });
 
 export const notificationsService = createNotificationsService();
-
-const encodeNotificationsCursor = ({ createdAt, id }: NotificationsCursor) =>
-  Buffer.from(
-    JSON.stringify({
-      createdAt: createdAt.toISOString(),
-      id
-    })
-  ).toString("base64url");
-
-const decodeNotificationsCursor = (
-  cursor: string | undefined
-): NotificationsCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("createdAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.id !== "string"
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    const createdAt = new Date(parsed.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      createdAt,
-      id: parsed.id
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the notifications request and try again."
-    );
-  }
-};

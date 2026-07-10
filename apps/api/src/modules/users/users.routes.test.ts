@@ -23,13 +23,13 @@ import type { ClubCategory } from "../clubs/clubs.schema.js";
 import {
   type DeleteCurrentUserAccountResult,
   type JoinedClubRecord,
+  type ListJoinedClubsInput,
   type UpdateCurrentUserProfileInput,
   type UsersRepository
 } from "./users.repository.js";
 import { createUsersController } from "./users.controller.js";
 import { createUsersRouter } from "./users.routes.js";
 import { createUsersService } from "./users.service.js";
-import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 
 describe("users routes", () => {
   let repository: InMemoryUsersRepository;
@@ -353,10 +353,9 @@ describe("users routes", () => {
         }
       ],
       pagination: {
-        page: 1,
         limit: 20,
-        total: 3,
-        pageCount: 1
+        nextCursor: null,
+        hasMore: false
       }
     });
     expect(Object.keys(response.body.clubs[0]).sort()).toEqual(
@@ -416,8 +415,14 @@ describe("users routes", () => {
       new Date("2026-01-03T00:00:00.000Z")
     );
 
+    const firstPage = await request(app)
+      .get("/api/users/me/clubs?limit=2")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
     const response = await request(app)
-      .get("/api/users/me/clubs?page=2&limit=2")
+      .get(
+        `/api/users/me/clubs?limit=2&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
@@ -425,10 +430,9 @@ describe("users routes", () => {
       "oldest-club"
     ]);
     expect(response.body.pagination).toEqual({
-      page: 2,
       limit: 2,
-      total: 3,
-      pageCount: 2
+      nextCursor: null,
+      hasMore: false
     });
   });
 
@@ -531,8 +535,14 @@ describe("users routes", () => {
       new Date("2026-01-02T00:00:00.000Z")
     );
 
+    const firstPage = await request(app)
+      .get("/api/users/me/clubs?q=anime&limit=1")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
     const response = await request(app)
-      .get("/api/users/me/clubs?q=anime&page=2&limit=1")
+      .get(
+        `/api/users/me/clubs?q=anime&limit=1&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
@@ -540,10 +550,9 @@ describe("users routes", () => {
       "First Anime Room"
     ]);
     expect(response.body.pagination).toEqual({
-      page: 2,
       limit: 1,
-      total: 2,
-      pageCount: 2
+      nextCursor: null,
+      hasMore: false
     });
   });
 
@@ -1103,7 +1112,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
 
   listJoinedClubsForUser = async (
     userId: string,
-    { page, limit, q }: ListCurrentUserClubsQuery
+    { cursor, limit, q }: ListJoinedClubsInput
   ) => {
     const joinedMemberships = this.memberships
       .filter((membership) => membership.userId === userId)
@@ -1120,7 +1129,11 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
             leftMembership.createdAt.getTime() ||
           leftMembership.id.localeCompare(rightMembership.id)
       );
-    const start = (page - 1) * limit;
+    const start = cursor
+      ? joinedMemberships.findIndex(
+          (membership) => membership.id === cursor.id
+        ) + 1
+      : 0;
     const clubs: JoinedClubRecord[] = joinedMemberships
       .slice(start, start + limit)
       .map((membership) => {
@@ -1145,7 +1158,14 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
 
     return {
       clubs,
-      total: joinedMemberships.length
+      hasMore: start + limit < joinedMemberships.length,
+      nextCursor:
+        start + limit < joinedMemberships.length && clubs.length > 0
+          ? {
+              createdAt: joinedMemberships[start + clubs.length - 1]!.createdAt,
+              id: joinedMemberships[start + clubs.length - 1]!.id
+            }
+          : null
     };
   };
 

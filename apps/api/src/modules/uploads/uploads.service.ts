@@ -152,12 +152,12 @@ export const createUploadsService = (
       throw new HttpError(404, "NOT_FOUND", "Upload not found");
     }
 
-    if (asset.status !== "PENDING") {
-      throw new HttpError(
-        409,
-        "CONFLICT",
-        "This upload has already been completed."
-      );
+    if (asset.status === "READY") {
+      return { asset: toFileAssetDto(asset, storage) };
+    }
+
+    if (asset.status === "FAILED") {
+      throw failedUploadConflict();
     }
 
     const metadata = await storage.getObjectMetadata(asset.objectKey);
@@ -198,6 +198,14 @@ export const createUploadsService = (
       new Date(),
       validation
     );
+
+    if (!readyAsset) {
+      throw uploadStateConflict();
+    }
+
+    if (readyAsset.status === "FAILED") {
+      throw failedUploadConflict();
+    }
 
     return {
       asset: toFileAssetDto(readyAsset, storage)
@@ -275,3 +283,17 @@ const rejectInvalidUpload = async (
     // The durable deletion ledger and queued retry keep failed R2 cleanup recoverable.
   }
 };
+
+const failedUploadConflict = () =>
+  new HttpError(
+    409,
+    "CONFLICT",
+    "This upload failed validation and cannot be completed."
+  );
+
+const uploadStateConflict = () =>
+  new HttpError(
+    409,
+    "CONFLICT",
+    "This upload changed state before completion. Refresh and try again."
+  );

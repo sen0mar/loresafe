@@ -66,7 +66,7 @@ export type UploadsRepository = {
     asset: FileAssetRecord,
     readyAt: Date,
     validation: ValidatedImage
-  ) => Promise<FileAssetRecord>;
+  ) => Promise<FileAssetRecord | null>;
 };
 
 const fileAssetSelect = {
@@ -178,6 +178,17 @@ export const uploadsRepository: UploadsRepository = {
 
   markAssetFailedAndRequestDeletion: (assetId) =>
     prisma.$transaction(async (transaction) => {
+      const lockedRows = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "file_assets"
+        WHERE "id" = ${assetId}::uuid
+        FOR UPDATE
+      `;
+
+      if (lockedRows.length === 0) {
+        return null;
+      }
+
       const asset = await transaction.fileAsset.findUnique({
         where: {
           id: assetId
@@ -221,6 +232,26 @@ export const uploadsRepository: UploadsRepository = {
 
   markAssetReadyAndAttach: (asset, readyAt, validation) =>
     prisma.$transaction(async (transaction) => {
+      const lockedRows = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "file_assets"
+        WHERE "id" = ${asset.id}::uuid
+        FOR UPDATE
+      `;
+
+      if (lockedRows.length === 0) {
+        return null;
+      }
+
+      const currentAsset = await transaction.fileAsset.findUniqueOrThrow({
+        where: { id: asset.id },
+        select: fileAssetSelect
+      });
+
+      if (currentAsset.status !== "PENDING") {
+        return currentAsset;
+      }
+
       const updatedAsset = await transaction.fileAsset.update({
         where: {
           id: asset.id,

@@ -63,6 +63,18 @@ export const apiPatch = async <TResponse, TBody = unknown>(
   });
 };
 
+export const apiPut = async <TResponse, TBody = unknown>(
+  path: string,
+  body?: TBody,
+  options?: ApiRequestOptions
+): Promise<TResponse> => {
+  return apiRequest<TResponse>(path, {
+    method: "PUT",
+    body,
+    ...options
+  });
+};
+
 export const apiDelete = async <TResponse, TBody = unknown>(
   path: string,
   body?: TBody
@@ -76,10 +88,11 @@ export const apiDelete = async <TResponse, TBody = unknown>(
 const apiRequest = async <TResponse,>(
   path: string,
   options: {
-    method: "DELETE" | "GET" | "PATCH" | "POST";
+    method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
     body?: unknown;
     headers?: Record<string, string>;
-  }
+  },
+  allowSessionRefresh = true
 ): Promise<TResponse> => {
   let response: Response;
   const hasBody = options.body !== undefined;
@@ -103,6 +116,18 @@ const apiRequest = async <TResponse,>(
     );
   }
 
+  if (
+    response.status === 401 &&
+    allowSessionRefresh &&
+    shouldAttemptSessionRefresh(path)
+  ) {
+    const refreshed = await refreshAccessSession();
+
+    if (refreshed) {
+      return apiRequest<TResponse>(path, options, false);
+    }
+  }
+
   const payload = await readJson(response);
 
   if (!response.ok) {
@@ -120,6 +145,31 @@ const apiRequest = async <TResponse,>(
   }
 
   return payload as TResponse;
+};
+
+let refreshRequest: Promise<boolean> | null = null;
+
+const shouldAttemptSessionRefresh = (path: string) =>
+  ![
+    "/api/auth/login",
+    "/api/auth/logout",
+    "/api/auth/refresh",
+    "/api/auth/signup"
+  ].includes(path);
+
+const refreshAccessSession = () => {
+  refreshRequest ??= fetch(`${apiBaseUrl}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { Accept: "application/json" }
+  })
+    .then((response) => response.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshRequest = null;
+    });
+
+  return refreshRequest;
 };
 
 type ApiRequestOptions = {

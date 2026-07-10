@@ -7,7 +7,7 @@ import type {
   ClubFeedTab,
   CreateClubPostRequest,
   PostReactionEmoji,
-  TogglePostReactionRequest
+  SetPostReactionRequest
 } from "./posts.schema.js";
 import { postReactionEmojis } from "./posts.schema.js";
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
@@ -147,10 +147,10 @@ export type PostsRepository = {
     postId: string,
     userId: string
   ) => Promise<PostDetailRecord | null>;
-  togglePostReaction: (
+  setPostReaction: (
     postId: string,
     userId: string,
-    input: TogglePostReactionRequest
+    input: SetPostReactionRequest
   ) => Promise<PostDetailRecord | null>;
   softDeletePost: (input: DeletePostInput) => Promise<DeletePostResult | null>;
 };
@@ -671,7 +671,7 @@ export const postsRepository: PostsRepository = {
     };
   },
 
-  togglePostReaction: async (postId, userId, input) => {
+  setPostReaction: async (postId, userId, input) => {
     const wasAuthorized = await prisma.$transaction(async (transaction) => {
       const target = await transaction.post.findFirst({
         where: {
@@ -762,7 +762,7 @@ export const postsRepository: PostsRepository = {
       if (
         !access ||
         access.isCurrentUserBanned ||
-        !canViewClubFeed(access) ||
+        access.currentUserRole === null ||
         !canViewRequiredMilestone({
           mode: access.progress.mode,
           currentMilestonePosition: access.progress.currentMilestonePosition,
@@ -774,33 +774,32 @@ export const postsRepository: PostsRepository = {
         return false;
       }
 
-      const deletedReaction = await transaction.postReaction.deleteMany({
-        where: {
-          userId,
-          postId,
-          emoji: input.emoji
-        }
-      });
-
-      if (deletedReaction.count > 0) {
-        return true;
-      }
-
-      try {
-        await transaction.postReaction.create({
-          data: {
-            postId,
+      if (!input.active) {
+        await transaction.postReaction.deleteMany({
+          where: {
             userId,
+            postId,
             emoji: input.emoji
           }
         });
-      } catch (error) {
-        if (isUniqueConstraintError(error)) {
-          return true;
-        }
-
-        throw error;
+        return true;
       }
+
+      await transaction.postReaction.upsert({
+        where: {
+          userId_postId_emoji: {
+            userId,
+            postId,
+            emoji: input.emoji
+          }
+        },
+        create: {
+          postId,
+          userId,
+          emoji: input.emoji
+        },
+        update: {}
+      });
 
       return true;
     });
@@ -909,12 +908,6 @@ export const postsRepository: PostsRepository = {
       };
     })
 };
-
-const isUniqueConstraintError = (error: unknown) =>
-  !!error &&
-  typeof error === "object" &&
-  "code" in error &&
-  (error as Prisma.PrismaClientKnownRequestError).code === "P2002";
 
 export type SelectedPost = Prisma.PostGetPayload<{
   select: typeof postSelect;

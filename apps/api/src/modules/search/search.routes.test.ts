@@ -74,7 +74,7 @@ describe("search routes", () => {
 
     expect(response.body.error).toMatchObject({
       code: "BAD_REQUEST",
-      message: "Check the search request and try again.",
+      message: "Check the pagination cursor and try again.",
       requestId: "search-bad-cursor"
     });
   });

@@ -1,5 +1,9 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
+import {
   type ClubBanResponse,
   type ClubBansResponse,
   type ClubResponse,
@@ -261,29 +265,37 @@ export const createClubsService = (
   },
 
   listPublicClubs: async (userId, query) => {
-    const result = await repository.listPublicClubs(userId, query);
+    const result = await repository.listPublicClubs(userId, {
+      ...query,
+      cursor: decodeTimestampUuidCursor(query.cursor)
+    });
 
     return {
       clubs: result.clubs.map(toClubDiscoveryDto),
       pagination: {
-        page: query.page,
         limit: query.limit,
-        total: result.total,
-        pageCount: Math.ceil(result.total / query.limit)
+        nextCursor: result.nextCursor
+          ? encodeTimestampUuidCursor(result.nextCursor)
+          : null,
+        hasMore: result.hasMore
       }
     };
   },
 
   listPublicSeoClubs: async (currentUserId, query) => {
-    const result = await repository.listPublicSeoClubs(currentUserId, query);
+    const result = await repository.listPublicSeoClubs(currentUserId, {
+      ...query,
+      cursor: decodeTimestampUuidCursor(query.cursor)
+    });
 
     return {
       clubs: result.clubs.map(toPublicClubDto),
       pagination: {
-        page: query.page,
         limit: query.limit,
-        total: result.total,
-        pageCount: Math.ceil(result.total / query.limit)
+        nextCursor: result.nextCursor
+          ? encodeTimestampUuidCursor(result.nextCursor)
+          : null,
+        hasMore: result.hasMore
       }
     };
   },

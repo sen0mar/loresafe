@@ -92,6 +92,9 @@ const envSchema = z
     DATABASE_URL: z.string().trim().min(1),
     EVENTS_DATABASE_URL: optionalStringSchema,
     JWT_SECRET: z.string().min(32),
+    JWT_PREVIOUS_SECRET: optionalStringSchema.pipe(z.string().min(32).optional()),
+    JWT_ISSUER: z.string().trim().min(1).default("loresafe-api"),
+    JWT_AUDIENCE: z.string().trim().min(1).default("loresafe-web"),
     SESSION_COOKIE_NAME: z
       .string()
       .trim()
@@ -102,7 +105,13 @@ const envSchema = z
       .number()
       .int()
       .positive()
-      .default(60 * 60 * 24 * 7),
+      .default(60 * 60 * 24 * 30),
+    SESSION_ACCESS_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(60 * 60)
+      .default(60 * 15),
     DEMO_USER_EMAIL: z.string().trim().toLowerCase().email(),
     DEMO_USER_DISPLAY_NAME: z.string().trim().min(1).max(80),
     DEMO_USER_PASSWORD: z.string().min(12).max(128),

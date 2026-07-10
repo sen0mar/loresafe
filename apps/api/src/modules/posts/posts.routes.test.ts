@@ -54,7 +54,7 @@ import type { CreateClubPostRequest } from "./posts.schema.js";
 import {
   postReactionEmojis,
   type PostReactionEmoji,
-  type TogglePostReactionRequest
+  type SetPostReactionRequest
 } from "./posts.schema.js";
 
 describe("posts routes", () => {
@@ -1114,7 +1114,7 @@ describe("posts routes", () => {
 
   it("rejects post reaction toggles without an authenticated session", async () => {
     const response = await request(app)
-      .post(`/api/posts/${crypto.randomUUID()}/reactions/toggle`)
+      .put(`/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
       .set("x-request-id", "post-reaction-missing-session")
       .send({ emoji: "👍" })
       .expect(401);
@@ -1132,13 +1132,13 @@ describe("posts routes", () => {
     const user = repository.createStoredUser(validUserInput());
 
     await request(app)
-      .post("/api/posts/not-a-uuid/reactions/toggle")
+      .put(`/api/posts/not-a-uuid/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({ emoji: "👍" })
       .expect(400);
 
     await request(app)
-      .post(`/api/posts/${crypto.randomUUID()}/reactions/toggle`)
+      .put(`/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({ emoji: "🔥" })
       .expect(400);
@@ -1162,7 +1162,7 @@ describe("posts routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(reader))
       .send({ emoji: "👍" })
       .expect(404);
@@ -1177,6 +1177,35 @@ describe("posts routes", () => {
     expect(JSON.stringify(response.body)).not.toContain(
       "PRIVATE_REACTION_BODY"
     );
+    expect(repository.postReactions).toHaveLength(0);
+  });
+
+  it("rejects public-club post reactions from non-members", async () => {
+    const owner = repository.createStoredUser(validUserInput());
+    const reader = repository.createStoredUser({
+      ...validUserInput(),
+      email: "public-reaction-nonmember@example.com"
+    });
+    const club = repository.createClub("public-member-reactions");
+    const milestone = repository.createMilestone(club.id, {
+      position: 1,
+      safeTitle: "Opening"
+    });
+    repository.createMembership(owner.id, club.id, "OWNER");
+    const post = repository.createPost(club.id, owner.id, milestone.id, {
+      title: "Visible public post",
+      body: "Visible public body"
+    });
+
+    const response = await request(app)
+      .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "Join this club before reacting."
+    });
     expect(repository.postReactions).toHaveLength(0);
   });
 
@@ -1199,7 +1228,7 @@ describe("posts routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({ emoji: "👍" })
       .expect(403);
@@ -1215,7 +1244,7 @@ describe("posts routes", () => {
     expect(repository.postReactions).toHaveLength(0);
   });
 
-  it("toggles reactions once per user, emoji, and post", async () => {
+  it("applies idempotent desired reaction state per user, emoji, and post", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("reaction-toggle-story-circle");
     const milestone = repository.createMilestone(club.id, {
@@ -1231,17 +1260,17 @@ describe("posts routes", () => {
     const cookie = await createSessionCookie(user);
 
     const addedResponse = await request(app)
-      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", cookie)
       .send({ emoji: "👍" })
       .expect(200);
     const duplicateAttemptResponse = await request(app)
-      .post(`/api/posts/${post.id}/reactions/toggle`)
+      .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", cookie)
       .send({ emoji: "👍" })
       .expect(200);
 
-    expect(repository.postReactions).toHaveLength(0);
+    expect(repository.postReactions).toHaveLength(1);
     expect(addedResponse.body.post.counts).toMatchObject({
       reactionCount: 1,
       reactions: expect.arrayContaining([
@@ -1253,12 +1282,12 @@ describe("posts routes", () => {
       ])
     });
     expect(duplicateAttemptResponse.body.post.counts).toMatchObject({
-      reactionCount: 0,
+      reactionCount: 1,
       reactions: expect.arrayContaining([
         {
           emoji: "👍",
-          count: 0,
-          reactedByMe: false
+          count: 1,
+          reactedByMe: true
         }
       ])
     });
@@ -1281,11 +1310,11 @@ describe("posts routes", () => {
 
     const responses = await Promise.all([
       request(app)
-        .post(`/api/posts/${post.id}/reactions/toggle`)
+        .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
         .set("Cookie", cookie)
         .send({ emoji: "👍" }),
       request(app)
-        .post(`/api/posts/${post.id}/reactions/toggle`)
+        .put(`/api/posts/${post.id}/reactions/${encodeURIComponent("👍")}`)
         .set("Cookie", cookie)
         .send({ emoji: "👍" })
     ]);
@@ -2127,7 +2156,9 @@ describe("posts routes", () => {
 
       expect(response.body.error).toMatchObject({
         code: "BAD_REQUEST",
-        message: "Check the feed request and try again."
+        message: path.includes("cursor=")
+          ? "Check the pagination cursor and try again."
+          : "Check the feed request and try again."
       });
     }
 
@@ -2993,10 +3024,10 @@ class InMemoryPostsRepository
     };
   };
 
-  togglePostReaction = async (
+  setPostReaction = async (
     postId: string,
     userId: string,
-    input: TogglePostReactionRequest
+    input: SetPostReactionRequest
   ): Promise<PostDetailRecord | null> => {
     const existingReactionIndex = this.postReactions.findIndex(
       (reaction) =>
@@ -3005,9 +3036,9 @@ class InMemoryPostsRepository
         reaction.emoji === input.emoji
     );
 
-    if (existingReactionIndex >= 0) {
+    if (!input.active && existingReactionIndex >= 0) {
       this.postReactions.splice(existingReactionIndex, 1);
-    } else {
+    } else if (input.active && existingReactionIndex < 0) {
       this.createPostReaction(postId, userId, input.emoji);
     }
 

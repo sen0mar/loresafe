@@ -204,10 +204,10 @@ describe("frontend accessibility regressions", () => {
     await user.click(reaction);
 
     expect(pendingFetch).toHaveBeenCalledWith(
-      "/api/posts/post-1/reactions/toggle",
+      `/api/posts/post-1/reactions/${encodeURIComponent("👍")}`,
       expect.objectContaining({
         credentials: "include",
-        method: "POST"
+        method: "PUT"
       })
     );
     expect(pendingFetch).toHaveBeenCalledTimes(1);
@@ -328,7 +328,8 @@ const OptimisticReactionProbe = () => {
       aria-label="Toggle reaction"
       onClick={() =>
         mutation.mutate({
-          emoji: "👍"
+          emoji: "👍",
+          active: true
         })
       }
     >

@@ -1,4 +1,8 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import {
+  decodeBoundedOffsetCursor,
+  encodeBoundedOffsetCursor
+} from "../../core/http/cursor.js";
 import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
 import { toClubPostCardDto } from "../posts/posts.dto.js";
 import {
@@ -16,9 +20,7 @@ export type SearchService = {
   search: (userId: string, query: SearchQuery) => Promise<SearchResponse>;
 };
 
-type SearchCursor = {
-  offset: number;
-};
+const maximumSearchOffset = 500;
 
 export const createSearchService = (
   repository: SearchRepository = searchRepository,
@@ -32,7 +34,10 @@ export const createSearchService = (
       return emptySearchResponse(query, filters);
     }
 
-    const cursor = decodeSearchCursor(query.cursor);
+    const cursor = decodeBoundedOffsetCursor(
+      query.cursor,
+      maximumSearchOffset
+    );
     const pageInput = {
       offset: cursor?.offset ?? 0,
       limit: query.limit
@@ -51,7 +56,10 @@ export const createSearchService = (
           })
         : Promise.resolve({ records: [], hasMore: false })
     ]);
-    const hasMore = clubResult.hasMore || postResult.hasMore;
+    const nextOffset = pageInput.offset + query.limit;
+    const hasMore =
+      (clubResult.hasMore || postResult.hasMore) &&
+      nextOffset <= maximumSearchOffset;
     const posts = await Promise.all(
       postResult.records.map(async (result) =>
         toSearchPostDto(
@@ -78,7 +86,7 @@ export const createSearchService = (
       pagination: {
         limit: query.limit,
         nextCursor: hasMore
-          ? encodeSearchCursor({ offset: pageInput.offset + query.limit })
+          ? encodeBoundedOffsetCursor(nextOffset)
           : null,
         hasMore
       }
@@ -143,41 +151,3 @@ const filtersFromLegacyScope = (scope: SearchQuery["scope"]): SearchFilter[] => 
 
 const uniqueSearchFilters = (filters: SearchFilter[]) =>
   defaultSearchFilters.filter((filter) => filters.includes(filter));
-
-const encodeSearchCursor = ({ offset }: SearchCursor) =>
-  Buffer.from(JSON.stringify({ offset })).toString("base64url");
-
-const decodeSearchCursor = (
-  cursor: string | undefined
-): SearchCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("offset" in parsed) ||
-      typeof parsed.offset !== "number" ||
-      !Number.isInteger(parsed.offset) ||
-      parsed.offset < 0
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      offset: parsed.offset
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the search request and try again."
-    );
-  }
-};

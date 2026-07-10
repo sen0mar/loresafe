@@ -1,5 +1,9 @@
 import { HttpError } from "../../core/errors/http-error.js";
 import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
+import {
   type ClubProgressResponse,
   type RecentlyUnlockedResponse,
   toClubProgressDto,
@@ -115,7 +119,7 @@ export const createProgressService = (
       throw new HttpError(403, "FORBIDDEN", "Join this club to view progress.");
     }
 
-    const cursor = decodeRecentlyUnlockedCursor(query.cursor);
+    const cursor = decodeTimestampUuidCursor(query.cursor);
     const result = await repository.listRecentlyUnlockedPostsForUserClub(
       userId,
       club.id,
@@ -134,7 +138,7 @@ export const createProgressService = (
       },
       query.limit,
       result.nextCursor
-        ? encodeRecentlyUnlockedCursor(result.nextCursor)
+        ? encodeTimestampUuidCursor(result.nextCursor)
         : null,
       storage
     );
@@ -178,56 +182,3 @@ export const createProgressService = (
 });
 
 export const progressService = createProgressService();
-
-const encodeRecentlyUnlockedCursor = ({
-  createdAt,
-  id
-}: RecentlyUnlockedCursor) =>
-  Buffer.from(
-    JSON.stringify({
-      createdAt: createdAt.toISOString(),
-      id
-    })
-  ).toString("base64url");
-
-const decodeRecentlyUnlockedCursor = (
-  cursor: string | undefined
-): RecentlyUnlockedCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("createdAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.id !== "string"
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    const createdAt = new Date(parsed.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      createdAt,
-      id: parsed.id
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the recently unlocked request and try again."
-    );
-  }
-};

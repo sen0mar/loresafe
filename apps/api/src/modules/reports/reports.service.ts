@@ -1,4 +1,8 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
   eventsService,
@@ -115,7 +119,7 @@ export const createReportsService = (
 
     const result = await repository.listModerationReports(moderationClub.id, {
       status: query.status,
-      cursor: decodeModerationReportsCursor(query.cursor),
+      cursor: decodeTimestampUuidCursor(query.cursor),
       limit: query.limit
     });
 
@@ -124,7 +128,7 @@ export const createReportsService = (
       pagination: {
         limit: query.limit,
         nextCursor: result.nextCursor
-          ? encodeModerationReportsCursor(result.nextCursor)
+          ? encodeTimestampUuidCursor(result.nextCursor)
           : null,
         hasMore: result.hasMore
       }
@@ -285,55 +289,5 @@ const runModerationAction = async (
         "CONFLICT",
         "This report has already been resolved."
       );
-  }
-};
-
-const encodeModerationReportsCursor = ({ createdAt, id }: ModerationReportsCursor) =>
-  Buffer.from(
-    JSON.stringify({
-      createdAt: createdAt.toISOString(),
-      id
-    })
-  ).toString("base64url");
-
-const decodeModerationReportsCursor = (
-  cursor: string | undefined
-): ModerationReportsCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("createdAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.id !== "string"
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    const createdAt = new Date(parsed.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      createdAt,
-      id: parsed.id
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the moderation reports request and try again."
-    );
   }
 };

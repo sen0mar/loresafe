@@ -35,7 +35,7 @@ import {
   commentReactionEmojis,
   type CommentReactionEmoji,
   type CreatePostCommentRequest,
-  type ToggleCommentReactionRequest
+  type SetCommentReactionRequest
 } from "./comments.schema.js";
 import { createCommentsService } from "./comments.service.js";
 
@@ -104,14 +104,16 @@ describe("comments routes", () => {
 
       expect(response.body.error).toMatchObject({
         code: "BAD_REQUEST",
-        message: "Check the comments request and try again."
+        message: path.includes("cursor=")
+          ? "Check the pagination cursor and try again."
+          : "Check the comments request and try again."
       });
     }
   });
 
   it("rejects comment reaction toggles without an authenticated session", async () => {
     const response = await request(app)
-      .post(`/api/comments/${crypto.randomUUID()}/reactions/toggle`)
+      .put(`/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
       .set("x-request-id", "comment-reaction-missing-session")
       .send({
         emoji: "👍"
@@ -129,7 +131,7 @@ describe("comments routes", () => {
     const user = repository.createStoredUser(validUserInput());
 
     await request(app)
-      .post("/api/comments/not-a-uuid/reactions/toggle")
+      .put(`/api/comments/not-a-uuid/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👍"
@@ -137,7 +139,7 @@ describe("comments routes", () => {
       .expect(400);
 
     const response = await request(app)
-      .post(`/api/comments/${crypto.randomUUID()}/reactions/toggle`)
+      .put(`/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "🔥"
@@ -957,7 +959,7 @@ describe("comments routes", () => {
     );
   });
 
-  it("toggles comment reactions and returns updated aggregate counts", async () => {
+  it("applies idempotent desired comment reaction state", async () => {
     const user = repository.createStoredUser(validUserInput());
     const otherUser = repository.createStoredUser({
       ...validUserInput(),
@@ -983,7 +985,7 @@ describe("comments routes", () => {
 
     const cookie = await createSessionCookie(user);
     const firstToggleResponse = await request(app)
-      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .put(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", cookie)
       .send({
         emoji: "👍"
@@ -1012,7 +1014,7 @@ describe("comments routes", () => {
     expect(repository.commentReactions).toHaveLength(3);
 
     const secondToggleResponse = await request(app)
-      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .delete(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", cookie)
       .send({
         emoji: "👍"
@@ -1131,7 +1133,7 @@ describe("comments routes", () => {
     );
 
     const privateResponse = await request(app)
-      .post(`/api/comments/${privateComment.id}/reactions/toggle`)
+      .put(`/api/comments/${privateComment.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👍"
@@ -1147,7 +1149,7 @@ describe("comments routes", () => {
     );
 
     const lockedResponse = await request(app)
-      .post(`/api/comments/${lockedComment.id}/reactions/toggle`)
+      .put(`/api/comments/${lockedComment.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👀"
@@ -1161,6 +1163,36 @@ describe("comments routes", () => {
     expect(JSON.stringify(lockedResponse.body)).not.toContain(
       "LOCKED_COMMENT_REACTION_BODY"
     );
+    expect(repository.commentReactions).toHaveLength(0);
+  });
+
+  it("rejects public-club comment reactions from non-members", async () => {
+    const owner = repository.createStoredUser(validUserInput());
+    const reader = repository.createStoredUser({
+      ...validUserInput(),
+      email: "public-comment-reaction-nonmember@example.com"
+    });
+    const post = repository.createPostFixture(owner.id, {
+      membershipUserId: owner.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const comment = repository.createComment(
+      post.id,
+      owner.id,
+      post.requiredMilestone,
+      { body: "Visible public comment" }
+    );
+
+    const response = await request(app)
+      .put(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
+      .set("Cookie", await createSessionCookie(reader))
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "You cannot react in this club."
+    });
     expect(repository.commentReactions).toHaveLength(0);
   });
 
@@ -1182,7 +1214,7 @@ describe("comments routes", () => {
     repository.createBan(user.id, post.clubId);
 
     const response = await request(app)
-      .post(`/api/comments/${comment.id}/reactions/toggle`)
+      .put(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👍"
@@ -1723,10 +1755,10 @@ class InMemoryCommentsRepository
     return comment;
   };
 
-  toggleCommentReaction = async (
+  setCommentReaction = async (
     commentId: string,
     userId: string,
-    input: ToggleCommentReactionRequest
+    input: SetCommentReactionRequest
   ) => {
     const existingReactionIndex = this.commentReactions.findIndex(
       (reaction) =>
@@ -1735,9 +1767,9 @@ class InMemoryCommentsRepository
         reaction.emoji === input.emoji
     );
 
-    if (existingReactionIndex >= 0) {
+    if (!input.active && existingReactionIndex >= 0) {
       this.commentReactions.splice(existingReactionIndex, 1);
-    } else {
+    } else if (input.active && existingReactionIndex < 0) {
       this.createCommentReaction(commentId, userId, input.emoji);
     }
 

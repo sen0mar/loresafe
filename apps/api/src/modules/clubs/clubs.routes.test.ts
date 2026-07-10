@@ -48,6 +48,7 @@ import type {
   ListPublicSeoClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
+import type { ListPublicClubsInput } from "./clubs.repository.js";
 
 describe("clubs routes", () => {
   let repository: InMemoryClubsRepository;
@@ -1101,10 +1102,9 @@ describe("clubs routes", () => {
         }
       ],
       pagination: {
-        page: 1,
         limit: 12,
-        total: 1,
-        pageCount: 1
+        nextCursor: null,
+        hasMore: false
       }
     });
     expect(Object.keys(response.body.clubs[0]).sort()).toEqual(
@@ -1335,10 +1335,9 @@ describe("clubs routes", () => {
         }
       ],
       pagination: {
-        page: 1,
         limit: 20,
-        total: 1,
-        pageCount: 1
+        nextCursor: null,
+        hasMore: false
       }
     });
     expect(JSON.stringify(response.body)).not.toContain("Private Plot Room");
@@ -1396,10 +1395,9 @@ describe("clubs routes", () => {
       response.body.clubs.map((club: { memberCount: number }) => club.memberCount)
     ).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
     expect(response.body.pagination).toEqual({
-      page: 1,
       limit: 10,
-      total: 12,
-      pageCount: 2
+      nextCursor: null,
+      hasMore: false
     });
     expect(JSON.stringify(response.body)).not.toContain("Private Giant Club");
   });
@@ -1826,8 +1824,14 @@ describe("clubs routes", () => {
       createdAt: new Date("2026-01-03T00:00:00.000Z")
     });
 
+    const firstPage = await request(app)
+      .get("/api/clubs?limit=2")
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
     const response = await request(app)
-      .get("/api/clubs?page=2&limit=2")
+      .get(
+        `/api/clubs?limit=2&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
@@ -1835,10 +1839,9 @@ describe("clubs routes", () => {
       "first-public-club"
     ]);
     expect(response.body.pagination).toEqual({
-      page: 2,
       limit: 2,
-      total: 3,
-      pageCount: 2
+      nextCursor: null,
+      hasMore: false
     });
   });
 
@@ -2570,7 +2573,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     };
   };
 
-  listPublicClubs = async (userId: string, { limit, page, sort }: ListClubsQuery) => {
+  listPublicClubs = async (
+    userId: string,
+    { cursor, limit, sort }: ListPublicClubsInput
+  ) => {
     const publicClubs = Array.from(this.clubs.values())
       .filter(
         (club) =>
@@ -2591,22 +2597,31 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
           leftClub.id.localeCompare(rightClub.id)
         );
       });
-    const start = (page - 1) * limit;
+    const start = cursor
+      ? publicClubs.findIndex((club) => club.id === cursor.id) + 1
+      : 0;
     const clubs = publicClubs.slice(start, start + limit).map((club) => ({
       ...club,
       visibility: "PUBLIC" as const,
       memberCount: this.countClubMembers(club.id)
     }));
 
+    const lastClub = clubs.at(-1);
+    const hasMore = sort === "newest" && start + limit < publicClubs.length;
+
     return {
       clubs,
-      total: publicClubs.length
+      hasMore,
+      nextCursor:
+        hasMore && lastClub
+          ? { createdAt: lastClub.createdAt, id: lastClub.id }
+          : null
     };
   };
 
   listPublicSeoClubs = async (
     currentUserId: string | null,
-    { limit, page, sort }: ListPublicSeoClubsQuery
+    { cursor, limit, sort }: ListPublicClubsInput
   ) => {
     const publicClubs = this.getPublicSeoClubs(currentUserId)
       .sort((leftClub, rightClub) => {
@@ -2624,15 +2639,24 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
           leftClub.id.localeCompare(rightClub.id)
         );
       });
-    const start = (page - 1) * limit;
+    const start = cursor
+      ? publicClubs.findIndex((club) => club.id === cursor.id) + 1
+      : 0;
+    const clubs = publicClubs.slice(start, start + limit).map((club) => ({
+      ...club,
+      visibility: "PUBLIC" as const,
+      memberCount: this.countClubMembers(club.id)
+    }));
+    const lastClub = clubs.at(-1);
+    const hasMore = sort === "newest" && start + limit < publicClubs.length;
 
     return {
-      clubs: publicClubs.slice(start, start + limit).map((club) => ({
-        ...club,
-        visibility: "PUBLIC" as const,
-        memberCount: this.countClubMembers(club.id)
-      })),
-      total: publicClubs.length
+      clubs,
+      hasMore,
+      nextCursor:
+        hasMore && lastClub
+          ? { createdAt: lastClub.createdAt, id: lastClub.id }
+          : null
     };
   };
 

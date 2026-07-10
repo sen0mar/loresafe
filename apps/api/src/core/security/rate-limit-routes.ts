@@ -40,6 +40,7 @@ export type RateLimiterApp = Pick<
 export const registerRateLimiters = (app: RateLimiterApp) => {
   // Keep these before JSON parsing so blocked requests avoid expensive work.
   app.use("/api/auth/login", loginRateLimiter);
+  app.use("/api/auth/refresh", loginRateLimiter);
   app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
   app.get("/sitemap.xml", publicSeoReadRateLimiter);
@@ -78,16 +79,16 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.post("/api/clubs/:linkName/posts", clubPostCreateRateLimiter);
   app.get("/api/clubs/:linkName/posts", expensiveReadRateLimiter);
   app.post("/api/posts/:postId/comments", postCommentCreateRateLimiter);
-  app.post(
-    "/api/comments/:commentId/reactions/toggle",
+  app.use(
+    "/api/comments/:commentId/reactions/:emoji",
     commentReactionToggleRateLimiter
   );
   app.post(
     "/api/comments/:commentId/delete",
     moderationActionRateLimiter
   );
-  app.post(
-    "/api/posts/:postId/reactions/toggle",
+  app.use(
+    "/api/posts/:postId/reactions/:emoji",
     postReactionToggleRateLimiter
   );
   app.post("/api/posts/:postId/delete", moderationActionRateLimiter);

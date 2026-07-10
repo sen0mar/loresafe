@@ -27,7 +27,7 @@ export const canCreatePostComment = (
   });
 
 export const canToggleCommentReaction = (post: CommentPostRecord) =>
-  !post.club.isCurrentUserBanned;
+  post.club.currentUserRole !== null && !post.club.isCurrentUserBanned;
 
 export const canDeleteComment = ({
   authorId,

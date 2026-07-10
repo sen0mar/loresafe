@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { boundedPageSchema } from "../../core/http/pagination.js";
 
 const optionalTrimmedText = (maxLength: number) =>
   z
@@ -10,7 +11,7 @@ const optionalTrimmedText = (maxLength: number) =>
 
 export const listMilestonesQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    page: boundedPageSchema,
     limit: z.coerce.number().int().min(1).max(100).default(100)
   })
   .strict();

@@ -1,4 +1,8 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { verifyPassword } from "../../core/security/password.js";
 import { type AuthUserDto, toAuthUserDto } from "../auth/auth.dto.js";
@@ -74,15 +78,19 @@ export const createUsersService = (
   },
 
   listCurrentUserClubs: async (userId, query) => {
-    const result = await repository.listJoinedClubsForUser(userId, query);
+    const result = await repository.listJoinedClubsForUser(userId, {
+      ...query,
+      cursor: decodeTimestampUuidCursor(query.cursor)
+    });
 
     return {
       clubs: result.clubs.map(toJoinedClubDto),
       pagination: {
-        page: query.page,
         limit: query.limit,
-        total: result.total,
-        pageCount: Math.ceil(result.total / query.limit)
+        nextCursor: result.nextCursor
+          ? encodeTimestampUuidCursor(result.nextCursor)
+          : null,
+        hasMore: result.hasMore
       }
     };
   },

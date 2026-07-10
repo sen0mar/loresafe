@@ -6,7 +6,13 @@ import {
   useQueryClient
 } from "@tanstack/react-query";
 
-import { apiGet, apiPatch, apiPost } from "@/shared/api/api-client";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut
+} from "@/shared/api/api-client";
 
 export type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
@@ -326,16 +332,15 @@ export type RevealedComment = Omit<VisibleComment, "visibility"> & {
 export type ClubsDiscoveryResponse = {
   clubs: ClubDiscoveryClub[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 
 export type PublicClubsQueryInput = {
+  cursor?: string;
   limit?: number;
-  page?: number;
   sort?: "newest" | "popular";
 };
 
@@ -388,10 +393,9 @@ export type ClubBanResponse = {
 export type JoinedClubsResponse = {
   clubs: JoinedClub[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 
@@ -517,6 +521,7 @@ export type RevealPostResponse = {
 
 export type TogglePostReactionInput = {
   emoji: PostReactionEmoji;
+  active: boolean;
 };
 
 export type TogglePostReactionResponse = {
@@ -532,6 +537,7 @@ export type DeletePostResponse = {
 
 export type ToggleCommentReactionInput = {
   emoji: CommentReactionEmoji;
+  active: boolean;
 };
 
 export type ToggleCommentReactionResponse = {
@@ -759,8 +765,8 @@ export type BanClubMemberInput = {
 };
 
 export type JoinedClubsQueryInput = {
+  cursor?: string;
   q?: string;
-  page?: number;
   limit?: number;
 };
 
@@ -884,13 +890,13 @@ export const clubsQueryKeys = {
       "discovery",
       {
         limit: input.limit ?? 20,
-        page: input.page ?? 1,
+        cursor: input.cursor ?? null,
         sort: input.sort ?? "newest"
       }
     ] as const,
   joined: ["users", "me", "clubs"] as const,
-  joinedList: ({ limit, page, q }: JoinedClubsQueryInput) =>
-    ["users", "me", "clubs", { limit, page, q: q?.trim() ?? "" }] as const,
+  joinedList: ({ cursor, limit, q }: JoinedClubsQueryInput) =>
+    ["users", "me", "clubs", { cursor, limit, q: q?.trim() ?? "" }] as const,
   detail: (linkName: string) => ["clubs", "detail", linkName] as const,
   milestonesRoot: (linkName: string) =>
     ["clubs", "detail", linkName, "milestones"] as const,
@@ -931,8 +937,8 @@ export const clubsQueryKeys = {
 export const getPublicClubs = (input: PublicClubsQueryInput = {}) => {
   const params = new URLSearchParams();
 
-  if (input.page) {
-    params.set("page", String(input.page));
+  if (input.cursor) {
+    params.set("cursor", input.cursor);
   }
 
   if (input.limit) {
@@ -1054,11 +1060,13 @@ export const revealPost = (postId: string) =>
 export const togglePostReaction = (
   postId: string,
   input: TogglePostReactionInput
-) =>
-  apiPost<TogglePostReactionResponse, TogglePostReactionInput>(
-    `/api/posts/${postId}/reactions/toggle`,
-    input
-  );
+) => {
+  const path = `/api/posts/${postId}/reactions/${encodeURIComponent(input.emoji)}`;
+
+  return input.active
+    ? apiPut<TogglePostReactionResponse>(path)
+    : apiDelete<TogglePostReactionResponse>(path);
+};
 
 export const deletePost = (postId: string) =>
   apiPost<DeletePostResponse>(`/api/posts/${postId}/delete`);
@@ -1066,11 +1074,13 @@ export const deletePost = (postId: string) =>
 export const toggleCommentReaction = (
   commentId: string,
   input: ToggleCommentReactionInput
-) =>
-  apiPost<ToggleCommentReactionResponse, ToggleCommentReactionInput>(
-    `/api/comments/${commentId}/reactions/toggle`,
-    input
-  );
+) => {
+  const path = `/api/comments/${commentId}/reactions/${encodeURIComponent(input.emoji)}`;
+
+  return input.active
+    ? apiPut<ToggleCommentReactionResponse>(path)
+    : apiDelete<ToggleCommentReactionResponse>(path);
+};
 
 export const deleteComment = (commentId: string) =>
   apiPost<DeleteCommentResponse>(`/api/comments/${commentId}/delete`);
@@ -1088,8 +1098,8 @@ export const getJoinedClubs = (input: JoinedClubsQueryInput = {}) => {
     params.set("q", query);
   }
 
-  if (input.page) {
-    params.set("page", String(input.page));
+  if (input.cursor) {
+    params.set("cursor", input.cursor);
   }
 
   if (input.limit) {
@@ -1444,12 +1454,12 @@ export const useJoinedClubsQuery = (
   const queryOptions =
     typeof options === "boolean" ? { enabled: options } : options;
   const queryInput = {
+    cursor: queryOptions.cursor,
     q: queryOptions.q,
-    page: queryOptions.page,
     limit: queryOptions.limit
   };
   const hasCustomQuery =
-    Boolean(queryInput.q?.trim()) || queryInput.page || queryInput.limit;
+    Boolean(queryInput.q?.trim()) || queryInput.cursor || queryInput.limit;
 
   return useQuery({
     queryKey: hasCustomQuery
@@ -1461,7 +1471,7 @@ export const useJoinedClubsQuery = (
 };
 
 export const useJoinedClubsInfiniteQuery = (
-  options: Omit<JoinedClubsQueryOptions, "page"> = {}
+  options: Omit<JoinedClubsQueryOptions, "cursor"> = {}
 ) =>
   useInfiniteQuery({
     queryKey: clubsQueryKeys.joinedList({
@@ -1472,14 +1482,12 @@ export const useJoinedClubsInfiniteQuery = (
       getJoinedClubs({
         q: options.q,
         limit: options.limit,
-        page: pageParam
+        cursor: pageParam ?? undefined
       }),
     enabled: options.enabled ?? true,
-    initialPageParam: 1,
+    initialPageParam: null as string | null,
     getNextPageParam: (lastPage) =>
-      lastPage.pagination.page < lastPage.pagination.pageCount
-        ? lastPage.pagination.page + 1
-        : undefined
+      lastPage.pagination.nextCursor ?? undefined
   });
 
 export const useCreateClubMutation = () => {
@@ -1813,7 +1821,11 @@ export const useTogglePostReactionMutation = (
         })
         .map(([queryKey, value]) => [queryKey, value] as const);
       const optimisticPost = previousPostDetail
-        ? togglePostReactionOnCard(previousPostDetail.post, input.emoji)
+        ? togglePostReactionOnCard(
+            previousPostDetail.post,
+            input.emoji,
+            input.active
+          )
         : null;
 
       if (previousPostDetail && optimisticPost) {
@@ -1835,7 +1847,7 @@ export const useTogglePostReactionMutation = (
         (currentData) =>
           updatePostInInfiniteData(currentData, (post) =>
             post.id === postId
-              ? togglePostReactionOnCard(post, input.emoji)
+              ? togglePostReactionOnCard(post, input.emoji, input.active)
               : post
           )
       );
@@ -1928,7 +1940,11 @@ export const useToggleCommentReactionMutation = (
         (currentData) =>
           updateCommentInInfiniteData(currentData, (comment) =>
             comment.id === commentId
-              ? toggleCommentReactionOnComment(comment, input.emoji)
+              ? toggleCommentReactionOnComment(
+                  comment,
+                  input.emoji,
+                  input.active
+                )
               : comment
           )
       );
@@ -2268,7 +2284,8 @@ const removeCommentFromInfiniteData = (
 
 export const togglePostReactionOnCard = (
   post: ClubPostCard,
-  emoji: PostReactionEmoji
+  emoji: PostReactionEmoji,
+  active?: boolean
 ): ClubPostCard => {
   if (post.visibility === "LOCKED") {
     return post;
@@ -2279,7 +2296,7 @@ export const togglePostReactionOnCard = (
       return reaction;
     }
 
-    const reactedByMe = !reaction.reactedByMe;
+    const reactedByMe = active ?? !reaction.reactedByMe;
     const count = reactedByMe
       ? reaction.count + 1
       : Math.max(0, reaction.count - 1);
@@ -2306,7 +2323,8 @@ export const togglePostReactionOnCard = (
 
 export const toggleCommentReactionOnComment = (
   comment: Comment,
-  emoji: CommentReactionEmoji
+  emoji: CommentReactionEmoji,
+  active?: boolean
 ): Comment => {
   if (comment.visibility === "LOCKED") {
     return comment;
@@ -2317,7 +2335,7 @@ export const toggleCommentReactionOnComment = (
       return reaction;
     }
 
-    const reactedByMe = !reaction.reactedByMe;
+    const reactedByMe = active ?? !reaction.reactedByMe;
     const count = reactedByMe
       ? reaction.count + 1
       : Math.max(0, reaction.count - 1);

@@ -269,6 +269,15 @@ describe("uploads routes", () => {
       .expect(400);
     expect(repository.fileAssets.get(asset.id)?.status).toBe("FAILED");
     expect(storage.deletedObjectKeys).toEqual([asset.objectKey]);
+
+    const retryResponse = await request(app)
+      .post(`/api/uploads/${asset.id}/complete`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(409);
+    expect(retryResponse.body.error).toMatchObject({
+      code: "CONFLICT",
+      message: "This upload failed validation and cannot be completed."
+    });
   });
 
   it("rejects and deletes objects whose bytes or dimensions are unsafe", async () => {
@@ -358,6 +367,12 @@ describe("uploads routes", () => {
       .post(`/api/uploads/${avatarResponse.body.asset.id}/complete`)
       .set("Cookie", await createSessionCookie(owner))
       .expect(200);
+    const repeatedAvatar = await request(app)
+      .post(`/api/uploads/${avatarResponse.body.asset.id}/complete`)
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(200);
+
+    expect(repeatedAvatar.body).toEqual(completedAvatar.body);
 
     const coverResponse = await request(app)
       .post("/api/uploads/public-assets")
@@ -420,6 +435,40 @@ describe("uploads routes", () => {
       url: null
     });
     expect(repository.clubs.get(club.id)?.coverAssetId).toBeNull();
+  });
+
+  it("maps a concurrent upload-row disappearance to a stable conflict", async () => {
+    const owner = await repository.createUser({
+      email: "disappearing-upload@example.com",
+      displayName: "Upload Owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const createResponse = await request(app)
+      .post("/api/uploads/public-assets")
+      .set("Cookie", await createSessionCookie(owner))
+      .send(validAvatarIntent())
+      .expect(201);
+    const asset = repository.fileAssets.get(createResponse.body.asset.id);
+
+    if (!asset) {
+      throw new Error("Expected upload fixture.");
+    }
+
+    storage.metadata.set(asset.objectKey, {
+      contentLength: asset.sizeBytes,
+      contentType: asset.contentType
+    });
+    (repository as UploadsRepository).markAssetReadyAndAttach = async () => null;
+
+    const response = await request(app)
+      .post(`/api/uploads/${asset.id}/complete`)
+      .set("Cookie", await createSessionCookie(owner))
+      .expect(409);
+
+    expect(response.body.error).toMatchObject({
+      code: "CONFLICT",
+      message: "This upload changed state before completion. Refresh and try again."
+    });
   });
 });
 

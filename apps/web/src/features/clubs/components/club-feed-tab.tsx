@@ -982,7 +982,10 @@ export const PostReactionButtons = ({
 
       reactionMutation.mutate(
         {
-          emoji
+          emoji,
+          active:
+            !counts.reactions.find((reaction) => reaction.emoji === emoji)
+              ?.reactedByMe
         },
         {
           onError: (error) => {

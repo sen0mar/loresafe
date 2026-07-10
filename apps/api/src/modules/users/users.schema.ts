@@ -38,7 +38,7 @@ export type DeleteCurrentUserAccountRequest = z.infer<
 export const listCurrentUserClubsQuerySchema = z
   .object({
     q: z.string().trim().max(120).default(""),
-    page: z.coerce.number().int().min(1).default(1),
+    cursor: z.string().trim().min(1).max(512).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20)
   })
   .strict();

@@ -54,7 +54,6 @@ export const AuthenticatedAppShell = ({
       isJoinedClubsLoading={joinedClubsQuery.isPending}
       isLoggingOut={logoutMutation.isPending}
       joinedClubs={joinedClubsQuery.data?.clubs ?? []}
-      joinedClubsTotal={joinedClubsQuery.data?.pagination.total ?? 0}
       notificationUnreadCount={unreadNotificationsQuery.data?.unreadCount ?? 0}
       onLogout={logout}
       onRetryJoinedClubs={() => void joinedClubsQuery.refetch()}

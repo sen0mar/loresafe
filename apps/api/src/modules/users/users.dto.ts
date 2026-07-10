@@ -15,10 +15,9 @@ export type JoinedClubDto = {
 export type JoinedClubsResponse = {
   clubs: JoinedClubDto[];
   pagination: {
-    page: number;
     limit: number;
-    total: number;
-    pageCount: number;
+    nextCursor: string | null;
+    hasMore: boolean;
   };
 };
 

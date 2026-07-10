@@ -17,6 +17,13 @@ export const createAuthRouter = (
   );
   router.post("/login", controller.login);
   router.post("/logout", middleware.loadCurrentUser, controller.logout);
+  router.post(
+    "/logout-all",
+    middleware.loadCurrentUser,
+    middleware.requireUser,
+    controller.logoutAll
+  );
+  router.post("/refresh", controller.refresh);
   router.post("/signup", controller.signup);
 
   return router;

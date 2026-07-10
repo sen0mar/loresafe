@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { boundedPageSchema } from "../../core/http/pagination.js";
 
 const clubVisibilitySchema = z.enum(["PUBLIC", "PRIVATE", "INVITE_ONLY"]);
 const clubMembershipRoleSchema = z.enum(["OWNER", "MODERATOR", "MEMBER"]);
@@ -34,7 +35,7 @@ export const clubLinkNameSchema = z
 
 export const listClubsQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    cursor: z.string().trim().min(1).max(512).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20),
     sort: z.enum(["newest", "popular"]).default("newest")
   })
@@ -47,11 +48,19 @@ export const listClubsQuerySchema = z
         message: "Most popular discovery is limited to 20 clubs."
       });
     }
+
+    if (query.sort === "popular" && query.cursor) {
+      context.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "Most popular discovery does not accept a cursor."
+      });
+    }
   });
 
 export const listPublicSeoClubsQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    cursor: z.string().trim().min(1).max(512).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(12),
     sort: z.enum(["newest", "popular"]).default("newest")
   })
@@ -64,11 +73,20 @@ export const listPublicSeoClubsQuerySchema = z
         message: "Most popular public club pages are limited to 20 clubs."
       });
     }
+
+
+    if (query.sort === "popular" && query.cursor) {
+      context.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "Most popular public club pages do not accept a cursor."
+      });
+    }
   });
 
 export const listClubMembersQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    page: boundedPageSchema,
     limit: z.coerce.number().int().min(1).max(50).default(20),
     q: z
       .string()
@@ -81,7 +99,7 @@ export const listClubMembersQuerySchema = z
 
 export const listClubBansQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
+    page: boundedPageSchema,
     limit: z.coerce.number().int().min(1).max(50).default(20)
   })
   .strict();

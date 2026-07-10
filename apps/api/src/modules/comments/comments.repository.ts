@@ -22,7 +22,7 @@ import {
   type CommentReactionEmoji,
   type CreatePostCommentRequest,
   type ListPostCommentsQuery,
-  type ToggleCommentReactionRequest
+  type SetCommentReactionRequest
 } from "./comments.schema.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
@@ -143,10 +143,10 @@ export type CommentsRepository = {
     authorId: string,
     input: CreatePostCommentInput
   ) => Promise<CommentRecord | null>;
-  toggleCommentReaction: (
+  setCommentReaction: (
     commentId: string,
     userId: string,
-    input: ToggleCommentReactionRequest
+    input: SetCommentReactionRequest
   ) => Promise<CommentReactionTargetRecord | null>;
   softDeleteComment: (
     input: DeleteCommentInput
@@ -613,7 +613,7 @@ export const commentsRepository: CommentsRepository = {
       return toCommentRecord(comment);
     }),
 
-  toggleCommentReaction: async (commentId, userId, input) => {
+  setCommentReaction: async (commentId, userId, input) => {
     const wasAuthorized = await prisma.$transaction(async (transaction) => {
       const target = await transaction.comment.findFirst({
         where: {
@@ -685,7 +685,18 @@ export const commentsRepository: CommentsRepository = {
         return false;
       }
 
-      const existingReaction = await transaction.commentReaction.findUnique({
+      if (!input.active) {
+        await transaction.commentReaction.deleteMany({
+          where: {
+            userId,
+            commentId,
+            emoji: input.emoji
+          }
+        });
+        return true;
+      }
+
+      await transaction.commentReaction.upsert({
         where: {
           userId_commentId_emoji: {
             userId,
@@ -693,26 +704,8 @@ export const commentsRepository: CommentsRepository = {
             emoji: input.emoji
           }
         },
-        select: {
-          id: true
-        }
-      });
-
-      if (existingReaction) {
-        await transaction.commentReaction.delete({
-          where: {
-            id: existingReaction.id
-          }
-        });
-        return true;
-      }
-
-      await transaction.commentReaction.create({
-        data: {
-          commentId,
-          userId,
-          emoji: input.emoji
-        }
+        create: { commentId, userId, emoji: input.emoji },
+        update: {}
       });
 
       return true;

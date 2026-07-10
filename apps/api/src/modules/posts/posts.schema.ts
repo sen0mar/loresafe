@@ -65,8 +65,9 @@ export const createClubPostRequestSchema = z
     }
   });
 
-export const togglePostReactionRequestSchema = z
+export const postReactionParamsSchema = z
   .object({
+    postId: z.uuid(),
     emoji: postReactionEmojiSchema
   })
   .strict();
@@ -89,8 +90,9 @@ export type CreateClubPostRequest = z.infer<
   typeof createClubPostRequestSchema
 >;
 export type PostReactionEmoji = z.infer<typeof postReactionEmojiSchema>;
-export type TogglePostReactionRequest = z.infer<
-  typeof togglePostReactionRequestSchema
->;
+export type SetPostReactionRequest = {
+  emoji: PostReactionEmoji;
+  active: boolean;
+};
 export type ClubFeedTab = z.infer<typeof clubFeedTabSchema>;
 export type ListClubPostsQuery = z.infer<typeof listClubPostsQuerySchema>;

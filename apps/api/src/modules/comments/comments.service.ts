@@ -5,6 +5,10 @@ import {
 } from "../spoilers/spoiler.policy.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 import {
+  decodeTimestampUuidCursor,
+  encodeTimestampUuidCursor
+} from "../../core/http/cursor.js";
+import {
   type CommentDto,
   type CreatePostCommentResponse,
   type DeleteCommentResponse,
@@ -30,7 +34,7 @@ import {
 import type {
   CreatePostCommentRequest,
   ListPostCommentsQuery,
-  ToggleCommentReactionRequest
+  SetCommentReactionRequest
 } from "./comments.schema.js";
 
 export type CommentsService = {
@@ -49,10 +53,10 @@ export type CommentsService = {
     commentId: string,
     userId: string
   ) => Promise<RevealCommentResponse>;
-  toggleCommentReactionById: (
+  setCommentReactionById: (
     commentId: string,
     userId: string,
-    input: ToggleCommentReactionRequest
+    input: SetCommentReactionRequest
   ) => Promise<ToggleCommentReactionResponse>;
   deleteCommentById: (
     commentId: string,
@@ -82,7 +86,7 @@ export const createCommentsService = (
       post.id,
       userId,
       {
-        cursor: decodeCommentsCursor(query.cursor),
+        cursor: decodeTimestampUuidCursor(query.cursor),
         limit: query.limit
       }
     );
@@ -94,7 +98,7 @@ export const createCommentsService = (
       pagination: {
         limit: query.limit,
         nextCursor: result.nextCursor
-          ? encodeCommentsCursor(result.nextCursor)
+          ? encodeTimestampUuidCursor(result.nextCursor)
           : null,
         hasMore: result.hasMore
       }
@@ -220,7 +224,7 @@ export const createCommentsService = (
     };
   },
 
-  toggleCommentReactionById: async (commentId, userId, input) => {
+  setCommentReactionById: async (commentId, userId, input) => {
     const target = await repository.findVisibleCommentForReaction(
       commentId,
       userId
@@ -261,7 +265,7 @@ export const createCommentsService = (
       );
     }
 
-    const toggledTarget = await repository.toggleCommentReaction(
+    const toggledTarget = await repository.setCommentReaction(
       commentId,
       userId,
       input
@@ -342,56 +346,6 @@ export const createCommentsService = (
 });
 
 export const commentsService = createCommentsService();
-
-const encodeCommentsCursor = ({ createdAt, id }: CommentsCursor) =>
-  Buffer.from(
-    JSON.stringify({
-      createdAt: createdAt.toISOString(),
-      id
-    })
-  ).toString("base64url");
-
-const decodeCommentsCursor = (
-  cursor: string | undefined
-): CommentsCursor | null => {
-  if (!cursor) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
-    ) as unknown;
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("createdAt" in parsed) ||
-      !("id" in parsed) ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.id !== "string"
-    ) {
-      throw new Error("Malformed cursor");
-    }
-
-    const createdAt = new Date(parsed.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Malformed cursor");
-    }
-
-    return {
-      createdAt,
-      id: parsed.id
-    };
-  } catch {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Check the comments request and try again."
-    );
-  }
-};
 
 const resolveRequiredMilestone = async (
   repository: CommentsRepository,

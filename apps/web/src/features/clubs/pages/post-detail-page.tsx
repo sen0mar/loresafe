@@ -1010,7 +1010,11 @@ const CommentReactionButtons = ({
 
     reactionMutation.mutate(
       {
-        emoji
+        emoji,
+        active:
+          !comment.counts.reactions.find(
+            (reaction) => reaction.emoji === emoji
+          )?.reactedByMe
       },
       {
         onError: (error) => {

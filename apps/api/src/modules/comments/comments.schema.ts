@@ -42,8 +42,9 @@ export const createPostCommentRequestSchema = z
   })
   .strict();
 
-export const toggleCommentReactionRequestSchema = z
+export const commentReactionCommandParamsSchema = z
   .object({
+    commentId: z.uuid(),
     emoji: commentReactionEmojiSchema
   })
   .strict();
@@ -60,6 +61,7 @@ export type CreatePostCommentRequest = z.infer<
   typeof createPostCommentRequestSchema
 >;
 export type CommentReactionEmoji = z.infer<typeof commentReactionEmojiSchema>;
-export type ToggleCommentReactionRequest = z.infer<
-  typeof toggleCommentReactionRequestSchema
->;
+export type SetCommentReactionRequest = {
+  emoji: CommentReactionEmoji;
+  active: boolean;
+};

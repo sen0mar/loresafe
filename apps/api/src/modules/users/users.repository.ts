@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import type { TimestampUuidCursor } from "../../core/http/cursor.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
@@ -33,7 +34,12 @@ export type JoinedClubRecord = {
 
 export type ListJoinedClubsResult = {
   clubs: JoinedClubRecord[];
-  total: number;
+  hasMore: boolean;
+  nextCursor: TimestampUuidCursor | null;
+};
+
+export type ListJoinedClubsInput = Omit<ListCurrentUserClubsQuery, "cursor"> & {
+  cursor: TimestampUuidCursor | null;
 };
 
 export type DeleteCurrentUserAccountResult =
@@ -60,7 +66,7 @@ export type UsersRepository = {
   ) => Promise<AuthUserRecord | null>;
   listJoinedClubsForUser: (
     userId: string,
-    query: ListCurrentUserClubsQuery
+    query: ListJoinedClubsInput
   ) => Promise<ListJoinedClubsResult>;
   updateActiveUserProfile: (
     userId: string,
@@ -242,8 +248,7 @@ export const usersRepository: UsersRepository = {
     return reservation?.user ?? null;
   },
 
-  listJoinedClubsForUser: async (userId, { page, limit, q }) => {
-    const skip = (page - 1) * limit;
+  listJoinedClubsForUser: async (userId, { cursor, limit, q }) => {
     const now = new Date();
     const clubSearchWhere = buildJoinedClubSearchWhere(q);
     const roleSearchWhere = buildJoinedClubRoleSearchWhere(q);
@@ -251,7 +256,7 @@ export const usersRepository: UsersRepository = {
       ...(clubSearchWhere ? [{ club: clubSearchWhere }] : []),
       ...(roleSearchWhere ? [{ role: roleSearchWhere }] : [])
     ];
-    const membershipWhere = {
+    const baseMembershipWhere = {
       userId,
       club: {
         bans: {
@@ -264,9 +269,19 @@ export const usersRepository: UsersRepository = {
           }
         : {})
     } satisfies Prisma.ClubMembershipWhereInput;
+    const cursorWhere: Prisma.ClubMembershipWhereInput = cursor
+      ? {
+          OR: [
+            { createdAt: { lt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { gt: cursor.id } }
+          ]
+        }
+      : {};
+    const membershipWhere: Prisma.ClubMembershipWhereInput = {
+      AND: [baseMembershipWhere, cursorWhere]
+    };
 
-    const [memberships, total] = await prisma.$transaction([
-      prisma.clubMembership.findMany({
+    const memberships = await prisma.clubMembership.findMany({
         where: membershipWhere,
         orderBy: [
           {
@@ -276,9 +291,9 @@ export const usersRepository: UsersRepository = {
             id: "asc"
           }
         ],
-        skip,
-        take: limit,
+        take: limit + 1,
         select: {
+          id: true,
           role: true,
           createdAt: true,
           club: {
@@ -301,14 +316,13 @@ export const usersRepository: UsersRepository = {
             }
           }
         }
-      }),
-      prisma.clubMembership.count({
-        where: membershipWhere
-      })
-    ]);
+      });
+    const hasMore = memberships.length > limit;
+    const pageMemberships = memberships.slice(0, limit);
+    const lastMembership = pageMemberships.at(-1);
 
     return {
-      clubs: memberships.map((membership) => ({
+      clubs: pageMemberships.map((membership) => ({
         id: membership.club.id,
         title: membership.club.title,
         linkName: membership.club.linkName,
@@ -318,7 +332,11 @@ export const usersRepository: UsersRepository = {
         memberCount: membership.club._count.memberships,
         joinedAt: membership.createdAt
       })),
-      total
+      hasMore,
+      nextCursor:
+        hasMore && lastMembership
+          ? { createdAt: lastMembership.createdAt, id: lastMembership.id }
+          : null
     };
   },
 

@@ -44,7 +44,6 @@ export const JoinedClubsPage = () => {
   });
   const clubs =
     joinedClubsQuery.data?.pages.flatMap((page) => page.clubs) ?? [];
-  const total = joinedClubsQuery.data?.pages[0]?.pagination.total ?? 0;
   const hasQuery = query.length > 0;
 
   useEffect(() => {

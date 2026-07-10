@@ -313,6 +313,94 @@ describe("auth routes", () => {
     expect(cookie).toContain("SameSite=Lax");
   });
 
+  it("revokes a copied access token on logout", async () => {
+    const signupResponse = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "logout-copy@example.com",
+        username: "logout_copy",
+        password: "correct horse battery staple"
+      })
+      .expect(201);
+    const cookies = extractResponseCookies(signupResponse);
+    const copiedAccessCookie = cookies.find((cookie) =>
+      cookie.startsWith(`${env.SESSION_COOKIE_NAME}=`)
+    );
+
+    expect(copiedAccessCookie).toBeDefined();
+
+    await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookies.join("; "))
+      .expect(204);
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", copiedAccessCookie ?? "")
+      .expect(401);
+  });
+
+  it("rotates refresh tokens and rejects a copied previous refresh token", async () => {
+    const signupResponse = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "refresh-reader@example.com",
+        username: "refresh_reader",
+        password: "correct horse battery staple"
+      })
+      .expect(201);
+    const originalCookies = extractResponseCookies(signupResponse);
+
+    const refreshResponse = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", originalCookies.join("; "))
+      .expect(200);
+
+    expect(refreshResponse.body.user.email).toBe("refresh-reader@example.com");
+    expect(extractResponseCookies(refreshResponse)).toHaveLength(2);
+
+    await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", originalCookies.join("; "))
+      .expect(401);
+  });
+
+  it("supports per-device and all-session revocation", async () => {
+    const credentials = {
+      email: "devices@example.com",
+      username: "device_reader",
+      password: "correct horse battery staple"
+    };
+    const firstDevice = await request(app)
+      .post("/api/auth/signup")
+      .send(credentials)
+      .expect(201);
+    const secondDevice = await request(app)
+      .post("/api/auth/login")
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+    const firstCookies = extractResponseCookies(firstDevice);
+    const secondCookies = extractResponseCookies(secondDevice);
+
+    await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", firstCookies.join("; "))
+      .expect(204);
+    await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", secondCookies.join("; "))
+      .expect(200);
+
+    await request(app)
+      .post("/api/auth/logout-all")
+      .set("Cookie", secondCookies.join("; "))
+      .expect(204);
+    await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", secondCookies.join("; "))
+      .expect(401);
+  });
+
   it("revokes open realtime connections on authenticated logout", async () => {
     const user = await repository.createUser({
       email: "logout-reader@example.com",
@@ -742,6 +830,13 @@ const extractSessionCookie = (response: Response) => {
   return cookie.split(";")[0];
 };
 
+const extractResponseCookies = (response: Response): string[] => {
+  const header = response.headers["set-cookie"] as string | string[] | undefined;
+  const cookies = Array.isArray(header) ? header : header ? [header] : [];
+
+  return cookies.map((cookie) => cookie.split(";")[0] ?? "");
+};
+
 const tamperToken = (token: string) => {
   const parts = token.split(".");
   const signature = parts[2] ?? "";
@@ -758,6 +853,9 @@ const createExpiredSessionToken = (user: AuthUserRecord) => {
 
   return new SignJWT({ sessionVersion: user.sessionVersion })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setIssuer(env.JWT_ISSUER)
+    .setAudience(env.JWT_AUDIENCE)
+    .setJti(crypto.randomUUID())
     .setSubject(user.id)
     .setIssuedAt(now - 120)
     .setExpirationTime(now - 60)

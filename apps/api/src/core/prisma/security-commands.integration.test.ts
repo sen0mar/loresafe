@@ -4,6 +4,8 @@ import { prisma } from "./client.js";
 import { invitesRepository } from "../../modules/invites/invites.repository.js";
 import { hashInviteToken } from "../../modules/invites/invites.token.js";
 import { postsRepository } from "../../modules/posts/posts.repository.js";
+import { uploadsRepository } from "../../modules/uploads/uploads.repository.js";
+import { lockClubAuthorizationChanges } from "../../modules/clubs/club-authorization-lock.js";
 
 const describeDatabase =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
@@ -83,7 +85,7 @@ describeDatabase("security-sensitive database commands", () => {
     }
   });
 
-  it("serializes reaction toggles and denies the real write after a ban", async () => {
+  it("serializes reaction retries and denies a write when membership disappears in flight", async () => {
     const suffix = crypto.randomUUID();
     let clubId: string | null = null;
 
@@ -131,6 +133,15 @@ describeDatabase("security-sensitive database commands", () => {
         throw new Error("Reaction fixture milestone was not created.");
       }
 
+      await prisma.clubProgress.create({
+        data: {
+          clubId,
+          userId: reader.id,
+          currentMilestoneId: milestone.id,
+          mode: "STRICT"
+        }
+      });
+
       const post = await prisma.post.create({
         data: {
           clubId,
@@ -146,8 +157,14 @@ describeDatabase("security-sensitive database commands", () => {
       });
 
       await Promise.all([
-        postsRepository.togglePostReaction(post.id, reader.id, { emoji: "👍" }),
-        postsRepository.togglePostReaction(post.id, reader.id, { emoji: "👍" })
+        postsRepository.setPostReaction(post.id, reader.id, {
+          emoji: "👍",
+          active: true
+        }),
+        postsRepository.setPostReaction(post.id, reader.id, {
+          emoji: "👍",
+          active: true
+        })
       ]);
 
       expect(
@@ -158,29 +175,46 @@ describeDatabase("security-sensitive database commands", () => {
             emoji: "👍"
           }
         })
-      ).toBe(0);
+      ).toBe(1);
 
-      await prisma.$transaction([
-        prisma.clubMembership.delete({
+      await prisma.postReaction.deleteMany({
+        where: { postId: post.id, userId: reader.id }
+      });
+
+      let signalMembershipDeleted: () => void = () => {};
+      let allowMembershipCommit: () => void = () => {};
+      const membershipDeleted = new Promise<void>((resolve) => {
+        signalMembershipDeleted = resolve;
+      });
+      const membershipCommitAllowed = new Promise<void>((resolve) => {
+        allowMembershipCommit = resolve;
+      });
+      const reactionClubId = club.id;
+      const membershipRemoval = prisma.$transaction(async (transaction) => {
+        await lockClubAuthorizationChanges(transaction, reactionClubId);
+        await transaction.clubMembership.delete({
           where: {
             userId_clubId: {
               userId: reader.id,
-              clubId
+              clubId: reactionClubId
             }
           }
-        }),
-        prisma.clubBan.create({
-          data: {
-            clubId,
-            userId: reader.id,
-            roleAtBan: "MEMBER"
-          }
-        })
-      ]);
+        });
+        signalMembershipDeleted();
+        await membershipCommitAllowed;
+      });
 
-      await expect(
-        postsRepository.togglePostReaction(post.id, reader.id, { emoji: "👍" })
-      ).resolves.toBeNull();
+      await membershipDeleted;
+      const inFlightReaction = postsRepository.setPostReaction(
+        post.id,
+        reader.id,
+        { emoji: "👍", active: true }
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      allowMembershipCommit();
+      await membershipRemoval;
+
+      await expect(inFlightReaction).resolves.toBeNull();
       expect(
         await prisma.postReaction.count({
           where: {
@@ -191,6 +225,60 @@ describeDatabase("security-sensitive database commands", () => {
       ).toBe(0);
     } finally {
       await cleanupFixture(suffix, clubId);
+    }
+  });
+
+  it("returns one stable READY result for concurrent upload completion", async () => {
+    const suffix = crypto.randomUUID();
+
+    try {
+      const [owner] = await createFixtureUsers(suffix, ["upload-owner"]);
+
+      if (!owner) {
+        throw new Error("Upload fixture user was not created.");
+      }
+
+      const asset = await prisma.fileAsset.create({
+        data: {
+          ownerId: owner.id,
+          purpose: "AVATAR",
+          visibility: "PUBLIC",
+          objectKey: `public/avatars/${owner.id}/${suffix}.png`,
+          contentType: "image/png",
+          sizeBytes: 128,
+          status: "PENDING"
+        }
+      });
+      const completedAt = new Date();
+      const validation = {
+        widthPx: 32,
+        heightPx: 32,
+        isAnimated: false
+      };
+      const results = await Promise.all([
+        uploadsRepository.markAssetReadyAndAttach(
+          asset,
+          completedAt,
+          validation
+        ),
+        uploadsRepository.markAssetReadyAndAttach(
+          asset,
+          completedAt,
+          validation
+        )
+      ]);
+
+      expect(results.map((result) => result?.status)).toEqual([
+        "READY",
+        "READY"
+      ]);
+      expect(
+        await prisma.fileAsset.count({
+          where: { id: asset.id, status: "READY" }
+        })
+      ).toBe(1);
+    } finally {
+      await cleanupFixture(suffix, null);
     }
   });
 });

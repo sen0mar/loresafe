@@ -1,4 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
+import { getBoundedPageOffset } from "../../core/http/pagination.js";
+import type { TimestampUuidCursor } from "../../core/http/cursor.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type {
@@ -69,7 +71,14 @@ export type ClubDetailRecord = {
 
 export type ListPublicClubsResult = {
   clubs: ClubDiscoveryRecord[];
-  total: number;
+  hasMore: boolean;
+  nextCursor: TimestampUuidCursor | null;
+};
+
+export type ListPublicClubsInput = {
+  cursor: TimestampUuidCursor | null;
+  limit: number;
+  sort: ListClubsQuery["sort"] | ListPublicSeoClubsQuery["sort"];
 };
 
 export type ListPublicClubSitemapEntriesResult = {
@@ -253,11 +262,11 @@ export type ClubsRepository = {
   ) => Promise<ClubBanMutationResult>;
   listPublicClubs: (
     userId: string,
-    input: ListClubsQuery
+    input: ListPublicClubsInput
   ) => Promise<ListPublicClubsResult>;
   listPublicSeoClubs: (
     currentUserId: string | null,
-    input: ListPublicSeoClubsQuery
+    input: ListPublicClubsInput
   ) => Promise<ListPublicClubsResult>;
   findPublicSeoClubByLinkName: (
     linkName: string,
@@ -710,7 +719,7 @@ export const clubsRepository: ClubsRepository = {
     }),
 
   listClubMembersByLinkName: async (linkName, userId, { page, limit, q }) => {
-    const skip = (page - 1) * limit;
+    const skip = getBoundedPageOffset(page, limit);
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
@@ -819,7 +828,7 @@ export const clubsRepository: ClubsRepository = {
   },
 
   listClubBansByLinkName: async (linkName, userId, { page, limit }) => {
-    const skip = (page - 1) * limit;
+    const skip = getBoundedPageOffset(page, limit);
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {
@@ -1196,63 +1205,11 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  listPublicClubs: async (userId, { limit, page, sort }) => {
-    const skip = (page - 1) * limit;
-    const now = new Date();
-    const publicClubWhere = getPublicClubWhere(userId, now);
-    const orderBy = getPublicClubOrder(sort);
+  listPublicClubs: (userId, input) =>
+    listPublicClubsPage(userId, input),
 
-    const [clubs, total] = await prisma.$transaction([
-      prisma.club.findMany({
-        where: publicClubWhere,
-        orderBy,
-        skip,
-        take: limit,
-        select: publicClubSelect
-      }),
-      prisma.club.count({
-        where: publicClubWhere
-      })
-    ]);
-
-    return {
-      clubs: clubs.map(({ _count, ...club }) => ({
-        ...club,
-        visibility: "PUBLIC",
-        memberCount: _count.memberships
-      })),
-      total
-    };
-  },
-
-  listPublicSeoClubs: async (currentUserId, { limit, page, sort }) => {
-    const skip = (page - 1) * limit;
-    const now = new Date();
-    const publicClubWhere = getPublicClubWhere(currentUserId, now);
-    const orderBy = getPublicClubOrder(sort);
-
-    const [clubs, total] = await prisma.$transaction([
-      prisma.club.findMany({
-        where: publicClubWhere,
-        orderBy,
-        skip,
-        take: limit,
-        select: publicClubSelect
-      }),
-      prisma.club.count({
-        where: publicClubWhere
-      })
-    ]);
-
-    return {
-      clubs: clubs.map(({ _count, ...club }) => ({
-        ...club,
-        visibility: "PUBLIC",
-        memberCount: _count.memberships
-      })),
-      total
-    };
-  },
+  listPublicSeoClubs: (currentUserId, input) =>
+    listPublicClubsPage(currentUserId, input),
 
   findPublicSeoClubByLinkName: async (linkName, currentUserId) => {
     const now = new Date();
@@ -1301,6 +1258,45 @@ export const clubsRepository: ClubsRepository = {
       entries
     };
   }
+};
+
+const listPublicClubsPage = async (
+  currentUserId: string | null,
+  { cursor, limit, sort }: ListPublicClubsInput
+): Promise<ListPublicClubsResult> => {
+  const now = new Date();
+  const cursorWhere: Prisma.ClubWhereInput = cursor
+    ? {
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { gt: cursor.id } }
+        ]
+      }
+    : {};
+  const clubs = await prisma.club.findMany({
+    where: {
+      AND: [getPublicClubWhere(currentUserId, now), cursorWhere]
+    },
+    orderBy: getPublicClubOrder(sort),
+    take: sort === "popular" ? limit : limit + 1,
+    select: publicClubSelect
+  });
+  const hasMore = sort === "newest" && clubs.length > limit;
+  const pageClubs = clubs.slice(0, limit);
+  const lastClub = pageClubs.at(-1);
+
+  return {
+    clubs: pageClubs.map(({ _count, ...club }) => ({
+      ...club,
+      visibility: "PUBLIC",
+      memberCount: _count.memberships
+    })),
+    hasMore,
+    nextCursor:
+      hasMore && lastClub
+        ? { createdAt: lastClub.createdAt, id: lastClub.id }
+        : null
+  };
 };
 
 const getPublicClubWhere = (

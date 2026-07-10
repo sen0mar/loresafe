@@ -7,7 +7,7 @@ import {
   createClubPostRequestSchema,
   listClubPostsQuerySchema,
   postDetailParamsSchema,
-  togglePostReactionRequestSchema
+  postReactionParamsSchema
 } from "./posts.schema.js";
 import { postsService, type PostsService } from "./posts.service.js";
 
@@ -16,7 +16,8 @@ export type PostsController = {
   listClubPostsByLinkName: RequestHandler;
   getPostById: RequestHandler;
   revealPostById: RequestHandler;
-  togglePostReactionById: RequestHandler;
+  addPostReactionById: RequestHandler;
+  removePostReactionById: RequestHandler;
   deletePostById: RequestHandler;
 };
 
@@ -135,16 +136,15 @@ export const createPostsController = (
     }
   },
 
-  togglePostReactionById: async (req, res, next) => {
+  addPostReactionById: async (req, res, next) => {
     try {
       if (!req.currentUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = postDetailParamsSchema.safeParse(req.params);
-      const bodyResult = togglePostReactionRequestSchema.safeParse(req.body);
+      const paramsResult = postReactionParamsSchema.safeParse(req.params);
 
-      if (!paramsResult.success || !bodyResult.success) {
+      if (!paramsResult.success) {
         throw new HttpError(
           400,
           "BAD_REQUEST",
@@ -152,10 +152,38 @@ export const createPostsController = (
         );
       }
 
-      const response = await service.togglePostReactionById(
+      const response = await service.setPostReactionById(
         paramsResult.data.postId,
         req.currentUser.id,
-        bodyResult.data
+        { emoji: paramsResult.data.emoji, active: true }
+      );
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  removePostReactionById: async (req, res, next) => {
+    try {
+      if (!req.currentUser) {
+        throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
+      }
+
+      const paramsResult = postReactionParamsSchema.safeParse(req.params);
+
+      if (!paramsResult.success) {
+        throw new HttpError(
+          400,
+          "BAD_REQUEST",
+          "Check the reaction request and try again."
+        );
+      }
+
+      const response = await service.setPostReactionById(
+        paramsResult.data.postId,
+        req.currentUser.id,
+        { emoji: paramsResult.data.emoji, active: false }
       );
 
       res.status(200).json(response);
