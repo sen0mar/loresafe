@@ -1,5 +1,9 @@
 import { HttpError } from "../../core/errors/http-error.js";
-import { hashPassword, verifyPassword } from "../../core/security/password.js";
+import {
+  dummyPasswordHash,
+  hashPassword,
+  verifyPassword
+} from "../../core/security/password.js";
 import {
   createRefreshToken,
   createSessionIdentifier,
@@ -46,12 +50,15 @@ export type AuthService = {
   revokeAllSessions: (userId: string) => Promise<number>;
 };
 
+type PasswordVerifier = typeof verifyPassword;
+
 export const createAuthService = (
   usersRepository: AuthUsersRepository = authUsersRepository,
   sessionsRepository: AuthSessionsRepository =
     usersRepository === authUsersRepository
       ? authSessionsRepository
-      : createMemoryAuthSessionsRepository()
+      : createMemoryAuthSessionsRepository(),
+  passwordVerifier: PasswordVerifier = verifyPassword
 ): AuthService => {
   const allowLegacyUnpersistedTestTokens =
     env.NODE_ENV === "test" && usersRepository !== authUsersRepository;
@@ -144,14 +151,14 @@ export const createAuthService = (
     login: async ({ email, password }) => {
       const user = await usersRepository.findActiveUserCredentialsByEmail(email);
 
-      // Missing users and bad passwords share one response to avoid account enumeration.
-      if (!user) {
-        throw invalidCredentialsError();
-      }
+      const isPasswordValid = await passwordVerifier(
+        user?.passwordHash ?? dummyPasswordHash,
+        password
+      );
 
-      const isPasswordValid = await verifyPassword(user.passwordHash, password);
-
-      if (!isPasswordValid) {
+      // Keep both the work performed and the client response independent of
+      // whether an active account exists for this email address.
+      if (!user || !isPasswordValid) {
         throw invalidCredentialsError();
       }
 

@@ -8,7 +8,10 @@ import { errorHandler, notFoundHandler } from "./core/http/error-middleware.js";
 import { noindexApiResponses } from "./core/http/seo-headers.js";
 import { requestLoggingMiddleware } from "./core/http/request-logging.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
-import { registerRateLimiters } from "./core/security/rate-limit-routes.js";
+import {
+  registerParsedBodyRateLimiters,
+  registerRateLimiters
+} from "./core/security/rate-limit-routes.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
 import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -67,6 +70,7 @@ export const createApp = (
   registerRateLimiters(app);
   app.use(createTrustedOriginMiddleware(appEnv));
   app.use(express.json({ limit: "64kb" }));
+  registerParsedBodyRateLimiters(app);
   app.use(cookieParser());
 
   app.use("/sitemap.xml", createSitemapRouter(undefined, appEnv));

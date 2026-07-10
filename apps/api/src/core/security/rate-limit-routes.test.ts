@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  registerParsedBodyRateLimiters,
   registerRateLimiters,
   type RateLimiterApp
 } from "./rate-limit-routes.js";
@@ -11,6 +12,20 @@ const createRateLimiterApp = (): RateLimiterApp => ({
   patch: vi.fn() as unknown as RateLimiterApp["patch"],
   post: vi.fn() as unknown as RateLimiterApp["post"],
   use: vi.fn() as unknown as RateLimiterApp["use"]
+});
+
+describe("registerParsedBodyRateLimiters", () => {
+  it("stacks account burst and sustained limits on login", () => {
+    const app = createRateLimiterApp();
+
+    registerParsedBodyRateLimiters(app);
+
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/auth/login",
+      expect.any(Function)
+    );
+    expect(app.use).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("registerRateLimiters", () => {

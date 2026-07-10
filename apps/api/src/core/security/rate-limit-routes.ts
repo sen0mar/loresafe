@@ -17,6 +17,8 @@ import {
   eventConnectionRateLimiter,
   expensiveReadRateLimiter,
   inviteAcceptRateLimiter,
+  loginAccountBurstRateLimiter,
+  loginAccountSustainedRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
   moderationActionRateLimiter,
@@ -145,4 +147,11 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.post("/api/notifications/read-all", notificationMutationRateLimiter);
   app.delete("/api/notifications", notificationMutationRateLimiter);
   app.delete("/api/notifications/selected", notificationMutationRateLimiter);
+};
+
+export const registerParsedBodyRateLimiters = (app: RateLimiterApp) => {
+  // These account-keyed buckets require the validated-shape JSON body and must
+  // still run before database lookup or Argon2 verification.
+  app.use("/api/auth/login", loginAccountBurstRateLimiter);
+  app.use("/api/auth/login", loginAccountSustainedRateLimiter);
 };

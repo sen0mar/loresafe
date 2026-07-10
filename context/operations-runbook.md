@@ -26,6 +26,17 @@
 
 ## Deployment Rollback
 
+- CI, local development, and Render use the repository-pinned Node runtime. A
+  runtime bump updates `.node-version`, all package engine ranges, Render, and
+  the release workflow in one change.
+- Render builds once per deployment and runs the pre-deploy migration and web
+  start command against that build. Promote only commits that passed the release
+  gate; Render does not currently promote one immutable artifact across separate
+  environments, so compare the deployed commit SHA before smoke testing.
+- Production dependency audit policy is zero known advisories at any severity.
+  The release gate runs `pnpm audit --prod --audit-level low`. A temporary
+  exception requires a tracked owner, runtime-reachability analysis, compensating
+  controls, upstream issue, and expiry date; expired exceptions block promotion.
 - Keep the last known-good Render build available. Roll back the API artifact/config first when health regresses; do not reverse a committed migration destructively.
 - Database changes must remain backward compatible for at least one application rollback. If not, stop promotion and ship a forward repair migration.
 - Roll back the matching Vercel deployment when the browser contract is incompatible, then run the liveness/readiness synthetics and a signed-in spoiler-safety smoke check.

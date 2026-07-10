@@ -166,6 +166,10 @@ Each backend module follows the Express flow: routes → controllers → service
 
 API style: REST JSON, with SSE for realtime events.
 
+The versioned OpenAPI artifact and compatibility, idempotency, error,
+pagination, retry, and deprecation policies are defined in
+`context/api-governance.md`.
+
 Normal request flow:
 
 1. UI action calls a feature API wrapper using `fetch` with `credentials: "include"`.
@@ -254,6 +258,11 @@ Important query paths/indexes:
 
 Render API deployment:
 
+- `render.yaml` is the source of truth for the Render web service, including the
+  build, pre-deploy migration, start, readiness, shutdown, and required
+  environment configuration. Dashboard changes must be reconciled back into it.
+- Node `22.17.1` is pinned in `.node-version`, Render, and CI. Package manifests
+  accept only compatible Node 22 releases at or above that patch level.
 - The web service start command must run only the built Express server, for example `pnpm --filter @loresafe/api start`.
 - Run committed Prisma migrations in a pre-deploy/release command, for example `pnpm --filter @loresafe/api prisma:migrate:deploy`, not in the web start command. This keeps advisory-lock retries from delaying port binding long enough for Render's web-service port scan to fail.
 - Configure Prisma CLI commands with `DIRECT_URL`, using a direct/session PostgreSQL
@@ -266,7 +275,8 @@ Render API deployment:
 Release gate:
 
 - `.github/workflows/release-gate.yml` is the versioned main/PR gate. It runs a
-  frozen install, production dependency audit, committed migrations and drift
+  frozen install, production dependency audit at every reported severity,
+  committed migrations and drift
   checks, typechecking, unit/route tests, real PostgreSQL integration tests,
   production builds, and a full-history secret scan.
 - The PostgreSQL integration suite runs separately through

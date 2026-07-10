@@ -1,0 +1,55 @@
+services:
+  - type: web
+    runtime: node
+    name: loresafe-api
+    region: frankfurt
+    plan: starter
+    autoDeployTrigger: checksPass
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @loresafe/api build
+    preDeployCommand: pnpm --filter @loresafe/api prisma:migrate:deploy
+    startCommand: pnpm --filter @loresafe/api start
+    healthCheckPath: /api/health/ready
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_VERSION
+        value: 22.17.1
+      - key: NODE_ENV
+        value: production
+      - key: APP_NAME
+        value: LoreSafe
+      - key: CLIENT_ORIGINS
+        value: https://www.loresafe.org
+      - key: PUBLIC_SITE_ORIGIN
+        value: https://www.loresafe.org
+      - key: TRUST_PROXY_CIDRS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: EVENTS_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_PREVIOUS_SECRET
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+      - key: OPERATIONS_BEARER_TOKEN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production

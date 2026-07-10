@@ -7,6 +7,12 @@ const passwordHashOptions = {
   parallelism: 1
 } as const;
 
+// This fixed hash uses the same Argon2id parameters as account hashes. It keeps
+// unknown-account logins on the same expensive verification path without ever
+// being usable as an account credential.
+export const dummyPasswordHash =
+  "$argon2id$v=19$m=19456,t=2,p=1$bG9yZXNhZmUtZHVtbXktMQ$VwTZ49WRiQFl88QyTmwrWPJwSp4RWx5oFGm4m4bXwew";
+
 // Keep hash and verify on the same options so future tuning does not strand existing checks.
 export const hashPassword = (password: string) =>
   hash(password, passwordHashOptions);

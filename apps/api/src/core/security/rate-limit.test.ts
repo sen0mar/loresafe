@@ -52,9 +52,21 @@ describe("rate limit defaults", () => {
 
     expect(byIdentifier).toEqual({
       "auth-login": {
-        limit: 60,
+        limit: 30,
         skipSuccessfulRequests: true,
         storePrefix: "loresafe:rl:auth:login:",
+        windowMs: 15 * 60 * 1000
+      },
+      "auth-loginAccountBurst": {
+        limit: 5,
+        skipSuccessfulRequests: true,
+        storePrefix: "loresafe:rl:auth:login-account-burst:v1:",
+        windowMs: 60 * 1000
+      },
+      "auth-loginAccountSustained": {
+        limit: 12,
+        skipSuccessfulRequests: true,
+        storePrefix: "loresafe:rl:auth:login-account-sustained:v1:",
         windowMs: 15 * 60 * 1000
       },
       "auth-logout": {
@@ -237,7 +249,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(30);
+    expect(options).toHaveLength(32);
     expect(options).toEqual(
       options.map((option) =>
         expect.objectContaining({

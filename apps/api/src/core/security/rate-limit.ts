@@ -1,12 +1,23 @@
+import { createHmac } from "node:crypto";
+
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
 import type { Store } from "express-rate-limit";
 
+import { env } from "../../config/env.js";
 import { HttpError } from "../errors/http-error.js";
+import { logger } from "../logging/logger.js";
 import { createUpstashRateLimitStore } from "./upstash-rate-limit-store.js";
 
 const rateLimitMessage = "Too many attempts. Try again later.";
 
-type AuthRateLimiterName = "login" | "logout" | "passwordReset" | "signup";
+type AuthRateLimiterName =
+  | "login"
+  | "loginAccountBurst"
+  | "loginAccountSustained"
+  | "logout"
+  | "passwordReset"
+  | "signup";
 
 type AuthRateLimitConfig = {
   limit: number;
@@ -18,6 +29,8 @@ type AuthRateLimitConfig = {
 export type AuthRateLimitStoreFactory = (prefix: string) => Store;
 
 export type AuthRateLimiters = {
+  loginAccountBurstRateLimiter: ReturnType<typeof rateLimit>;
+  loginAccountSustainedRateLimiter: ReturnType<typeof rateLimit>;
   loginRateLimiter: ReturnType<typeof rateLimit>;
   logoutRateLimiter: ReturnType<typeof rateLimit>;
   passwordResetRateLimiter: ReturnType<typeof rateLimit>;
@@ -32,9 +45,21 @@ export type AuthRateLimiterOptions = {
 const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
   login: {
     windowMs: 15 * 60 * 1000,
-    limit: 60,
+    limit: 30,
     prefix: "loresafe:rl:auth:login:",
     // Successful logins are decremented after finish, leaving a failed-attempt bucket.
+    skipSuccessfulRequests: true
+  },
+  loginAccountBurst: {
+    windowMs: 60 * 1000,
+    limit: 5,
+    prefix: "loresafe:rl:auth:login-account-burst:v1:",
+    skipSuccessfulRequests: true
+  },
+  loginAccountSustained: {
+    windowMs: 15 * 60 * 1000,
+    limit: 12,
+    prefix: "loresafe:rl:auth:login-account-sustained:v1:",
     skipSuccessfulRequests: true
   },
   logout: {
@@ -58,6 +83,18 @@ export const createAuthRateLimiters = ({
   limitOverrides = {},
   storeFactory = createUpstashRateLimitStore
 }: AuthRateLimiterOptions = {}): AuthRateLimiters => ({
+  loginAccountBurstRateLimiter: createLoginAccountRateLimiter(
+    "loginAccountBurst",
+    authRateLimitConfigs.loginAccountBurst,
+    storeFactory,
+    limitOverrides.loginAccountBurst
+  ),
+  loginAccountSustainedRateLimiter: createLoginAccountRateLimiter(
+    "loginAccountSustained",
+    authRateLimitConfigs.loginAccountSustained,
+    storeFactory,
+    limitOverrides.loginAccountSustained
+  ),
   loginRateLimiter: createAuthRateLimiter(
     "login",
     authRateLimitConfigs.login,
@@ -103,7 +140,47 @@ const createAuthRateLimiter = (
     }
   });
 
+const createLoginAccountRateLimiter = (
+  name: "loginAccountBurst" | "loginAccountSustained",
+  config: AuthRateLimitConfig,
+  storeFactory: AuthRateLimitStoreFactory,
+  limitOverride?: number
+) =>
+  rateLimit({
+    windowMs: config.windowMs,
+    limit: limitOverride ?? config.limit,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    store: storeFactory(config.prefix),
+    identifier: `auth-${name}`,
+    keyGenerator: (req) => createLoginAccountBucket(req),
+    handler: (req, res, next) => {
+      logger.warn("Credential stuffing throttle triggered", {
+        limitScope: name,
+        requestId: res.locals.requestId,
+        sourceIp: req.ip
+      });
+      next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+    }
+  });
+
+export const createLoginAccountBucket = (req: Pick<Request, "body">) => {
+  const rawEmail =
+    req.body && typeof req.body === "object" && "email" in req.body
+      ? req.body.email
+      : "";
+  const normalizedEmail =
+    typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+
+  return createHmac("sha256", env.JWT_SECRET)
+    .update(normalizedEmail || "invalid-login-identifier")
+    .digest("hex");
+};
+
 export const {
+  loginAccountBurstRateLimiter,
+  loginAccountSustainedRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
   passwordResetRateLimiter,

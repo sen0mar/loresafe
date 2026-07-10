@@ -19,7 +19,10 @@ import {
   type AuthRateLimiterOptions,
   type AuthRateLimiters
 } from "../../core/security/rate-limit.js";
-import { hashPassword } from "../../core/security/password.js";
+import {
+  dummyPasswordHash,
+  hashPassword
+} from "../../core/security/password.js";
 import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthController } from "./auth.controller.js";
 import { createAuthMiddleware } from "./auth.middleware.js";
@@ -234,6 +237,28 @@ describe("auth routes", () => {
     });
   });
 
+  it("performs one equivalent password verification for missing and known accounts", async () => {
+    await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      passwordHash: "stored-password-hash"
+    });
+    const passwordVerifier = vi.fn().mockResolvedValue(false);
+    const service = createAuthService(repository, undefined, passwordVerifier);
+
+    await expect(
+      service.login({ email: "missing@example.com", password: "wrong password" })
+    ).rejects.toMatchObject({ statusCode: 401, message: "Invalid credentials" });
+    await expect(
+      service.login({ email: "reader@example.com", password: "wrong password" })
+    ).rejects.toMatchObject({ statusCode: 401, message: "Invalid credentials" });
+
+    expect(passwordVerifier.mock.calls).toEqual([
+      [dummyPasswordHash, "wrong password"],
+      ["stored-password-hash", "wrong password"]
+    ]);
+  });
+
   it("rate limits repeated failed login attempts before credential lookup", async () => {
     app = createAuthTestApp(repository, {
       rateLimiters: createAuthTestRateLimiters({ login: 2 })
@@ -297,6 +322,33 @@ describe("auth routes", () => {
         .expect(200);
       await waitForRateLimitDecrement();
     }
+  });
+
+  it("limits distributed failures against one normalized account", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({
+        login: 100,
+        loginAccountBurst: 100,
+        loginAccountSustained: 2
+      }),
+      trustLoopbackProxy: true
+    });
+
+    const attempts = [
+      ["198.51.100.10", "Target@Example.com"],
+      ["198.51.100.11", " target@example.com "],
+      ["198.51.100.12", "TARGET@example.com"]
+    ] as const;
+
+    for (const [index, [sourceIp, email]] of attempts.entries()) {
+      await request(app)
+        .post("/api/auth/login")
+        .set("x-forwarded-for", sourceIp)
+        .send({ email, password: "wrong password" })
+        .expect(index < 2 ? 401 : 429);
+    }
+
+    expect(repository.credentialLookupCount).toBe(2);
   });
 
   it("clears the session cookie on logout", async () => {
@@ -649,12 +701,17 @@ const createAuthTestApp = (
   options: {
     rateLimiters?: AuthRateLimiters;
     eventPublisher?: Pick<EventsService, "disconnectUser">;
+    trustLoopbackProxy?: boolean;
   } = {}
 ) => {
   const app = express();
   const service = createAuthService(repository);
   const controller = createAuthController(service, options.eventPublisher);
   const middleware = createAuthMiddleware(service);
+
+  if (options.trustLoopbackProxy) {
+    app.set("trust proxy", "loopback");
+  }
 
   app.use(requestIdMiddleware);
 
@@ -665,6 +722,15 @@ const createAuthTestApp = (
   }
 
   app.use(express.json());
+
+  if (options.rateLimiters) {
+    app.use(
+      "/api/auth/login",
+      options.rateLimiters.loginAccountBurstRateLimiter,
+      options.rateLimiters.loginAccountSustainedRateLimiter
+    );
+  }
+
   app.use(cookieParser());
   app.use("/api/auth", createAuthRouter(controller, middleware));
   app.use(errorHandler);

@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.17.1 <23"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
@@ -18,7 +21,9 @@
     "prisma:migrate:deploy": "node scripts/migrate-deploy-with-retry.mjs",
     "prisma:seed": "prisma db seed",
     "db:reset:development": "tsx scripts/reset-development-database.ts",
-    "perf:seed-check": "tsx scripts/perf-seed-check.ts"
+    "perf:seed-check": "tsx scripts/perf-seed-check.ts",
+    "api:contract:generate": "tsx scripts/openapi-contract.ts --write",
+    "api:contract:check": "tsx scripts/openapi-contract.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
