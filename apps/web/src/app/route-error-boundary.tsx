@@ -11,12 +11,16 @@ type RouteErrorBoundaryProps = {
   children: ReactNode;
 };
 
+type RouteErrorBoundaryStateProps = RouteErrorBoundaryProps & {
+  resetKey: string;
+};
+
 type RouteErrorBoundaryStatus = {
   hasError: boolean;
 };
 
 class RouteErrorBoundaryState extends Component<
-  RouteErrorBoundaryProps,
+  RouteErrorBoundaryStateProps,
   RouteErrorBoundaryStatus
 > {
   state: RouteErrorBoundaryStatus = {
@@ -37,6 +41,12 @@ class RouteErrorBoundaryState extends Component<
     });
   }
 
+  componentDidUpdate(previousProps: RouteErrorBoundaryStateProps) {
+    if (this.state.hasError && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
+
   render() {
     if (!this.state.hasError) {
       return this.props.children;
@@ -50,7 +60,7 @@ export const RouteErrorBoundary = ({ children }: RouteErrorBoundaryProps) => {
   const location = useLocation();
 
   return (
-    <RouteErrorBoundaryState key={location.key}>
+    <RouteErrorBoundaryState resetKey={location.key}>
       {children}
     </RouteErrorBoundaryState>
   );
