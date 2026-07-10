@@ -3,6 +3,7 @@ import "./core/monitoring/sentry.js";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { logger, sanitizeError } from "./core/logging/logger.js";
+import { applyServerTimeouts } from "./core/http/server-timeouts.js";
 import {
   startNotificationJobs,
   stopNotificationJobs
@@ -49,6 +50,7 @@ const startServer = async () => {
       port: env.PORT
     });
   });
+  applyServerTimeouts(server, env);
 };
 
 startServer().catch((error) => {

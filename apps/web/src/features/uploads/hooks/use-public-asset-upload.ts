@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError } from "@/shared/api/api-client";
 
@@ -27,6 +27,14 @@ export const usePublicAssetUpload = ({
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const activeController = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      activeController.current?.abort();
+    },
+    []
+  );
 
   const uploadFile = async (file: File) => {
     const validationError = validatePublicAssetFile(file, purpose);
@@ -37,34 +45,53 @@ export const usePublicAssetUpload = ({
       return;
     }
 
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+
     try {
       setError(null);
       setProgress(0);
       setStatus("requesting");
 
-      const intent = await createPublicAssetUpload({
-        purpose,
-        contentType: file.type,
-        sizeBytes: file.size,
-        ...(clubLinkName ? { clubLinkName } : {})
-      });
+      const intent = await createPublicAssetUpload(
+        {
+          purpose,
+          contentType: file.type,
+          sizeBytes: file.size,
+          ...(clubLinkName ? { clubLinkName } : {})
+        },
+        { signal: controller.signal }
+      );
 
       setStatus("uploading");
-      await uploadFileToPresignedUrl({
+      const upload = uploadFileToPresignedUrl({
         file,
         url: intent.upload.url,
         headers: intent.upload.requiredHeaders,
-        onProgress: setProgress
+        onProgress: setProgress,
+        signal: controller.signal
       });
+      await upload.promise;
 
       setStatus("completing");
-      const completed = await completePublicAssetUpload(intent.asset.id);
+      const completed = await completePublicAssetUpload(intent.asset.id, {
+        signal: controller.signal
+      });
       await onCompleted(completed.asset);
       setProgress(100);
       setStatus("idle");
     } catch (uploadError) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
       setError(getUploadErrorMessage(uploadError));
       setStatus("idle");
+    } finally {
+      if (activeController.current === controller) {
+        activeController.current = null;
+      }
     }
   };
 
@@ -73,7 +100,8 @@ export const usePublicAssetUpload = ({
     isUploading: status !== "idle",
     progress,
     status,
-    uploadFile
+    uploadFile,
+    cancelUpload: () => activeController.current?.abort()
   };
 };
 

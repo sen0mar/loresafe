@@ -12,6 +12,7 @@ import {
   type ObjectStorage
 } from "../core/storage/r2-storage.js";
 import { logger, sanitizeError } from "../core/logging/logger.js";
+import { operationsMetrics } from "../core/monitoring/operations-metrics.js";
 import {
   enqueueStorageObjectDeleteJob,
   notificationBoss,
@@ -110,6 +111,7 @@ export const processStorageObjectDeleteJob = async (
       pendingDeletions.map((deletion) => deletion.objectKey)
     );
   } catch (error) {
+    operationsMetrics.recordStorageCleanup(0, pendingDeletions.length);
     await repository.recordFailure(
       pendingDeletions.map((deletion) => deletion.id),
       error
@@ -120,6 +122,7 @@ export const processStorageObjectDeleteJob = async (
   await repository.markCompleted(
     pendingDeletions.map((deletion) => deletion.id)
   );
+  operationsMetrics.recordStorageCleanup(pendingDeletions.length, 0);
 };
 
 export const processStorageAssetReconcileJob = async (
@@ -144,7 +147,9 @@ export const runLoggedStorageObjectDeleteJob = async (
 ) => {
   try {
     await handler();
+    operationsMetrics.recordJob(jobName, getJobAgeSeconds(job), false);
   } catch (error) {
+    operationsMetrics.recordJob(jobName, getJobAgeSeconds(job), true);
     logger.error("Storage cleanup job failed", {
       jobName,
       jobId: job.id,
@@ -153,6 +158,13 @@ export const runLoggedStorageObjectDeleteJob = async (
     });
     throw error;
   }
+};
+
+const getJobAgeSeconds = (job: Job) => {
+  const createdOn = (job as Job & { createdOn?: Date | string }).createdOn;
+  const createdAt = createdOn ? new Date(createdOn).getTime() : Date.now();
+
+  return (Date.now() - createdAt) / 1000;
 };
 
 const getObjectCount = (data: unknown) => {

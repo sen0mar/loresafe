@@ -112,9 +112,6 @@ const envSchema = z
       .positive()
       .max(60 * 60)
       .default(60 * 15),
-    DEMO_USER_EMAIL: z.string().trim().toLowerCase().email(),
-    DEMO_USER_DISPLAY_NAME: z.string().trim().min(1).max(80),
-    DEMO_USER_PASSWORD: z.string().min(12).max(128),
     UPSTASH_REDIS_REST_URL: optionalUrlSchema,
     UPSTASH_REDIS_REST_TOKEN: optionalStringSchema,
     R2_ACCOUNT_ID: optionalStringSchema,
@@ -128,12 +125,26 @@ const envSchema = z
       .positive()
       .max(3600)
       .default(300),
+    R2_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(3_000),
+    R2_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(15_000),
+    SERVER_HEADERS_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(15_000),
+    SERVER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+    SERVER_KEEP_ALIVE_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5_000),
+    OPERATIONS_BEARER_TOKEN: optionalStringSchema.pipe(z.string().min(32).optional()),
     SENTRY_DSN: optionalUrlSchema,
     SENTRY_ENVIRONMENT: optionalStringSchema,
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
     SENTRY_ENABLE_DEBUG_ROUTE: booleanStringSchema.default(false)
   })
   .superRefine((value, context) => {
+    if (value.SERVER_HEADERS_TIMEOUT_MS <= value.SERVER_KEEP_ALIVE_TIMEOUT_MS) {
+      context.addIssue({
+        code: "custom",
+        path: ["SERVER_HEADERS_TIMEOUT_MS"],
+        message: "Must be greater than SERVER_KEEP_ALIVE_TIMEOUT_MS"
+      });
+    }
+
     if (value.NODE_ENV !== "production") {
       return;
     }
@@ -157,7 +168,8 @@ const envSchema = z
       "R2_SECRET_ACCESS_KEY",
       "R2_BUCKET_NAME",
       "R2_PUBLIC_BASE_URL",
-      "SENTRY_DSN"
+      "SENTRY_DSN",
+      "OPERATIONS_BEARER_TOKEN"
     ] as const;
 
     for (const field of productionRequiredFields) {

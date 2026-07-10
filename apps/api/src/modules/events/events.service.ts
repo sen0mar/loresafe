@@ -28,6 +28,7 @@ export type EventSubscription = {
 };
 
 export type EventsService = {
+  getStatus?: () => { connectionCount: number; ready: boolean };
   start: () => Promise<void>;
   stop: () => Promise<void>;
   subscribe: (
@@ -150,6 +151,13 @@ export const createEventsService = (
   };
 
   return {
+    getStatus: () => ({
+      connectionCount: [...connectionsByUserId.values()].reduce(
+        (total, connections) => total + connections.size,
+        0
+      ),
+      ready: started
+    }),
     start: async () => {
       if (started) {
         return;

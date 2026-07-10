@@ -1,0 +1,21 @@
+version: 1
+checks:
+  - name: api-liveness
+    url: https://api.loresafe.org/api/health
+    interval: 60s
+    timeout: 5s
+    expectedStatus: 200
+    expectedJson:
+      status: ok
+  - name: api-readiness
+    url: https://api.loresafe.org/api/health/ready
+    interval: 60s
+    timeout: 10s
+    expectedStatus: 200
+    expectedJson:
+      status: ready
+  - name: public-home
+    url: https://www.loresafe.org/
+    interval: 300s
+    timeout: 10s
+    expectedStatus: 200

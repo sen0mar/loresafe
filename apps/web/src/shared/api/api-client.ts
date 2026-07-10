@@ -32,10 +32,12 @@ export class ApiError extends Error {
 }
 
 export const apiGet = async <TResponse,>(
-  path: string
+  path: string,
+  options?: ApiRequestOptions
 ): Promise<TResponse> => {
   return apiRequest<TResponse>(path, {
-    method: "GET"
+    method: "GET",
+    ...options
   });
 };
 
@@ -77,11 +79,13 @@ export const apiPut = async <TResponse, TBody = unknown>(
 
 export const apiDelete = async <TResponse, TBody = unknown>(
   path: string,
-  body?: TBody
+  body?: TBody,
+  options?: ApiRequestOptions
 ): Promise<TResponse> => {
   return apiRequest<TResponse>(path, {
     method: "DELETE",
-    body
+    body,
+    ...options
   });
 };
 
@@ -91,11 +95,17 @@ const apiRequest = async <TResponse,>(
     method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
     body?: unknown;
     headers?: Record<string, string>;
+    signal?: AbortSignal;
+    timeoutMs?: number;
   },
   allowSessionRefresh = true
 ): Promise<TResponse> => {
   let response: Response;
   const hasBody = options.body !== undefined;
+  const requestDeadline = createRequestDeadline(
+    options.signal,
+    options.timeoutMs ?? getDefaultTimeoutMs(options.method)
+  );
 
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
@@ -107,13 +117,27 @@ const apiRequest = async <TResponse,>(
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...options.headers
       },
-      body: hasBody ? JSON.stringify(options.body) : undefined
+      body: hasBody ? JSON.stringify(options.body) : undefined,
+      signal: requestDeadline.signal
     });
   } catch (error) {
+    if (requestDeadline.didTimeOut()) {
+      throw new ApiError("The request timed out. Please try again.", {
+        code: "REQUEST_TIMEOUT",
+        cause: error
+      });
+    }
+
+    if (options.signal?.aborted) {
+      throw error;
+    }
+
     throw new ApiError(
       "Could not reach the LoreSafe API. Check that the API server is running.",
       { cause: error }
     );
+  } finally {
+    requestDeadline.clear();
   }
 
   if (
@@ -121,7 +145,7 @@ const apiRequest = async <TResponse,>(
     allowSessionRefresh &&
     shouldAttemptSessionRefresh(path)
   ) {
-    const refreshed = await refreshAccessSession();
+    const refreshed = await refreshAccessSession(options.signal);
 
     if (refreshed) {
       return apiRequest<TResponse>(path, options, false);
@@ -157,11 +181,16 @@ const shouldAttemptSessionRefresh = (path: string) =>
     "/api/auth/signup"
   ].includes(path);
 
-const refreshAccessSession = () => {
+const refreshAccessSession = (signal?: AbortSignal) => {
+  if (signal?.aborted) {
+    return Promise.resolve(false);
+  }
+
   refreshRequest ??= fetch(`${apiBaseUrl}/api/auth/refresh`, {
     method: "POST",
     credentials: "include",
-    headers: { Accept: "application/json" }
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10_000)
   })
     .then((response) => response.ok)
     .catch(() => false)
@@ -174,6 +203,43 @@ const refreshAccessSession = () => {
 
 type ApiRequestOptions = {
   headers?: Record<string, string>;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
+
+const defaultReadTimeoutMs = 15_000;
+const defaultWriteTimeoutMs = 20_000;
+
+const getDefaultTimeoutMs = (method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT") =>
+  method === "GET" ? defaultReadTimeoutMs : defaultWriteTimeoutMs;
+
+const createRequestDeadline = (
+  callerSignal: AbortSignal | undefined,
+  timeoutMs: number
+) => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(callerSignal?.reason);
+
+  if (callerSignal?.aborted) {
+    abortFromCaller();
+  } else {
+    callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  }
+
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort(new DOMException("Request timed out", "TimeoutError"));
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    didTimeOut: () => timedOut,
+    clear: () => {
+      clearTimeout(timeout);
+      callerSignal?.removeEventListener("abort", abortFromCaller);
+    }
+  };
 };
 
 const readJson = async (response: Response): Promise<unknown> => {

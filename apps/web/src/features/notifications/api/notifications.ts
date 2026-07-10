@@ -70,7 +70,8 @@ export const notificationsQueryKeys = {
 
 export const getNotifications = (
   cursor: string | null = null,
-  limit = 20
+  limit = 20,
+  signal?: AbortSignal
 ) => {
   const params = new URLSearchParams({
     limit: String(limit)
@@ -80,7 +81,9 @@ export const getNotifications = (
     params.set("cursor", cursor);
   }
 
-  return apiGet<NotificationsResponse>(`/api/notifications?${params}`);
+  return apiGet<NotificationsResponse>(`/api/notifications?${params}`, {
+    signal
+  });
 };
 
 export const markNotificationRead = (notificationId: string) =>
@@ -105,7 +108,7 @@ export const deleteAllNotifications = () =>
 export const useNotificationsInfiniteQuery = () =>
   useInfiniteQuery({
     queryKey: notificationsQueryKeys.list,
-    queryFn: ({ pageParam }) => getNotifications(pageParam, 20),
+    queryFn: ({ pageParam, signal }) => getNotifications(pageParam, 20, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor
   });
@@ -113,7 +116,7 @@ export const useNotificationsInfiniteQuery = () =>
 export const useUnreadNotificationsQuery = (enabled = true) =>
   useQuery({
     queryKey: notificationsQueryKeys.unread,
-    queryFn: () => getNotifications(null, 1),
+    queryFn: ({ signal }) => getNotifications(null, 1, signal),
     enabled
   });
 

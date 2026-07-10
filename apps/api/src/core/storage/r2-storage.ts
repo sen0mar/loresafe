@@ -1,6 +1,7 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client
@@ -26,6 +27,7 @@ export type StoredObjectMetadata = {
 };
 
 export type ObjectStorage = {
+  checkReady?: () => Promise<void>;
   createPresignedRead: (objectKey: string) => Promise<PresignedRead>;
   createPresignedUpload: (input: {
     contentLength: number;
@@ -42,6 +44,10 @@ const r2Client = new S3Client({
   region: "auto",
   endpoint: `https://${env.R2_ACCOUNT_ID ?? ""}.r2.cloudflarestorage.com`,
   requestChecksumCalculation: "WHEN_REQUIRED",
+  requestHandler: {
+    connectionTimeout: env.R2_CONNECTION_TIMEOUT_MS,
+    requestTimeout: env.R2_REQUEST_TIMEOUT_MS
+  },
   credentials: {
     accessKeyId: env.R2_ACCESS_KEY_ID ?? "",
     secretAccessKey: env.R2_SECRET_ACCESS_KEY ?? ""
@@ -49,6 +55,10 @@ const r2Client = new S3Client({
 });
 
 export const r2Storage: ObjectStorage = {
+  checkReady: async () => {
+    await r2Client.send(new HeadBucketCommand({ Bucket: env.R2_BUCKET_NAME }));
+  },
+
   createPresignedRead: async (objectKey) => {
     const command = new GetObjectCommand({
       Bucket: env.R2_BUCKET_NAME,

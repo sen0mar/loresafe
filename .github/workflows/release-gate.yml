@@ -52,9 +52,6 @@ jobs:
       APP_NAME: LoreSafe CI
       CLIENT_ORIGIN: http://localhost:5173
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
-      DEMO_USER_DISPLAY_NAME: CI Reader
-      DEMO_USER_EMAIL: ci-reader@example.com
-      DEMO_USER_PASSWORD: ci-only-password
       EVENTS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
       JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
       NODE_ENV: test

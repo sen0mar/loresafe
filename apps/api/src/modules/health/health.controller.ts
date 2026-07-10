@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 
 import { env } from "../../config/env.js";
+import { checkReadiness, type ReadinessDependencies } from "./readiness.service.js";
 
 export type HealthResponse = {
   appName: string;
@@ -16,4 +17,15 @@ export const getHealth: RequestHandler = (_req, res) => {
   };
 
   res.json(response);
+};
+
+export const createGetReadiness = (
+  dependencies?: ReadinessDependencies
+): RequestHandler => async (_req, res) => {
+  const result = await checkReadiness(dependencies);
+
+  res.status(result.status === "ready" ? 200 : 503).json({
+    ...result,
+    timestamp: new Date().toISOString()
+  });
 };

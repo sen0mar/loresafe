@@ -80,11 +80,13 @@ export const searchQueryKeys = {
 export const getSearchResults = ({
   cursor,
   filters,
-  query
+  query,
+  signal
 }: {
   cursor: string | null;
   filters: SearchFilter[];
   query: string;
+  signal?: AbortSignal;
 }) => {
   const params = new URLSearchParams({
     q: query,
@@ -99,7 +101,7 @@ export const getSearchResults = ({
     params.set("cursor", cursor);
   }
 
-  return apiGet<SearchResponse>(`/api/search?${params}`);
+  return apiGet<SearchResponse>(`/api/search?${params}`, { signal });
 };
 
 export const useSearchResultsInfiniteQuery = (
@@ -108,11 +110,12 @@ export const useSearchResultsInfiniteQuery = (
 ) =>
   useInfiniteQuery({
     queryKey: searchQueryKeys.results(query, filters),
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam, signal }) =>
       getSearchResults({
         query,
         filters,
-        cursor: pageParam
+        cursor: pageParam,
+        signal
       }),
     enabled: query.trim().length > 0,
     initialPageParam: null as string | null,

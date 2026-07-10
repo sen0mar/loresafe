@@ -19,12 +19,13 @@ import {
 } from "./reports.dto.js";
 import { canModerateReports, canReportTarget } from "./reports.policy.js";
 import {
-  reportsRepository,
   type ModerationClubAccessRecord,
   type ModerationReportsCursor,
   type ReportsRepository,
   type ReportTargetRecord
 } from "./reports.repository.js";
+import { reportsQueryRepository } from "./reports-query.repository.js";
+import { reportsCommandRepository } from "./reports-command.repository.js";
 import type {
   CreateReportRequest,
   ListModerationReportsQuery,
@@ -88,7 +89,10 @@ export type ReportsService = {
 };
 
 export const createReportsService = (
-  repository: ReportsRepository = reportsRepository,
+  repository: ReportsRepository = {
+    ...reportsQueryRepository,
+    ...reportsCommandRepository
+  },
   eventPublisher: EventsService = eventsService
 ): ReportsService => ({
   createReport: async (userId, input) => {

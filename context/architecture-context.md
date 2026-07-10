@@ -269,6 +269,9 @@ Release gate:
 - The PostgreSQL integration suite runs separately through
   `pnpm test:integration:database` and must use a direct/session database URL so
   LISTEN/NOTIFY coverage is meaningful.
+- Operational liveness/readiness, metrics, alert/synthetic expectations, backup
+  retention, restore drills, incident response, and rollback procedures are
+  versioned in `context/operations-runbook.md` and `infra/monitoring/`.
 
 Environment variables must be validated at startup. Required groups:
 

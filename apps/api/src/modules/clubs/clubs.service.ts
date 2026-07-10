@@ -24,13 +24,14 @@ import {
 } from "./clubs.dto.js";
 import {
   type ClubBanMutationResult,
-  clubsRepository,
   type ClubMemberMutationResult,
   type LeaveClubResult,
   type ClubSettingsMutationResult,
   isUniqueConstraintError,
   type ClubsRepository
 } from "./clubs.repository.js";
+import { clubsQueryRepository } from "./clubs-query.repository.js";
+import { clubsCommandRepository } from "./clubs-command.repository.js";
 import { bannedFromClubError } from "./club-bans.js";
 import type {
   BanClubMemberRequest,
@@ -109,7 +110,10 @@ export type ClubsService = {
 };
 
 export const createClubsService = (
-  repository: ClubsRepository = clubsRepository
+  repository: ClubsRepository = {
+    ...clubsQueryRepository,
+    ...clubsCommandRepository
+  }
 ): ClubsService => ({
   createClub: async (userId, input) => {
     const existingClub = await repository.findClubByLinkName(input.linkName);

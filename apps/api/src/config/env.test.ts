@@ -7,9 +7,6 @@ const baseEnv = {
   APP_NAME: "LoreSafe",
   CLIENT_ORIGIN: "http://localhost:5173",
   DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
-  DEMO_USER_DISPLAY_NAME: "Demo Reader",
-  DEMO_USER_EMAIL: "demo@example.com",
-  DEMO_USER_PASSWORD: "correct horse battery",
   JWT_SECRET: "a".repeat(32)
 } satisfies NodeJS.ProcessEnv;
 
@@ -22,6 +19,7 @@ const productionServiceEnv = {
   R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
   R2_SECRET_ACCESS_KEY: "r2-secret-key",
   SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+  OPERATIONS_BEARER_TOKEN: "o".repeat(32),
   TRUST_PROXY_CIDRS: "loopback,linklocal,uniquelocal",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
   UPSTASH_REDIS_REST_URL: "https://redis.example"
@@ -153,6 +151,9 @@ describe("env validation", () => {
     expect(env.EVENTS_DATABASE_URL).toBe(baseEnv.DATABASE_URL);
     expect(env.SESSION_COOKIE_SECURE).toBe(false);
     expect(env.TRUST_PROXY_CIDRS).toEqual([]);
+    expect(env).not.toHaveProperty("DEMO_USER_EMAIL");
+    expect(env).not.toHaveProperty("DEMO_USER_DISPLAY_NAME");
+    expect(env).not.toHaveProperty("DEMO_USER_PASSWORD");
   });
 
   it("normalizes the public site origin", () => {

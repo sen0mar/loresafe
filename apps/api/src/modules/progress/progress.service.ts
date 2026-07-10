@@ -10,10 +10,11 @@ import {
   toRecentlyUnlockedResponse
 } from "./progress.dto.js";
 import {
-  progressRepository,
   type ProgressRepository,
   type RecentlyUnlockedCursor
 } from "./progress.repository.js";
+import { progressQueryRepository } from "./progress-query.repository.js";
+import { progressCommandRepository } from "./progress-command.repository.js";
 import type {
   RecentlyUnlockedQuery,
   UpdateProgressRequest
@@ -49,7 +50,10 @@ export type ProgressService = {
 };
 
 export const createProgressService = (
-  repository: ProgressRepository = progressRepository,
+  repository: ProgressRepository = {
+    ...progressQueryRepository,
+    ...progressCommandRepository
+  },
   storage: Pick<ObjectStorage, "createPresignedRead"> = r2Storage
 ): ProgressService => ({
   advanceProgressToNextMilestoneForClubLinkName: async (

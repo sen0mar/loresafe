@@ -1,0 +1,607 @@
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
+import { Link } from "react-router-dom";
+import {
+  ChevronDown,
+  Clock3,
+  Image,
+  LockKeyhole,
+  LockKeyholeOpen,
+  MessageSquareText,
+  PlusCircle,
+  RefreshCw,
+  Sparkles,
+  UserCircle
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { ApiError } from "@/shared/api/api-client";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/shared/components/ui/dialog";
+import { Input } from "@/shared/components/ui/input";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { cn } from "@/shared/lib/utils";
+
+import {
+  type Club,
+  type ClubFeedTab as ClubFeedTabValue,
+  type ClubMilestone,
+  type ClubPostCounts,
+  type ClubPostCard,
+  type ClubPostPrediction,
+  type PostType,
+  postReactionEmojis,
+  useClubMilestonesQuery,
+  useClubPostsInfiniteQuery,
+  useClubProgressQuery,
+  useCreateClubPostMutation,
+  useTogglePostReactionMutation
+} from "../api/clubs.js";
+import { usePostUnlockAnimation } from "../hooks/use-post-unlock-animation.js";
+import {
+  createPostSchema,
+  type CreatePostFormValues
+} from "../schemas/create-post.schema.js";
+import { ReactionButtonGroup } from "./reaction-button-group.js";
+import { ReportDialog } from "./report-dialog.js";
+import { PostImageUploadField } from "./post-image-upload-field.js";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { DeletePostDialog } from "./delete-content-dialog.js";
+
+type ClubFeedTabProps = {
+  club: Club;
+};
+
+type PostDetailLinkState = {
+  returnLabel: string;
+  returnTo: string;
+};
+
+const postTypeLabels: Record<PostType, string> = {
+  DISCUSSION: "Discussion",
+  QUESTION: "Question",
+  THEORY: "Theory",
+  PREDICTION: "Prediction",
+  POLL: "Poll",
+  REACTION: "Reaction",
+  REVIEW: "Review",
+  IMAGE_MEME: "Image/meme",
+  QUOTE_COMMENTARY: "Quote",
+  JUST_REACHED: "Just reached"
+};
+
+const countFormatter = new Intl.NumberFormat();
+
+const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
+  UNRESOLVED: "Unresolved",
+  CORRECT: "Correct",
+  WRONG: "Wrong",
+  PARTIAL: "Partial"
+};
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+
+const getDefaultPostValues = (): CreatePostFormValues => ({
+  title: "",
+  body: "",
+  type: "DISCUSSION",
+  requiredMilestoneId: "",
+  mediaAssetId: undefined
+});
+
+const formatMilestoneOption = (milestone: ClubMilestone) =>
+  `${milestone.position}. ${milestone.fullTitle ?? milestone.safeTitle}`;
+
+const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
+  {
+    value: "safe",
+    label: "Safe"
+  },
+  {
+    value: "unanswered",
+    label: "Unanswered"
+  },
+  {
+    value: "locked",
+    label: "Locked"
+  },
+  {
+    value: "all",
+    label: "All"
+  },
+  {
+    value: "my-posts",
+    label: "My posts"
+  }
+];
+
+export const FeedToolbar = ({
+  action,
+  activeTab,
+  onTabChange
+}: {
+  action: ReactNode;
+  activeTab: ClubFeedTabValue;
+  onTabChange: (tab: ClubFeedTabValue) => void;
+}) => (
+  <div className="flex min-h-10 min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Tabs
+      className="min-w-0 max-w-full"
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as ClubFeedTabValue)}
+    >
+      <TabsList className="w-full sm:w-fit">
+        {feedTabs.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+    <div className="flex shrink-0">{action}</div>
+  </div>
+);
+
+export const CreatePostDialog = ({
+  club
+}: {
+  club: Club;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<CreatePostFormValues>(
+    getDefaultPostValues()
+  );
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof CreatePostFormValues, string>>
+  >({});
+  const [hasPendingImage, setHasPendingImage] = useState(false);
+  const milestonesQuery = useClubMilestonesQuery(club.linkName, 1, open);
+  const createPostMutation = useCreateClubPostMutation(club.linkName);
+  const milestones = milestonesQuery.data?.milestones ?? [];
+  const isSaving = createPostMutation.isPending;
+  const canSubmit =
+    !isSaving &&
+    !hasPendingImage &&
+    !milestonesQuery.isPending &&
+    milestones.length > 0;
+  const selectedRequiredMilestone = milestones.find(
+    (milestone) => milestone.id === values.requiredMilestoneId
+  );
+  const eligibleRevealMilestones = selectedRequiredMilestone
+    ? milestones.filter(
+        (milestone) => milestone.position >= selectedRequiredMilestone.position
+      )
+    : milestones;
+
+  useEffect(() => {
+    if (!open || milestones.length === 0) {
+      return;
+    }
+
+    setValues((currentValues) => {
+      if (
+        currentValues.requiredMilestoneId &&
+        milestones.some(
+          (milestone) => milestone.id === currentValues.requiredMilestoneId
+        )
+      ) {
+        if (currentValues.type !== "PREDICTION") {
+          return currentValues;
+        }
+
+        const requiredMilestone = milestones.find(
+          (milestone) => milestone.id === currentValues.requiredMilestoneId
+        );
+
+        return {
+          ...currentValues,
+          prediction: {
+            revealMilestoneId: chooseRevealMilestoneId({
+              currentRevealMilestoneId:
+                currentValues.prediction?.revealMilestoneId,
+              milestones,
+              requiredMilestone
+            })
+          }
+        };
+      }
+
+      const requiredMilestone = milestones[0];
+
+      return {
+        ...currentValues,
+        requiredMilestoneId: requiredMilestone?.id ?? "",
+        prediction:
+          currentValues.type === "PREDICTION"
+            ? {
+                revealMilestoneId: chooseRevealMilestoneId({
+                  currentRevealMilestoneId:
+                    currentValues.prediction?.revealMilestoneId,
+                  milestones,
+                  requiredMilestone
+                })
+              }
+            : undefined
+      };
+    });
+  }, [milestones, open]);
+
+  const updateTextValue =
+    (field: "body" | "title") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setValues((currentValues) => ({
+        ...currentValues,
+        [field]: event.target.value
+      }));
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: undefined
+      }));
+    };
+
+  const updatePostType = (event: ChangeEvent<HTMLSelectElement>) => {
+    const type = event.target.value as PostType;
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      type,
+      prediction:
+        type === "PREDICTION"
+          ? {
+              revealMilestoneId:
+                currentValues.prediction?.revealMilestoneId ||
+                currentValues.requiredMilestoneId ||
+                milestones[0]?.id ||
+                ""
+            }
+          : undefined
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      type: undefined,
+      prediction: undefined
+    }));
+  };
+
+  const updateMilestone = (event: ChangeEvent<HTMLSelectElement>) => {
+    const requiredMilestoneId = event.target.value;
+    const requiredMilestone = milestones.find(
+      (milestone) => milestone.id === requiredMilestoneId
+    );
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      requiredMilestoneId,
+      prediction:
+        currentValues.type === "PREDICTION"
+          ? {
+              revealMilestoneId: chooseRevealMilestoneId({
+                currentRevealMilestoneId:
+                  currentValues.prediction?.revealMilestoneId,
+                milestones,
+                requiredMilestone
+              })
+            }
+          : undefined
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      requiredMilestoneId: undefined,
+      prediction: undefined
+    }));
+  };
+
+  const updatePredictionRevealMilestone = (
+    event: ChangeEvent<HTMLSelectElement>
+  ) => {
+    setValues((currentValues) => ({
+      ...currentValues,
+      prediction: {
+        revealMilestoneId: event.target.value
+      }
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      prediction: undefined
+    }));
+  };
+
+  const updateMediaAsset = (mediaAssetId: string | undefined) => {
+    setValues((currentValues) => ({
+      ...currentValues,
+      mediaAssetId
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      mediaAssetId: undefined
+    }));
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (!nextOpen && !isSaving) {
+      setValues(getDefaultPostValues());
+      setErrors({});
+      setHasPendingImage(false);
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parseResult = createPostSchema.safeParse(values);
+
+    if (!parseResult.success) {
+      const fieldErrors = parseResult.error.flatten().fieldErrors;
+
+      setErrors({
+        title: fieldErrors.title?.[0],
+        body: fieldErrors.body?.[0],
+        type: fieldErrors.type?.[0],
+        requiredMilestoneId: fieldErrors.requiredMilestoneId?.[0],
+        mediaAssetId: fieldErrors.mediaAssetId?.[0],
+        prediction: fieldErrors.prediction?.[0]
+      });
+      return;
+    }
+
+    createPostMutation.mutate(parseResult.data, {
+      onSuccess: () => {
+        toast.success("Post created");
+        setOpen(false);
+        setValues(getDefaultPostValues());
+        setErrors({});
+        setHasPendingImage(false);
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : "Could not create post. Try again."
+        );
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm">
+          <PlusCircle />
+          New post
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create post</DialogTitle>
+          <DialogDescription>
+            Start a spoiler-safe discussion tied to a club milestone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <PostFormField
+            id="post-title"
+            label="Title"
+            error={errors.title}
+          >
+            <Input
+              id="post-title"
+              value={values.title}
+              onChange={updateTextValue("title")}
+              disabled={isSaving}
+              maxLength={160}
+              aria-invalid={!!errors.title}
+              aria-describedby={errors.title ? "post-title-error" : undefined}
+              placeholder="Opening thoughts"
+            />
+          </PostFormField>
+
+          <PostFormField id="post-body" label="Body" error={errors.body}>
+            <Textarea
+              id="post-body"
+              value={values.body}
+              onChange={updateTextValue("body")}
+              disabled={isSaving}
+              maxLength={8000}
+              rows={5}
+              aria-invalid={!!errors.body}
+              aria-describedby={errors.body ? "post-body-error" : undefined}
+              placeholder="What do you want to discuss?"
+            />
+          </PostFormField>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PostFormField id="post-type" label="Type" error={errors.type}>
+              <select
+                id="post-type"
+                value={values.type}
+                onChange={updatePostType}
+                disabled={isSaving}
+                className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                aria-invalid={!!errors.type}
+                aria-describedby={errors.type ? "post-type-error" : undefined}
+              >
+                {Object.entries(postTypeLabels).map(([type, label]) => (
+                  <option key={type} value={type}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </PostFormField>
+
+            <PostFormField
+              id="post-required-milestone"
+              label="Required milestone"
+              error={errors.requiredMilestoneId}
+            >
+              <select
+                id="post-required-milestone"
+                value={values.requiredMilestoneId}
+                onChange={updateMilestone}
+                disabled={isSaving || milestonesQuery.isPending}
+                className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                aria-invalid={!!errors.requiredMilestoneId}
+                aria-describedby={
+                  errors.requiredMilestoneId
+                    ? "post-required-milestone-error"
+                    : undefined
+                }
+              >
+                <option value="">
+                  {milestonesQuery.isPending
+                    ? "Loading milestones..."
+                    : "Choose milestone"}
+                </option>
+                {milestones.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>
+                    {formatMilestoneOption(milestone)}
+                  </option>
+                ))}
+              </select>
+            </PostFormField>
+          </div>
+
+          {values.type === "PREDICTION" ? (
+            <div className="rounded-lg border border-default bg-inset p-3">
+              <PostFormField
+                id="post-prediction-reveal-milestone"
+                label="Reveal milestone"
+                error={errors.prediction}
+              >
+                <select
+                  id="post-prediction-reveal-milestone"
+                  value={values.prediction?.revealMilestoneId ?? ""}
+                  onChange={updatePredictionRevealMilestone}
+                  disabled={isSaving || milestonesQuery.isPending}
+                  className="h-10 w-full rounded-md border border-subtle bg-inset px-3 text-sm text-primary outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-invalid={!!errors.prediction}
+                  aria-describedby={
+                    errors.prediction
+                      ? "post-prediction-reveal-milestone-error"
+                      : undefined
+                  }
+                >
+                  <option value="">Choose reveal milestone</option>
+                  {eligibleRevealMilestones.map((milestone) => (
+                    <option key={milestone.id} value={milestone.id}>
+                      {formatMilestoneOption(milestone)}
+                    </option>
+                  ))}
+                </select>
+              </PostFormField>
+            </div>
+          ) : null}
+
+          <PostImageUploadField
+            clubLinkName={club.linkName}
+            disabled={isSaving}
+            onAssetChange={updateMediaAsset}
+            onPendingImageChange={setHasPendingImage}
+          />
+
+          {milestonesQuery.isError ? (
+            <p className="text-sm text-warning">
+              Could not load milestones. Close this dialog and try again.
+            </p>
+          ) : null}
+
+          {milestonesQuery.isSuccess && milestones.length === 0 ? (
+            <p className="text-sm text-muted">
+              Add a milestone before creating posts.
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" disabled={isSaving}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={!canSubmit}>
+              {isSaving
+                ? "Creating..."
+                : hasPendingImage
+                  ? "Upload image first"
+                  : "Create post"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const PostFormField = ({
+  children,
+  error,
+  id,
+  label
+}: {
+  children: ReactNode;
+  error?: string;
+  id: string;
+  label: string;
+}) => (
+  <label className="grid gap-2 text-sm font-medium text-secondary" htmlFor={id}>
+    {label}
+    {children}
+    {error ? (
+      <span id={`${id}-error`} className="text-xs font-normal text-warning">
+        {error}
+      </span>
+    ) : null}
+  </label>
+);
+
+const chooseRevealMilestoneId = ({
+  currentRevealMilestoneId,
+  milestones,
+  requiredMilestone
+}: {
+  currentRevealMilestoneId?: string;
+  milestones: ClubMilestone[];
+  requiredMilestone?: ClubMilestone;
+}) => {
+  const eligibleMilestones = requiredMilestone
+    ? milestones.filter(
+        (milestone) => milestone.position >= requiredMilestone.position
+      )
+    : milestones;
+
+  if (
+    currentRevealMilestoneId &&
+    eligibleMilestones.some(
+      (milestone) => milestone.id === currentRevealMilestoneId
+    )
+  ) {
+    return currentRevealMilestoneId;
+  }
+
+  return eligibleMilestones[0]?.id ?? "";
+};

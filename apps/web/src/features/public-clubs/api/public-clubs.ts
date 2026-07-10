@@ -51,16 +51,18 @@ export const publicClubsQueryKeys = {
 export const usePublicSeoClubsQuery = (input: PublicClubsQueryInput) =>
   useQuery({
     queryKey: publicClubsQueryKeys.list(input),
-    queryFn: () => apiGet<PublicClubsResponse>(getPublicClubsPath(input))
+    queryFn: ({ signal }) =>
+      apiGet<PublicClubsResponse>(getPublicClubsPath(input), { signal })
   });
 
 export const usePublicSeoClubQuery = (linkName: string | undefined) =>
   useQuery({
     enabled: !!linkName,
     queryKey: publicClubsQueryKeys.detail(linkName),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiGet<PublicClubResponse>(
-        `/api/public/clubs/${encodeURIComponent(linkName ?? "")}`
+        `/api/public/clubs/${encodeURIComponent(linkName ?? "")}`,
+        { signal }
       )
   });
 

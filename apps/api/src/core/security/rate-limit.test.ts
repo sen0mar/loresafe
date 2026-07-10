@@ -101,8 +101,8 @@ describe("rate limit defaults", () => {
       },
       "events-connections": {
         limit: 30,
-        skipSuccessfulRequests: undefined,
-        storePrefix: "loresafe:rl:events:connections:",
+        skipSuccessfulRequests: true,
+        storePrefix: "loresafe:rl:events:connections:v2:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-create": {

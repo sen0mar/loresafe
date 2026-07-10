@@ -44,40 +44,67 @@ export type CompletePublicAssetUploadResponse = {
   asset: FileAsset;
 };
 
+export type UploadCancellation = {
+  cancel: () => void;
+  promise: Promise<void>;
+};
+
+const uploadTimeoutMs = 2 * 60 * 1000;
+
 export const createPublicAssetUpload = (
-  input: CreatePublicAssetUploadInput
+  input: CreatePublicAssetUploadInput,
+  options?: { signal?: AbortSignal }
 ) =>
   apiPost<CreatePublicAssetUploadResponse, CreatePublicAssetUploadInput>(
     "/api/uploads/public-assets",
-    input
+    input,
+    options
   );
 
-export const completePublicAssetUpload = (assetId: string) =>
+export const completePublicAssetUpload = (
+  assetId: string,
+  options?: { signal?: AbortSignal }
+) =>
   apiPost<CompletePublicAssetUploadResponse>(
-    `/api/uploads/${assetId}/complete`
+    `/api/uploads/${assetId}/complete`,
+    undefined,
+    options
   );
 
-export const createPostImageUpload = (input: CreatePostImageUploadInput) =>
+export const createPostImageUpload = (
+  input: CreatePostImageUploadInput,
+  options?: { signal?: AbortSignal }
+) =>
   apiPost<CreatePostImageUploadResponse, CreatePostImageUploadInput>(
     "/api/uploads/post-images",
-    input
+    input,
+    options
   );
 
 export const uploadFileToPresignedUrl = ({
   file,
   headers,
   onProgress,
+  signal,
   url
 }: {
   file: File;
   headers: Record<string, string>;
   onProgress: (progress: number) => void;
+  signal?: AbortSignal;
   url: string;
-}) =>
-  new Promise<void>((resolve, reject) => {
-    const request = new XMLHttpRequest();
+}): UploadCancellation => {
+  const request = new XMLHttpRequest();
+  const cancel = () => request.abort();
+  const promise = new Promise<void>((resolve, reject) => {
+    const abortFromSignal = () => cancel();
+    const finish = (callback: () => void) => {
+      signal?.removeEventListener("abort", abortFromSignal);
+      callback();
+    };
 
     request.open("PUT", url);
+    request.timeout = uploadTimeoutMs;
 
     for (const [name, value] of Object.entries(headers)) {
       request.setRequestHeader(name, value);
@@ -94,20 +121,33 @@ export const uploadFileToPresignedUrl = ({
     request.onload = () => {
       if (request.status >= 200 && request.status < 300) {
         onProgress(100);
-        resolve();
+        finish(resolve);
         return;
       }
 
-      reject(new Error(`Upload failed with status ${request.status}.`));
+      finish(() => reject(new Error(`Upload failed with status ${request.status}.`)));
     };
 
     request.onerror = () => {
-      reject(new Error("Could not upload the image."));
+      finish(() => reject(new Error("Could not upload the image.")));
     };
 
     request.onabort = () => {
-      reject(new Error("The upload was cancelled."));
+      finish(() => reject(new DOMException("The upload was cancelled.", "AbortError")));
     };
 
+    request.ontimeout = () => {
+      finish(() => reject(new Error("The upload timed out. Please try again.")));
+    };
+
+    if (signal?.aborted) {
+      finish(() => reject(new DOMException("The upload was cancelled.", "AbortError")));
+      return;
+    }
+
+    signal?.addEventListener("abort", abortFromSignal, { once: true });
     request.send(file);
   });
+
+  return { cancel, promise };
+};

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createApp } from "../../app.js";
 import { parseEnv } from "../../config/env.js";
+import type { ReadinessDependencies } from "./readiness.service.js";
 
 describe("health routes", () => {
   const app = createApp();
@@ -19,6 +20,60 @@ describe("health routes", () => {
     );
     expect(response.headers["x-request-id"]).toEqual(expect.any(String));
     expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow");
+  });
+
+  it("reports ready only when every bounded dependency check succeeds", async () => {
+    const readinessApp = createApp(undefined, createReadinessDependencies());
+    const response = await request(readinessApp)
+      .get("/api/health/ready")
+      .expect(200);
+
+    expect(response.body.status).toBe("ready");
+    expect(response.body.checks).toEqual({
+      database: expect.objectContaining({ status: "ready" }),
+      eventTransport: expect.objectContaining({ status: "ready" }),
+      jobWorker: expect.objectContaining({ status: "ready" }),
+      redis: expect.objectContaining({ status: "ready" }),
+      storage: expect.objectContaining({ status: "ready" })
+    });
+  });
+
+  it("keeps operations metrics hidden unless the bearer token matches", async () => {
+    const operationsToken = "o".repeat(32);
+    const operationsApp = createApp(
+      parseEnv({
+        DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
+        JWT_SECRET: "a".repeat(32),
+        OPERATIONS_BEARER_TOKEN: operationsToken
+      })
+    );
+
+    await request(operationsApp).get("/api/health/metrics").expect(404);
+    const response = await request(operationsApp)
+      .get("/api/health/metrics")
+      .set("Authorization", `Bearer ${operationsToken}`)
+      .expect(200);
+
+    expect(response.text).toContain("loresafe_http_requests_total");
+    expect(response.text).toContain("loresafe_sse_connections");
+  });
+
+  it("returns 503 with safe dependency status when readiness is degraded", async () => {
+    const readinessApp = createApp(
+      undefined,
+      createReadinessDependencies({
+        storage: async () => {
+          throw new Error("private storage detail");
+        }
+      })
+    );
+    const response = await request(readinessApp)
+      .get("/api/health/ready")
+      .expect(503);
+
+    expect(response.body.status).toBe("degraded");
+    expect(response.body.checks.storage.status).toBe("unavailable");
+    expect(JSON.stringify(response.body)).not.toContain("private storage detail");
   });
 
   it("allows the Vite fallback dev origin", async () => {
@@ -40,9 +95,6 @@ describe("health routes", () => {
         CLIENT_ORIGINS: "https://app.loresafe.example,https://admin.loresafe.example",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
         EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
-        DEMO_USER_DISPLAY_NAME: "Demo Reader",
-        DEMO_USER_EMAIL: "demo@example.com",
-        DEMO_USER_PASSWORD: "correct horse battery",
         JWT_SECRET: "a".repeat(32),
         NODE_ENV: "production",
         R2_ACCESS_KEY_ID: "r2-access-key",
@@ -51,6 +103,7 @@ describe("health routes", () => {
         R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
         R2_SECRET_ACCESS_KEY: "r2-secret-key",
         SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+        OPERATIONS_BEARER_TOKEN: "o".repeat(32),
         TRUST_PROXY_CIDRS: "loopback",
         UPSTASH_REDIS_REST_TOKEN: "redis-token",
         UPSTASH_REDIS_REST_URL: "https://redis.example"
@@ -86,9 +139,6 @@ describe("health routes", () => {
         CLIENT_ORIGINS: "https://app.loresafe.example",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
         EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
-        DEMO_USER_DISPLAY_NAME: "Demo Reader",
-        DEMO_USER_EMAIL: "demo@example.com",
-        DEMO_USER_PASSWORD: "correct horse battery",
         JWT_SECRET: "a".repeat(32),
         NODE_ENV: "production",
         R2_ACCESS_KEY_ID: "r2-access-key",
@@ -97,6 +147,7 @@ describe("health routes", () => {
         R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
         R2_SECRET_ACCESS_KEY: "r2-secret-key",
         SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+        OPERATIONS_BEARER_TOKEN: "o".repeat(32),
         TRUST_PROXY_CIDRS: "loopback",
         UPSTASH_REDIS_REST_TOKEN: "redis-token",
         UPSTASH_REDIS_REST_URL: "https://redis.example"
@@ -144,4 +195,15 @@ describe("health routes", () => {
       }
     });
   });
+});
+
+const createReadinessDependencies = (
+  overrides: Partial<ReadinessDependencies> = {}
+): ReadinessDependencies => ({
+  database: async () => undefined,
+  eventTransport: async () => undefined,
+  jobWorker: async () => undefined,
+  redis: async () => undefined,
+  storage: async () => undefined,
+  ...overrides
 });

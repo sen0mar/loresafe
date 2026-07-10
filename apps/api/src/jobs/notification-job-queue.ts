@@ -33,6 +33,8 @@ export const notificationBoss = new PgBoss({
   application_name: "loresafe-api-jobs"
 });
 
+let notificationJobQueueReady = false;
+
 notificationBoss.on("error", (error) => {
   logger.error("pg-boss error", {
     error: sanitizeError(error)
@@ -71,13 +73,18 @@ export const startNotificationJobQueue = async () => {
     {},
     notificationJobOptions
   );
+  notificationJobQueueReady = true;
 };
 
-export const stopNotificationJobQueue = () =>
-  notificationBoss.stop({
+export const stopNotificationJobQueue = async () => {
+  notificationJobQueueReady = false;
+  await notificationBoss.stop({
     graceful: true,
     timeout: 10_000
   });
+};
+
+export const isNotificationJobQueueReady = () => notificationJobQueueReady;
 
 export const enqueueCommentCreatedNotificationJob = (
   commentId: string,

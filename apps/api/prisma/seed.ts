@@ -1,13 +1,20 @@
-import { env } from "../src/config/env.js";
+import { PrismaPg } from "@prisma/adapter-pg";
+
 import {
   normalizeNameReservationKey,
   normalizeUsername
 } from "../src/core/identity/user-names.js";
-import { prisma } from "../src/core/prisma/client.js";
 import { hashPassword } from "../src/core/security/password.js";
+import { PrismaClient } from "../src/generated/prisma/client.js";
+import { loadDemoSeedEnv } from "../scripts/demo-seed-env.js";
+
+const seedEnv = loadDemoSeedEnv();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg(seedEnv.DEMO_SEED_DATABASE_URL)
+});
 
 const seedDemoUser = async () => {
-  const email = env.DEMO_USER_EMAIL.toLowerCase();
+  const email = seedEnv.DEMO_USER_EMAIL;
   const existingUser = await prisma.user.findFirst({
     where: {
       email,
@@ -23,19 +30,19 @@ const seedDemoUser = async () => {
     return existingUser;
   }
 
-  const passwordHash = await hashPassword(env.DEMO_USER_PASSWORD);
-  const username = toDemoUsername(env.DEMO_USER_DISPLAY_NAME);
+  const passwordHash = await hashPassword(seedEnv.DEMO_USER_PASSWORD);
+  const username = toDemoUsername(seedEnv.DEMO_USER_DISPLAY_NAME);
   const reservationKeys = Array.from(
     new Set([
       normalizeNameReservationKey(username),
-      normalizeNameReservationKey(env.DEMO_USER_DISPLAY_NAME)
+      normalizeNameReservationKey(seedEnv.DEMO_USER_DISPLAY_NAME)
     ])
   );
 
   const demoUser = await prisma.user.create({
     data: {
       email,
-      displayName: env.DEMO_USER_DISPLAY_NAME,
+      displayName: seedEnv.DEMO_USER_DISPLAY_NAME,
       username,
       passwordHash,
       nameReservations: {

@@ -23,7 +23,8 @@ import {
 } from "./modules/comments/comments.routes.js";
 import { debugRouter } from "./modules/debug/debug.routes.js";
 import { eventsRouter } from "./modules/events/events.routes.js";
-import { healthRouter } from "./modules/health/health.routes.js";
+import { createHealthRouter } from "./modules/health/health.routes.js";
+import type { ReadinessDependencies } from "./modules/health/readiness.service.js";
 import {
   clubInvitesRouter,
   invitesRouter
@@ -44,7 +45,10 @@ import { createSitemapRouter } from "./modules/seo/sitemap.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 
-export const createApp = (appEnv = env) => {
+export const createApp = (
+  appEnv = env,
+  readinessDependencies?: ReadinessDependencies
+) => {
   const app = express();
 
   app.disable("x-powered-by");
@@ -66,7 +70,7 @@ export const createApp = (appEnv = env) => {
   app.use(cookieParser());
 
   app.use("/sitemap.xml", createSitemapRouter(undefined, appEnv));
-  app.use("/api/health", healthRouter);
+  app.use("/api/health", createHealthRouter(readinessDependencies, appEnv));
   app.use("/api/debug", debugRouter);
   app.use("/api/public/clubs", publicClubsRouter);
   app.use("/api/auth", authRouter);

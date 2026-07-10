@@ -18,6 +18,14 @@ export const createUpstashRateLimitStore = (prefix: string) =>
       sendUpstashRateLimitCommand(getUpstashRedis(), command)
   });
 
+export const checkUpstashRedisReady = async () => {
+  const response = await getUpstashRedis().ping();
+
+  if (response !== "PONG") {
+    throw new Error("Redis readiness check returned an unexpected response.");
+  }
+};
+
 export const sendUpstashRateLimitCommand = async (
   client: UpstashRateLimitRedis,
   [rawCommand, ...args]: string[]

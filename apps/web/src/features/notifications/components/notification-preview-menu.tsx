@@ -31,7 +31,7 @@ export const NotificationPreviewMenu = ({
 }: NotificationPreviewMenuProps) => {
   const notificationsQuery = useQuery({
     queryKey: notificationsQueryKeys.preview,
-    queryFn: () => getNotifications(null, previewLimit)
+    queryFn: ({ signal }) => getNotifications(null, previewLimit, signal)
   });
   const notifications = notificationsQuery.data?.notifications ?? [];
 

@@ -138,6 +138,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 132: Production audit hardening 11–15 — Revalidated search/dashboard authorization at final reads, made migration locking fail closed, corrected production R2 CORS, preserved immutable audit attribution through deletion with a committed migration, and closed rate-limit gaps with focused and real PostgreSQL coverage.
 - Feature 133: Production audit hardening 16–20 — Replaced numeric proxy trust with explicit subnet validation, added a versioned CI gate and broader real-PostgreSQL security coverage, bounded dashboard aggregates and popular ranking, and required current-password reauthentication for account deletion.
 - Feature 134: Production audit hardening 21–25 — Added revocable rotating sessions, member-only idempotent reactions, centralized bounded cursors and keyset pagination, stable upload completion retries, committed auth-session migrations, and focused real-PostgreSQL concurrency coverage.
+- Feature 135: Production audit hardening 27–30 — Added cancelable deadline-bound requests/uploads, bounded dependency readiness and protected operational metrics, fail-closed demo seed isolation, and focused frontend/backend module decomposition with recovery documentation and regression coverage.
 
 ## Entry Format
 

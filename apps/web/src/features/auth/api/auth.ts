@@ -28,9 +28,9 @@ export const authQueryKeys = {
   me: ["auth", "me"] as const
 };
 
-export const getMe = async () => {
+export const getMe = async (signal?: AbortSignal) => {
   try {
-    const response = await apiGet<AuthResponse>("/api/auth/me");
+    const response = await apiGet<AuthResponse>("/api/auth/me", { signal });
 
     rememberAuthSessionHint();
 
@@ -58,7 +58,7 @@ export const signup = (input: SignupRequestValues) =>
 export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: authQueryKeys.me,
-    queryFn: getMe,
+    queryFn: ({ signal }) => getMe(signal),
     enabled
   });
 

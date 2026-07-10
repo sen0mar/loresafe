@@ -126,7 +126,9 @@ export const buildSeedCommand = (
     env: {
       ...env,
       DATABASE_URL: databaseUrl,
-      NODE_ENV: "development"
+      NODE_ENV: "development",
+      DEMO_SEED_DATABASE_URL: databaseUrl,
+      DEMO_SEED_CONFIRM: "I_UNDERSTAND_THIS_WRITES_DEMO_DATA"
     },
     stdio: "inherit"
   }

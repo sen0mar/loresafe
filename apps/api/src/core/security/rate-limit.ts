@@ -163,7 +163,10 @@ export const eventConnectionRateLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:events:connections:"),
+  // Closed healthy streams should not consume the reconnect budget for the
+  // entire window; concurrent limits are enforced by eventsService.
+  skipSuccessfulRequests: true,
+  store: createUpstashRateLimitStore("loresafe:rl:events:connections:v2:"),
   identifier: "events-connections",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));

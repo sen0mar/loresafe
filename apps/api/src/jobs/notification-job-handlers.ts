@@ -16,6 +16,7 @@ import {
   type EventsService
 } from "../modules/events/events.service.js";
 import { logger, sanitizeError } from "../core/logging/logger.js";
+import { operationsMetrics } from "../core/monitoring/operations-metrics.js";
 
 const commentCreatedJobSchema = z
   .object({
@@ -178,7 +179,9 @@ export const runLoggedNotificationJob = async (
 ) => {
   try {
     await handler();
+    operationsMetrics.recordJob(jobName, getJobAgeSeconds(job), false);
   } catch (error) {
+    operationsMetrics.recordJob(jobName, getJobAgeSeconds(job), true);
     logger.error("Notification job failed", {
       jobName,
       jobId: job.id,
@@ -187,4 +190,11 @@ export const runLoggedNotificationJob = async (
     });
     throw error;
   }
+};
+
+const getJobAgeSeconds = (job: Job) => {
+  const createdOn = (job as Job & { createdOn?: Date | string }).createdOn;
+  const createdAt = createdOn ? new Date(createdOn).getTime() : Date.now();
+
+  return (Date.now() - createdAt) / 1000;
 };
