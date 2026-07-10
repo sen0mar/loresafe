@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -46,37 +46,18 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import {
   ConfirmNotificationActionDialog,
-  getNotificationRowLayouts,
-  mergeExitingNotifications,
   NotificationRow,
   NotificationsEmpty,
   NotificationsError,
-  NotificationsLoading,
-  prefersReducedMotion
+  NotificationsLoading
 } from "../components/notification-list-sections.js";
+import { useNotificationListMotion } from "../hooks/use-notification-list-motion.js";
 
 const notificationTypeLabels: Record<NotificationItem["type"], string> = {
   POST_COMMENT: "Comment",
   COMMENT_REPLY: "Reply",
   PROGRESS_UNLOCK: "Unlocked",
   MODERATION_WARNING: "Warning"
-};
-
-const notificationDeleteAnimationMs = 460;
-
-type ExitingNotification = {
-  notification: NotificationItem;
-  isAnimationComplete: boolean;
-  isSelected: boolean;
-  isSelecting: boolean;
-  layout: NotificationRowLayout | null;
-};
-
-type NotificationRowLayout = {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
 };
 
 export const NotificationsPage = () => {
@@ -92,27 +73,24 @@ export const NotificationsPage = () => {
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<
     Set<string>
   >(() => new Set());
-  const [exitingNotifications, setExitingNotifications] = useState<
-    Map<string, ExitingNotification>
-  >(() => new Map());
-  const deleteAnimationTimersRef = useRef<Map<string, number>>(new Map());
-  const notificationsRef = useRef<NotificationItem[]>([]);
-  const listElementRef = useRef<HTMLDivElement | null>(null);
-  const rowElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const pendingFlipLayoutsRef = useRef<Map<string, NotificationRowLayout> | null>(
-    null
-  );
   const notifications = useMemo(
     () =>
       notificationsQuery.data?.pages.flatMap((page) => page.notifications) ??
       [],
     [notificationsQuery.data]
   );
-  notificationsRef.current = notifications;
-  const renderedNotifications = useMemo(
-    () => mergeExitingNotifications(notifications, exitingNotifications),
-    [notifications, exitingNotifications]
-  );
+  const {
+    cancelDeletedNotificationAnimation,
+    exitingNotifications,
+    listElementRef,
+    queueDeletedNotificationAnimation,
+    renderedNotifications,
+    setNotificationRowElement
+  } = useNotificationListMotion({
+    isSelecting,
+    notifications,
+    selectedNotificationIds
+  });
   const visibleNotificationIds = useMemo(
     () => notifications.map((notification) => notification.id),
     [notifications]
@@ -142,97 +120,6 @@ export const NotificationsPage = () => {
         : new Set(retainedIds);
     });
   }, [visibleNotificationIds]);
-
-  useEffect(() => {
-    const visibleNotificationIdSet = new Set(visibleNotificationIds);
-
-    setExitingNotifications((currentNotifications) => {
-      let hasRemovedNotification = false;
-      const nextNotifications = new Map(currentNotifications);
-
-      currentNotifications.forEach((exitingNotification, notificationId) => {
-        if (
-          exitingNotification.isAnimationComplete &&
-          !visibleNotificationIdSet.has(notificationId)
-        ) {
-          hasRemovedNotification = true;
-          nextNotifications.delete(notificationId);
-        }
-      });
-
-      return hasRemovedNotification ? nextNotifications : currentNotifications;
-    });
-  }, [visibleNotificationIds]);
-
-  useEffect(
-    () => () => {
-      deleteAnimationTimersRef.current.forEach((timerId) => {
-        window.clearTimeout(timerId);
-      });
-    },
-    []
-  );
-
-  useLayoutEffect(() => {
-    const previousLayouts = pendingFlipLayoutsRef.current;
-
-    pendingFlipLayoutsRef.current = null;
-
-    if (!previousLayouts || prefersReducedMotion()) {
-      return;
-    }
-
-    const currentLayouts = getNotificationRowLayouts(
-      listElementRef.current,
-      rowElementsRef.current
-    );
-    const movingElements: HTMLDivElement[] = [];
-
-    currentLayouts.forEach((currentLayout, notificationId) => {
-      const previousLayout = previousLayouts.get(notificationId);
-      const rowElement = rowElementsRef.current.get(notificationId);
-
-      if (!previousLayout || !rowElement) {
-        return;
-      }
-
-      const deltaX = previousLayout.left - currentLayout.left;
-      const deltaY = previousLayout.top - currentLayout.top;
-
-      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) {
-        return;
-      }
-
-      rowElement.style.transition = "none";
-      rowElement.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
-      rowElement.style.willChange = "transform";
-      movingElements.push(rowElement);
-    });
-
-    if (movingElements.length === 0) {
-      return;
-    }
-
-    const animationFrameId = window.requestAnimationFrame(() => {
-      movingElements.forEach((rowElement) => {
-        rowElement.style.transition =
-          "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)";
-        rowElement.style.transform = "translate3d(0, 0, 0)";
-      });
-    });
-    const cleanupTimerId = window.setTimeout(() => {
-      movingElements.forEach((rowElement) => {
-        rowElement.style.transition = "";
-        rowElement.style.transform = "";
-        rowElement.style.willChange = "";
-      });
-    }, 360);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(cleanupTimerId);
-    };
-  }, [renderedNotifications]);
 
   const refreshNotifications = () => {
     void queryClient.invalidateQueries({
@@ -306,26 +193,23 @@ export const NotificationsPage = () => {
     );
 
     queueDeletedNotificationAnimation(selectedNotifications);
-    deleteSelectedNotificationsMutation.mutate(
-      notificationIds,
-      {
-        onSuccess: (response) => {
-          setSelectedNotificationIds(new Set());
-          setIsSelecting(false);
-          toast.success(
-            response.deletedCount === 0
-              ? "No selected notifications were deleted."
-              : `${response.deletedCount} selected notification${
-                  response.deletedCount === 1 ? "" : "s"
-                } deleted.`
-          );
-        },
-        onError: () => {
-          cancelDeletedNotificationAnimation(notificationIds);
-          toast.error("Could not delete selected notifications.");
-        }
+    deleteSelectedNotificationsMutation.mutate(notificationIds, {
+      onSuccess: (response) => {
+        setSelectedNotificationIds(new Set());
+        setIsSelecting(false);
+        toast.success(
+          response.deletedCount === 0
+            ? "No selected notifications were deleted."
+            : `${response.deletedCount} selected notification${
+                response.deletedCount === 1 ? "" : "s"
+              } deleted.`
+        );
+      },
+      onError: () => {
+        cancelDeletedNotificationAnimation(notificationIds);
+        toast.error("Could not delete selected notifications.");
       }
-    );
+    });
   };
 
   const deleteAllNotifications = () => {
@@ -336,7 +220,9 @@ export const NotificationsPage = () => {
       return;
     }
 
-    const notificationIds = notifications.map((notification) => notification.id);
+    const notificationIds = notifications.map(
+      (notification) => notification.id
+    );
     queueDeletedNotificationAnimation(notifications);
     deleteAllNotificationsMutation.mutate(undefined, {
       onSuccess: (response) => {
@@ -352,101 +238,6 @@ export const NotificationsPage = () => {
         cancelDeletedNotificationAnimation(notificationIds);
         toast.error("Could not delete notifications.");
       }
-    });
-  };
-
-  const queueDeletedNotificationAnimation = (
-    deletedNotifications: NotificationItem[]
-  ) => {
-    if (deletedNotifications.length === 0 || prefersReducedMotion()) {
-      return;
-    }
-
-    const currentLayouts = getNotificationRowLayouts(
-      listElementRef.current,
-      rowElementsRef.current
-    );
-
-    pendingFlipLayoutsRef.current = currentLayouts;
-
-    setExitingNotifications((currentNotifications) => {
-      const nextNotifications = new Map(currentNotifications);
-
-      deletedNotifications.forEach((notification) => {
-        const existingTimerId = deleteAnimationTimersRef.current.get(
-          notification.id
-        );
-
-        if (existingTimerId) {
-          window.clearTimeout(existingTimerId);
-        }
-
-        nextNotifications.set(notification.id, {
-          notification,
-          isAnimationComplete: false,
-          isSelected: selectedNotificationIds.has(notification.id),
-          isSelecting,
-          layout: currentLayouts.get(notification.id) ?? null
-        });
-
-        const timerId = window.setTimeout(() => {
-          deleteAnimationTimersRef.current.delete(notification.id);
-          setExitingNotifications((currentExitingNotifications) => {
-            const exitingNotification = currentExitingNotifications.get(
-              notification.id
-            );
-
-            if (!exitingNotification) {
-              return currentExitingNotifications;
-            }
-
-            const remainingNotifications = new Map(
-              currentExitingNotifications
-            );
-            const isStillInQuery = notificationsRef.current.some(
-              (currentNotification) => currentNotification.id === notification.id
-            );
-
-            if (isStillInQuery) {
-              remainingNotifications.set(notification.id, {
-                ...exitingNotification,
-                isAnimationComplete: true
-              });
-            } else {
-              remainingNotifications.delete(notification.id);
-            }
-
-            return remainingNotifications;
-          });
-        }, notificationDeleteAnimationMs);
-
-        deleteAnimationTimersRef.current.set(notification.id, timerId);
-      });
-
-      return nextNotifications;
-    });
-  };
-
-  const cancelDeletedNotificationAnimation = (notificationIds: string[]) => {
-    if (notificationIds.length === 0) {
-      return;
-    }
-
-    setExitingNotifications((currentNotifications) => {
-      const nextNotifications = new Map(currentNotifications);
-
-      notificationIds.forEach((notificationId) => {
-        const timerId = deleteAnimationTimersRef.current.get(notificationId);
-
-        if (timerId) {
-          window.clearTimeout(timerId);
-          deleteAnimationTimersRef.current.delete(notificationId);
-        }
-
-        nextNotifications.delete(notificationId);
-      });
-
-      return nextNotifications;
     });
   };
 
@@ -486,15 +277,6 @@ export const NotificationsPage = () => {
       return new Set([...currentIds, ...visibleNotificationIds]);
     });
   };
-
-  const setNotificationRowElement =
-    (notificationId: string) => (element: HTMLDivElement | null) => {
-      if (element) {
-        rowElementsRef.current.set(notificationId, element);
-      } else {
-        rowElementsRef.current.delete(notificationId);
-      }
-    };
 
   return (
     <AuthenticatedAppShell>
@@ -657,7 +439,8 @@ export const NotificationsPage = () => {
               <NotificationsError
                 onRetry={() => void notificationsQuery.refetch()}
               />
-            ) : notifications.length === 0 && exitingNotifications.size === 0 ? (
+            ) : notifications.length === 0 &&
+              exitingNotifications.size === 0 ? (
               <NotificationsEmpty />
             ) : (
               <>
@@ -701,9 +484,7 @@ export const NotificationsPage = () => {
                       notification={notification}
                       isExiting={isExiting}
                       isSelecting={isSelecting}
-                      isSelected={selectedNotificationIds.has(
-                        notification.id
-                      )}
+                      isSelected={selectedNotificationIds.has(notification.id)}
                       isMarkingRead={
                         markReadMutation.isPending &&
                         markReadMutation.variables === notification.id

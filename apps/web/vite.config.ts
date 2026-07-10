@@ -39,10 +39,37 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
+    preview: {
+      host: "127.0.0.1",
+      port: 4173,
+      proxy: {
+        "/api": {
+          target: "http://127.0.0.1:3000",
+          changeOrigin: true
+        }
+      }
+    },
     test: {
       environment: "jsdom",
       setupFiles: ["./src/test/setup.ts"],
-      globals: true
+      globals: true,
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json-summary", "lcov"],
+        reportsDirectory: "./coverage",
+        include: [
+          "src/app/**/*.tsx",
+          "src/features/**/api/**/*.{ts,tsx}",
+          "src/features/**/components/**/*.{ts,tsx}"
+        ],
+        exclude: ["**/*.test.{ts,tsx}"],
+        thresholds: {
+          branches: 40,
+          functions: 45,
+          lines: 50,
+          statements: 50
+        }
+      }
     }
   };
 });
@@ -54,9 +81,7 @@ export const createClientEnvDefineValues = (
     publicClientEnvKeys.flatMap((key) => {
       const value = envValues[key];
 
-      return value
-        ? [[`import.meta.env.${key}`, JSON.stringify(value)]]
-        : [];
+      return value ? [[`import.meta.env.${key}`, JSON.stringify(value)]] : [];
     })
   );
 
@@ -73,15 +98,13 @@ const readRootEnvValues = (
     })
   );
 
-const readRootEnvValue = (
-  rootDirectory: string,
-  mode: string,
-  key: string
-) => {
+const readRootEnvValue = (rootDirectory: string, mode: string, key: string) => {
   const envFiles = [".env", `.env.${mode}`];
 
   return envFiles.reduce<string | undefined>((currentValue, fileName) => {
-    const envPath = fileURLToPath(new URL(fileName, `file://${rootDirectory}/`));
+    const envPath = fileURLToPath(
+      new URL(fileName, `file://${rootDirectory}/`)
+    );
 
     if (!existsSync(envPath)) {
       return currentValue;

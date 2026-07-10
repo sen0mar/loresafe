@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { apiGet } from "@/shared/api/api-client";
+import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 import type {
   ClubCategory,
   ClubPostCard,
@@ -119,5 +120,6 @@ export const useSearchResultsInfiniteQuery = (
       }),
     enabled: query.trim().length > 0,
     initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
+    maxPages: RETAINED_INFINITE_QUERY_PAGES
   });

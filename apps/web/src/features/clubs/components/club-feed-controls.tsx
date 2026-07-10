@@ -166,11 +166,7 @@ export const FeedToolbar = ({
   </div>
 );
 
-export const CreatePostDialog = ({
-  club
-}: {
-  club: Club;
-}) => {
+export const CreatePostDialog = ({ club }: { club: Club }) => {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<CreatePostFormValues>(
     getDefaultPostValues()
@@ -181,7 +177,10 @@ export const CreatePostDialog = ({
   const [hasPendingImage, setHasPendingImage] = useState(false);
   const milestonesQuery = useClubMilestonesQuery(club.linkName, 1, open);
   const createPostMutation = useCreateClubPostMutation(club.linkName);
-  const milestones = milestonesQuery.data?.milestones ?? [];
+  const milestones = useMemo(
+    () => milestonesQuery.data?.milestones ?? [],
+    [milestonesQuery.data]
+  );
   const isSaving = createPostMutation.isPending;
   const canSubmit =
     !isSaving &&
@@ -405,11 +404,7 @@ export const CreatePostDialog = ({
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <PostFormField
-            id="post-title"
-            label="Title"
-            error={errors.title}
-          >
+          <PostFormField id="post-title" label="Title" error={errors.title}>
             <Input
               id="post-title"
               value={values.title}

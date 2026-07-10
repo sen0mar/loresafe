@@ -1,6 +1,7 @@
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, House, RotateCcw } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 import { Button } from "@/shared/components/ui/button";
 
@@ -10,15 +11,15 @@ type RouteErrorBoundaryProps = {
   children: ReactNode;
 };
 
-type RouteErrorBoundaryState = {
+type RouteErrorBoundaryStatus = {
   hasError: boolean;
 };
 
-export class RouteErrorBoundary extends Component<
+class RouteErrorBoundaryState extends Component<
   RouteErrorBoundaryProps,
-  RouteErrorBoundaryState
+  RouteErrorBoundaryStatus
 > {
-  state: RouteErrorBoundaryState = {
+  state: RouteErrorBoundaryStatus = {
     hasError: false
   };
 
@@ -45,6 +46,16 @@ export class RouteErrorBoundary extends Component<
   }
 }
 
+export const RouteErrorBoundary = ({ children }: RouteErrorBoundaryProps) => {
+  const location = useLocation();
+
+  return (
+    <RouteErrorBoundaryState key={location.key}>
+      {children}
+    </RouteErrorBoundaryState>
+  );
+};
+
 const RouteErrorFallback = () => (
   <main className="min-h-screen bg-base px-4 py-12 text-primary">
     <section
@@ -58,19 +69,28 @@ const RouteErrorFallback = () => (
         <div>
           <h1 className="text-lg font-semibold">Something went wrong</h1>
           <p className="mt-2 text-sm leading-6 text-muted">
-            LoreSafe hit an unexpected error. Refresh the page and try again.
+            LoreSafe hit an unexpected error. Go somewhere safe or refresh and
+            try again.
           </p>
         </div>
       </div>
-      <Button
-        className="self-start"
-        type="button"
-        onClick={() => window.location.reload()}
-      >
-        <RotateCcw className="size-4" />
-        Refresh
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild className="self-start">
+          <Link to="/">
+            <House className="size-4" />
+            Go home
+          </Link>
+        </Button>
+        <Button
+          className="self-start"
+          type="button"
+          variant="outline"
+          onClick={() => window.location.reload()}
+        >
+          <RotateCcw className="size-4" />
+          Refresh
+        </Button>
+      </div>
     </section>
   </main>
 );
-

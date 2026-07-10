@@ -96,7 +96,7 @@ export const ClubSettingsForm = ({ club }: { club: Club }) => {
     setValues(getClubSettingsFormValues(club));
     setFieldErrors({});
     setFormError(null);
-  }, [club.id, club.settings.rules, club.settings.visibility]);
+  }, [club]);
 
   if (!canManageSettings) {
     return <ClubSettingsReadOnly club={club} />;
@@ -292,7 +292,10 @@ export const ClubSettingsForm = ({ club }: { club: Club }) => {
                 maxLength={2000}
               />
               {fieldErrors.rules ? (
-                <p className="text-sm text-error" id="club-settings-rules-error">
+                <p
+                  className="text-sm text-error"
+                  id="club-settings-rules-error"
+                >
                   {fieldErrors.rules}
                 </p>
               ) : null}

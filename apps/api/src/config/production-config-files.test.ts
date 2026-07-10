@@ -16,9 +16,7 @@ describe("production configuration files", () => {
     ) as Array<{ AllowedOrigins?: unknown }>;
 
     expect(config).toHaveLength(1);
-    expect(config[0]?.AllowedOrigins).toEqual([
-      "https://www.loresafe.org"
-    ]);
+    expect(config[0]?.AllowedOrigins).toEqual(["https://www.loresafe.org"]);
   });
 
   it("never disables Prisma's advisory lock during migration deploys", async () => {
@@ -28,7 +26,9 @@ describe("production configuration files", () => {
     );
 
     expect(script).not.toContain("PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK");
-    expect(script).toContain("release is stopping with the advisory lock enabled");
+    expect(script).toContain(
+      "release is stopping with the advisory lock enabled"
+    );
   });
 
   it("uses separate direct migration and pooled runtime database URLs", async () => {
@@ -62,7 +62,9 @@ describe("production configuration files", () => {
     expect(nodeVersion.trim()).toBe("22.17.1");
     expect(workflow).toContain("node-version: 22.17.1");
     expect(render).toContain("value: 22.17.1");
-    expect(render).toContain("preDeployCommand: pnpm --filter @loresafe/api prisma:migrate:deploy");
+    expect(render).toContain(
+      "preDeployCommand: pnpm --filter @loresafe/api prisma:migrate:deploy"
+    );
     expect(render).toContain("startCommand: pnpm --filter @loresafe/api start");
     expect(render).toContain("healthCheckPath: /api/health/ready");
   });
@@ -75,5 +77,34 @@ describe("production configuration files", () => {
 
     expect(workflow).toContain("pnpm audit --prod --audit-level low");
     expect(workflow).toContain("pnpm api:contract:check");
+  });
+
+  it("runs lint, formatting, coverage, browser, and accessibility gates", async () => {
+    const [rootPackage, workflow] = await Promise.all([
+      readFile(repositoryFile("package.json"), "utf8"),
+      readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8")
+    ]);
+    const rootPackageJson = JSON.parse(rootPackage) as {
+      devDependencies?: Record<string, string>;
+      scripts?: Record<string, string>;
+    };
+
+    expect(rootPackageJson.scripts?.lint).toContain("eslint");
+    expect(rootPackageJson.scripts?.["format:check"]).toContain(
+      "format-check.mjs"
+    );
+    expect(rootPackageJson.scripts?.["test:coverage"]).toContain(
+      "test:coverage"
+    );
+    expect(rootPackageJson.scripts?.["test:browser"]).toContain("playwright");
+    expect(
+      rootPackageJson.devDependencies?.["@axe-core/playwright"]
+    ).toBeTruthy();
+    expect(workflow).toContain("pnpm lint");
+    expect(workflow).toContain("pnpm format:check");
+    expect(workflow).toContain("pnpm test:coverage");
+    expect(workflow).toContain("pnpm test:browser");
+    expect(workflow).toContain("playwright install --with-deps chromium");
+    expect(workflow).toContain("name: coverage-reports");
   });
 });

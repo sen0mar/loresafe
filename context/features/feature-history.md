@@ -142,6 +142,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 136: Direct migration database URL — Routed Prisma CLI and production migrations through a required direct PostgreSQL URL while keeping runtime traffic pooled, updated CI and environment guidance, and added focused configuration regression coverage.
 - Feature 137: Session-aware SSE reconnection — Revalidated and refreshed authentication before event-stream reconnects, stopped retries for signed-out sessions, added bounded exponential backoff, and covered recovery behavior with focused frontend tests.
 - Feature 138: Production audit hardening 31–34 — Added Zod-backed OpenAPI governance, pinned Node and Render deployment infrastructure, cleared and strengthened the production dependency audit gate, and removed login timing enumeration with account-keyed credential-stuffing throttles.
+- Feature 139: Production audit hardening 35–37 — Added route-error recovery and bounded infinite-query retention, established lint, formatting, risk-based coverage, browser-security, and accessibility release gates, and validated bounded client request IDs with server UUID fallback.
 
 ## Entry Format
 

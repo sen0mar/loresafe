@@ -59,6 +59,9 @@ Boundary rules:
 - The backend must decide which content is safe before sending a response.
 - React may hide or decorate locked content, but it must not receive unsafe spoiler content.
 - Cross-boundary input is treated as unknown until validated.
+- Client `x-request-id` values are correlation labels only. The API accepts
+  1-64 character trace-compatible tokens made from letters, digits, `.`, `_`,
+  `:`, and `-`; it generates a server UUID for missing or invalid values.
 - Storage object keys and URLs must not become authorization shortcuts.
 
 ## Storage Model
@@ -216,6 +219,9 @@ Expected route groups:
 Frontend:
 
 - Remote data belongs in TanStack Query.
+- Forward-only infinite queries retain at most five pages. Feed, comment,
+  notification, moderation, search, joined-club, and unlock views therefore
+  keep a bounded DOM/data window while users continue loading newer pages.
 - Debounce networked search/filter controls.
 - Use skeletons for feed, cards, panels, and route loads.
 - Virtualize only when lists can grow large enough to need it.

@@ -13,10 +13,26 @@
     "build": "pnpm -r build",
     "db:check": "pnpm --filter @loresafe/api prisma:check",
     "db:reset:development": "pnpm --filter @loresafe/api db:reset:development",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "node scripts/format-check.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:coverage": "pnpm --filter @loresafe/api test:coverage && pnpm --filter @loresafe/web test:coverage",
+    "test:browser": "playwright test",
     "test:integration:database": "pnpm --filter @loresafe/api test:integration:database",
     "api:contract:generate": "pnpm --filter @loresafe/api api:contract:generate",
     "api:contract:check": "pnpm --filter @loresafe/api api:contract:check"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4",
+    "typescript-eslint": "^8.63.0"
   }
 }

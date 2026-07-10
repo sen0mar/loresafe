@@ -60,13 +60,7 @@ export const ProfileSettingsForm = ({
     setValues(getInitialValues(currentUser));
     setFieldErrors({});
     setFormError(null);
-  }, [
-    currentUser.bio,
-    currentUser.displayName,
-    currentUser.username,
-    currentUser.avatarUrl,
-    currentUser.id
-  ]);
+  }, [currentUser]);
 
   const updateField =
     (field: keyof ProfileFormValues) =>
@@ -149,7 +143,9 @@ export const ProfileSettingsForm = ({
         </Avatar>
         <div className="min-w-0">
           <CardTitle className="truncate text-xl">Profile settings</CardTitle>
-          <p className="mt-1 truncate text-sm text-faint">{currentUser.email}</p>
+          <p className="mt-1 truncate text-sm text-faint">
+            {currentUser.email}
+          </p>
         </div>
       </CardHeader>
       <CardContent>
@@ -212,7 +208,10 @@ export const ProfileSettingsForm = ({
 
         <form className="grid gap-4" onSubmit={submitProfile} noValidate>
           {formError ? (
-            <div className="rounded-lg border border-default bg-inset p-3" role="alert">
+            <div
+              className="rounded-lg border border-default bg-inset p-3"
+              role="alert"
+            >
               <p className="text-sm text-error">{formError}</p>
             </div>
           ) : null}

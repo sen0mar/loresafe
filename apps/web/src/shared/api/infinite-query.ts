@@ -1,0 +1,1 @@
+export const RETAINED_INFINITE_QUERY_PAGES = 5;

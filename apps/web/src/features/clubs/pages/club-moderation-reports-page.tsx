@@ -100,8 +100,10 @@ export const ClubModerationReportsPage = () => {
   const reportsQuery = useModerationReportsQuery(linkName);
   const milestonesQuery = useClubMilestonesQuery(linkName, 1);
   const [typeSearch, setTypeSearch] = useState("");
-  const reports =
-    reportsQuery.data?.pages.flatMap((page) => page.reports) ?? [];
+  const reports = useMemo(
+    () => reportsQuery.data?.pages.flatMap((page) => page.reports) ?? [],
+    [reportsQuery.data]
+  );
   const filteredReports = useMemo(
     () => filterReportsByType(reports, typeSearch),
     [reports, typeSearch]
@@ -352,7 +354,8 @@ const ModerationActionControls = ({
   );
   const [banExpiresAt, setBanExpiresAt] = useState("");
   const [isBanDialogOpen, setIsBanDialogOpen] = useState(false);
-  const updateMilestoneMutation = useUpdateReportRequiredMilestoneMutation(linkName);
+  const updateMilestoneMutation =
+    useUpdateReportRequiredMilestoneMutation(linkName);
   const hideMutation = useHideReportedContentMutation(linkName);
   const deleteMutation = useDeleteReportedContentMutation(linkName);
   const warnMutation = useWarnReportedContentAuthorMutation(linkName);
@@ -782,11 +785,7 @@ const ModerationReportsEmpty = () => (
   </Card>
 );
 
-const ModerationReportsNoMatches = ({
-  typeSearch
-}: {
-  typeSearch: string;
-}) => (
+const ModerationReportsNoMatches = ({ typeSearch }: { typeSearch: string }) => (
   <Card>
     <CardContent className="flex min-h-40 flex-col justify-center gap-3">
       <Search className="size-8 text-faint" />

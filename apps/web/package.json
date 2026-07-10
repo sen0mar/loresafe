@@ -8,9 +8,11 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.12",

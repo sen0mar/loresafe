@@ -5812,7 +5812,8 @@
                 "type": "string"
               },
               "requestId": {
-                "type": "string"
+                "type": "string",
+                "description": "Server request correlation ID. Client x-request-id values are accepted only as 1-64 character trace-compatible tokens containing letters, digits, dot, underscore, colon, or hyphen; invalid values are replaced with a server UUID. Correlation IDs are not uniqueness or authorization keys."
               }
             }
           }

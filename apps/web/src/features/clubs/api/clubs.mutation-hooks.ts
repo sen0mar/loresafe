@@ -1,39 +1,97 @@
-import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient
+} from "@tanstack/react-query";
+
+import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
 import type {
-  BanClubMemberInput, BanReportedContentAuthorInput, ClubFeedTab,
-  ClubMilestonesResponse, ClubMembersQueryInput, ClubPostCard,
-  ClubPostsResponse, CreateClubMilestoneInput,
-  CreateClubMilestoneTemplateInput, CreateClubPostInput,
-  CreatePostCommentInput, JoinedClubsQueryInput, JoinedClubsQueryOptions,
-  ModerationReport, ModerationReportNoteInput, ModerationReportsResponse,
-  MoveClubMilestoneInput, PostCommentsResponse, PostDetailResponse,
-  PublicClubsQueryInput, ResolveModerationReportInput,
-  ToggleCommentReactionInput, TogglePostReactionInput,
-  UpdateClubMemberRoleInput, UpdateClubMilestoneInput,
-  UpdateClubProgressInput, UpdateClubSettingsInput,
+  BanClubMemberInput,
+  BanReportedContentAuthorInput,
+  ClubFeedTab,
+  ClubMilestonesResponse,
+  ClubMembersQueryInput,
+  ClubPostCard,
+  ClubPostsResponse,
+  CreateClubMilestoneInput,
+  CreateClubMilestoneTemplateInput,
+  CreateClubPostInput,
+  CreatePostCommentInput,
+  JoinedClubsQueryInput,
+  JoinedClubsQueryOptions,
+  ModerationReport,
+  ModerationReportNoteInput,
+  ModerationReportsResponse,
+  MoveClubMilestoneInput,
+  PostCommentsResponse,
+  PostDetailResponse,
+  PublicClubsQueryInput,
+  ResolveModerationReportInput,
+  ToggleCommentReactionInput,
+  TogglePostReactionInput,
+  UpdateClubMemberRoleInput,
+  UpdateClubMilestoneInput,
+  UpdateClubProgressInput,
+  UpdateClubSettingsInput,
   UpdateReportRequiredMilestoneInput
 } from "./clubs.types.js";
 import {
-  advanceClubProgressToNextMilestone, banClubMember,
-  banReportedContentAuthor, createClub, createClubMilestone,
-  createClubMilestoneTemplate, createClubPost, createPostComment, createReport,
-  deleteComment, deletePost, deleteReportedContent, getClubBans,
-  getClubByLinkName, getClubDashboardStats, getClubMembers,
-  getClubMilestones, getClubPosts, getClubProgress,
-  getClubProgressSummary, getJoinedClubs, getModerationReports,
-  getPopularDiscussions, getPostById, getPostComments, getPublicClubs,
-  getRecentlyUnlockedPosts, getRecentlyUnlockedSummary, hideReportedContent,
-  joinClub, leaveClub, moveClubMilestone, resolveModerationReport,
-  revealModerationReport, revealPost, revealPostComment, toggleCommentReaction,
-  togglePostReaction, unbanClubBan, updateClubMemberRole,
-  updateClubMilestone, updateClubProgress, updateClubSettings,
-  updateReportRequiredMilestone, warnReportedContentAuthor
+  advanceClubProgressToNextMilestone,
+  banClubMember,
+  banReportedContentAuthor,
+  createClub,
+  createClubMilestone,
+  createClubMilestoneTemplate,
+  createClubPost,
+  createPostComment,
+  createReport,
+  deleteComment,
+  deletePost,
+  deleteReportedContent,
+  getClubBans,
+  getClubByLinkName,
+  getClubDashboardStats,
+  getClubMembers,
+  getClubMilestones,
+  getClubPosts,
+  getClubProgress,
+  getClubProgressSummary,
+  getJoinedClubs,
+  getModerationReports,
+  getPopularDiscussions,
+  getPostById,
+  getPostComments,
+  getPublicClubs,
+  getRecentlyUnlockedPosts,
+  getRecentlyUnlockedSummary,
+  hideReportedContent,
+  joinClub,
+  leaveClub,
+  moveClubMilestone,
+  resolveModerationReport,
+  revealModerationReport,
+  revealPost,
+  revealPostComment,
+  toggleCommentReaction,
+  togglePostReaction,
+  unbanClubBan,
+  updateClubMemberRole,
+  updateClubMilestone,
+  updateClubProgress,
+  updateClubSettings,
+  updateReportRequiredMilestone,
+  warnReportedContentAuthor
 } from "./clubs.requests.js";
 import {
-  removeCommentFromInfiniteData, removePostFromPostListQueries,
-  toggleCommentReactionOnComment, togglePostReactionOnCard,
-  updateCommentInInfiniteData, updatePostInInfiniteData
+  removeCommentFromInfiniteData,
+  removePostFromPostListQueries,
+  toggleCommentReactionOnComment,
+  togglePostReactionOnCard,
+  updateCommentInInfiniteData,
+  updatePostInInfiniteData
 } from "./clubs.optimistic.js";
 import { clubsQueryKeys } from "./clubs.query-keys.js";
 
@@ -154,9 +212,9 @@ export const useCreateClubMutation = () => {
         clubsQueryKeys.detail(response.club.linkName),
         response
       );
-  void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.discoveryRoot
-  });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.discoveryRoot
+      });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
       });
@@ -311,6 +369,7 @@ export const useModerationReportsQuery = (linkName: string, enabled = true) =>
       getModerationReports(linkName, pageParam, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
+    maxPages: RETAINED_INFINITE_QUERY_PAGES,
     enabled: enabled && linkName.length > 0
   });
 
@@ -641,10 +700,7 @@ export const useToggleCommentReactionMutation = (
   });
 };
 
-export const useDeleteCommentMutation = (
-  postId: string,
-  commentId: string
-) => {
+export const useDeleteCommentMutation = (postId: string, commentId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -815,9 +871,9 @@ export const useJoinClubMutation = () => {
         clubsQueryKeys.detail(response.club.linkName),
         response
       );
-  void queryClient.invalidateQueries({
-    queryKey: clubsQueryKeys.discoveryRoot
-  });
+      void queryClient.invalidateQueries({
+        queryKey: clubsQueryKeys.discoveryRoot
+      });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.joined
       });

@@ -8,12 +8,10 @@ import {
 } from "@tanstack/react-query";
 
 import { apiDelete, apiGet, apiPost } from "@/shared/api/api-client";
+import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
 export type NotificationType =
-  | "POST_COMMENT"
-  | "COMMENT_REPLY"
-  | "PROGRESS_UNLOCK"
-  | "MODERATION_WARNING";
+  "POST_COMMENT" | "COMMENT_REPLY" | "PROGRESS_UNLOCK" | "MODERATION_WARNING";
 
 export type NotificationItem = {
   id: string;
@@ -110,7 +108,8 @@ export const useNotificationsInfiniteQuery = () =>
     queryKey: notificationsQueryKeys.list,
     queryFn: ({ pageParam, signal }) => getNotifications(pageParam, 20, signal),
     initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor
+    getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
+    maxPages: RETAINED_INFINITE_QUERY_PAGES
   });
 
 export const useUnreadNotificationsQuery = (enabled = true) =>

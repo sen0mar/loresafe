@@ -47,11 +47,18 @@ type MilestoneFieldErrors = Partial<
   Record<keyof CreateMilestoneFormValues, string>
 >;
 
-export const ClubTimelineTab = ({ club, linkName: fallbackLinkName }: ClubTimelineTabProps) => {
+export const ClubTimelineTab = ({
+  club,
+  linkName: fallbackLinkName
+}: ClubTimelineTabProps) => {
   const linkName = club?.linkName ?? fallbackLinkName ?? "";
   const [page, setPage] = useState(1);
   const milestonesQuery = useClubMilestonesQuery(linkName, page);
-  const progressQuery = useClubProgressQuery(linkName, !!club?.membership.isMember);
+  const { refetch: refetchMilestones } = milestonesQuery;
+  const progressQuery = useClubProgressQuery(
+    linkName,
+    !!club?.membership.isMember
+  );
   const updateMilestoneMutation = useUpdateClubMilestoneMutation(linkName);
   const moveMilestoneMutation = useMoveClubMilestoneMutation(linkName);
   const progress = progressQuery.data?.progress;
@@ -67,13 +74,8 @@ export const ClubTimelineTab = ({ club, linkName: fallbackLinkName }: ClubTimeli
       return;
     }
 
-    void milestonesQuery.refetch();
-  }, [
-    progress?.currentMilestone?.id,
-    progress?.mode,
-    progress?.updatedAt,
-    milestonesQuery.refetch
-  ]);
+    void refetchMilestones();
+  }, [progress, refetchMilestones]);
 
   if (milestonesQuery.isPending) {
     return <TimelineLoading />;
@@ -228,10 +230,7 @@ const TimelineMilestoneCard = ({
   milestone: ClubMilestone;
   totalMilestones: number;
   onMove: (direction: "UP" | "DOWN") => void;
-  onUpdate: (
-    input: CreateMilestonePayload,
-    onSuccess: () => void
-  ) => void;
+  onUpdate: (input: CreateMilestonePayload, onSuccess: () => void) => void;
   updateError: string | null;
 }) => {
   const [isEditing, setIsEditing] = useState(false);

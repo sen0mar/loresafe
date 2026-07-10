@@ -31,9 +31,9 @@ jobs:
           GITLEAKS_ENABLE_COMMENTS: "false"
 
   verify:
-    name: Build, test, and database verification
+    name: Quality, browser, and database verification
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16.9-alpine
@@ -50,16 +50,24 @@ jobs:
           --health-retries 10
     env:
       APP_NAME: LoreSafe CI
-      CLIENT_ORIGIN: http://localhost:5173
+      CLIENT_ORIGIN: http://127.0.0.1:4173
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
       EVENTS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
       JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
       NODE_ENV: test
+      SESSION_COOKIE_SECURE: "false"
       TRUST_PROXY_CIDRS: loopback
+      DEMO_SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
+      DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_WRITES_DEMO_DATA
+      DEMO_USER_EMAIL: browser-demo@example.com
+      DEMO_USER_DISPLAY_NAME: Browser Demo Reader
+      DEMO_USER_PASSWORD: browser-demo-password
     steps:
       - name: Check out repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
@@ -79,6 +87,14 @@ jobs:
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level low
 
+      - name: Lint source and enforce import boundaries
+        run: pnpm lint
+
+      - name: Check formatting on changed files
+        run: pnpm format:check
+        env:
+          FORMAT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+
       - name: Apply committed migrations
         run: pnpm --filter @loresafe/api prisma:migrate:deploy
 
@@ -97,5 +113,28 @@ jobs:
       - name: Run PostgreSQL security and concurrency tests
         run: pnpm test:integration:database
 
+      - name: Enforce and publish risk-based coverage
+        run: pnpm test:coverage
+        env:
+          RUN_DATABASE_INTEGRATION_TESTS: "1"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-reports
+          path: |
+            apps/api/coverage
+            apps/web/coverage
+          if-no-files-found: error
+
       - name: Build production artifacts
         run: pnpm build
+
+      - name: Seed isolated browser-test data
+        run: pnpm --filter @loresafe/api prisma:seed
+
+      - name: Install Chromium for browser gates
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run production browser and accessibility gates
+        run: pnpm test:browser
