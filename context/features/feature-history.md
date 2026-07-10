@@ -143,6 +143,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 137: Session-aware SSE reconnection — Revalidated and refreshed authentication before event-stream reconnects, stopped retries for signed-out sessions, added bounded exponential backoff, and covered recovery behavior with focused frontend tests.
 - Feature 138: Production audit hardening 31–34 — Added Zod-backed OpenAPI governance, pinned Node and Render deployment infrastructure, cleared and strengthened the production dependency audit gate, and removed login timing enumeration with account-keyed credential-stuffing throttles.
 - Feature 139: Production audit hardening 35–37 — Added route-error recovery and bounded infinite-query retention, established lint, formatting, risk-based coverage, browser-security, and accessibility release gates, and validated bounded client request IDs with server UUID fallback.
+- Feature 140: Persistent app shell navigation — Stopped healthy route changes from remounting the complete routed tree while preserving navigation-based route-error recovery, with focused frontend regression coverage.
 
 ## Entry Format
 
