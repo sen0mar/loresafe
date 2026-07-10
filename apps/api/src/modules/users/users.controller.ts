@@ -34,7 +34,7 @@ export const createUsersController = (
         throw new HttpError(
           400,
           "BAD_REQUEST",
-          'Type "delete" to confirm account deletion.'
+          'Enter your current password and type "delete" to confirm account deletion.'
         );
       }
 

@@ -124,3 +124,7 @@ Rules:
 - Test both allowed and denied paths for sensitive APIs.
 - Include at least one regression test for each fixed spoiler leak or authorization bug.
 - Prefer small focused tests over broad brittle snapshots.
+- Security-sensitive Prisma/raw-SQL behavior and concurrency invariants require
+  real PostgreSQL integration coverage in addition to in-memory route tests.
+- CI must run committed migrations before the database integration suite and
+  treat the release gate as required before production promotion.

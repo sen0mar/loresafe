@@ -8,6 +8,7 @@ import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
+import { configureTrustedProxy } from "../../core/security/trusted-proxy.js";
 import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthMiddleware } from "../auth/auth.middleware.js";
 import type {
@@ -2135,7 +2136,7 @@ const createReportsTestApp = (
   const reportsController = createReportsController(reportsService);
 
   app.disable("x-powered-by");
-  app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  configureTrustedProxy(app, env.TRUST_PROXY_CIDRS);
   app.use(requestIdMiddleware);
 
   if (options.rateLimitReports) {

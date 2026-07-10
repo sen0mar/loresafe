@@ -22,6 +22,7 @@ const productionServiceEnv = {
   R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
   R2_SECRET_ACCESS_KEY: "r2-secret-key",
   SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+  TRUST_PROXY_CIDRS: "loopback,linklocal,uniquelocal",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
   UPSTASH_REDIS_REST_URL: "https://redis.example"
 } satisfies NodeJS.ProcessEnv;
@@ -73,7 +74,11 @@ describe("env validation", () => {
     });
 
     expect(env.SESSION_COOKIE_SECURE).toBe(true);
-    expect(env.TRUST_PROXY_HOPS).toBe(1);
+    expect(env.TRUST_PROXY_CIDRS).toEqual([
+      "loopback",
+      "linklocal",
+      "uniquelocal"
+    ]);
     expect(env.PUBLIC_SITE_ORIGIN).toBe("https://www.loresafe.org");
     expect(env.EVENTS_DATABASE_URL).toBe(productionServiceEnv.EVENTS_DATABASE_URL);
     expect(env.CLIENT_ORIGIN_ALLOWLIST).toEqual([
@@ -91,6 +96,31 @@ describe("env validation", () => {
     });
 
     expect(issues).toContain("CLIENT_ORIGINS: Invalid origin: not-a-url");
+  });
+
+  it("requires explicit valid production proxy subnets", () => {
+    const {
+      TRUST_PROXY_CIDRS: _trustedProxyCidrs,
+      ...servicesWithoutTrustedProxies
+    } = productionServiceEnv;
+    const missingIssues = getEnvIssueSummary({
+      ...baseEnv,
+      ...servicesWithoutTrustedProxies,
+      NODE_ENV: "production"
+    });
+    const invalidIssues = getEnvIssueSummary({
+      ...baseEnv,
+      ...productionServiceEnv,
+      NODE_ENV: "production",
+      TRUST_PROXY_CIDRS: "loopback,not-a-subnet"
+    });
+
+    expect(missingIssues).toContain(
+      "TRUST_PROXY_CIDRS: Explicit trusted proxy addresses or subnets are required in production"
+    );
+    expect(invalidIssues).toContain(
+      "TRUST_PROXY_CIDRS: Invalid trusted proxy address or subnet: not-a-subnet"
+    );
   });
 
   it("requires an explicit production client origin", () => {
@@ -122,7 +152,7 @@ describe("env validation", () => {
     expect(env.PUBLIC_SITE_ORIGIN).toBe("https://www.loresafe.org");
     expect(env.EVENTS_DATABASE_URL).toBe(baseEnv.DATABASE_URL);
     expect(env.SESSION_COOKIE_SECURE).toBe(false);
-    expect(env.TRUST_PROXY_HOPS).toBe(0);
+    expect(env.TRUST_PROXY_CIDRS).toEqual([]);
   });
 
   it("normalizes the public site origin", () => {

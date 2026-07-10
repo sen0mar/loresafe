@@ -32,8 +32,10 @@ export const AccountDangerZone = () => {
   const deleteAccountMutation = useDeleteCurrentUserAccount();
   const [isOpen, setIsOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const canDelete = confirmation === deleteConfirmation;
+  const canDelete =
+    confirmation === deleteConfirmation && password.length > 0;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (deleteAccountMutation.isPending) {
@@ -44,6 +46,7 @@ export const AccountDangerZone = () => {
 
     if (!nextOpen) {
       setConfirmation("");
+      setPassword("");
       setError(null);
     }
   };
@@ -56,7 +59,8 @@ export const AccountDangerZone = () => {
     setError(null);
     deleteAccountMutation.mutate(
       {
-        confirmation: deleteConfirmation
+        confirmation: deleteConfirmation,
+        password
       },
       {
         onSuccess: () => {
@@ -119,6 +123,23 @@ export const AccountDangerZone = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-3">
+                <label
+                  className="text-sm font-medium text-secondary"
+                  htmlFor="delete-account-password"
+                >
+                  Current password
+                </label>
+                <Input
+                  id="delete-account-password"
+                  autoComplete="current-password"
+                  type="password"
+                  value={password}
+                  disabled={deleteAccountMutation.isPending}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setError(null);
+                  }}
+                />
                 <label
                   className="text-sm font-medium text-secondary"
                   htmlFor="delete-account-confirmation"

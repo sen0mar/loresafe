@@ -11,6 +11,7 @@ import type { ProfileFormValues } from "../schemas/profile.schema.js";
 
 export type DeleteCurrentUserAccountInput = {
   confirmation: "delete";
+  password: string;
 };
 
 export const updateCurrentUserProfile = (input: ProfileFormValues) =>

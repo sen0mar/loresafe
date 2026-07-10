@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { isIP } from "node:net";
 import { resolve } from "node:path";
 
 import { config as loadEnv } from "dotenv";
@@ -39,6 +40,34 @@ const parseOriginList = (value: string | undefined) =>
 
 const normalizeOrigin = (origin: string) => origin.replace(/\/+$/, "");
 
+const trustedProxyNames = new Set(["linklocal", "loopback", "uniquelocal"]);
+
+const isValidTrustedProxy = (value: string) => {
+  if (trustedProxyNames.has(value)) {
+    return true;
+  }
+
+  const [address, prefix, ...extraParts] = value.split("/");
+  const ipVersion = isIP(address ?? "");
+
+  if (extraParts.length > 0 || ipVersion === 0) {
+    return false;
+  }
+
+  if (prefix === undefined) {
+    return true;
+  }
+
+  const numericPrefix = Number(prefix);
+  const maxPrefix = ipVersion === 4 ? 32 : 128;
+
+  return (
+    Number.isInteger(numericPrefix) &&
+    numericPrefix >= 0 &&
+    numericPrefix <= maxPrefix
+  );
+};
+
 const isValidUrl = (value: string) => {
   try {
     new URL(value);
@@ -59,7 +88,7 @@ const envSchema = z
     CLIENT_ORIGIN: optionalUrlSchema,
     CLIENT_ORIGINS: optionalStringSchema,
     PUBLIC_SITE_ORIGIN: optionalUrlSchema,
-    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).optional(),
+    TRUST_PROXY_CIDRS: optionalStringSchema,
     DATABASE_URL: z.string().trim().min(1),
     EVENTS_DATABASE_URL: optionalStringSchema,
     JWT_SECRET: z.string().min(32),
@@ -151,20 +180,40 @@ const envSchema = z
         });
       }
     }
+
+    const trustedProxies = parseOriginList(value.TRUST_PROXY_CIDRS);
+
+    if (trustedProxies.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["TRUST_PROXY_CIDRS"],
+        message: "Explicit trusted proxy addresses or subnets are required in production"
+      });
+    }
+
+    for (const trustedProxy of trustedProxies) {
+      if (!isValidTrustedProxy(trustedProxy)) {
+        context.addIssue({
+          code: "custom",
+          path: ["TRUST_PROXY_CIDRS"],
+          message: `Invalid trusted proxy address or subnet: ${trustedProxy}`
+        });
+      }
+    }
   });
 
 type ParsedEnv = z.infer<typeof envSchema>;
 
 export type AppEnv = Omit<
   ParsedEnv,
-  "CLIENT_ORIGIN" | "EVENTS_DATABASE_URL"
+  "CLIENT_ORIGIN" | "EVENTS_DATABASE_URL" | "TRUST_PROXY_CIDRS"
 > & {
   CLIENT_ORIGIN: string;
   CLIENT_ORIGIN_ALLOWLIST: string[];
   PUBLIC_SITE_ORIGIN: string;
   EVENTS_DATABASE_URL: string;
   SESSION_COOKIE_SECURE: boolean;
-  TRUST_PROXY_HOPS: number;
+  TRUST_PROXY_CIDRS: string[];
 };
 
 export const formatEnvIssues = (error: z.ZodError) =>
@@ -185,7 +234,7 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
     ),
     EVENTS_DATABASE_URL:
       parsedEnv.EVENTS_DATABASE_URL ?? parsedEnv.DATABASE_URL,
-    TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (isProduction ? 1 : 0),
+    TRUST_PROXY_CIDRS: parseOriginList(parsedEnv.TRUST_PROXY_CIDRS),
     SESSION_COOKIE_SECURE: isProduction
       ? true
       : (parsedEnv.SESSION_COOKIE_SECURE ?? false)

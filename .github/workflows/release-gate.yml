@@ -1,0 +1,100 @@
+name: Release gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan committed history
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  verify:
+    name: Build, test, and database verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16.9-alpine
+        env:
+          POSTGRES_DB: loresafe_ci
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d loresafe_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_NAME: LoreSafe CI
+      CLIENT_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
+      DEMO_USER_DISPLAY_NAME: CI Reader
+      DEMO_USER_EMAIL: ci-reader@example.com
+      DEMO_USER_PASSWORD: ci-only-password
+      EVENTS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
+      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
+      NODE_ENV: test
+      TRUST_PROXY_CIDRS: loopback
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.5.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.17.1
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
+      - name: Apply committed migrations
+        run: pnpm --filter @loresafe/api prisma:migrate:deploy
+
+      - name: Validate migration state and generated client
+        run: pnpm db:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit and route tests
+        run: pnpm test
+
+      - name: Run PostgreSQL security and concurrency tests
+        run: pnpm test:integration:database
+
+      - name: Build production artifacts
+        run: pnpm build

@@ -38,13 +38,23 @@ export type ListJoinedClubsResult = {
 
 export type DeleteCurrentUserAccountResult =
   | "DELETED"
+  | "REAUTH_REQUIRED"
   | "SOLE_OWNER"
   | "USER_NOT_FOUND";
 
+export type CurrentUserCredentialsRecord = {
+  passwordHash: string;
+  sessionVersion: number;
+};
+
 export type UsersRepository = {
   deleteCurrentUserAccount: (
-    userId: string
+    userId: string,
+    expectedSessionVersion: number
   ) => Promise<DeleteCurrentUserAccountResult>;
+  findActiveUserCredentialsById: (
+    userId: string
+  ) => Promise<CurrentUserCredentialsRecord | null>;
   findActiveUserByReservedName: (
     normalizedName: string
   ) => Promise<AuthUserRecord | null>;
@@ -76,10 +86,12 @@ const userSelect = {
 } as const;
 
 export const usersRepository: UsersRepository = {
-  deleteCurrentUserAccount: (userId) =>
+  deleteCurrentUserAccount: (userId, expectedSessionVersion) =>
     prisma.$transaction(async (transaction) => {
-      const currentUsers = await transaction.$queryRaw<Array<{ id: string }>>`
-        SELECT "id"
+      const currentUsers = await transaction.$queryRaw<
+        Array<{ id: string; session_version: number }>
+      >`
+        SELECT "id", "session_version"
         FROM "users"
         WHERE "id" = ${userId}::uuid
           AND "deleted_at" IS NULL
@@ -89,6 +101,10 @@ export const usersRepository: UsersRepository = {
 
       if (!currentUser) {
         return "USER_NOT_FOUND";
+      }
+
+      if (currentUser.session_version !== expectedSessionVersion) {
+        return "REAUTH_REQUIRED";
       }
 
       const memberships = await transaction.clubMembership.findMany({
@@ -130,6 +146,20 @@ export const usersRepository: UsersRepository = {
       if (soleOwnerMembership) {
         return "SOLE_OWNER";
       }
+
+      await transaction.user.update({
+        where: {
+          id: userId
+        },
+        data: {
+          sessionVersion: {
+            increment: 1
+          }
+        },
+        select: {
+          id: true
+        }
+      });
 
       const ownedFileAssets = await transaction.fileAsset.findMany({
         where: {
@@ -180,6 +210,18 @@ export const usersRepository: UsersRepository = {
       });
 
       return "DELETED";
+    }),
+
+  findActiveUserCredentialsById: (userId) =>
+    prisma.user.findFirst({
+      where: {
+        id: userId,
+        deletedAt: null
+      },
+      select: {
+        passwordHash: true,
+        sessionVersion: true
+      }
     }),
 
   findActiveUserByReservedName: async (normalizedName) => {

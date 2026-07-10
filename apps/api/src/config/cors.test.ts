@@ -20,6 +20,7 @@ const productionServiceEnv = {
   R2_PUBLIC_BASE_URL: "https://cdn.loresafe.example",
   R2_SECRET_ACCESS_KEY: "r2-secret-key",
   SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+  TRUST_PROXY_CIDRS: "loopback",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
   UPSTASH_REDIS_REST_URL: "https://redis.example"
 } satisfies NodeJS.ProcessEnv;

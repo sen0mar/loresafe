@@ -10,6 +10,7 @@ import { requestLoggingMiddleware } from "./core/http/request-logging.js";
 import { requestIdMiddleware } from "./core/http/request-id.js";
 import { registerRateLimiters } from "./core/security/rate-limit-routes.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
+import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import {
   clubsRouter,
@@ -47,7 +48,7 @@ export const createApp = (appEnv = env) => {
   const app = express();
 
   app.disable("x-powered-by");
-  app.set("trust proxy", appEnv.TRUST_PROXY_HOPS);
+  configureTrustedProxy(app, appEnv.TRUST_PROXY_CIDRS);
 
   app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);

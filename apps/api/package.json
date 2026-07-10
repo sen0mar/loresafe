@@ -10,6 +10,7 @@
     "build": "pnpm prisma:generate && tsc -p tsconfig.build.json",
     "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
     "test": "pnpm prisma:generate && vitest run",
+    "test:integration:database": "pnpm prisma:generate && RUN_DATABASE_INTEGRATION_TESTS=1 vitest run --config vitest.integration.config.ts",
     "prisma:generate": "node -e \"require('node:fs').rmSync('src/generated/prisma', { recursive: true, force: true })\" && prisma generate",
     "prisma:status": "prisma migrate status",
     "prisma:check": "pnpm prisma:status && pnpm prisma:generate",

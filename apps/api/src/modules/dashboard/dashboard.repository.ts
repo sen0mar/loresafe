@@ -65,6 +65,18 @@ type PopularDiscussionRankRow = {
   engagement_score: number | bigint;
 };
 
+type ClubDashboardStatsRow = {
+  member_count: number | bigint;
+  milestone_count: number | bigint;
+  visible_post_count: number | bigint;
+  visible_comment_count: number | bigint;
+  post_reaction_count: number | bigint;
+  safe_post_count: number | bigint;
+  viewer_joined_at: Date | null;
+  viewer_post_count: number | bigint;
+  viewer_comment_count: number | bigint;
+};
+
 type SelectedPopularPost = Prisma.PostGetPayload<{
   select: ReturnType<typeof popularPostSelect>;
 }>;
@@ -160,84 +172,81 @@ export const dashboardRepository: DashboardRepository = {
 
   getClubDashboardStats: async (userId, club) => {
     const progressPosition = club.progress.currentMilestonePosition ?? 0;
-    const safePostWhere: Prisma.PostWhereInput =
-      club.progress.mode === "FINISHED"
-        ? {}
-        : {
-            requiredMilestone: {
-              position: {
-                lte: progressPosition
-              }
-            }
-          };
-    const [
-      membership,
-      memberCount,
-      milestoneCount,
-      visiblePostCount,
-      visibleCommentCount,
-      postReactionCount,
-      safePostCount,
-      viewerPostCount,
-      viewerCommentCount
-    ] = await prisma.$transaction([
-      prisma.clubMembership.findUnique({
-        where: {
-          userId_clubId: {
-            userId,
-            clubId: club.id
-          }
-        },
-        select: {
-          createdAt: true
-        }
-      }),
-      prisma.clubMembership.count({
-        where: {
-          clubId: club.id
-        }
-      }),
-      prisma.milestone.count({
-        where: {
-          clubId: club.id
-        }
-      }),
-      prisma.post.count({
-        where: visiblePostWhere(club.id)
-      }),
-      prisma.comment.count({
-        where: {
-          status: "VISIBLE",
-          deletedAt: null,
-          post: visiblePostWhere(club.id)
-        }
-      }),
-      prisma.postReaction.count({
-        where: {
-          post: visiblePostWhere(club.id)
-        }
-      }),
-      prisma.post.count({
-        where: {
-          ...visiblePostWhere(club.id),
-          ...safePostWhere
-        }
-      }),
-      prisma.post.count({
-        where: {
-          ...visiblePostWhere(club.id),
-          authorId: userId
-        }
-      }),
-      prisma.comment.count({
-        where: {
-          authorId: userId,
-          status: "VISIBLE",
-          deletedAt: null,
-          post: visiblePostWhere(club.id)
-        }
-      })
-    ]);
+    const rows = await prisma.$queryRaw<ClubDashboardStatsRow[]>`
+      WITH membership_stats AS (
+        SELECT
+          COUNT(*)::int AS member_count,
+          MIN(created_at) FILTER (WHERE user_id = ${userId}::uuid) AS viewer_joined_at
+        FROM club_memberships
+        WHERE club_id = ${club.id}::uuid
+      ),
+      milestone_stats AS (
+        SELECT COUNT(*)::int AS milestone_count
+        FROM milestones
+        WHERE club_id = ${club.id}::uuid
+      ),
+      visible_posts AS MATERIALIZED (
+        SELECT p.id, p.author_id, m.position AS milestone_position
+        FROM posts p
+        INNER JOIN milestones m ON m.id = p.required_milestone_id
+        WHERE p.club_id = ${club.id}::uuid
+          AND p.status = 'VISIBLE'
+          AND p.deleted_at IS NULL
+      ),
+      post_stats AS (
+        SELECT
+          COUNT(*)::int AS visible_post_count,
+          COUNT(*) FILTER (WHERE author_id = ${userId}::uuid)::int AS viewer_post_count,
+          COUNT(*) FILTER (
+            WHERE ${club.progress.mode === "FINISHED"}
+              OR milestone_position <= ${progressPosition}
+          )::int AS safe_post_count
+        FROM visible_posts
+      ),
+      visible_comments AS MATERIALIZED (
+        SELECT c.id, c.author_id
+        FROM comments c
+        INNER JOIN visible_posts p ON p.id = c.post_id
+        WHERE c.status = 'VISIBLE'
+          AND c.deleted_at IS NULL
+      ),
+      comment_stats AS (
+        SELECT
+          COUNT(*)::int AS visible_comment_count,
+          COUNT(*) FILTER (WHERE author_id = ${userId}::uuid)::int AS viewer_comment_count
+        FROM visible_comments
+      ),
+      reaction_stats AS (
+        SELECT COUNT(*)::int AS post_reaction_count
+        FROM post_reactions r
+        INNER JOIN visible_posts p ON p.id = r.post_id
+      )
+      SELECT
+        membership_stats.member_count,
+        membership_stats.viewer_joined_at,
+        milestone_stats.milestone_count,
+        post_stats.visible_post_count,
+        post_stats.viewer_post_count,
+        post_stats.safe_post_count,
+        comment_stats.visible_comment_count,
+        comment_stats.viewer_comment_count,
+        reaction_stats.post_reaction_count
+      FROM membership_stats, milestone_stats, post_stats, comment_stats, reaction_stats
+    `;
+    const stats = rows[0];
+
+    if (!stats) {
+      throw new Error("Dashboard aggregate query returned no row.");
+    }
+
+    const memberCount = Number(stats.member_count);
+    const milestoneCount = Number(stats.milestone_count);
+    const visiblePostCount = Number(stats.visible_post_count);
+    const visibleCommentCount = Number(stats.visible_comment_count);
+    const postReactionCount = Number(stats.post_reaction_count);
+    const safePostCount = Number(stats.safe_post_count);
+    const viewerPostCount = Number(stats.viewer_post_count);
+    const viewerCommentCount = Number(stats.viewer_comment_count);
 
     return {
       memberCount,
@@ -248,7 +257,7 @@ export const dashboardRepository: DashboardRepository = {
       safePostCount,
       lockedPostCount: Math.max(0, visiblePostCount - safePostCount),
       viewer: {
-        joinedAt: membership?.createdAt ?? null,
+        joinedAt: stats.viewer_joined_at,
         postCount: viewerPostCount,
         commentCount: viewerCommentCount
       }
@@ -256,28 +265,38 @@ export const dashboardRepository: DashboardRepository = {
   },
 
   getPopularDiscussions: async (userId, clubId, limit) => {
+    const createdAfter = new Date(Date.now() - popularDiscussionWindowMs);
     const rankedRows = await prisma.$queryRaw<PopularDiscussionRankRow[]>`
+      WITH candidate_posts AS MATERIALIZED (
+        SELECT id, created_at
+        FROM posts
+        WHERE club_id = ${clubId}::uuid
+          AND status = 'VISIBLE'
+          AND deleted_at IS NULL
+          AND created_at >= ${createdAfter}
+      ),
+      comment_counts AS (
+        SELECT c.post_id, COUNT(*)::int AS comment_count
+        FROM comments c
+        INNER JOIN candidate_posts p ON p.id = c.post_id
+        WHERE c.status = 'VISIBLE' AND c.deleted_at IS NULL
+        GROUP BY c.post_id
+      ),
+      reaction_counts AS (
+        SELECT r.post_id, COUNT(*)::int AS reaction_count
+        FROM post_reactions r
+        INNER JOIN candidate_posts p ON p.id = r.post_id
+        GROUP BY r.post_id
+      )
       SELECT
         p.id,
         (
           COALESCE(comment_counts.comment_count, 0) +
           COALESCE(reaction_counts.reaction_count, 0)
         ) AS engagement_score
-      FROM posts p
-      LEFT JOIN (
-        SELECT post_id, COUNT(*)::int AS comment_count
-        FROM comments
-        WHERE status = 'VISIBLE' AND deleted_at IS NULL
-        GROUP BY post_id
-      ) comment_counts ON comment_counts.post_id = p.id
-      LEFT JOIN (
-        SELECT post_id, COUNT(*)::int AS reaction_count
-        FROM post_reactions
-        GROUP BY post_id
-      ) reaction_counts ON reaction_counts.post_id = p.id
-      WHERE p.club_id = ${clubId}::uuid
-        AND p.status = 'VISIBLE'
-        AND p.deleted_at IS NULL
+      FROM candidate_posts p
+      LEFT JOIN comment_counts ON comment_counts.post_id = p.id
+      LEFT JOIN reaction_counts ON reaction_counts.post_id = p.id
       ORDER BY engagement_score DESC, p.created_at DESC, p.id ASC
       LIMIT ${limit}
     `;
@@ -372,11 +391,7 @@ export const dashboardRepository: DashboardRepository = {
   }
 };
 
-const visiblePostWhere = (clubId: string): Prisma.PostWhereInput => ({
-  clubId,
-  status: "VISIBLE",
-  deletedAt: null
-});
+const popularDiscussionWindowMs = 30 * 24 * 60 * 60 * 1000;
 
 const popularPostSelect = (userId: string) => ({
   ...postSelect,

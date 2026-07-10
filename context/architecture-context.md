@@ -105,6 +105,9 @@ Authentication:
 - JWT payload should be minimal: user ID, token version/session version, issued/expiry times.
 - Do not trust roles, progress, or membership from the JWT; load fresh authorization data from PostgreSQL.
 - Logout clears the cookie. Password change should invalidate existing tokens through a token/session version.
+- Permanent account deletion requires current-password reauthentication and
+  rejects stale session versions; the deletion transaction increments the
+  session version before destructive writes.
 
 Authorization:
 
@@ -218,6 +221,9 @@ Backend/database:
 - Avoid loading nested relations unless needed by the route.
 - Add indexes for common filters, joins, and ordering paths.
 - Run auth, rate limiting, authorization, and validation before expensive work.
+- Dashboard statistics use one club-bounded aggregate query. Popular discussion
+  ranking considers only visible posts created within the last 30 days before
+  aggregating their comments and reactions.
 
 Important query paths/indexes:
 
@@ -247,6 +253,19 @@ Render API deployment:
 
 - The web service start command must run only the built Express server, for example `pnpm --filter @loresafe/api start`.
 - Run committed Prisma migrations in a pre-deploy/release command, for example `pnpm --filter @loresafe/api prisma:migrate:deploy`, not in the web start command. This keeps advisory-lock retries from delaying port binding long enough for Render's web-service port scan to fail.
+- Configure `TRUST_PROXY_CIDRS` with explicit ingress proxy addresses/subnets;
+  numeric hop counts are not allowed. Verify `req.ip` through both the Vercel
+  rewrite and direct API path before release.
+
+Release gate:
+
+- `.github/workflows/release-gate.yml` is the versioned main/PR gate. It runs a
+  frozen install, production dependency audit, committed migrations and drift
+  checks, typechecking, unit/route tests, real PostgreSQL integration tests,
+  production builds, and a full-history secret scan.
+- The PostgreSQL integration suite runs separately through
+  `pnpm test:integration:database` and must use a direct/session database URL so
+  LISTEN/NOTIFY coverage is meaningful.
 
 Environment variables must be validated at startup. Required groups:
 

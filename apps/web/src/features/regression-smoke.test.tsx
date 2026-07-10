@@ -225,6 +225,7 @@ describe("frontend regression smoke", () => {
       name: /^delete account$/i
     });
     const confirmationInput = dialog.getByLabelText('Type "delete" to confirm');
+    const passwordInput = dialog.getByLabelText("Current password");
 
     expect(confirmButton).toBeDisabled();
 
@@ -233,6 +234,9 @@ describe("frontend regression smoke", () => {
 
     await user.clear(confirmationInput);
     await user.type(confirmationInput, "delete");
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(passwordInput, "correct horse battery staple");
     expect(confirmButton).toBeEnabled();
   });
 
@@ -262,6 +266,10 @@ describe("frontend regression smoke", () => {
     );
     const dialog = within(await screen.findByRole("dialog"));
 
+    await user.type(
+      dialog.getByLabelText("Current password"),
+      "correct horse battery staple"
+    );
     await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
     await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
 
@@ -273,7 +281,8 @@ describe("frontend regression smoke", () => {
 
     expect(deleteCall).toBeDefined();
     expect(getJsonRequestBody(deleteCall ?? [])).toEqual({
-      confirmation: "delete"
+      confirmation: "delete",
+      password: "correct horse battery staple"
     });
     expect(queryClient.getQueryData(authQueryKeys.me)).toBeNull();
     expect(window.localStorage.getItem("loresafe:auth-session")).toBeNull();
@@ -309,6 +318,10 @@ describe("frontend regression smoke", () => {
     );
     const dialog = within(await screen.findByRole("dialog"));
 
+    await user.type(
+      dialog.getByLabelText("Current password"),
+      "correct horse battery staple"
+    );
     await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
     await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
 

@@ -87,7 +87,7 @@ describeDatabase("upload deletion lifecycle", () => {
       });
 
       await expect(
-        usersRepository.deleteCurrentUserAccount(user.id)
+        usersRepository.deleteCurrentUserAccount(user.id, 1)
       ).resolves.toBe("DELETED");
 
       expect(

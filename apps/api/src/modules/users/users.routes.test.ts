@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
+import { hashPassword } from "../../core/security/password.js";
 import { createSessionToken } from "../../core/security/session-token.js";
 import { createAuthController } from "../auth/auth.controller.js";
 import { createAuthMiddleware } from "../auth/auth.middleware.js";
@@ -59,7 +60,8 @@ describe("users routes", () => {
       .delete("/api/users/me")
       .set("x-request-id", "account-delete-missing-session")
       .send({
-        confirmation: "delete"
+        confirmation: "delete",
+        password: "correct horse battery staple"
       })
       .expect(401);
 
@@ -85,18 +87,49 @@ describe("users routes", () => {
       .set("x-request-id", "account-delete-invalid-confirmation")
       .set("Cookie", await createSessionCookie(user))
       .send({
-        confirmation: "Delete"
+        confirmation: "Delete",
+        password: "correct horse battery staple"
       })
       .expect(400);
 
     expect(response.body).toEqual({
       error: {
         code: "BAD_REQUEST",
-        message: 'Type "delete" to confirm account deletion.',
+        message:
+          'Enter your current password and type "delete" to confirm account deletion.',
         requestId: "account-delete-invalid-confirmation"
       }
     });
     expect(await repository.findActiveUserById(user.id)).toEqual(user);
+  });
+
+  it("rejects account deletion when current-password reauthentication fails", async () => {
+    const user = await repository.createUser({
+      email: "reader@example.com",
+      displayName: "Existing Reader",
+      username: "story_fan",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    const response = await request(app)
+      .delete("/api/users/me")
+      .set("x-request-id", "account-delete-invalid-password")
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        confirmation: "delete",
+        password: "wrong password"
+      })
+      .expect(403);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Invalid credentials",
+        requestId: "account-delete-invalid-password"
+      }
+    });
+    expect(await repository.findActiveUserById(user.id)).toEqual(user);
+    expect(user.sessionVersion).toBe(1);
   });
 
   it("blocks account deletion when the user is the sole owner of a club", async () => {
@@ -104,7 +137,7 @@ describe("users routes", () => {
       email: "owner@example.com",
       displayName: "Club Owner",
       username: "club_owner",
-      passwordHash: "$argon2id$v=19$hash"
+      passwordHash: await hashPassword("correct horse battery staple")
     });
     const club = repository.createClub({
       title: "Solo Owner Club",
@@ -120,7 +153,8 @@ describe("users routes", () => {
       .set("x-request-id", "account-delete-sole-owner")
       .set("Cookie", await createSessionCookie(user))
       .send({
-        confirmation: "delete"
+        confirmation: "delete",
+        password: "correct horse battery staple"
       })
       .expect(409);
 
@@ -143,7 +177,7 @@ describe("users routes", () => {
       email: "reader@example.com",
       displayName: "Existing Reader",
       username: "story_fan",
-      passwordHash: "$argon2id$v=19$hash"
+      passwordHash: await hashPassword("correct horse battery staple")
     });
     const otherOwner = await repository.createUser({
       email: "owner@example.com",
@@ -186,13 +220,15 @@ describe("users routes", () => {
       .delete("/api/users/me")
       .set("Cookie", cookie)
       .send({
-        confirmation: "delete"
+        confirmation: "delete",
+        password: "correct horse battery staple"
       })
       .expect(204);
 
     expect(response.headers["set-cookie"]?.[0]).toContain(
       `${env.SESSION_COOKIE_NAME}=;`
     );
+    expect(user.sessionVersion).toBe(2);
     expect(await repository.findActiveUserById(user.id)).toBeNull();
     expect(repository.nameReservations.has("story_fan")).toBe(false);
     expect(repository.nameReservations.has("existing reader")).toBe(false);
@@ -886,6 +922,17 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   ): Promise<AuthUserCredentialsRecord | null> =>
     this.usersByEmail.get(email) ?? null;
 
+  findActiveUserCredentialsById = async (userId: string) => {
+    const user = await this.findActiveUserById(userId);
+
+    return user
+      ? {
+          passwordHash: user.passwordHash,
+          sessionVersion: user.sessionVersion
+        }
+      : null;
+  };
+
   findActiveUserByReservedName = async (normalizedName: string) => {
     const reservedUserId = this.nameReservations.get(normalizedName);
 
@@ -1103,12 +1150,17 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   };
 
   deleteCurrentUserAccount = async (
-    userId: string
+    userId: string,
+    expectedSessionVersion: number
   ): Promise<DeleteCurrentUserAccountResult> => {
     const user = await this.findActiveUserById(userId);
 
     if (!user) {
       return "USER_NOT_FOUND";
+    }
+
+    if (user.sessionVersion !== expectedSessionVersion) {
+      return "REAUTH_REQUIRED";
     }
 
     const isSoleOwner = this.memberships.some(
@@ -1126,6 +1178,8 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     if (isSoleOwner) {
       return "SOLE_OWNER";
     }
+
+    user.sessionVersion += 1;
 
     const objectKeys = this.fileAssets
       .filter((asset) => asset.ownerId === userId)

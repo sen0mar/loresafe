@@ -26,7 +26,8 @@ export type UpdateCurrentUserProfileRequest = z.infer<
 
 export const deleteCurrentUserAccountRequestSchema = z
   .object({
-    confirmation: z.literal("delete")
+    confirmation: z.literal("delete"),
+    password: z.string().min(1).max(128)
   })
   .strict();
 
