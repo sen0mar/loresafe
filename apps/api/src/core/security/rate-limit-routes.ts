@@ -5,19 +5,26 @@ import {
   clubCreateRateLimiter,
   clubInviteCreateRateLimiter,
   clubJoinRateLimiter,
+  clubLeaveRateLimiter,
   clubMemberManagementRateLimiter,
   clubMilestoneCreateRateLimiter,
+  clubMilestoneMutationRateLimiter,
   clubPostCreateRateLimiter,
   clubProgressUpdateRateLimiter,
   clubSettingsUpdateRateLimiter,
   commentReactionToggleRateLimiter,
+  contentRevealRateLimiter,
+  eventConnectionRateLimiter,
+  expensiveReadRateLimiter,
   inviteAcceptRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
   moderationActionRateLimiter,
+  notificationMutationRateLimiter,
   postCommentCreateRateLimiter,
   postReactionToggleRateLimiter,
   profileUpdateRateLimiter,
+  postImageUploadRateLimiter,
   publicSeoReadRateLimiter,
   publicAssetUploadRateLimiter,
   reportCreateRateLimiter,
@@ -41,6 +48,7 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.post("/api/clubs", clubCreateRateLimiter);
   app.post("/api/clubs/:linkName/invites", clubInviteCreateRateLimiter);
   app.post("/api/clubs/:linkName/join", clubJoinRateLimiter);
+  app.post("/api/clubs/:linkName/leave", clubLeaveRateLimiter);
   app.patch(
     "/api/clubs/:linkName/members/:membershipId/role",
     clubMemberManagementRateLimiter
@@ -59,7 +67,16 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     "/api/clubs/:linkName/milestones/templates",
     clubMilestoneCreateRateLimiter
   );
+  app.patch(
+    "/api/clubs/:linkName/milestones/:milestoneId",
+    clubMilestoneMutationRateLimiter
+  );
+  app.post(
+    "/api/clubs/:linkName/milestones/:milestoneId/move",
+    clubMilestoneMutationRateLimiter
+  );
   app.post("/api/clubs/:linkName/posts", clubPostCreateRateLimiter);
+  app.get("/api/clubs/:linkName/posts", expensiveReadRateLimiter);
   app.post("/api/posts/:postId/comments", postCommentCreateRateLimiter);
   app.post(
     "/api/comments/:commentId/reactions/toggle",
@@ -74,8 +91,24 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     postReactionToggleRateLimiter
   );
   app.post("/api/posts/:postId/delete", moderationActionRateLimiter);
+  app.post("/api/posts/:postId/reveal", contentRevealRateLimiter);
+  app.post(
+    "/api/posts/:postId/comments/:commentId/reveal",
+    contentRevealRateLimiter
+  );
   app.post("/api/reports", reportCreateRateLimiter);
   app.get("/api/search", searchRateLimiter);
+  app.get("/api/events", eventConnectionRateLimiter);
+  app.get("/api/clubs/:linkName/stats", expensiveReadRateLimiter);
+  app.get(
+    "/api/clubs/:linkName/popular-discussions",
+    expensiveReadRateLimiter
+  );
+  app.get("/api/clubs/:linkName/progress/summary", expensiveReadRateLimiter);
+  app.get(
+    "/api/clubs/:linkName/recently-unlocked/summary",
+    expensiveReadRateLimiter
+  );
   app.patch(
     "/api/clubs/:linkName/moderation/reports/:reportId/required-milestone",
     moderationActionRateLimiter
@@ -106,5 +139,9 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.patch("/api/users/me", profileUpdateRateLimiter);
   app.delete("/api/users/me", accountDeleteRateLimiter);
   app.post("/api/uploads/public-assets", publicAssetUploadRateLimiter);
+  app.post("/api/uploads/post-images", postImageUploadRateLimiter);
   app.post("/api/uploads/:assetId/complete", publicAssetUploadRateLimiter);
+  app.post("/api/notifications/read-all", notificationMutationRateLimiter);
+  app.delete("/api/notifications", notificationMutationRateLimiter);
+  app.delete("/api/notifications/selected", notificationMutationRateLimiter);
 };

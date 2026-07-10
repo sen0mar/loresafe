@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
@@ -889,21 +890,16 @@ export const postsRepository: PostsRepository = {
         return null;
       }
 
-      await transaction.auditLog.create({
-        data: {
-          action: "POST_DELETED",
-          actorId,
-          clubId,
-          postId,
-          targetUserId,
-          metadata: {
-            previousDeletedAt: null,
-            deletedAt: deletedAt.toISOString(),
-            source: "DIRECT_DELETE"
-          }
-        },
-        select: {
-          id: true
+      await createAuditLogInTransaction(transaction, {
+        action: "POST_DELETED",
+        actorId,
+        clubId,
+        postId,
+        targetUserId,
+        metadata: {
+          previousDeletedAt: null,
+          deletedAt: deletedAt.toISOString(),
+          source: "DIRECT_DELETE"
         }
       });
 

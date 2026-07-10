@@ -135,6 +135,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 129: Notification delete animation — Added immediate transform-based notification delete motion with a left fade/disintegration effect, smooth remaining-row movement, reduced-motion fallback, and matched compact row actions.
 - Feature 130: Top-five production audit hardening — Removed locked spoiler media previews, added SameSite and trusted-origin CSRF defenses, enforced current notification access, made sensitive authorization writes transactional, serialized last-owner mutations, and added focused plus real PostgreSQL concurrency coverage.
 - Feature 131: Production audit hardening 6–10 — Added idempotent versioned progress commands, revocation-safe cross-instance SSE over direct PostgreSQL, verified and size-constrained image uploads, durable storage cleanup reconciliation, and committed cross-club database invariants with focused real PostgreSQL coverage.
+- Feature 132: Production audit hardening 11–15 — Revalidated search/dashboard authorization at final reads, made migration locking fail closed, corrected production R2 CORS, preserved immutable audit attribution through deletion with a committed migration, and closed rate-limit gaps with focused and real PostgreSQL coverage.
 
 ## Entry Format
 

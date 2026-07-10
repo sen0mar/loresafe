@@ -554,20 +554,24 @@ model Report {
 }
 
 model AuditLog {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  action        AuditLogAction
-  actorId       String         @map("actor_id") @db.Uuid
-  clubId        String         @map("club_id") @db.Uuid
-  reportId      String?        @map("report_id") @db.Uuid
-  postId        String?        @map("post_id") @db.Uuid
-  commentId     String?        @map("comment_id") @db.Uuid
-  targetUserId  String?        @map("target_user_id") @db.Uuid
-  moderatorNote String?        @map("moderator_note") @db.VarChar(1000)
-  metadata      Json?
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action           AuditLogAction
+  actorId          String?        @map("actor_id") @db.Uuid
+  actorDisplayName String         @map("actor_display_name") @db.VarChar(80)
+  actorUsername    String         @map("actor_username") @db.VarChar(30)
+  clubId           String?        @map("club_id") @db.Uuid
+  clubTitle        String         @map("club_title") @db.VarChar(120)
+  clubLinkName     String         @map("club_link_name") @db.VarChar(80)
+  reportId         String?        @map("report_id") @db.Uuid
+  postId           String?        @map("post_id") @db.Uuid
+  commentId        String?        @map("comment_id") @db.Uuid
+  targetUserId     String?        @map("target_user_id") @db.Uuid
+  moderatorNote    String?        @map("moderator_note") @db.VarChar(1000)
+  metadata         Json?
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  actor      User     @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: Cascade)
-  club       Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  club       Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
   report     Report?  @relation(fields: [reportId], references: [id], onDelete: SetNull)
   post       Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
   comment    Comment? @relation(fields: [commentId], references: [id], onDelete: SetNull)

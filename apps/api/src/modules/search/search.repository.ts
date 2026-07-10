@@ -9,6 +9,7 @@ import {
   type ClubPostRecord,
   userReactionMapForPostIds
 } from "../posts/posts.repository.js";
+import { visiblePostAccessWhere } from "../posts/post-access-where.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -296,15 +297,23 @@ export const searchRepository: SearchRepository = {
       where: {
         id: {
           in: postIds
-        }
+        },
+        ...visiblePostAccessWhere(userId)
       },
       select: searchPostSelect(userId)
     });
+    const authorizedPosts = posts.filter((post) =>
+      matchesSearchSafetyFilter(post, { includeSafe, includeSpoiler })
+    );
+    const authorizedPostIds = authorizedPosts.map((post) => post.id);
     const postOrder = new Map(postIds.map((postId, index) => [postId, index]));
-    const reactionMap = await userReactionMapForPostIds(postIds, userId);
+    const reactionMap = await userReactionMapForPostIds(
+      authorizedPostIds,
+      userId
+    );
 
     return {
-      records: posts
+      records: authorizedPosts
         .sort(
           (left, right) =>
             (postOrder.get(left.id) ?? 0) - (postOrder.get(right.id) ?? 0)
@@ -336,6 +345,29 @@ const searchPostVisibilityCondition = ({
   }
 
   return Prisma.sql`AND NOT ${safeCondition}`;
+};
+
+const matchesSearchSafetyFilter = (
+  post: SelectedSearchPost,
+  {
+    includeSafe,
+    includeSpoiler
+  }: {
+    includeSafe: boolean;
+    includeSpoiler: boolean;
+  }
+) => {
+  if (includeSafe && includeSpoiler) {
+    return true;
+  }
+
+  const progress = post.club.progress[0];
+  const isSafe =
+    progress?.mode === "FINISHED" ||
+    post.requiredMilestone.position <=
+      (progress?.currentMilestone?.position ?? 0);
+
+  return includeSafe ? isSafe : !isSafe;
 };
 
 const toSearchClubRecord = (row: SearchClubRow): SearchClubRecord => ({

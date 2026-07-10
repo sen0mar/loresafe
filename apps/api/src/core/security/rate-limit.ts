@@ -146,6 +146,30 @@ export const publicAssetUploadRateLimiter = rateLimit({
   }
 });
 
+export const postImageUploadRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:uploads:post-images:"),
+  identifier: "uploads-post-images",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const eventConnectionRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:events:connections:"),
+  identifier: "events-connections",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const clubCreateRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 45,
@@ -165,6 +189,18 @@ export const clubJoinRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createUpstashRateLimitStore("loresafe:rl:clubs:join:"),
   identifier: "clubs-join",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const clubLeaveRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:leave:"),
+  identifier: "clubs-leave",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
   }
@@ -213,6 +249,18 @@ export const clubMilestoneCreateRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createUpstashRateLimitStore("loresafe:rl:clubs:milestones:create:"),
   identifier: "clubs-milestones-create",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const clubMilestoneMutationRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:clubs:milestones:mutate:"),
+  identifier: "clubs-milestones-mutate",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
   }
@@ -278,6 +326,18 @@ export const searchRateLimiter = rateLimit({
   }
 });
 
+export const expensiveReadRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 240,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:reads:expensive:"),
+  identifier: "reads-expensive",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
 export const publicSeoReadRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 600,
@@ -297,6 +357,30 @@ export const moderationActionRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createUpstashRateLimitStore("loresafe:rl:moderation:actions:"),
   identifier: "moderation-actions",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const contentRevealRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:content:reveal:"),
+  identifier: "content-reveal",
+  handler: (_req, _res, next) => {
+    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+  }
+});
+
+export const notificationMutationRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 180,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  store: createUpstashRateLimitStore("loresafe:rl:notifications:mutate:"),
+  identifier: "notifications-mutate",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
   }

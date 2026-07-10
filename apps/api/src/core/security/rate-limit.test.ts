@@ -93,6 +93,18 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:uploads:public-assets:",
         windowMs: 10 * 60 * 1000
       },
+      "uploads-post-images": {
+        limit: 60,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:uploads:post-images:",
+        windowMs: 10 * 60 * 1000
+      },
+      "events-connections": {
+        limit: 30,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:events:connections:",
+        windowMs: 10 * 60 * 1000
+      },
       "clubs-create": {
         limit: 45,
         skipSuccessfulRequests: undefined,
@@ -103,6 +115,12 @@ describe("rate limit defaults", () => {
         limit: 90,
         skipSuccessfulRequests: undefined,
         storePrefix: "loresafe:rl:clubs:join:",
+        windowMs: 10 * 60 * 1000
+      },
+      "clubs-leave": {
+        limit: 30,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:clubs:leave:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-invites-create": {
@@ -127,6 +145,12 @@ describe("rate limit defaults", () => {
         limit: 90,
         skipSuccessfulRequests: undefined,
         storePrefix: "loresafe:rl:clubs:milestones:create:",
+        windowMs: 10 * 60 * 1000
+      },
+      "clubs-milestones-mutate": {
+        limit: 120,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:clubs:milestones:mutate:",
         windowMs: 10 * 60 * 1000
       },
       "clubs-posts-create": {
@@ -159,6 +183,12 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:search:",
         windowMs: 10 * 60 * 1000
       },
+      "reads-expensive": {
+        limit: 240,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:reads:expensive:",
+        windowMs: 10 * 60 * 1000
+      },
       "public-seo-read": {
         limit: 600,
         skipSuccessfulRequests: undefined,
@@ -169,6 +199,18 @@ describe("rate limit defaults", () => {
         limit: 180,
         skipSuccessfulRequests: undefined,
         storePrefix: "loresafe:rl:moderation:actions:",
+        windowMs: 10 * 60 * 1000
+      },
+      "content-reveal": {
+        limit: 120,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:content:reveal:",
+        windowMs: 10 * 60 * 1000
+      },
+      "notifications-mutate": {
+        limit: 180,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:notifications:mutate:",
         windowMs: 10 * 60 * 1000
       },
       "comments-reactions-toggle": {
@@ -195,7 +237,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(23);
+    expect(options).toHaveLength(30);
     expect(options).toEqual(
       options.map((option) =>
         expect.objectContaining({

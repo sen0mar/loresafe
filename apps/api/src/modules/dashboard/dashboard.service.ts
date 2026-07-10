@@ -64,11 +64,7 @@ export const createDashboardService = (
 
     return toPopularDiscussionsResponse(
       discussions,
-      {
-        ...club.progress,
-        currentUserId: userId,
-        currentUserRole: club.currentUserRole
-      },
+      userId,
       query.limit,
       storage
     );

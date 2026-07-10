@@ -123,18 +123,20 @@ export const toProgressSummaryResponse = (
 
 export const toPopularDiscussionsResponse = async (
   records: PopularDiscussionRecord[],
-  context: {
-    mode: ProgressMode;
-    currentMilestonePosition: number | null;
-    currentUserId: string;
-    currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
-  },
+  currentUserId: string,
   limit: number,
   storage: Pick<ObjectStorage, "createPresignedRead">
 ): Promise<PopularDiscussionsResponse> => ({
   discussions: await Promise.all(
     records.map(async (record) => ({
-      post: await toClubPostCardDto(record.post, context, storage),
+      post: await toClubPostCardDto(
+        record.post,
+        {
+          ...record.viewer,
+          currentUserId
+        },
+        storage
+      ),
       engagementScore: record.engagementScore
     }))
   ),

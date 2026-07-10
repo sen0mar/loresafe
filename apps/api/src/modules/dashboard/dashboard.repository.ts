@@ -8,6 +8,7 @@ import {
   type ClubFeedRecord,
   type ClubPostRecord
 } from "../posts/posts.repository.js";
+import { visiblePostAccessWhere } from "../posts/post-access-where.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import {
   progressRepository,
@@ -47,6 +48,11 @@ export type ProgressSummaryRecord = {
 export type PopularDiscussionRecord = {
   post: ClubPostRecord;
   engagementScore: number;
+  viewer: {
+    mode: ProgressMode;
+    currentMilestonePosition: number | null;
+    currentUserRole: ClubMembershipRole | null;
+  };
 };
 
 export type RecentlyUnlockedSummaryRecord = Omit<
@@ -58,6 +64,10 @@ type PopularDiscussionRankRow = {
   id: string;
   engagement_score: number | bigint;
 };
+
+type SelectedPopularPost = Prisma.PostGetPayload<{
+  select: ReturnType<typeof popularPostSelect>;
+}>;
 
 export type DashboardRepository = {
   findClubForDashboard: (
@@ -281,12 +291,17 @@ export const dashboardRepository: DashboardRepository = {
       where: {
         id: {
           in: postIds
-        }
+        },
+        clubId,
+        ...visiblePostAccessWhere(userId)
       },
-      select: postSelect
+      select: popularPostSelect(userId)
     });
     const postById = new Map(posts.map((post) => [post.id, post]));
-    const reactionMap = await userReactionMapForPostIds(postIds, userId);
+    const reactionMap = await userReactionMapForPostIds(
+      posts.map((post) => post.id),
+      userId
+    );
 
     return rankedRows.flatMap((row) => {
       const post = postById.get(row.id);
@@ -297,7 +312,8 @@ export const dashboardRepository: DashboardRepository = {
 
       return {
         post: toClubPostRecord(post, reactionMap),
-        engagementScore: Number(row.engagement_score)
+        engagementScore: Number(row.engagement_score),
+        viewer: toPopularDiscussionViewer(post)
       };
     });
   },
@@ -361,3 +377,49 @@ const visiblePostWhere = (clubId: string): Prisma.PostWhereInput => ({
   status: "VISIBLE",
   deletedAt: null
 });
+
+const popularPostSelect = (userId: string) => ({
+  ...postSelect,
+  club: {
+    select: {
+      memberships: {
+        where: {
+          userId
+        },
+        select: {
+          role: true
+        },
+        take: 1
+      },
+      progress: {
+        where: {
+          userId
+        },
+        select: {
+          mode: true,
+          currentMilestone: {
+            select: {
+              position: true
+            }
+          }
+        },
+        take: 1
+      }
+    }
+  }
+});
+
+const toPopularDiscussionViewer = (
+  post: SelectedPopularPost
+): PopularDiscussionRecord["viewer"] => {
+  const progress = post.club.progress[0];
+
+  return {
+    mode: (progress?.mode ?? "STRICT") as ProgressMode,
+    currentMilestonePosition:
+      progress?.currentMilestone?.position ?? null,
+    currentUserRole: (post.club.memberships[0]?.role ?? null) as
+      | ClubMembershipRole
+      | null
+  };
+};

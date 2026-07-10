@@ -1,6 +1,6 @@
 [
   {
-    "AllowedOrigins": ["https://threadsync-web.vercel.app"],
+    "AllowedOrigins": ["https://www.loresafe.org"],
     "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": ["Content-Type"],
     "ExposeHeaders": ["ETag"],

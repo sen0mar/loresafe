@@ -552,6 +552,11 @@ class InMemoryDashboardRepository
     clubId: string,
     limit: number
   ): Promise<PopularDiscussionRecord[]> => {
+    const progress = this.findProgress(userId, clubId);
+    const currentMilestone = this.findMilestone(
+      progress?.currentMilestoneId ?? null
+    );
+    const membership = this.findMembership(userId, clubId);
     const rankedPosts = this.visiblePostsForClub(clubId)
       .map((post) => ({
         post,
@@ -570,7 +575,12 @@ class InMemoryDashboardRepository
 
     return rankedPosts.map((rankedPost) => ({
       post: this.toPostRecord(rankedPost.post, userId),
-      engagementScore: rankedPost.engagementScore
+      engagementScore: rankedPost.engagementScore,
+      viewer: {
+        mode: progress?.mode ?? "STRICT",
+        currentMilestonePosition: currentMilestone?.position ?? null,
+        currentUserRole: membership?.role ?? null
+      }
     }));
   };
 

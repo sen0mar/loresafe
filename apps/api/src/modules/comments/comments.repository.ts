@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { enqueueCommentCreatedNotificationJob } from "../../jobs/notification-job-queue.js";
+import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
@@ -794,22 +795,17 @@ export const commentsRepository: CommentsRepository = {
         return null;
       }
 
-      await transaction.auditLog.create({
-        data: {
-          action: "COMMENT_DELETED",
-          actorId,
-          clubId,
-          postId,
-          commentId,
-          targetUserId,
-          metadata: {
-            previousDeletedAt: null,
-            deletedAt: deletedAt.toISOString(),
-            source: "DIRECT_DELETE"
-          }
-        },
-        select: {
-          id: true
+      await createAuditLogInTransaction(transaction, {
+        action: "COMMENT_DELETED",
+        actorId,
+        clubId,
+        postId,
+        commentId,
+        targetUserId,
+        metadata: {
+          previousDeletedAt: null,
+          deletedAt: deletedAt.toISOString(),
+          source: "DIRECT_DELETE"
         }
       });
 

@@ -10,8 +10,6 @@ const maxAttempts = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_ATTEM
 const baseDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS, 5_000);
 const maxDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_RETRY_DELAY_MS, 30_000);
 const outputLimit = 20_000;
-const advisoryLockFallbackEnabled =
-  process.env.PRISMA_MIGRATE_DEPLOY_DISABLE_LOCK_FALLBACK !== "false";
 
 const sleep = (delayMs) =>
   new Promise((resolve) => {
@@ -33,15 +31,10 @@ const isAdvisoryLockTimeout = (output) => {
   );
 };
 
-const runMigrateDeploy = ({ disableAdvisoryLock = false } = {}) =>
+const runMigrateDeploy = () =>
   new Promise((resolve) => {
     const child = spawn("pnpm", ["exec", "prisma", "migrate", "deploy"], {
-      env: disableAdvisoryLock
-        ? {
-            ...process.env,
-            PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK: "true"
-          }
-        : process.env,
+      env: process.env,
       shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -70,7 +63,6 @@ const runMigrateDeploy = ({ disableAdvisoryLock = false } = {}) =>
     });
   });
 
-let lastAdvisoryLockOutput = "";
 let lastAdvisoryLockExitCode = 1;
 
 for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -84,7 +76,6 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     process.exit(exitCode);
   }
 
-  lastAdvisoryLockOutput = output;
   lastAdvisoryLockExitCode = exitCode;
 
   if (attempt === maxAttempts) {
@@ -100,19 +91,8 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   await sleep(delayMs);
 }
 
-if (!advisoryLockFallbackEnabled) {
-  process.exit(lastAdvisoryLockExitCode);
-}
-
 process.stderr.write(
   "Prisma migrate deploy kept timing out on the advisory lock. " +
-    "Running one final deploy with PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true.\n"
+    "The release is stopping with the advisory lock enabled; check for another migration runner before retrying.\n"
 );
-
-const fallbackResult = await runMigrateDeploy({ disableAdvisoryLock: true });
-
-if (fallbackResult.exitCode !== 0 && !fallbackResult.output) {
-  process.stderr.write(lastAdvisoryLockOutput);
-}
-
-process.exit(fallbackResult.exitCode);
+process.exit(lastAdvisoryLockExitCode);

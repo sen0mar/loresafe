@@ -1,4 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client.js";
+import { createAuditLogsInTransaction } from "../audit/audit-log.repository.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -43,14 +44,13 @@ export const softDeleteAuthoredPostsForBan = async (
     }
   });
 
-  await transaction.auditLog.createMany({
-    data: postIds.map((postId) => ({
+  await createAuditLogsInTransaction(transaction, {
+    actorId: input.actorId,
+    clubId: input.clubId,
+    records: postIds.map((postId) => ({
       action: "POST_DELETED",
-      actorId: input.actorId,
-      clubId: input.clubId,
       reportId: input.reportId ?? null,
       postId,
-      commentId: null,
       targetUserId: input.targetUserId,
       moderatorNote: input.moderatorNote ?? null,
       metadata: {

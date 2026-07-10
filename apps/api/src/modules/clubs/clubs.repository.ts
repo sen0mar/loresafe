@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type {
   BanClubMemberRequest,
   ClubCategory,
@@ -1352,10 +1353,6 @@ export const isUniqueConstraintError = (error: unknown) =>
   (error as { code: unknown }).code === "P2002";
 
 type TransactionClient = Prisma.TransactionClient;
-type AuditLogAction =
-  | "CLUB_MEMBER_ROLE_UPDATED"
-  | "USER_BANNED"
-  | "USER_UNBANNED";
 
 const findMemberManagementContext = async (
   transaction: TransactionClient,
@@ -1505,33 +1502,6 @@ const findMemberRecord = async (
 
   return toClubMemberRecord(member);
 };
-
-const createAuditLogInTransaction = (
-  transaction: TransactionClient,
-  input: {
-    action: AuditLogAction;
-    actorId: string;
-    clubId: string;
-    targetUserId: string;
-    metadata: Prisma.InputJsonObject;
-  }
-) =>
-  transaction.auditLog.create({
-    data: {
-      action: input.action,
-      actorId: input.actorId,
-      clubId: input.clubId,
-      reportId: null,
-      postId: null,
-      commentId: null,
-      targetUserId: input.targetUserId,
-      moderatorNote: null,
-      metadata: input.metadata
-    },
-    select: {
-      id: true
-    }
-  });
 
 const canManageClubBans = (role: ClubMembershipRole) =>
   role === "OWNER" || role === "MODERATOR";

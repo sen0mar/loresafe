@@ -1,5 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import {
   createNotificationInTransaction,
   type CreateNotificationResult
@@ -25,18 +26,6 @@ import type {
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
-type AuditLogAction =
-  | "POST_REQUIRED_MILESTONE_CHANGED"
-  | "POST_HIDDEN"
-  | "POST_DELETED"
-  | "COMMENT_REQUIRED_MILESTONE_CHANGED"
-  | "COMMENT_HIDDEN"
-  | "COMMENT_DELETED"
-  | "USER_WARNED"
-  | "USER_BANNED"
-  | "REPORT_RESOLVED"
-  | "REPORT_DISMISSED";
-
 export type ReportTargetRecord = {
   targetType: "POST" | "COMMENT";
   targetId: string;
@@ -1255,37 +1244,6 @@ const resolveReportInTransaction = (
     },
     data: {
       status: "RESOLVED"
-    },
-    select: {
-      id: true
-    }
-  });
-
-const createAuditLogInTransaction = (
-  transaction: TransactionClient,
-  input: {
-    action: AuditLogAction;
-    actorId: string;
-    clubId: string;
-    reportId: string;
-    postId: string | null;
-    commentId: string | null;
-    targetUserId: string | null;
-    moderatorNote?: string;
-    metadata: Prisma.InputJsonObject;
-  }
-) =>
-  transaction.auditLog.create({
-    data: {
-      action: input.action,
-      actorId: input.actorId,
-      clubId: input.clubId,
-      reportId: input.reportId,
-      postId: input.postId,
-      commentId: input.commentId,
-      targetUserId: input.targetUserId,
-      moderatorNote: input.moderatorNote ?? null,
-      metadata: input.metadata
     },
     select: {
       id: true
