@@ -139,6 +139,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 133: Production audit hardening 16–20 — Replaced numeric proxy trust with explicit subnet validation, added a versioned CI gate and broader real-PostgreSQL security coverage, bounded dashboard aggregates and popular ranking, and required current-password reauthentication for account deletion.
 - Feature 134: Production audit hardening 21–25 — Added revocable rotating sessions, member-only idempotent reactions, centralized bounded cursors and keyset pagination, stable upload completion retries, committed auth-session migrations, and focused real-PostgreSQL concurrency coverage.
 - Feature 135: Production audit hardening 27–30 — Added cancelable deadline-bound requests/uploads, bounded dependency readiness and protected operational metrics, fail-closed demo seed isolation, and focused frontend/backend module decomposition with recovery documentation and regression coverage.
+- Feature 136: Direct migration database URL — Routed Prisma CLI and production migrations through a required direct PostgreSQL URL while keeping runtime traffic pooled, updated CI and environment guidance, and added focused configuration regression coverage.
 
 ## Entry Format
 

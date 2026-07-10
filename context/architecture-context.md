@@ -256,6 +256,9 @@ Render API deployment:
 
 - The web service start command must run only the built Express server, for example `pnpm --filter @loresafe/api start`.
 - Run committed Prisma migrations in a pre-deploy/release command, for example `pnpm --filter @loresafe/api prisma:migrate:deploy`, not in the web start command. This keeps advisory-lock retries from delaying port binding long enough for Render's web-service port scan to fail.
+- Configure Prisma CLI commands with `DIRECT_URL`, using a direct/session PostgreSQL
+  endpoint. Keep runtime Prisma Client traffic on the pooled `DATABASE_URL`; never
+  run Prisma Migrate through a transaction-pooler endpoint.
 - Configure `TRUST_PROXY_CIDRS` with explicit ingress proxy addresses/subnets;
   numeric hop counts are not allowed. Verify `req.ip` through both the Vercel
   rewrite and direct API path before release.
@@ -273,10 +276,12 @@ Release gate:
   retention, restore drills, incident response, and rollback procedures are
   versioned in `context/operations-runbook.md` and `infra/monitoring/`.
 
-Environment variables must be validated at startup. Required groups:
+Environment variables must be validated when the process that owns them starts.
+Required groups:
 
 - App URLs and environment mode.
-- Database URLs and migration/deploy credentials.
+- A pooled runtime database URL plus a direct/session Prisma migration URL and
+  migration/deploy credentials.
 - A direct/session PostgreSQL events URL for cross-instance SSE delivery.
 - Current/previous JWT signing secrets, issuer/audience, access/session lifetimes, and cookie settings.
 - R2 account, bucket, endpoint, access key, and secret.

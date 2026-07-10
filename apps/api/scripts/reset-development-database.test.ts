@@ -72,6 +72,7 @@ describe("reset development database script", () => {
     expect(command.options.cwd).toBe("/repo/apps/api");
     expect(command.options.env).toMatchObject({
       DATABASE_URL: developmentDatabaseUrl,
+      DIRECT_URL: developmentDatabaseUrl,
       DEMO_SEED_DATABASE_URL: developmentDatabaseUrl,
       DEMO_SEED_CONFIRM: "I_UNDERSTAND_THIS_WRITES_DEMO_DATA",
       NODE_ENV: "development",

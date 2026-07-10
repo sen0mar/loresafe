@@ -30,4 +30,17 @@ describe("production configuration files", () => {
     expect(script).not.toContain("PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK");
     expect(script).toContain("release is stopping with the advisory lock enabled");
   });
+
+  it("uses separate direct migration and pooled runtime database URLs", async () => {
+    const [prismaConfig, prismaClient, productionEnv] = await Promise.all([
+      readFile(repositoryFile("apps/api/prisma.config.ts"), "utf8"),
+      readFile(repositoryFile("apps/api/src/core/prisma/client.ts"), "utf8"),
+      readFile(repositoryFile(".env.production.example"), "utf8")
+    ]);
+
+    expect(prismaConfig).toContain('url: env("DIRECT_URL")');
+    expect(prismaConfig).not.toContain('url: env("DATABASE_URL")');
+    expect(prismaClient).toContain("new PrismaPg(env.DATABASE_URL)");
+    expect(productionEnv).toContain("DIRECT_URL=");
+  });
 });
