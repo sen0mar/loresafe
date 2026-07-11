@@ -31,13 +31,6 @@ import {
 } from "../components/notification-list-sections.js";
 import { useNotificationListMotion } from "../hooks/use-notification-list-motion.js";
 
-const notificationTypeLabels: Record<NotificationItem["type"], string> = {
-  POST_COMMENT: "Comment",
-  COMMENT_REPLY: "Reply",
-  PROGRESS_UNLOCK: "Unlocked",
-  MODERATION_WARNING: "Warning"
-};
-
 export const NotificationsPage = () => {
   const queryClient = useQueryClient();
   const notificationsQuery = useNotificationsInfiniteQuery();

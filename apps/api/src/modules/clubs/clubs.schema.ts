@@ -186,10 +186,4 @@ export type CreateClubRequest = z.infer<typeof createClubRequestSchema>;
 export type UpdateClubSettingsRequest = z.infer<
   typeof updateClubSettingsRequestSchema
 >;
-export type ClubLinkNameParams = z.infer<typeof clubLinkNameParamsSchema>;
-export type ClubMemberParams = z.infer<typeof clubMemberParamsSchema>;
-export type ClubBanParams = z.infer<typeof clubBanParamsSchema>;
-export type UpdateClubMemberRoleRequest = z.infer<
-  typeof updateClubMemberRoleRequestSchema
->;
 export type BanClubMemberRequest = z.infer<typeof banClubMemberRequestSchema>;

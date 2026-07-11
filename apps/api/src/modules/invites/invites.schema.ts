@@ -27,10 +27,6 @@ export const acceptInviteParamsSchema = z
   })
   .strict();
 
-export type CreateClubInviteParams = z.infer<
-  typeof createClubInviteParamsSchema
->;
 export type CreateClubInviteRequest = z.infer<
   typeof createClubInviteRequestSchema
 >;
-export type AcceptInviteParams = z.infer<typeof acceptInviteParamsSchema>;

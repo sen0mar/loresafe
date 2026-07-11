@@ -42,8 +42,6 @@ export const createSitemapRouter = (
   return router;
 };
 
-export const sitemapRouter = createSitemapRouter();
-
 export const renderSitemapXml = (
   publicOrigin: string,
   entries: Array<{ path: string; lastmod: string | null }>

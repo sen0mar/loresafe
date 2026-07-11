@@ -27,8 +27,6 @@ const notificationTypeLabels: Record<NotificationItem["type"], string> = {
   MODERATION_WARNING: "Warning"
 };
 
-const notificationDeleteAnimationMs = 460;
-
 type ExitingNotification = {
   notification: NotificationItem;
   isAnimationComplete: boolean;

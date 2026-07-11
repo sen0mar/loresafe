@@ -26,5 +26,4 @@ export const searchQuerySchema = z
   .strict();
 
 export type SearchFilter = z.infer<typeof searchFilterSchema>;
-export type SearchScope = z.infer<typeof searchScopeSchema>;
 export type SearchQuery = z.infer<typeof searchQuerySchema>;

@@ -146,6 +146,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 140: Persistent app shell navigation — Stopped healthy route changes from remounting the complete routed tree while preserving navigation-based route-error recovery, with focused frontend regression coverage.
 - Feature 141: Production audit closure — Added enforced browser security headers, versioned and live operational-readiness verification, and narrow repository contract boundaries with lint enforcement, closing LS-026, LS-028, and LS-030 with full release verification.
 - Feature 142: Useless function cleanup — Removed the unused functions, hooks, standalone search-page cluster, local helpers, and moderation helper parameter identified in Part 2 of the unused-code audit while preserving live shared search exports and behavior.
+- Feature 143: Other unused code cleanup — Removed the unreachable frontend prototypes, dead dashboard web clients, unused constants, local types, fixtures, and schema aliases identified in Part 3 of the unused-code audit while preserving backend dashboard contracts.
 
 ## Entry Format
 

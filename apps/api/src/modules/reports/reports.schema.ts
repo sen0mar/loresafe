@@ -86,7 +86,6 @@ export const moderationReportResolveRequestSchema = z
   })
   .strict();
 
-export type ReportTargetType = z.infer<typeof reportTargetTypeSchema>;
 export type ReportReason = z.infer<typeof reportReasonSchema>;
 export type CreateReportRequest = z.infer<typeof createReportRequestSchema>;
 export type ModerationReportStatus = z.infer<

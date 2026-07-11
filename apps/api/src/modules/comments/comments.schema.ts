@@ -49,14 +49,9 @@ export const commentReactionCommandParamsSchema = z
   })
   .strict();
 
-export type PostCommentsParams = z.infer<typeof postCommentsParamsSchema>;
 export type ListPostCommentsQuery = z.infer<
   typeof listPostCommentsQuerySchema
 >;
-export type RevealPostCommentParams = z.infer<
-  typeof revealPostCommentParamsSchema
->;
-export type CommentReactionParams = z.infer<typeof commentReactionParamsSchema>;
 export type CreatePostCommentRequest = z.infer<
   typeof createPostCommentRequestSchema
 >;

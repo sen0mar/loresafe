@@ -58,9 +58,3 @@ export type CreateMilestoneFormValues = z.input<
 export type CreateMilestonePayload = z.output<
   typeof createMilestoneFormSchema
 >;
-export type CreateMilestoneTemplateFormValues = z.input<
-  typeof createMilestoneTemplateFormSchema
->;
-export type CreateMilestoneTemplatePayload = z.output<
-  typeof createMilestoneTemplateFormSchema
->;

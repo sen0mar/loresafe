@@ -30,7 +30,3 @@ export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type ListNotificationsQuery = z.infer<
   typeof listNotificationsQuerySchema
 >;
-export type NotificationParams = z.infer<typeof notificationParamsSchema>;
-export type DeleteSelectedNotificationsBody = z.infer<
-  typeof deleteSelectedNotificationsBodySchema
->;

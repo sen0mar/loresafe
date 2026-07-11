@@ -3541,19 +3541,6 @@ const moderatedJoinedClubsResponse = {
   }
 };
 
-const progressSummary = {
-  mode: "STRICT",
-  currentMilestone: {
-    id: firstMilestoneId,
-    position: 1,
-    label: "Opening"
-  },
-  totalMilestones: 2,
-  completedMilestones: 1,
-  percentage: 50,
-  updatedAt: now
-};
-
 const welcomeProgressSummary = {
   mode: "STRICT",
   currentMilestone: null,
