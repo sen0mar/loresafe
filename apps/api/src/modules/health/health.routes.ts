@@ -18,5 +18,3 @@ export const createHealthRouter = (
 
   return healthRouter;
 };
-
-export const healthRouter = createHealthRouter();
