@@ -1,61 +1,16 @@
-import {
-  type ChangeEvent,
-  type FormEvent,
-  useEffect,
-  useMemo,
-  useState
-} from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  ChevronDown,
-  Clock3,
-  Eye,
-  LockKeyhole,
-  MessageCircleReply,
-  MessageSquareText,
-  RefreshCw,
-  Send,
-  ShieldAlert,
-  SlidersHorizontal,
-  Trash2,
-  X,
-  UserCircle
-} from "lucide-react";
+import { type ChangeEvent, type FormEvent, useState } from "react";
+import { Send, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import {
-  PostCard,
-  PredictionStateBadges
-} from "@/features/clubs/components/club-feed-tab";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
-import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Textarea } from "@/shared/components/ui/textarea";
 
 import {
-  type Comment,
   type ClubMilestone,
-  type ClubPostCard,
   type ClubPostRequiredMilestone,
-  type RevealedClubPost,
-  type RevealedComment,
-  useClubMilestonesQuery,
-  useCreatePostCommentMutation,
-  usePostCommentsQuery,
-  usePostQuery,
-  useRevealPostCommentMutation,
-  useRevealPostMutation,
-  useToggleCommentReactionMutation
+  useCreatePostCommentMutation
 } from "../api/clubs.js";
-import { ReactionButtonGroup } from "../components/reaction-button-group.js";
-import { ReportDialog } from "../components/report-dialog.js";
-import {
-  DeleteCommentDialog,
-  DeletePostDialog
-} from "../components/delete-content-dialog.js";
 import {
   createCommentSchema,
   type CreateCommentFormValues

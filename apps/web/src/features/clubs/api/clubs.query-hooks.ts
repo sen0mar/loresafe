@@ -1,56 +1,13 @@
-import {
-  type InfiniteData,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
 import type {
-  BanClubMemberInput,
-  BanReportedContentAuthorInput,
   ClubFeedTab,
-  ClubMilestonesResponse,
-  ClubMembersQueryInput,
-  ClubPostCard,
-  ClubPostsResponse,
-  CreateClubMilestoneInput,
-  CreateClubMilestoneTemplateInput,
-  CreateClubPostInput,
-  CreatePostCommentInput,
-  JoinedClubsQueryInput,
   JoinedClubsQueryOptions,
-  ModerationReport,
-  ModerationReportNoteInput,
-  ModerationReportsResponse,
-  MoveClubMilestoneInput,
-  PostCommentsResponse,
-  PostDetailResponse,
-  PublicClubsQueryInput,
-  ResolveModerationReportInput,
-  ToggleCommentReactionInput,
-  TogglePostReactionInput,
-  UpdateClubMemberRoleInput,
-  UpdateClubMilestoneInput,
-  UpdateClubProgressInput,
-  UpdateClubSettingsInput,
-  UpdateReportRequiredMilestoneInput
+  PublicClubsQueryInput
 } from "./clubs.types.js";
 import {
-  advanceClubProgressToNextMilestone,
-  banClubMember,
-  banReportedContentAuthor,
-  createClub,
-  createClubMilestone,
-  createClubMilestoneTemplate,
-  createClubPost,
-  createPostComment,
-  createReport,
-  deleteComment,
-  deletePost,
-  deleteReportedContent,
   getClubBans,
   getClubByLinkName,
   getClubDashboardStats,
@@ -60,39 +17,13 @@ import {
   getClubProgress,
   getClubProgressSummary,
   getJoinedClubs,
-  getModerationReports,
   getPopularDiscussions,
   getPostById,
   getPostComments,
   getPublicClubs,
   getRecentlyUnlockedPosts,
-  getRecentlyUnlockedSummary,
-  hideReportedContent,
-  joinClub,
-  leaveClub,
-  moveClubMilestone,
-  resolveModerationReport,
-  revealModerationReport,
-  revealPost,
-  revealPostComment,
-  toggleCommentReaction,
-  togglePostReaction,
-  unbanClubBan,
-  updateClubMemberRole,
-  updateClubMilestone,
-  updateClubProgress,
-  updateClubSettings,
-  updateReportRequiredMilestone,
-  warnReportedContentAuthor
+  getRecentlyUnlockedSummary
 } from "./clubs.requests.js";
-import {
-  removeCommentFromInfiniteData,
-  removePostFromPostListQueries,
-  toggleCommentReactionOnComment,
-  togglePostReactionOnCard,
-  updateCommentInInfiniteData,
-  updatePostInInfiniteData
-} from "./clubs.optimistic.js";
 import { clubsQueryKeys } from "./clubs.query-keys.js";
 
 export const usePublicClubsQuery = (

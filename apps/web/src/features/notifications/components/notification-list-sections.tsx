@@ -1,37 +1,12 @@
-import {
-  Bell,
-  Check,
-  CheckCheck,
-  ListChecks,
-  RefreshCw,
-  Trash2
-} from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Bell, Check, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 
-import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
-import {
-  type NotificationItem,
-  notificationsQueryKeys,
-  useDeleteAllNotificationsMutation,
-  useDeleteNotificationMutation,
-  useDeleteSelectedNotificationsMutation,
-  useMarkAllNotificationsReadMutation,
-  useMarkNotificationReadMutation,
-  useNotificationsInfiniteQuery
-} from "@/features/notifications/api/notifications";
+import { type NotificationItem } from "@/features/notifications/api/notifications";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/shared/components/ui/card";
 import {
   Dialog,
   DialogClose,

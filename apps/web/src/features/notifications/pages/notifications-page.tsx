@@ -1,19 +1,9 @@
-import {
-  Bell,
-  Check,
-  CheckCheck,
-  ListChecks,
-  RefreshCw,
-  Trash2
-} from "lucide-react";
+import { CheckCheck, ListChecks, RefreshCw, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import {
   type NotificationItem,
   notificationsQueryKeys,
@@ -24,7 +14,6 @@ import {
   useMarkNotificationReadMutation,
   useNotificationsInfiniteQuery
 } from "@/features/notifications/api/notifications";
-import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -32,17 +21,6 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/shared/components/ui/dialog";
-import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import {
   ConfirmNotificationActionDialog,

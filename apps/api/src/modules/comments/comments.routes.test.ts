@@ -34,7 +34,6 @@ import {
 import {
   commentReactionEmojis,
   type CommentReactionEmoji,
-  type CreatePostCommentRequest,
   type SetCommentReactionRequest
 } from "./comments.schema.js";
 import { createCommentsService } from "./comments.service.js";

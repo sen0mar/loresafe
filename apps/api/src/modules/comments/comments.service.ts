@@ -20,7 +20,6 @@ import {
 } from "./comments.dto.js";
 import {
   commentsRepository,
-  type CommentsCursor,
   type CommentMilestoneRecord,
   type CommentPostRecord,
   type CommentsRepository

@@ -44,8 +44,6 @@ import type {
   CreateClubRequest,
   ListClubBansQuery,
   ListClubMembersQuery,
-  ListClubsQuery,
-  ListPublicSeoClubsQuery,
   UpdateClubSettingsRequest
 } from "./clubs.schema.js";
 import type { ListPublicClubsInput } from "./clubs.repository.js";

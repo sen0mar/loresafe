@@ -7,7 +7,7 @@ import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { PostReactionEmoji } from "../posts/posts.schema.js";
 import { postReactionEmojis } from "../posts/posts.schema.js";
-import type { ProgressMode, UpdateProgressRequest } from "./progress.schema.js";
+import type { ProgressMode } from "./progress.schema.js";
 import type {
   ClubProgressRecord,
   ProgressHistoryRecord,

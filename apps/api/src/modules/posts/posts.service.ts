@@ -16,7 +16,6 @@ import {
 } from "./posts.policy.js";
 import {
   type ClubFeedRecord,
-  type ClubPostsCursor,
   type PostDetailRecord,
   postsRepository,
   type PostsRepository

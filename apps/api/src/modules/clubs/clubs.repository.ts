@@ -5,7 +5,6 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type {
   ClubCategory,
-  CreateClubRequest,
   ListClubsQuery,
   ListPublicSeoClubsQuery
 } from "./clubs.schema.js";
@@ -21,14 +20,12 @@ import { lockClubAuthorizationChangesByLinkName } from "./club-authorization-loc
 import type {
   ClubBanRecord,
   ClubDetailRecord,
-  ClubDiscoveryRecord,
   ClubMemberRecord,
   ClubMembershipRole,
   ClubVisibility,
   ClubsRepository,
   ListPublicClubsInput,
-  ListPublicClubsResult,
-  PublicClubDetailRecord
+  ListPublicClubsResult
 } from "./clubs.repository.types.js";
 
 export type * from "./clubs.repository.types.js";

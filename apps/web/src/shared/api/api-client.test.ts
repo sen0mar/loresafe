@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiGet } from "./api-client.js";
+import { apiGet } from "./api-client.js";
 
 describe("API request cancellation and deadlines", () => {
   afterEach(() => {

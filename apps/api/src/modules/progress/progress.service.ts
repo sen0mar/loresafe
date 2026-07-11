@@ -9,10 +9,7 @@ import {
   toClubProgressDto,
   toRecentlyUnlockedResponse
 } from "./progress.dto.js";
-import type {
-  ProgressRepository,
-  RecentlyUnlockedCursor
-} from "./progress.repository.types.js";
+import type { ProgressRepository } from "./progress.repository.types.js";
 import { progressQueryRepository } from "./progress-query.repository.js";
 import { progressCommandRepository } from "./progress-command.repository.js";
 import type {

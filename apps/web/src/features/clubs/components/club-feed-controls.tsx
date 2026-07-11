@@ -6,25 +6,11 @@ import {
   useMemo,
   useState
 } from "react";
-import { Link } from "react-router-dom";
-import {
-  ChevronDown,
-  Clock3,
-  Image,
-  LockKeyhole,
-  LockKeyholeOpen,
-  MessageSquareText,
-  PlusCircle,
-  RefreshCw,
-  Sparkles,
-  UserCircle
-} from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/shared/api/api-client";
-import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -36,35 +22,23 @@ import {
   DialogTrigger
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
-import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { cn } from "@/shared/lib/utils";
 
 import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
   type ClubMilestone,
-  type ClubPostCounts,
-  type ClubPostCard,
   type ClubPostPrediction,
   type PostType,
-  postReactionEmojis,
   useClubMilestonesQuery,
-  useClubPostsInfiniteQuery,
-  useClubProgressQuery,
-  useCreateClubPostMutation,
-  useTogglePostReactionMutation
+  useCreateClubPostMutation
 } from "../api/clubs.js";
-import { usePostUnlockAnimation } from "../hooks/use-post-unlock-animation.js";
 import {
   createPostSchema,
   type CreatePostFormValues
 } from "../schemas/create-post.schema.js";
-import { ReactionButtonGroup } from "./reaction-button-group.js";
-import { ReportDialog } from "./report-dialog.js";
 import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { DeletePostDialog } from "./delete-content-dialog.js";
 
 type ClubFeedTabProps = {
   club: Club;

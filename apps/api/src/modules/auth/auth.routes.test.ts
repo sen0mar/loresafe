@@ -1,10 +1,6 @@
 import cookieParser from "cookie-parser";
 import express from "express";
-import type {
-  ClientRateLimitInfo,
-  Options as RateLimitOptions,
-  Store
-} from "express-rate-limit";
+import type { Options as RateLimitOptions, Store } from "express-rate-limit";
 import { SignJWT } from "jose";
 import request from "supertest";
 import type { Response } from "supertest";

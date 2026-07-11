@@ -1,4 +1,3 @@
-import { HttpError } from "../../core/errors/http-error.js";
 import {
   decodeBoundedOffsetCursor,
   encodeBoundedOffsetCursor

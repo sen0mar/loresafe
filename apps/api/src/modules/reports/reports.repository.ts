@@ -15,13 +15,10 @@ import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.j
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   ModerationActionRepositoryResult,
-  ModerationClubAccessRecord,
   ModerationReportRecord,
   ReportRecord,
-  ReportsRepository,
-  ReportTargetRecord
+  ReportsRepository
 } from "./reports.repository.types.js";
-import type { CreateReportRequest } from "./reports.schema.js";
 
 export type * from "./reports.repository.types.js";
 

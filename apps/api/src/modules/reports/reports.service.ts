@@ -17,7 +17,6 @@ import {
 import { canModerateReports, canReportTarget } from "./reports.policy.js";
 import {
   type ModerationClubAccessRecord,
-  type ModerationReportsCursor,
   type ReportsRepository,
   type ReportTargetRecord
 } from "./reports.repository.types.js";

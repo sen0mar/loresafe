@@ -16,7 +16,6 @@ import {
 } from "./notifications.dto.js";
 import {
   type ListNotificationsInput,
-  type NotificationsCursor,
   notificationsRepository,
   type NotificationsRepository
 } from "./notifications.repository.js";
