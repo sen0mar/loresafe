@@ -71,14 +71,6 @@ const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
   PARTIAL: "Partial"
 };
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
 const getDefaultPostValues = (): CreatePostFormValues => ({
   title: "",
   body: "",

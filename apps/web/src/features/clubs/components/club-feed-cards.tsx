@@ -21,7 +21,6 @@ import { cn } from "@/shared/lib/utils";
 import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
-  type ClubMilestone,
   type ClubPostCounts,
   type ClubPostCard,
   type ClubPostPrediction,
@@ -29,7 +28,6 @@ import {
   postReactionEmojis,
   useTogglePostReactionMutation
 } from "../api/clubs.js";
-import { type CreatePostFormValues } from "../schemas/create-post.schema.js";
 import { ReactionButtonGroup } from "./reaction-button-group.js";
 import { ReportDialog } from "./report-dialog.js";
 import { DeletePostDialog } from "./delete-content-dialog.js";
@@ -72,17 +70,6 @@ const formatDateTime = (value: string) =>
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
-
-const getDefaultPostValues = (): CreatePostFormValues => ({
-  title: "",
-  body: "",
-  type: "DISCUSSION",
-  requiredMilestoneId: "",
-  mediaAssetId: undefined
-});
-
-const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${milestone.fullTitle ?? milestone.safeTitle}`;
 
 const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
   {

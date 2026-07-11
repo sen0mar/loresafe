@@ -161,7 +161,6 @@ export const createReportsService = (
   ) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -177,7 +176,6 @@ export const createReportsService = (
   hideReportedContentForClub: async (linkName, reportId, userId, input) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -187,7 +185,6 @@ export const createReportsService = (
   deleteReportedContentForClub: async (linkName, reportId, userId, input) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -198,7 +195,6 @@ export const createReportsService = (
   warnReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -209,7 +205,6 @@ export const createReportsService = (
   banReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -220,7 +215,6 @@ export const createReportsService = (
   resolveModerationReportForClub: async (linkName, reportId, userId, input) =>
     runModerationAction(
       linkName,
-      reportId,
       userId,
       repository,
       eventPublisher,
@@ -268,7 +262,6 @@ const getAccessibleModerationClub = (
 
 const runModerationAction = async (
   linkName: string,
-  reportId: string,
   userId: string,
   repository: ReportsRepository,
   eventPublisher: EventsService,

@@ -58,11 +58,6 @@ export const lockClubAuthorizationChanges = (
   clubId: string
 ) => lockClubRow(transaction, clubId, "UPDATE");
 
-export const lockClubAuthorizationByLinkName = (
-  transaction: Prisma.TransactionClient,
-  linkName: string
-) => lockClubRowByLinkName(transaction, linkName, "SHARE");
-
 export const lockClubAuthorizationChangesByLinkName = (
   transaction: Prisma.TransactionClient,
   linkName: string

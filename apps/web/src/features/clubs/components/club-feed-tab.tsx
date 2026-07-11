@@ -9,14 +9,12 @@ export { PostCard, PostReactionButtons, PredictionStateBadges } from "./club-fee
 import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
-  type ClubMilestone,
   type ClubPostPrediction,
   type PostType,
   useClubPostsInfiniteQuery,
   useClubProgressQuery
 } from "../api/clubs.js";
 import { usePostUnlockAnimation } from "../hooks/use-post-unlock-animation.js";
-import { type CreatePostFormValues } from "../schemas/create-post.schema.js";
 
 type ClubFeedTabProps = {
   club: Club;
@@ -48,25 +46,6 @@ const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
   WRONG: "Wrong",
   PARTIAL: "Partial"
 };
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
-const getDefaultPostValues = (): CreatePostFormValues => ({
-  title: "",
-  body: "",
-  type: "DISCUSSION",
-  requiredMilestoneId: "",
-  mediaAssetId: undefined
-});
-
-const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${milestone.fullTitle ?? milestone.safeTitle}`;
 
 const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
   {

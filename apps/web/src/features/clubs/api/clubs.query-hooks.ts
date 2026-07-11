@@ -17,12 +17,10 @@ import {
   getClubProgress,
   getClubProgressSummary,
   getJoinedClubs,
-  getPopularDiscussions,
   getPostById,
   getPostComments,
   getPublicClubs,
-  getRecentlyUnlockedPosts,
-  getRecentlyUnlockedSummary
+  getRecentlyUnlockedPosts
 } from "./clubs.requests.js";
 import { clubsQueryKeys } from "./clubs.query-keys.js";
 
@@ -117,23 +115,6 @@ export const useClubProgressSummaryQuery = (linkName: string, enabled = true) =>
   useQuery({
     queryKey: clubsQueryKeys.dashboardProgressSummary(linkName),
     queryFn: ({ signal }) => getClubProgressSummary(linkName, signal),
-    enabled: enabled && linkName.length > 0
-  });
-
-export const usePopularDiscussionsQuery = (linkName: string, enabled = true) =>
-  useQuery({
-    queryKey: clubsQueryKeys.dashboardPopularDiscussions(linkName),
-    queryFn: ({ signal }) => getPopularDiscussions(linkName, signal),
-    enabled: enabled && linkName.length > 0
-  });
-
-export const useRecentlyUnlockedSummaryQuery = (
-  linkName: string,
-  enabled = true
-) =>
-  useQuery({
-    queryKey: clubsQueryKeys.dashboardRecentlyUnlockedSummary(linkName),
-    queryFn: ({ signal }) => getRecentlyUnlockedSummary(linkName, signal),
     enabled: enabled && linkName.length > 0
   });
 

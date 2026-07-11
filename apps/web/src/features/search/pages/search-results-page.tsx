@@ -1,32 +1,16 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Building2,
-  ChevronDown,
-  Filter,
   LockKeyhole,
-  RefreshCw,
-  Search,
   SearchX
 } from "lucide-react";
 
-import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
-import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
-import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/shared/components/ui/dropdown-menu";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import {
@@ -34,198 +18,13 @@ import {
   searchFilters,
   type SearchClub,
   type SearchFilter,
-  type SearchPost,
-  useSearchResultsInfiniteQuery
+  type SearchPost
 } from "../api/search.js";
 
 const countFormatter = new Intl.NumberFormat();
-export const typeFilters: SearchFilter[] = ["clubs", "posts"];
-const validSearchFilters = new Set<SearchFilter>(defaultSearchFilters);
 const filterLabelByValue = Object.fromEntries(
   searchFilters.map((filter) => [filter.value, filter.label])
 ) as Record<SearchFilter, string>;
-
-export const SearchResultsPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const query = searchParams.get("q")?.trim() ?? "";
-  const filters = parseFilters(searchParams);
-  const effectiveFilters = toEffectiveSearchFilters(filters);
-  const searchQuery = useSearchResultsInfiniteQuery(query, filters);
-  const clubs = searchQuery.data?.pages.flatMap((page) => page.clubs) ?? [];
-  const posts = searchQuery.data?.pages.flatMap((page) => page.posts) ?? [];
-  const hasQuery = query.length > 0;
-  const hasResults = clubs.length > 0 || posts.length > 0;
-
-  const saveFilters = (nextFilters: SearchFilter[]) => {
-    setSearchParams((currentParams) => {
-      const nextParams = new URLSearchParams(currentParams);
-
-      nextParams.delete("scope");
-
-      if (nextFilters.length > 0) {
-        nextParams.set("filters", nextFilters.join(","));
-      } else {
-        nextParams.delete("filters");
-      }
-
-      if (query) {
-        nextParams.set("q", query);
-      }
-
-      return nextParams;
-    });
-  };
-
-  return (
-    <AuthenticatedAppShell>
-      <div className="space-y-4">
-        <section className="soft-section-divider-bottom flex flex-wrap items-start justify-between gap-4 pb-4">
-          <div className="min-w-0 space-y-2">
-            <p className="flex items-center gap-2 text-sm font-medium text-brand">
-              <Search className="size-4" />
-              Search
-            </p>
-            <h1 className="text-2xl font-semibold tracking-normal text-primary sm:text-3xl">
-              {hasQuery ? `Results for "${query}"` : "Find clubs and discussions"}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted">
-              Results respect club access and your current spoiler progress.
-            </p>
-          </div>
-          <SearchFilterMenu filters={filters} onFiltersSave={saveFilters} />
-        </section>
-
-        {hasQuery && filters.length > 0 ? (
-          <ActiveFilterBadges filters={filters} />
-        ) : null}
-
-        {!hasQuery ? (
-          <SearchPrompt />
-        ) : searchQuery.isPending ? (
-          <SearchLoading filters={effectiveFilters} />
-        ) : searchQuery.isError ? (
-          <SearchError
-            error={searchQuery.error}
-            onRetry={() => void searchQuery.refetch()}
-          />
-        ) : !hasResults ? (
-          <SearchEmpty filters={effectiveFilters} query={query} />
-        ) : (
-          <div className="space-y-5">
-            {effectiveFilters.includes("clubs") ? (
-              <ClubResults clubs={clubs} />
-            ) : null}
-            {effectiveFilters.includes("posts") ? (
-              <PostResults posts={posts} />
-            ) : null}
-            {searchQuery.hasNextPage ? (
-              <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted">
-                  {countFormatter.format(clubs.length + posts.length)} results loaded
-                </p>
-                <Button
-                  className="w-full sm:w-fit"
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={searchQuery.isFetchingNextPage}
-                  onClick={() => void searchQuery.fetchNextPage()}
-                >
-                  <ChevronDown />
-                  {searchQuery.isFetchingNextPage ? "Loading..." : "Load more"}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </AuthenticatedAppShell>
-  );
-};
-
-export const SearchFilterMenu = ({
-  filters,
-  onFiltersSave
-}: {
-  filters: SearchFilter[];
-  onFiltersSave: (filters: SearchFilter[]) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  const [draftFilters, setDraftFilters] = useState<SearchFilter[]>(filters);
-
-  useEffect(() => {
-    if (!open) {
-      setDraftFilters(filters);
-    }
-  }, [filters, open]);
-
-  const updateDraftFilter = (filter: SearchFilter, checked: boolean) => {
-    setDraftFilters((currentFilters) =>
-      toggleSearchFilter(currentFilters, filter, checked)
-    );
-  };
-
-  const saveFilters = () => {
-    onFiltersSave(draftFilters);
-    setOpen(false);
-  };
-
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="secondary">
-          <Filter />
-          Add filters
-          <Badge variant="outline">{filters.length}</Badge>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Search filters</DropdownMenuLabel>
-        {searchFilters.slice(0, 2).map((filter) => (
-          <DropdownMenuCheckboxItem
-            key={filter.value}
-            checked={draftFilters.includes(filter.value)}
-            onCheckedChange={(checked) =>
-              updateDraftFilter(filter.value, checked === true)
-            }
-            onSelect={(event) => event.preventDefault()}
-          >
-            {filter.label}
-          </DropdownMenuCheckboxItem>
-        ))}
-        <DropdownMenuSeparator />
-        {searchFilters.slice(2).map((filter) => (
-          <DropdownMenuCheckboxItem
-            key={filter.value}
-            checked={draftFilters.includes(filter.value)}
-            onCheckedChange={(checked) =>
-              updateDraftFilter(filter.value, checked === true)
-            }
-            onSelect={(event) => event.preventDefault()}
-          >
-            {filter.label}
-          </DropdownMenuCheckboxItem>
-        ))}
-        <DropdownMenuSeparator />
-        <div className="p-1">
-          <Button className="w-full" size="sm" type="button" onClick={saveFilters}>
-            Save
-          </Button>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
-
-export const ActiveFilterBadges = ({ filters }: { filters: SearchFilter[] }) => (
-  <div className="flex flex-wrap items-center gap-2 text-xs text-faint">
-    {filters.map((filter) => (
-      <Badge key={filter} variant="secondary">
-        {filterLabelByValue[filter]}
-      </Badge>
-    ))}
-  </div>
-);
 
 export const ClubResults = ({ clubs }: { clubs: SearchClub[] }) => {
   if (clubs.length === 0) {
@@ -324,24 +123,6 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
   </Card>
 );
 
-const SearchPrompt = () => (
-  <Card>
-    <CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">
-      <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-brand">
-        <Search className="size-6" />
-      </span>
-      <div>
-        <h2 className="text-lg font-semibold text-primary">
-          Search LoreSafe
-        </h2>
-        <p className="mt-1 max-w-md text-sm leading-6 text-muted">
-          Use the search bar above to find clubs and spoiler-safe discussions.
-        </p>
-      </div>
-    </CardContent>
-  </Card>
-);
-
 export const SearchEmpty = ({
   filters,
   query
@@ -394,89 +175,6 @@ export const SearchLoading = ({ filters }: { filters: SearchFilter[] }) => (
     ) : null}
   </div>
 );
-
-const SearchError = ({
-  error,
-  onRetry
-}: {
-  error: Error;
-  onRetry: () => void;
-}) => {
-  const isDenied =
-    error instanceof ApiError &&
-    (error.statusCode === 403 || error.statusCode === 404);
-
-  return (
-    <Card>
-      <CardContent className="flex min-h-72 flex-col items-center justify-center gap-4 text-center">
-        <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-warning">
-          {isDenied ? (
-            <LockKeyhole className="size-6" />
-          ) : (
-            <Search className="size-6" />
-          )}
-        </span>
-        <div>
-          <h2 className="text-lg font-semibold text-primary">
-            {isDenied ? "Search unavailable" : "Could not load search"}
-          </h2>
-          <p className="mt-1 max-w-md text-sm leading-6 text-muted">
-            {isDenied
-              ? "Search is unavailable from your account."
-              : "Refresh results and try again."}
-          </p>
-        </div>
-        {isDenied ? null : (
-          <Button variant="secondary" onClick={onRetry}>
-            <RefreshCw />
-            Retry
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-export const parseFilters = (searchParams: URLSearchParams): SearchFilter[] => {
-  const filters = searchParams.get("filters");
-
-  if (filters) {
-    return normalizeFilters(filters.split(","));
-  }
-
-  const legacyScope = searchParams.get("scope");
-
-  if (legacyScope === "clubs") {
-    return ["clubs"];
-  }
-
-  if (legacyScope === "posts") {
-    return ["safe", "spoiler", "posts"];
-  }
-
-  return [];
-};
-
-const normalizeFilters = (filters: string[]): SearchFilter[] => {
-  return defaultSearchFilters.filter(
-    (filter) => filters.includes(filter) && validSearchFilters.has(filter)
-  );
-};
-
-export const toggleSearchFilter = (
-  currentFilters: SearchFilter[],
-  filter: SearchFilter,
-  checked: boolean
-) => {
-  const nextFilters = checked
-    ? [...currentFilters, filter]
-    : currentFilters.filter((currentFilter) => currentFilter !== filter);
-  const normalized = defaultSearchFilters.filter((currentFilter) =>
-    nextFilters.includes(currentFilter)
-  );
-
-  return normalized;
-};
 
 export const toEffectiveSearchFilters = (filters: SearchFilter[]) => {
   if (filters.length === 0) {
