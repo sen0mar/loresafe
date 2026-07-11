@@ -5,6 +5,10 @@ alerts:
     severity: page
     expression: rate(loresafe_http_requests_total{status=~"5.."}[5m]) / rate(loresafe_http_requests_total[5m]) > 0.05
     for: 10m
+  - name: api-high-latency
+    severity: ticket
+    expression: sum(rate(loresafe_http_request_duration_ms_sum[10m])) / sum(rate(loresafe_http_request_duration_ms_count[10m])) > 1000
+    for: 15m
   - name: api-readiness-failing
     severity: page
     expression: synthetic_readiness_success == 0

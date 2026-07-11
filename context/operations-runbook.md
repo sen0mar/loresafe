@@ -2,6 +2,13 @@
 
 ## Health and Metrics
 
+- `pnpm production:readiness:check` validates the versioned alert, synthetic,
+  backup/recovery, and security-header controls in CI. Before production
+  promotion, run it with `PRODUCTION_READINESS_LIVE=1`, `PRODUCTION_ORIGIN`,
+  `OPERATIONS_BEARER_TOKEN`, and `LAST_RESTORE_DRILL_DATE=YYYY-MM-DD`; the live
+  gate fails when readiness, protected metrics, response headers, or restore
+  evidence are missing or stale.
+
 - `GET /api/health` is the cheap process liveness probe. It performs no dependency I/O.
 - `GET /api/health/ready` runs parallel two-second checks for PostgreSQL, pg-boss worker state, the PostgreSQL event transport, Upstash Redis, and the R2 bucket. A degraded dependency returns `503` with status only; dependency errors are not exposed.
 - `GET /api/health/metrics` publishes Prometheus text only when the configured `OPERATIONS_BEARER_TOKEN` is supplied as a bearer token. It includes request count/error/duration series, readiness/database-query latency, job readiness/failures/age, SSE state/connections, and storage-cleanup outcomes.

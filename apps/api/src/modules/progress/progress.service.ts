@@ -9,18 +9,24 @@ import {
   toClubProgressDto,
   toRecentlyUnlockedResponse
 } from "./progress.dto.js";
-import {
-  type ProgressRepository,
-  type RecentlyUnlockedCursor
-} from "./progress.repository.js";
+import type {
+  ProgressRepository,
+  RecentlyUnlockedCursor
+} from "./progress.repository.types.js";
 import { progressQueryRepository } from "./progress-query.repository.js";
 import { progressCommandRepository } from "./progress-command.repository.js";
 import type {
   RecentlyUnlockedQuery,
   UpdateProgressRequest
 } from "./progress.schema.js";
-import { canReadClubProgress, canUpdateClubProgress } from "./progress.policy.js";
-import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  canReadClubProgress,
+  canUpdateClubProgress
+} from "./progress.policy.js";
+import {
+  r2Storage,
+  type ObjectStorage
+} from "../../core/storage/r2-storage.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 
 const membershipRequiredMessage =
@@ -141,19 +147,12 @@ export const createProgressService = (
         currentUserRole: club.currentUserRole
       },
       query.limit,
-      result.nextCursor
-        ? encodeTimestampUuidCursor(result.nextCursor)
-        : null,
+      result.nextCursor ? encodeTimestampUuidCursor(result.nextCursor) : null,
       storage
     );
   },
 
-  updateProgressForClubLinkName: async (
-    linkName,
-    userId,
-    input,
-    commandId
-  ) => {
+  updateProgressForClubLinkName: async (linkName, userId, input, commandId) => {
     const club = await repository.findClubForProgress(linkName, userId);
 
     if (!club) {

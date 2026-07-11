@@ -1,4 +1,5 @@
-import { clubsRepository, type ClubsRepository } from "./clubs.repository.js";
+import { clubsRepository } from "./clubs.repository.js";
+import type { ClubsRepository } from "./clubs.repository.types.js";
 
 export type ClubsQueryRepository = Pick<
   ClubsRepository,
@@ -15,7 +16,8 @@ export type ClubsQueryRepository = Pick<
 export const clubsQueryRepository: ClubsQueryRepository = {
   findClubByLinkName: clubsRepository.findClubByLinkName,
   findPublicSeoClubByLinkName: clubsRepository.findPublicSeoClubByLinkName,
-  findVisibleClubByLinkNameForUser: clubsRepository.findVisibleClubByLinkNameForUser,
+  findVisibleClubByLinkNameForUser:
+    clubsRepository.findVisibleClubByLinkNameForUser,
   listClubBansByLinkName: clubsRepository.listClubBansByLinkName,
   listClubMembersByLinkName: clubsRepository.listClubMembersByLinkName,
   listPublicClubs: clubsRepository.listPublicClubs,

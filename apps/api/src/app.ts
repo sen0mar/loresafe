@@ -14,6 +14,7 @@ import {
 } from "./core/security/rate-limit-routes.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
 import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
+import { securityHeadersMiddleware } from "./core/security/security-headers.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import {
   clubsRouter,
@@ -56,6 +57,7 @@ export const createApp = (
 
   app.disable("x-powered-by");
   configureTrustedProxy(app, appEnv.TRUST_PROXY_CIDRS);
+  app.use(securityHeadersMiddleware);
 
   app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);

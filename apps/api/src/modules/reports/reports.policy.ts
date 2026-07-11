@@ -1,5 +1,5 @@
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
-import type { ReportTargetRecord } from "./reports.repository.js";
+import type { ReportTargetRecord } from "./reports.repository.types.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";

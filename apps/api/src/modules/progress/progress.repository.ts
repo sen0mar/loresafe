@@ -8,94 +8,15 @@ import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { PostReactionEmoji } from "../posts/posts.schema.js";
 import { postReactionEmojis } from "../posts/posts.schema.js";
 import type { ProgressMode, UpdateProgressRequest } from "./progress.schema.js";
+import type {
+  ClubProgressRecord,
+  ProgressHistoryRecord,
+  ProgressMilestoneRecord,
+  ProgressRepository,
+  RecentlyUnlockedRecord
+} from "./progress.repository.types.js";
 
-type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
-
-export type ProgressClubRecord = {
-  id: string;
-  currentUserRole: ClubMembershipRole | null;
-  isCurrentUserBanned: boolean;
-};
-
-export type ProgressMilestoneRecord = {
-  id: string;
-  position: number;
-  safeTitle: string;
-  fullTitle: string | null;
-  spoilerName: boolean;
-};
-
-export type ProgressHistoryRecord = {
-  id: string;
-  fromMode: ProgressMode;
-  toMode: ProgressMode;
-  fromMilestone: ProgressMilestoneRecord | null;
-  toMilestone: ProgressMilestoneRecord | null;
-  createdAt: Date;
-};
-
-export type ClubProgressRecord = {
-  id: string | null;
-  mode: ProgressMode;
-  currentMilestone: ProgressMilestoneRecord | null;
-  totalMilestones: number;
-  history: ProgressHistoryRecord[];
-  onboardingCompletedAt: Date | null;
-  updatedAt: Date | null;
-};
-
-export type RecentlyUnlockedCursor = {
-  createdAt: Date;
-  id: string;
-};
-
-export type RecentlyUnlockedRecord = {
-  unlock: {
-    historyId: string | null;
-    fromPosition: number;
-    toPosition: number;
-    unlockedAt: Date | null;
-  };
-  posts: ClubPostRecord[];
-  nextCursor: RecentlyUnlockedCursor | null;
-  hasMore: boolean;
-  currentProgress: {
-    mode: ProgressMode;
-    currentMilestonePosition: number | null;
-  };
-};
-
-export type ListRecentlyUnlockedInput = {
-  cursor: RecentlyUnlockedCursor | null;
-  limit: number;
-};
-
-export type ProgressRepository = {
-  findClubForProgress: (
-    linkName: string,
-    userId: string
-  ) => Promise<ProgressClubRecord | null>;
-  advanceProgressToNextMilestoneForUserClub: (
-    userId: string,
-    clubId: string,
-    commandId: string
-  ) => Promise<ClubProgressRecord>;
-  getProgressForUserClub: (
-    userId: string,
-    clubId: string
-  ) => Promise<ClubProgressRecord>;
-  updateProgressForUserClub: (
-    userId: string,
-    clubId: string,
-    input: UpdateProgressRequest,
-    commandId: string
-  ) => Promise<ClubProgressRecord | null>;
-  listRecentlyUnlockedPostsForUserClub: (
-    userId: string,
-    clubId: string,
-    input: ListRecentlyUnlockedInput
-  ) => Promise<RecentlyUnlockedRecord>;
-};
+export type * from "./progress.repository.types.js";
 
 const milestoneSelect = {
   id: true,
@@ -525,8 +446,7 @@ export const progressRepository: ProgressRepository = {
       const fromMode = (existingProgress?.mode ?? "STRICT") as ProgressMode;
       const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
       const hasChanged =
-        fromMode !== input.mode ||
-        fromMilestoneId !== input.currentMilestoneId;
+        fromMode !== input.mode || fromMilestoneId !== input.currentMilestoneId;
       const nextVersion =
         (existingProgress?.version ?? 0) + (hasChanged ? 1 : 0);
 
@@ -597,8 +517,8 @@ export const progressRepository: ProgressRepository = {
     clubId,
     { cursor, limit }
   ) => {
-    const [latestHistory, totalMilestones, progress] = await prisma.$transaction(
-      [
+    const [latestHistory, totalMilestones, progress] =
+      await prisma.$transaction([
         prisma.progressHistory.findFirst({
           where: {
             userId,
@@ -645,12 +565,10 @@ export const progressRepository: ProgressRepository = {
             }
           }
         })
-      ]
-    );
+      ]);
     const currentProgress = {
       mode: (progress?.mode ?? "STRICT") as ProgressMode,
-      currentMilestonePosition:
-        progress?.currentMilestone?.position ?? null
+      currentMilestonePosition: progress?.currentMilestone?.position ?? null
     };
 
     if (!latestHistory) {
@@ -803,7 +721,10 @@ const isDuplicateProgressCommand = async (
     return false;
   }
 
-  if (command.type !== input.type || command.fingerprint !== input.fingerprint) {
+  if (
+    command.type !== input.type ||
+    command.fingerprint !== input.fingerprint
+  ) {
     throw new HttpError(
       409,
       "CONFLICT",
@@ -1012,9 +933,7 @@ const userReactionMapForPostIds = async (
 
     postReactionMap.set(reaction.emoji as PostReactionEmoji, {
       count: reaction._count._all,
-      reactedByMe: userReactionKeys.has(
-        `${reaction.postId}:${reaction.emoji}`
-      )
+      reactedByMe: userReactionKeys.has(`${reaction.postId}:${reaction.emoji}`)
     });
     map.set(reaction.postId, postReactionMap);
 

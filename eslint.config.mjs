@@ -28,6 +28,31 @@ export default tseslint.config(
     }
   },
   {
+    files: [
+      "apps/api/src/modules/clubs/{clubs.service,clubs.dto}.ts",
+      "apps/api/src/modules/reports/{reports.service,reports.dto,reports.policy}.ts",
+      "apps/api/src/modules/progress/{progress.service,progress.dto}.ts"
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "./clubs.repository.js",
+                "./reports.repository.js",
+                "./progress.repository.js"
+              ],
+              message:
+                "Use repository contracts and the narrow command/query repository boundary."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     files: ["apps/web/**/*.{ts,tsx}"],
     languageOptions: {
       globals: {

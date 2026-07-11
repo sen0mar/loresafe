@@ -1,4 +1,5 @@
 import { HttpError } from "../../core/errors/http-error.js";
+import { isUniqueConstraintError } from "../../core/prisma/prisma-errors.js";
 import {
   decodeTimestampUuidCursor,
   encodeTimestampUuidCursor
@@ -27,9 +28,8 @@ import {
   type ClubMemberMutationResult,
   type LeaveClubResult,
   type ClubSettingsMutationResult,
-  isUniqueConstraintError,
   type ClubsRepository
-} from "./clubs.repository.js";
+} from "./clubs.repository.types.js";
 import { clubsQueryRepository } from "./clubs-query.repository.js";
 import { clubsCommandRepository } from "./clubs-command.repository.js";
 import { bannedFromClubError } from "./club-bans.js";
@@ -123,7 +123,10 @@ export const createClubsService = (
     }
 
     try {
-      const club = await repository.createClubWithOwnerMembership(userId, input);
+      const club = await repository.createClubWithOwnerMembership(
+        userId,
+        input
+      );
 
       return {
         club: toClubDto(club)
@@ -138,7 +141,10 @@ export const createClubsService = (
   },
 
   getVisibleClubByLinkName: async (linkName, userId) => {
-    const club = await repository.findVisibleClubByLinkNameForUser(linkName, userId);
+    const club = await repository.findVisibleClubByLinkNameForUser(
+      linkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -181,7 +187,11 @@ export const createClubsService = (
   },
 
   listClubMembersByLinkName: async (linkName, userId, query) => {
-    const result = await repository.listClubMembersByLinkName(linkName, userId, query);
+    const result = await repository.listClubMembersByLinkName(
+      linkName,
+      userId,
+      query
+    );
 
     if (!result.club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -207,7 +217,11 @@ export const createClubsService = (
   },
 
   listClubBansByLinkName: async (linkName, userId, query) => {
-    const result = await repository.listClubBansByLinkName(linkName, userId, query);
+    const result = await repository.listClubBansByLinkName(
+      linkName,
+      userId,
+      query
+    );
 
     if (!result.club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -417,11 +431,7 @@ const toBanMutationResponse = (
     case "ACTOR_BANNED":
       throw bannedFromClubError();
     case "ACTOR_NOT_ALLOWED":
-      throw new HttpError(
-        403,
-        "FORBIDDEN",
-        "You cannot manage this club ban."
-      );
+      throw new HttpError(403, "FORBIDDEN", "You cannot manage this club ban.");
     case "LAST_OWNER":
       throw new HttpError(
         409,

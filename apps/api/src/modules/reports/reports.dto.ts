@@ -1,7 +1,7 @@
 import type {
   ModerationReportRecord,
   ReportRecord
-} from "./reports.repository.js";
+} from "./reports.repository.types.js";
 
 export type ReportStatusDto = "OPEN" | "RESOLVED" | "DISMISSED";
 

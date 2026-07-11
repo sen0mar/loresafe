@@ -1,17 +1,13 @@
 import { prisma } from "../../core/prisma/client.js";
+import { isUniqueConstraintError } from "../../core/prisma/prisma-errors.js";
 import { getBoundedPageOffset } from "../../core/http/pagination.js";
-import type { TimestampUuidCursor } from "../../core/http/cursor.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type {
-  BanClubMemberRequest,
   ClubCategory,
   CreateClubRequest,
-  ListClubBansQuery,
-  ListClubMembersQuery,
   ListClubsQuery,
-  ListPublicSeoClubsQuery,
-  UpdateClubSettingsRequest
+  ListPublicSeoClubsQuery
 } from "./clubs.schema.js";
 import {
   activeBanWhere,
@@ -22,260 +18,20 @@ import {
 import { softDeleteAuthoredPostsForBan } from "./club-ban-cleanup.js";
 import { lockClubAuthorizationChangesByLinkName } from "./club-authorization-lock.js";
 
-type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
-type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
+import type {
+  ClubBanRecord,
+  ClubDetailRecord,
+  ClubDiscoveryRecord,
+  ClubMemberRecord,
+  ClubMembershipRole,
+  ClubVisibility,
+  ClubsRepository,
+  ListPublicClubsInput,
+  ListPublicClubsResult,
+  PublicClubDetailRecord
+} from "./clubs.repository.types.js";
 
-export type ClubDiscoveryRecord = {
-  id: string;
-  title: string;
-  linkName: string;
-  description: string | null;
-  category: ClubCategory;
-  coverAsset?: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined;
-  visibility: "PUBLIC";
-  memberCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type PublicClubDetailRecord = ClubDiscoveryRecord & {
-  rules: string | null;
-};
-
-export type PublicClubSitemapEntryRecord = {
-  linkName: string;
-  updatedAt: Date;
-};
-
-export type ClubDetailRecord = {
-  id: string;
-  title: string;
-  linkName: string;
-  description: string | null;
-  category: ClubCategory;
-  coverAsset?: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined;
-  rules: string | null;
-  visibility: ClubVisibility;
-  memberCount: number;
-  currentUserRole: ClubMembershipRole | null;
-  isCurrentUserBanned: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type ListPublicClubsResult = {
-  clubs: ClubDiscoveryRecord[];
-  hasMore: boolean;
-  nextCursor: TimestampUuidCursor | null;
-};
-
-export type ListPublicClubsInput = {
-  cursor: TimestampUuidCursor | null;
-  limit: number;
-  sort: ListClubsQuery["sort"] | ListPublicSeoClubsQuery["sort"];
-};
-
-export type ListPublicClubSitemapEntriesResult = {
-  entries: PublicClubSitemapEntryRecord[];
-};
-
-export type ClubMemberRecord = {
-  id: string;
-  role: ClubMembershipRole;
-  user: {
-    id: string;
-    displayName: string;
-    username: string | null;
-    avatarAsset?: {
-      objectKey: string;
-      status: "PENDING" | "READY" | "FAILED";
-    } | null | undefined;
-  };
-  activeBan: {
-    id: string;
-    reason: string | null;
-    expiresAt: Date | null;
-    createdAt: Date;
-  } | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type ClubBanRecord = {
-  id: string;
-  roleAtBan: ClubMembershipRole | null;
-  user: {
-    id: string;
-    displayName: string;
-    username: string | null;
-    avatarAsset?: {
-      objectKey: string;
-      status: "PENDING" | "READY" | "FAILED";
-    } | null | undefined;
-  };
-  reason: string | null;
-  expiresAt: Date | null;
-  revokedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type ListClubMembersResult = {
-  club: {
-    id: string;
-    currentUserRole: ClubMembershipRole | null;
-    isCurrentUserBanned: boolean;
-  } | null;
-  members: ClubMemberRecord[];
-  total: number;
-};
-
-export type ListClubBansResult = {
-  club: {
-    id: string;
-    currentUserRole: ClubMembershipRole | null;
-    isCurrentUserBanned: boolean;
-  } | null;
-  bans: ClubBanRecord[];
-  total: number;
-};
-
-export type ClubMemberMutationResult =
-  | {
-      status: "SUCCESS";
-      member: ClubMemberRecord;
-    }
-  | {
-      status:
-        | "ACTOR_BANNED"
-        | "ACTOR_NOT_ALLOWED"
-        | "CLUB_NOT_FOUND"
-        | "LAST_OWNER"
-        | "MEMBER_NOT_FOUND";
-    };
-
-export type ClubBanMutationResult =
-  | {
-      status: "SUCCESS";
-      ban: ClubBanRecord;
-      deletedPostCount: number;
-    }
-  | {
-      status:
-        | "ACTOR_BANNED"
-        | "ACTOR_NOT_ALLOWED"
-        | "BAN_NOT_FOUND"
-        | "CLUB_NOT_FOUND"
-        | "LAST_OWNER"
-        | "MEMBER_NOT_FOUND";
-    };
-
-export type ClubSettingsMutationResult =
-  | {
-      status: "SUCCESS";
-      club: ClubDetailRecord;
-    }
-  | {
-      status: "ACTOR_BANNED" | "ACTOR_NOT_ALLOWED" | "CLUB_NOT_FOUND";
-    };
-
-export type LeaveClubResult =
-  | {
-      status: "SUCCESS";
-      club: {
-        id: string;
-        linkName: string;
-      };
-    }
-  | {
-      status:
-        | "ACTOR_BANNED"
-        | "CLUB_NOT_FOUND"
-        | "LAST_OWNER"
-        | "MEMBER_NOT_FOUND";
-    };
-
-export type JoinPublicClubResult =
-  | {
-      status: "SUCCESS";
-      club: ClubDetailRecord;
-    }
-  | {
-      status: "BANNED" | "NOT_FOUND";
-    };
-
-export type ClubsRepository = {
-  createClubWithOwnerMembership: (
-    userId: string,
-    input: CreateClubRequest
-  ) => Promise<ClubDetailRecord>;
-  findClubByLinkName: (linkName: string) => Promise<{ id: string } | null>;
-  findVisibleClubByLinkNameForUser: (
-    linkName: string,
-    userId: string
-  ) => Promise<ClubDetailRecord | null>;
-  joinPublicClubByLinkName: (
-    linkName: string,
-    userId: string
-  ) => Promise<JoinPublicClubResult>;
-  leaveClubByLinkName: (
-    linkName: string,
-    userId: string
-  ) => Promise<LeaveClubResult>;
-  updateClubSettings: (
-    linkName: string,
-    actorId: string,
-    input: UpdateClubSettingsRequest
-  ) => Promise<ClubSettingsMutationResult>;
-  listClubMembersByLinkName: (
-    linkName: string,
-    userId: string,
-    input: ListClubMembersQuery
-  ) => Promise<ListClubMembersResult>;
-  listClubBansByLinkName: (
-    linkName: string,
-    userId: string,
-    input: ListClubBansQuery
-  ) => Promise<ListClubBansResult>;
-  updateClubMemberRole: (
-    linkName: string,
-    membershipId: string,
-    actorId: string,
-    role: ClubMembershipRole
-  ) => Promise<ClubMemberMutationResult>;
-  banClubMember: (
-    linkName: string,
-    membershipId: string,
-    actorId: string,
-    input: BanClubMemberRequest
-  ) => Promise<ClubBanMutationResult>;
-  unbanClubBan: (
-    linkName: string,
-    banId: string,
-    actorId: string
-  ) => Promise<ClubBanMutationResult>;
-  listPublicClubs: (
-    userId: string,
-    input: ListPublicClubsInput
-  ) => Promise<ListPublicClubsResult>;
-  listPublicSeoClubs: (
-    currentUserId: string | null,
-    input: ListPublicClubsInput
-  ) => Promise<ListPublicClubsResult>;
-  findPublicSeoClubByLinkName: (
-    linkName: string,
-    currentUserId: string | null
-  ) => Promise<PublicClubDetailRecord | null>;
-  listPublicClubSitemapEntries: (
-    limit: number
-  ) => Promise<ListPublicClubSitemapEntriesResult>;
-};
+export type * from "./clubs.repository.types.js";
 
 const publicClubSelect = {
   id: true,
@@ -993,7 +749,11 @@ export const clubsRepository: ClubsRepository = {
 
       return {
         status: "SUCCESS",
-        member: await findMemberRecord(transaction, membershipId, context.club.id)
+        member: await findMemberRecord(
+          transaction,
+          membershipId,
+          context.club.id
+        )
       };
     }),
 
@@ -1205,8 +965,7 @@ export const clubsRepository: ClubsRepository = {
       };
     }),
 
-  listPublicClubs: (userId, input) =>
-    listPublicClubsPage(userId, input),
+  listPublicClubs: (userId, input) => listPublicClubsPage(userId, input),
 
   listPublicSeoClubs: (currentUserId, input) =>
     listPublicClubsPage(currentUserId, input),
@@ -1341,12 +1100,6 @@ const getPublicClubOrder = (
     }
   ];
 };
-
-export const isUniqueConstraintError = (error: unknown) =>
-  !!error &&
-  typeof error === "object" &&
-  "code" in error &&
-  (error as { code: unknown }).code === "P2002";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -1511,10 +1264,13 @@ const toClubDetailRecord = (club: {
   linkName: string;
   description: string | null;
   category: ClubCategory;
-  coverAsset: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined;
+  coverAsset:
+    | {
+        objectKey: string;
+        status: "PENDING" | "READY" | "FAILED";
+      }
+    | null
+    | undefined;
   rules: string | null;
   visibility: ClubVisibility;
   createdAt: Date;
@@ -1547,10 +1303,13 @@ const toClubMemberRecord = (member: {
     id: string;
     displayName: string;
     username: string | null;
-    avatarAsset: {
-      objectKey: string;
-      status: "PENDING" | "READY" | "FAILED";
-    } | null | undefined;
+    avatarAsset:
+      | {
+          objectKey: string;
+          status: "PENDING" | "READY" | "FAILED";
+        }
+      | null
+      | undefined;
     clubBans: Array<{
       id: string;
       reason: string | null;
@@ -1580,10 +1339,13 @@ const toClubBanRecord = (ban: {
     id: string;
     displayName: string;
     username: string | null;
-    avatarAsset: {
-      objectKey: string;
-      status: "PENDING" | "READY" | "FAILED";
-    } | null | undefined;
+    avatarAsset:
+      | {
+          objectKey: string;
+          status: "PENDING" | "READY" | "FAILED";
+        }
+      | null
+      | undefined;
   };
   reason: string | null;
   expiresAt: Date | null;

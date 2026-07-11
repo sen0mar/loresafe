@@ -107,4 +107,34 @@ describe("production configuration files", () => {
     expect(workflow).toContain("playwright install --with-deps chromium");
     expect(workflow).toContain("name: coverage-reports");
   });
+
+  it("enforces security headers and production readiness verification", async () => {
+    const [vercelSource, workflow, rootPackage, readinessManifest] =
+      await Promise.all([
+        readFile(repositoryFile("apps/web/vercel.json"), "utf8"),
+        readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
+        readFile(repositoryFile("package.json"), "utf8"),
+        readFile(
+          repositoryFile("infra/operations/production-readiness.json"),
+          "utf8"
+        )
+      ]);
+    const vercel = JSON.parse(vercelSource) as {
+      headers?: Array<{ headers?: Array<{ key?: string }> }>;
+    };
+    const headerNames = vercel.headers
+      ?.flatMap((entry) => entry.headers ?? [])
+      .map((header) => header.key);
+
+    expect(headerNames).toContain("Content-Security-Policy");
+    expect(headerNames).toContain("Strict-Transport-Security");
+    expect(headerNames).toContain("X-Content-Type-Options");
+    expect(JSON.parse(rootPackage).scripts["production:readiness:check"]).toBe(
+      "node scripts/verify-production-readiness.mjs"
+    );
+    expect(workflow).toContain("pnpm production:readiness:check");
+    expect(JSON.parse(readinessManifest).backup.postgresPitrRequired).toBe(
+      true
+    );
+  });
 });

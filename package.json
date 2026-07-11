@@ -22,7 +22,8 @@
     "test:browser": "playwright test",
     "test:integration:database": "pnpm --filter @loresafe/api test:integration:database",
     "api:contract:generate": "pnpm --filter @loresafe/api api:contract:generate",
-    "api:contract:check": "pnpm --filter @loresafe/api api:contract:check"
+    "api:contract:check": "pnpm --filter @loresafe/api api:contract:check",
+    "production:readiness:check": "node scripts/verify-production-readiness.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

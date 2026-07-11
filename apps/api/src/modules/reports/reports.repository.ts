@@ -14,195 +14,16 @@ import { softDeleteAuthoredPostsForBan } from "../clubs/club-ban-cleanup.js";
 import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
-  CreateReportRequest,
-  ModerationReportBanRequest,
-  ModerationReportNoteRequest,
-  ModerationReportRequiredMilestoneRequest,
-  ModerationReportResolveRequest,
-  ModerationReportStatus,
-  ReportReason
-} from "./reports.schema.js";
+  ModerationActionRepositoryResult,
+  ModerationClubAccessRecord,
+  ModerationReportRecord,
+  ReportRecord,
+  ReportsRepository,
+  ReportTargetRecord
+} from "./reports.repository.types.js";
+import type { CreateReportRequest } from "./reports.schema.js";
 
-type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
-type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
-type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
-export type ReportTargetRecord = {
-  targetType: "POST" | "COMMENT";
-  targetId: string;
-  clubId: string;
-  requiredMilestone: {
-    position: number;
-  };
-  postRequiredMilestone?: {
-    position: number;
-  };
-  club: {
-    visibility: ClubVisibility;
-    currentUserRole: ClubMembershipRole | null;
-    isCurrentUserBanned: boolean;
-    progress: {
-      mode: ProgressMode;
-      currentMilestonePosition: number | null;
-    };
-  };
-};
-
-export type ReportRecord = {
-  id: string;
-  targetType: "POST" | "COMMENT";
-  reason: ReportReason;
-  details: string | null;
-  status: ReportStatus;
-  postId: string | null;
-  commentId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type ModerationClubAccessRecord = {
-  id: string;
-  visibility: ClubVisibility;
-  currentUserRole: ClubMembershipRole | null;
-  isCurrentUserBanned: boolean;
-};
-
-type ReportTargetAuthorRecord = {
-  id: string;
-  displayName: string;
-  username: string | null;
-};
-
-type ReportTargetMilestoneRecord = {
-  id: string;
-  position: number;
-  safeTitle: string;
-};
-
-export type ModerationReportRecord = ReportRecord & {
-  reporter: ReportTargetAuthorRecord;
-  target:
-    | {
-        targetType: "POST";
-        id: string;
-        status: "VISIBLE" | "HIDDEN";
-        deletedAt: Date | null;
-        title: string;
-        body: string;
-        author: ReportTargetAuthorRecord;
-        requiredMilestone: ReportTargetMilestoneRecord;
-      }
-    | {
-        targetType: "COMMENT";
-        id: string;
-        status: "VISIBLE" | "HIDDEN";
-        deletedAt: Date | null;
-        body: string;
-        author: ReportTargetAuthorRecord;
-        requiredMilestone: ReportTargetMilestoneRecord;
-      }
-    | null;
-};
-
-export type ModerationReportsCursor = {
-  createdAt: Date;
-  id: string;
-};
-
-export type ListModerationReportsResult = {
-  reports: ModerationReportRecord[];
-  nextCursor: ModerationReportsCursor | null;
-  hasMore: boolean;
-};
-
-export type ModerationActionRepositoryResult =
-  | {
-      status: "SUCCESS";
-      report: ModerationReportRecord;
-      deletedPostCount?: number;
-      notification?: CreateNotificationResult;
-    }
-  | {
-      status:
-        | "REPORT_NOT_FOUND"
-        | "REPORT_CLOSED"
-        | "TARGET_NOT_FOUND"
-        | "MILESTONE_NOT_FOUND"
-        | "ACCESS_DENIED"
-        | "TARGET_PROTECTED"
-        | "LAST_OWNER";
-    };
-
-export type ReportsRepository = {
-  findPostTarget: (
-    postId: string,
-    userId: string
-  ) => Promise<ReportTargetRecord | null>;
-  findCommentTarget: (
-    commentId: string,
-    userId: string
-  ) => Promise<ReportTargetRecord | null>;
-  findOpenReportForTarget: (
-    reporterId: string,
-    input: Pick<CreateReportRequest, "targetId" | "targetType">
-  ) => Promise<ReportRecord | null>;
-  createReport: (
-    reporterId: string,
-    target: ReportTargetRecord,
-    input: CreateReportRequest
-  ) => Promise<ReportRecord>;
-  findClubAccessByLinkName: (
-    linkName: string,
-    userId: string
-  ) => Promise<ModerationClubAccessRecord | null>;
-  listModerationReports: (
-    clubId: string,
-    input: {
-      status: ModerationReportStatus;
-      cursor: ModerationReportsCursor | null;
-      limit: number;
-    }
-  ) => Promise<ListModerationReportsResult>;
-  findModerationReportById: (
-    clubId: string,
-    reportId: string
-  ) => Promise<ModerationReportRecord | null>;
-  updateReportRequiredMilestone: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportRequiredMilestoneRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-  hideReportedContent: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportNoteRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-  deleteReportedContent: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportNoteRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-  warnReportedContentAuthor: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportNoteRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-  banReportedContentAuthor: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportBanRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-  resolveModerationReport: (
-    clubId: string,
-    reportId: string,
-    actorId: string,
-    input: ModerationReportResolveRequest
-  ) => Promise<ModerationActionRepositoryResult>;
-};
+export type * from "./reports.repository.types.js";
 
 const reportSelect = {
   id: true,
@@ -587,385 +408,399 @@ export const reportsRepository: ReportsRepository = {
   },
 
   updateReportRequiredMilestone: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      const milestone = await transaction.milestone.findFirst({
-        where: {
-          id: input.requiredMilestoneId,
-          clubId
-        },
-        select: {
-          id: true,
-          position: true
-        }
-      });
-
-      if (!milestone) {
-        return {
-          status: "MILESTONE_NOT_FOUND"
-        };
-      }
-
-      if (target.targetType === "POST") {
-        await transaction.post.update({
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        const milestone = await transaction.milestone.findFirst({
           where: {
-            id: target.id
-          },
-          data: {
-            requiredMilestoneId: milestone.id
+            id: input.requiredMilestoneId,
+            clubId
           },
           select: {
-            id: true
+            id: true,
+            position: true
           }
         });
-      } else {
-        await transaction.comment.update({
-          where: {
-            id: target.id
-          },
-          data: {
-            requiredMilestoneId: milestone.id
-          },
-          select: {
-            id: true
-          }
-        });
-      }
 
-      await resolveReportInTransaction(transaction, report.id);
-      await createAuditLogInTransaction(transaction, {
-        action:
-          target.targetType === "POST"
-            ? "POST_REQUIRED_MILESTONE_CHANGED"
-            : "COMMENT_REQUIRED_MILESTONE_CHANGED",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          previousRequiredMilestoneId: target.requiredMilestoneId,
-          previousRequiredMilestonePosition: target.requiredMilestone.position,
-          requiredMilestoneId: milestone.id,
-          requiredMilestonePosition: milestone.position
+        if (!milestone) {
+          return {
+            status: "MILESTONE_NOT_FOUND"
+          };
         }
-      });
 
-      return {
-        status: "SUCCESS"
-      };
-    }),
-
-  hideReportedContent: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      if (target.targetType === "POST") {
-        await transaction.post.update({
-          where: {
-            id: target.id
-          },
-          data: {
-            status: "HIDDEN"
-          },
-          select: {
-            id: true
-          }
-        });
-      } else {
-        await transaction.comment.update({
-          where: {
-            id: target.id
-          },
-          data: {
-            status: "HIDDEN"
-          },
-          select: {
-            id: true
-          }
-        });
-      }
-
-      await resolveReportInTransaction(transaction, report.id);
-      await createAuditLogInTransaction(transaction, {
-        action: target.targetType === "POST" ? "POST_HIDDEN" : "COMMENT_HIDDEN",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          previousStatus: target.status,
-          status: "HIDDEN"
-        }
-      });
-
-      return {
-        status: "SUCCESS"
-      };
-    }),
-
-  deleteReportedContent: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      const deletedAt = new Date();
-
-      if (target.targetType === "POST") {
-        await transaction.post.update({
-          where: {
-            id: target.id
-          },
-          data: {
-            deletedAt
-          },
-          select: {
-            id: true
-          }
-        });
-      } else {
-        await transaction.comment.update({
-          where: {
-            id: target.id
-          },
-          data: {
-            deletedAt
-          },
-          select: {
-            id: true
-          }
-        });
-      }
-
-      await resolveReportInTransaction(transaction, report.id);
-      await createAuditLogInTransaction(transaction, {
-        action:
-          target.targetType === "POST" ? "POST_DELETED" : "COMMENT_DELETED",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          previousDeletedAt: target.deletedAt?.toISOString() ?? null,
-          deletedAt: deletedAt.toISOString()
-        }
-      });
-
-      return {
-        status: "SUCCESS"
-      };
-    }),
-
-  warnReportedContentAuthor: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      await resolveReportInTransaction(transaction, report.id);
-      await createAuditLogInTransaction(transaction, {
-        action: "USER_WARNED",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          targetType: target.targetType
-        }
-      });
-
-      const notification = await createNotificationInTransaction(transaction, {
-        userId: target.authorId,
-        type: "MODERATION_WARNING",
-        eventKey: `moderation-warning:${report.id}:${target.authorId}`,
-        safeText: `A moderator issued a warning in ${report.club.title}.`,
-        clubId,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        requiredMilestoneId: target.requiredMilestoneId
-      });
-
-      return {
-        status: "SUCCESS",
-        ...(notification ? { notification } : {})
-      };
-    }),
-
-  banReportedContentAuthor: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      const banContext = await findReportBanContext(
-        transaction,
-        clubId,
-        actorId,
-        target.authorId
-      );
-
-      if (
-        !banContext.actorRole ||
-        (banContext.targetRole &&
-          !canActorBanTarget(banContext.actorRole, banContext.targetRole))
-      ) {
-        return {
-          status: "TARGET_PROTECTED"
-        };
-      }
-
-      if (banContext.targetRole === "OWNER" && banContext.ownerCount <= 1) {
-        return {
-          status: "LAST_OWNER"
-        };
-      }
-
-      const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
-      const activeBan = await transaction.clubBan.findFirst({
-        where: {
-          clubId,
-          userId: target.authorId,
-          ...activeBanWhere(new Date())
-        },
-        select: {
-          id: true
-        }
-      });
-      const ban = activeBan
-        ? await transaction.clubBan.update({
+        if (target.targetType === "POST") {
+          await transaction.post.update({
             where: {
-              id: activeBan.id
+              id: target.id
             },
             data: {
-              expiresAt,
-              reason: "Moderation action",
-              roleAtBan: banContext.targetRole
-            },
-            select: {
-              id: true
-            }
-          })
-        : await transaction.clubBan.create({
-            data: {
-              clubId,
-              userId: target.authorId,
-              expiresAt,
-              reason: "Moderation action",
-              roleAtBan: banContext.targetRole
+              requiredMilestoneId: milestone.id
             },
             select: {
               id: true
             }
           });
-      const deletedPostCount = input.deleteAuthoredPosts
-        ? await softDeleteAuthoredPostsForBan(transaction, {
-            actorId,
-            banId: ban.id,
-            clubId,
-            moderatorNote: input.moderatorNote,
-            reportId: report.id,
-            targetUserId: target.authorId
-          })
-        : 0;
+        } else {
+          await transaction.comment.update({
+            where: {
+              id: target.id
+            },
+            data: {
+              requiredMilestoneId: milestone.id
+            },
+            select: {
+              id: true
+            }
+          });
+        }
 
-      if (banContext.targetMembershipId) {
-        await transaction.clubMembership.delete({
+        await resolveReportInTransaction(transaction, report.id);
+        await createAuditLogInTransaction(transaction, {
+          action:
+            target.targetType === "POST"
+              ? "POST_REQUIRED_MILESTONE_CHANGED"
+              : "COMMENT_REQUIRED_MILESTONE_CHANGED",
+          actorId,
+          clubId,
+          reportId: report.id,
+          postId: target.targetType === "POST" ? target.id : report.postId,
+          commentId: target.targetType === "COMMENT" ? target.id : null,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            previousRequiredMilestoneId: target.requiredMilestoneId,
+            previousRequiredMilestonePosition:
+              target.requiredMilestone.position,
+            requiredMilestoneId: milestone.id,
+            requiredMilestonePosition: milestone.position
+          }
+        });
+
+        return {
+          status: "SUCCESS"
+        };
+      }
+    ),
+
+  hideReportedContent: (clubId, reportId, actorId, input) =>
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        if (target.targetType === "POST") {
+          await transaction.post.update({
+            where: {
+              id: target.id
+            },
+            data: {
+              status: "HIDDEN"
+            },
+            select: {
+              id: true
+            }
+          });
+        } else {
+          await transaction.comment.update({
+            where: {
+              id: target.id
+            },
+            data: {
+              status: "HIDDEN"
+            },
+            select: {
+              id: true
+            }
+          });
+        }
+
+        await resolveReportInTransaction(transaction, report.id);
+        await createAuditLogInTransaction(transaction, {
+          action:
+            target.targetType === "POST" ? "POST_HIDDEN" : "COMMENT_HIDDEN",
+          actorId,
+          clubId,
+          reportId: report.id,
+          postId: target.targetType === "POST" ? target.id : report.postId,
+          commentId: target.targetType === "COMMENT" ? target.id : null,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            previousStatus: target.status,
+            status: "HIDDEN"
+          }
+        });
+
+        return {
+          status: "SUCCESS"
+        };
+      }
+    ),
+
+  deleteReportedContent: (clubId, reportId, actorId, input) =>
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        const deletedAt = new Date();
+
+        if (target.targetType === "POST") {
+          await transaction.post.update({
+            where: {
+              id: target.id
+            },
+            data: {
+              deletedAt
+            },
+            select: {
+              id: true
+            }
+          });
+        } else {
+          await transaction.comment.update({
+            where: {
+              id: target.id
+            },
+            data: {
+              deletedAt
+            },
+            select: {
+              id: true
+            }
+          });
+        }
+
+        await resolveReportInTransaction(transaction, report.id);
+        await createAuditLogInTransaction(transaction, {
+          action:
+            target.targetType === "POST" ? "POST_DELETED" : "COMMENT_DELETED",
+          actorId,
+          clubId,
+          reportId: report.id,
+          postId: target.targetType === "POST" ? target.id : report.postId,
+          commentId: target.targetType === "COMMENT" ? target.id : null,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            previousDeletedAt: target.deletedAt?.toISOString() ?? null,
+            deletedAt: deletedAt.toISOString()
+          }
+        });
+
+        return {
+          status: "SUCCESS"
+        };
+      }
+    ),
+
+  warnReportedContentAuthor: (clubId, reportId, actorId, input) =>
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        await resolveReportInTransaction(transaction, report.id);
+        await createAuditLogInTransaction(transaction, {
+          action: "USER_WARNED",
+          actorId,
+          clubId,
+          reportId: report.id,
+          postId: target.targetType === "POST" ? target.id : report.postId,
+          commentId: target.targetType === "COMMENT" ? target.id : null,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            targetType: target.targetType
+          }
+        });
+
+        const notification = await createNotificationInTransaction(
+          transaction,
+          {
+            userId: target.authorId,
+            type: "MODERATION_WARNING",
+            eventKey: `moderation-warning:${report.id}:${target.authorId}`,
+            safeText: `A moderator issued a warning in ${report.club.title}.`,
+            clubId,
+            postId: target.targetType === "POST" ? target.id : report.postId,
+            commentId: target.targetType === "COMMENT" ? target.id : null,
+            requiredMilestoneId: target.requiredMilestoneId
+          }
+        );
+
+        return {
+          status: "SUCCESS",
+          ...(notification ? { notification } : {})
+        };
+      }
+    ),
+
+  banReportedContentAuthor: (clubId, reportId, actorId, input) =>
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        const banContext = await findReportBanContext(
+          transaction,
+          clubId,
+          actorId,
+          target.authorId
+        );
+
+        if (
+          !banContext.actorRole ||
+          (banContext.targetRole &&
+            !canActorBanTarget(banContext.actorRole, banContext.targetRole))
+        ) {
+          return {
+            status: "TARGET_PROTECTED"
+          };
+        }
+
+        if (banContext.targetRole === "OWNER" && banContext.ownerCount <= 1) {
+          return {
+            status: "LAST_OWNER"
+          };
+        }
+
+        const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+        const activeBan = await transaction.clubBan.findFirst({
           where: {
-            id: banContext.targetMembershipId
+            clubId,
+            userId: target.authorId,
+            ...activeBanWhere(new Date())
           },
           select: {
             id: true
           }
         });
-      }
+        const ban = activeBan
+          ? await transaction.clubBan.update({
+              where: {
+                id: activeBan.id
+              },
+              data: {
+                expiresAt,
+                reason: "Moderation action",
+                roleAtBan: banContext.targetRole
+              },
+              select: {
+                id: true
+              }
+            })
+          : await transaction.clubBan.create({
+              data: {
+                clubId,
+                userId: target.authorId,
+                expiresAt,
+                reason: "Moderation action",
+                roleAtBan: banContext.targetRole
+              },
+              select: {
+                id: true
+              }
+            });
+        const deletedPostCount = input.deleteAuthoredPosts
+          ? await softDeleteAuthoredPostsForBan(transaction, {
+              actorId,
+              banId: ban.id,
+              clubId,
+              moderatorNote: input.moderatorNote,
+              reportId: report.id,
+              targetUserId: target.authorId
+            })
+          : 0;
 
-      await transaction.notification.deleteMany({
-        where: {
+        if (banContext.targetMembershipId) {
+          await transaction.clubMembership.delete({
+            where: {
+              id: banContext.targetMembershipId
+            },
+            select: {
+              id: true
+            }
+          });
+        }
+
+        await transaction.notification.deleteMany({
+          where: {
+            clubId,
+            userId: target.authorId
+          }
+        });
+
+        await resolveReportInTransaction(transaction, report.id);
+        await createAuditLogInTransaction(transaction, {
+          action: "USER_BANNED",
+          actorId,
           clubId,
-          userId: target.authorId
-        }
-      });
+          reportId: report.id,
+          postId: target.targetType === "POST" ? target.id : report.postId,
+          commentId: target.targetType === "COMMENT" ? target.id : null,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            banId: ban.id,
+            expiresAt: expiresAt?.toISOString() ?? null,
+            deletedPostCount,
+            deleteAuthoredPosts: Boolean(input.deleteAuthoredPosts),
+            membershipId: banContext.targetMembershipId,
+            roleAtBan: banContext.targetRole,
+            targetType: target.targetType
+          }
+        });
 
-      await resolveReportInTransaction(transaction, report.id);
-      await createAuditLogInTransaction(transaction, {
-        action: "USER_BANNED",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: target.targetType === "POST" ? target.id : report.postId,
-        commentId: target.targetType === "COMMENT" ? target.id : null,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          banId: ban.id,
-          expiresAt: expiresAt?.toISOString() ?? null,
-          deletedPostCount,
-          deleteAuthoredPosts: Boolean(input.deleteAuthoredPosts),
-          membershipId: banContext.targetMembershipId,
-          roleAtBan: banContext.targetRole,
-          targetType: target.targetType
-        }
-      });
-
-      return {
-        status: "SUCCESS",
-        deletedPostCount
-      };
-    }),
+        return {
+          status: "SUCCESS",
+          deletedPostCount
+        };
+      }
+    ),
 
   resolveModerationReport: (clubId, reportId, actorId, input) =>
-    runContentActionTransaction(clubId, reportId, actorId, async ({
-      report,
-      target,
-      transaction
-    }) => {
-      await transaction.report.update({
-        where: {
-          id: report.id
-        },
-        data: {
-          status: input.status
-        },
-        select: {
-          id: true
-        }
-      });
-      await createAuditLogInTransaction(transaction, {
-        action: input.status === "RESOLVED" ? "REPORT_RESOLVED" : "REPORT_DISMISSED",
-        actorId,
-        clubId,
-        reportId: report.id,
-        postId: report.postId,
-        commentId: report.commentId,
-        targetUserId: target.authorId,
-        moderatorNote: input.moderatorNote,
-        metadata: {
-          previousStatus: report.status,
-          status: input.status
-        }
-      });
+    runContentActionTransaction(
+      clubId,
+      reportId,
+      actorId,
+      async ({ report, target, transaction }) => {
+        await transaction.report.update({
+          where: {
+            id: report.id
+          },
+          data: {
+            status: input.status
+          },
+          select: {
+            id: true
+          }
+        });
+        await createAuditLogInTransaction(transaction, {
+          action:
+            input.status === "RESOLVED"
+              ? "REPORT_RESOLVED"
+              : "REPORT_DISMISSED",
+          actorId,
+          clubId,
+          reportId: report.id,
+          postId: report.postId,
+          commentId: report.commentId,
+          targetUserId: target.authorId,
+          moderatorNote: input.moderatorNote,
+          metadata: {
+            previousStatus: report.status,
+            status: input.status
+          }
+        });
 
-      return {
-        status: "SUCCESS"
-      };
-    })
+        return {
+          status: "SUCCESS"
+        };
+      }
+    )
 };
 
 type TransactionClient = Prisma.TransactionClient;

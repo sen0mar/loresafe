@@ -10,10 +10,8 @@ import {
 } from "../posts/posts.repository.js";
 import { visiblePostAccessWhere } from "../posts/post-access-where.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
-import {
-  progressRepository,
-  type RecentlyUnlockedRecord
-} from "../progress/progress.repository.js";
+import { progressQueryRepository } from "../progress/progress-query.repository.js";
+import type { RecentlyUnlockedRecord } from "../progress/progress.repository.types.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
@@ -158,14 +156,12 @@ export const dashboardRepository: DashboardRepository = {
     return {
       id: club.id,
       visibility: club.visibility,
-      currentUserRole: (club.memberships[0]?.role ?? null) as
-        | ClubMembershipRole
-        | null,
+      currentUserRole: (club.memberships[0]?.role ??
+        null) as ClubMembershipRole | null,
       isCurrentUserBanned: club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
-        currentMilestonePosition:
-          progress?.currentMilestone?.position ?? null
+        currentMilestonePosition: progress?.currentMilestone?.position ?? null
       }
     };
   },
@@ -374,14 +370,15 @@ export const dashboardRepository: DashboardRepository = {
   },
 
   getRecentlyUnlockedSummary: async (userId, clubId, limit) => {
-    const result = await progressRepository.listRecentlyUnlockedPostsForUserClub(
-      userId,
-      clubId,
-      {
-        cursor: null,
-        limit
-      }
-    );
+    const result =
+      await progressQueryRepository.listRecentlyUnlockedPostsForUserClub(
+        userId,
+        clubId,
+        {
+          cursor: null,
+          limit
+        }
+      );
 
     return {
       unlock: result.unlock,
@@ -431,10 +428,8 @@ const toPopularDiscussionViewer = (
 
   return {
     mode: (progress?.mode ?? "STRICT") as ProgressMode,
-    currentMilestonePosition:
-      progress?.currentMilestone?.position ?? null,
-    currentUserRole: (post.club.memberships[0]?.role ?? null) as
-      | ClubMembershipRole
-      | null
+    currentMilestonePosition: progress?.currentMilestone?.position ?? null,
+    currentUserRole: (post.club.memberships[0]?.role ??
+      null) as ClubMembershipRole | null
   };
 };

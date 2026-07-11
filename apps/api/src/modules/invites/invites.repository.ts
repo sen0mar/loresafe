@@ -1,7 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeBanWhere, activeUserBanWhere } from "../clubs/club-bans.js";
-import type { ClubDetailRecord } from "../clubs/clubs.repository.js";
+import type { ClubDetailRecord } from "../clubs/clubs.repository.types.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -37,11 +37,7 @@ export type ClubInviteRecord = {
 };
 
 export type AcceptInviteFailureStatus =
-  | "banned"
-  | "expired"
-  | "maxed"
-  | "not_found"
-  | "revoked";
+  "banned" | "expired" | "maxed" | "not_found" | "revoked";
 
 export type AcceptInviteSuccessRecord = {
   status: "accepted" | "already_member";
@@ -243,7 +239,7 @@ export const invitesRepository: InvitesRepository = {
 
           throw new InviteAcceptFailure(
             freshInvite
-              ? getInviteFailureStatus(freshInvite, now) ?? "maxed"
+              ? (getInviteFailureStatus(freshInvite, now) ?? "maxed")
               : "not_found"
           );
         }

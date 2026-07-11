@@ -1,4 +1,5 @@
-import { progressRepository, type ProgressRepository } from "./progress.repository.js";
+import { progressRepository } from "./progress.repository.js";
+import type { ProgressRepository } from "./progress.repository.types.js";
 
 export type ProgressCommandRepository = Pick<
   ProgressRepository,

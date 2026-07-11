@@ -1,4 +1,5 @@
-import { clubsRepository, type ClubsRepository } from "./clubs.repository.js";
+import { clubsRepository } from "./clubs.repository.js";
+import type { ClubsRepository } from "./clubs.repository.types.js";
 
 export type ClubsCommandRepository = Pick<
   ClubsRepository,

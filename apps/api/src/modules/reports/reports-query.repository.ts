@@ -1,4 +1,5 @@
-import { reportsRepository, type ReportsRepository } from "./reports.repository.js";
+import { reportsRepository } from "./reports.repository.js";
+import type { ReportsRepository } from "./reports.repository.types.js";
 
 export type ReportsQueryRepository = Pick<
   ReportsRepository,

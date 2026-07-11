@@ -4,10 +4,7 @@ import {
   encodeTimestampUuidCursor
 } from "../../core/http/cursor.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
-import {
-  eventsService,
-  type EventsService
-} from "../events/events.service.js";
+import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   toModerationReportDto,
   toReportDto,
@@ -23,7 +20,7 @@ import {
   type ModerationReportsCursor,
   type ReportsRepository,
   type ReportTargetRecord
-} from "./reports.repository.js";
+} from "./reports.repository.types.js";
 import { reportsQueryRepository } from "./reports-query.repository.js";
 import { reportsCommandRepository } from "./reports-command.repository.js";
 import type {
@@ -157,34 +154,79 @@ export const createReportsService = (
     };
   },
 
-  updateReportRequiredMilestoneForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.updateReportRequiredMilestone(club.id, reportId, userId, input)
+  updateReportRequiredMilestoneForClub: async (
+    linkName,
+    reportId,
+    userId,
+    input
+  ) =>
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) =>
+        repository.updateReportRequiredMilestone(
+          club.id,
+          reportId,
+          userId,
+          input
+        )
     ),
 
   hideReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.hideReportedContent(club.id, reportId, userId, input)
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) => repository.hideReportedContent(club.id, reportId, userId, input)
     ),
 
   deleteReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.deleteReportedContent(club.id, reportId, userId, input)
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) =>
+        repository.deleteReportedContent(club.id, reportId, userId, input)
     ),
 
   warnReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.warnReportedContentAuthor(club.id, reportId, userId, input)
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) =>
+        repository.warnReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   banReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.banReportedContentAuthor(club.id, reportId, userId, input)
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) =>
+        repository.banReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   resolveModerationReportForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, reportId, userId, repository, eventPublisher, (club) =>
-      repository.resolveModerationReport(club.id, reportId, userId, input)
+    runModerationAction(
+      linkName,
+      reportId,
+      userId,
+      repository,
+      eventPublisher,
+      (club) =>
+        repository.resolveModerationReport(club.id, reportId, userId, input)
     )
 });
 
@@ -241,13 +283,16 @@ const runModerationAction = async (
 
   if (result.status === "SUCCESS") {
     if (result.notification?.wasCreated) {
-      await eventPublisher.publishNotificationCreated(result.notification.userId, {
-        notificationId: result.notification.id,
-        club: result.notification.club,
-        postId: result.notification.postId,
-        commentId: result.notification.commentId,
-        occurredAt: result.notification.createdAt.toISOString()
-      });
+      await eventPublisher.publishNotificationCreated(
+        result.notification.userId,
+        {
+          notificationId: result.notification.id,
+          club: result.notification.club,
+          postId: result.notification.postId,
+          commentId: result.notification.commentId,
+          occurredAt: result.notification.createdAt.toISOString()
+        }
+      );
     }
 
     return {
@@ -276,11 +321,7 @@ const runModerationAction = async (
         "Choose a milestone from this club."
       );
     case "TARGET_PROTECTED":
-      throw new HttpError(
-        403,
-        "FORBIDDEN",
-        "You cannot ban this club member."
-      );
+      throw new HttpError(403, "FORBIDDEN", "You cannot ban this club member.");
     case "LAST_OWNER":
       throw new HttpError(
         409,

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "readinessPath": "/api/health/ready",
+  "metricsPath": "/api/health/metrics",
+  "requiredAlertRules": [
+    "api-readiness-failing",
+    "api-high-error-rate",
+    "api-high-latency",
+    "job-worker-unavailable",
+    "job-failures-increasing",
+    "storage-cleanup-failures"
+  ],
+  "backup": {
+    "postgresRetentionDays": 14,
+    "postgresPitrRequired": true,
+    "objectRecoveryDays": 14,
+    "restoreDrillMaximumAgeDays": 100,
+    "rpoMinutes": 15,
+    "rtoMinutes": 240
+  },
+  "requiredSecurityHeaders": [
+    "content-security-policy",
+    "permissions-policy",
+    "referrer-policy",
+    "strict-transport-security",
+    "x-content-type-options",
+    "x-frame-options"
+  ]
+}

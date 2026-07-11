@@ -107,6 +107,9 @@ jobs:
       - name: Validate versioned API contract
         run: pnpm api:contract:check
 
+      - name: Validate production readiness controls
+        run: pnpm production:readiness:check
+
       - name: Run unit and route tests
         run: pnpm test
 

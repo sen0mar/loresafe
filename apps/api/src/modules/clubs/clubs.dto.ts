@@ -5,7 +5,7 @@ import type {
   ClubMemberRecord,
   PublicClubDetailRecord,
   PublicClubSitemapEntryRecord
-} from "./clubs.repository.js";
+} from "./clubs.repository.types.js";
 import { r2Storage } from "../../core/storage/r2-storage.js";
 import type { ClubCategory } from "./clubs.schema.js";
 
@@ -250,8 +250,12 @@ export const toClubBanDto = (ban: ClubBanRecord): ClubBanDto => ({
 });
 
 const getReadyAssetUrl = (
-  asset: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined
-) => (asset?.status === "READY" ? r2Storage.getPublicUrl(asset.objectKey) : null);
+  asset:
+    | {
+        objectKey: string;
+        status: "PENDING" | "READY" | "FAILED";
+      }
+    | null
+    | undefined
+) =>
+  asset?.status === "READY" ? r2Storage.getPublicUrl(asset.objectKey) : null;

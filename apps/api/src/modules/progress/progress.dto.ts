@@ -3,16 +3,13 @@ import type {
   ProgressHistoryRecord,
   ProgressMilestoneRecord,
   RecentlyUnlockedRecord
-} from "./progress.repository.js";
+} from "./progress.repository.types.js";
 import type { ProgressMode } from "./progress.schema.js";
 import {
   canViewRequiredMilestone,
   getCompletedMilestoneCount
 } from "../spoilers/spoiler.policy.js";
-import {
-  type ClubPostCardDto,
-  toClubPostCardDto
-} from "../posts/posts.dto.js";
+import { type ClubPostCardDto, toClubPostCardDto } from "../posts/posts.dto.js";
 import type { ObjectStorage } from "../../core/storage/r2-storage.js";
 
 export type ProgressMilestoneDto = {
@@ -122,9 +119,7 @@ export const toRecentlyUnlockedResponse = async (
     unlockedAt: record.unlock.unlockedAt?.toISOString() ?? null
   },
   posts: await Promise.all(
-    record.posts.map((post) =>
-      toClubPostCardDto(post, context, storage)
-    )
+    record.posts.map((post) => toClubPostCardDto(post, context, storage))
   ),
   pagination: {
     limit,

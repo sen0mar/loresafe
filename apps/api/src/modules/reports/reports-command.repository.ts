@@ -1,4 +1,5 @@
-import { reportsRepository, type ReportsRepository } from "./reports.repository.js";
+import { reportsRepository } from "./reports.repository.js";
+import type { ReportsRepository } from "./reports.repository.types.js";
 
 export type ReportsCommandRepository = Pick<
   ReportsRepository,
@@ -17,6 +18,7 @@ export const reportsCommandRepository: ReportsCommandRepository = {
   deleteReportedContent: reportsRepository.deleteReportedContent,
   hideReportedContent: reportsRepository.hideReportedContent,
   resolveModerationReport: reportsRepository.resolveModerationReport,
-  updateReportRequiredMilestone: reportsRepository.updateReportRequiredMilestone,
+  updateReportRequiredMilestone:
+    reportsRepository.updateReportRequiredMilestone,
   warnReportedContentAuthor: reportsRepository.warnReportedContentAuthor
 };
