@@ -84,8 +84,6 @@ export const postDetailParamsSchema = z
   })
   .strict();
 
-export type ClubPostsParams = z.infer<typeof clubPostsParamsSchema>;
-export type PostDetailParams = z.infer<typeof postDetailParamsSchema>;
 export type CreateClubPostRequest = z.infer<
   typeof createClubPostRequestSchema
 >;

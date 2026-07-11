@@ -9,10 +9,8 @@ export {
   getClubProgressSummary,
   getJoinedClubs,
   getModerationReports,
-  getPopularDiscussions,
   getPostById,
   getPostComments,
   getPublicClubs,
-  getRecentlyUnlockedPosts,
-  getRecentlyUnlockedSummary
+  getRecentlyUnlockedPosts
 } from "./clubs.requests.js";

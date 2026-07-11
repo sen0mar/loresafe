@@ -57,8 +57,6 @@ export const postReactionEmojis: PostReactionEmoji[] = [
   "😮",
   "👀"
 ];
-export const commentReactionEmojis = postReactionEmojis;
-
 export type ClubFeedTab =
   | "safe"
   | "unanswered"
@@ -457,29 +455,6 @@ export type ProgressSummaryResponse = {
     completedMilestones: number;
     percentage: number;
     updatedAt: string | null;
-  };
-};
-
-export type PopularDiscussionsResponse = {
-  discussions: Array<{
-    post: ClubPostCard;
-    engagementScore: number;
-  }>;
-  pagination: {
-    limit: number;
-  };
-};
-
-export type RecentlyUnlockedSummaryResponse = {
-  unlock: {
-    historyId: string | null;
-    fromPosition: number;
-    toPosition: number;
-    unlockedAt: string | null;
-  };
-  posts: ClubPostCard[];
-  pagination: {
-    limit: number;
   };
 };
 

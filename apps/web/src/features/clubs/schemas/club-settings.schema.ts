@@ -15,4 +15,3 @@ export type ClubSettingsFormValues = {
   visibility: ClubVisibility;
   rules: string;
 };
-export type ClubSettingsFormPayload = z.output<typeof clubSettingsFormSchema>;

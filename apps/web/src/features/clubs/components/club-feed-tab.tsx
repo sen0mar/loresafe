@@ -9,8 +9,6 @@ export { PostCard, PostReactionButtons, PredictionStateBadges } from "./club-fee
 import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
-  type ClubPostPrediction,
-  type PostType,
   useClubPostsInfiniteQuery,
   useClubProgressQuery
 } from "../api/clubs.js";
@@ -25,50 +23,7 @@ type PostDetailLinkState = {
   returnTo: string;
 };
 
-const postTypeLabels: Record<PostType, string> = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  THEORY: "Theory",
-  PREDICTION: "Prediction",
-  POLL: "Poll",
-  REACTION: "Reaction",
-  REVIEW: "Review",
-  IMAGE_MEME: "Image/meme",
-  QUOTE_COMMENTARY: "Quote",
-  JUST_REACHED: "Just reached"
-};
-
 const countFormatter = new Intl.NumberFormat();
-
-const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
-  UNRESOLVED: "Unresolved",
-  CORRECT: "Correct",
-  WRONG: "Wrong",
-  PARTIAL: "Partial"
-};
-
-const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
-  {
-    value: "safe",
-    label: "Safe"
-  },
-  {
-    value: "unanswered",
-    label: "Unanswered"
-  },
-  {
-    value: "locked",
-    label: "Locked"
-  },
-  {
-    value: "all",
-    label: "All"
-  },
-  {
-    value: "my-posts",
-    label: "My posts"
-  }
-];
 
 export const ClubFeedTab = ({ club }: ClubFeedTabProps) => {
   const [activeTab, setActiveTab] = useState<ClubFeedTabValue>("all");

@@ -13,10 +13,10 @@ import type {
   DeleteCommentResponse, DeletePostResponse, JoinedClubsQueryInput,
   JoinedClubsResponse, LeaveClubResponse, ModerationReportActionResponse,
   ModerationReportNoteInput, ModerationReportsResponse,
-  MoveClubMilestoneInput, MoveClubMilestoneResponse, PopularDiscussionsResponse,
+  MoveClubMilestoneInput, MoveClubMilestoneResponse,
   PostCommentsResponse, PostDetailResponse, ProgressSummaryResponse,
   PublicClubsQueryInput, RecentlyUnlockedResponse,
-  RecentlyUnlockedSummaryResponse, ResolveModerationReportInput,
+  ResolveModerationReportInput,
   RevealCommentResponse, RevealModerationReportResponse, RevealPostResponse,
   ToggleCommentReactionInput, ToggleCommentReactionResponse,
   TogglePostReactionInput, TogglePostReactionResponse,
@@ -123,18 +123,6 @@ export const getClubDashboardStats = (linkName: string, signal?: AbortSignal) =>
 
 export const getClubProgressSummary = (linkName: string, signal?: AbortSignal) =>
   apiGet<ProgressSummaryResponse>(`/api/clubs/${linkName}/progress/summary`, { signal });
-
-export const getPopularDiscussions = (linkName: string, signal?: AbortSignal) =>
-  apiGet<PopularDiscussionsResponse>(
-    `/api/clubs/${linkName}/popular-discussions?limit=5`,
-    { signal }
-  );
-
-export const getRecentlyUnlockedSummary = (linkName: string, signal?: AbortSignal) =>
-  apiGet<RecentlyUnlockedSummaryResponse>(
-    `/api/clubs/${linkName}/recently-unlocked/summary?limit=3`,
-    { signal }
-  );
 
 export const getPostById = (postId: string, signal?: AbortSignal) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`, { signal });

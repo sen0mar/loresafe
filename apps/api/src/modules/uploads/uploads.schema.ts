@@ -76,5 +76,3 @@ export type CreatePublicAssetUploadRequest = z.infer<
 export type CreatePostImageUploadRequest = z.infer<
   typeof createPostImageUploadRequestSchema
 >;
-
-export type AssetIdParams = z.infer<typeof assetIdParamsSchema>;

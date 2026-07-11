@@ -251,7 +251,7 @@ describe("rate limit defaults", () => {
 
     expect(options).toHaveLength(32);
     expect(options).toEqual(
-      options.map((option) =>
+      options.map(() =>
         expect.objectContaining({
           legacyHeaders: false,
           standardHeaders: "draft-8"

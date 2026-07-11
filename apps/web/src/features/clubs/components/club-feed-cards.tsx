@@ -19,7 +19,6 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
 import {
-  type Club,
   type ClubFeedTab as ClubFeedTabValue,
   type ClubPostCounts,
   type ClubPostCard,
@@ -31,10 +30,6 @@ import {
 import { ReactionButtonGroup } from "./reaction-button-group.js";
 import { ReportDialog } from "./report-dialog.js";
 import { DeletePostDialog } from "./delete-content-dialog.js";
-
-type ClubFeedTabProps = {
-  club: Club;
-};
 
 type PostDetailLinkState = {
   returnLabel: string;
@@ -70,29 +65,6 @@ const formatDateTime = (value: string) =>
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
-
-const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
-  {
-    value: "safe",
-    label: "Safe"
-  },
-  {
-    value: "unanswered",
-    label: "Unanswered"
-  },
-  {
-    value: "locked",
-    label: "Locked"
-  },
-  {
-    value: "all",
-    label: "All"
-  },
-  {
-    value: "my-posts",
-    label: "My posts"
-  }
-];
 
 export const PostCard = ({
   linked = false,

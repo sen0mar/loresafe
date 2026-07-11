@@ -38,10 +38,6 @@ export const clubsQueryKeys = {
     ["clubs", "detail", linkName, "dashboard", "stats"] as const,
   dashboardProgressSummary: (linkName: string) =>
     ["clubs", "detail", linkName, "dashboard", "progress-summary"] as const,
-  dashboardPopularDiscussions: (linkName: string) =>
-    ["clubs", "detail", linkName, "dashboard", "popular-discussions"] as const,
-  dashboardRecentlyUnlockedSummary: (linkName: string) =>
-    ["clubs", "detail", linkName, "dashboard", "recently-unlocked-summary"] as const,
   recentlyUnlocked: (linkName: string) =>
     ["clubs", "detail", linkName, "recently-unlocked"] as const,
   moderationReports: (linkName: string) =>

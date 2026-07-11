@@ -28,7 +28,6 @@ import {
   type Club,
   type ClubFeedTab as ClubFeedTabValue,
   type ClubMilestone,
-  type ClubPostPrediction,
   type PostType,
   useClubMilestonesQuery,
   useCreateClubPostMutation
@@ -39,15 +38,6 @@ import {
 } from "../schemas/create-post.schema.js";
 import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-
-type ClubFeedTabProps = {
-  club: Club;
-};
-
-type PostDetailLinkState = {
-  returnLabel: string;
-  returnTo: string;
-};
 
 const postTypeLabels: Record<PostType, string> = {
   DISCUSSION: "Discussion",
@@ -60,15 +50,6 @@ const postTypeLabels: Record<PostType, string> = {
   IMAGE_MEME: "Image/meme",
   QUOTE_COMMENTARY: "Quote",
   JUST_REACHED: "Just reached"
-};
-
-const countFormatter = new Intl.NumberFormat();
-
-const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
-  UNRESOLVED: "Unresolved",
-  CORRECT: "Correct",
-  WRONG: "Wrong",
-  PARTIAL: "Partial"
 };
 
 const getDefaultPostValues = (): CreatePostFormValues => ({
