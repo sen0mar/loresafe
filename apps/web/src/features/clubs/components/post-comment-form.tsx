@@ -16,14 +16,6 @@ import {
   type CreateCommentFormValues
 } from "../schemas/create-comment.schema.js";
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
 export const CommentForm = ({
   baseMilestone,
   label,

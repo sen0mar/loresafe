@@ -13,14 +13,6 @@ import {
 import { CommentForm } from "./post-comment-form.js";
 import { CommentThreadBlock, CommentsEmpty, CommentsError, CommentsLoading } from "./post-comment-thread.js";
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
 export const CommentsPanel = ({
   clubLinkName,
   comments,

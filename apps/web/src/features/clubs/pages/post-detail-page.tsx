@@ -25,14 +25,6 @@ import {
   RevealedPostCard
 } from "../components/post-detail-sections.js";
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
 type PostDetailReturnState = {
   returnLabel?: unknown;
   returnTo?: unknown;

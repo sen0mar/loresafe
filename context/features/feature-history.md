@@ -145,6 +145,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 139: Production audit hardening 35–37 — Added route-error recovery and bounded infinite-query retention, established lint, formatting, risk-based coverage, browser-security, and accessibility release gates, and validated bounded client request IDs with server UUID fallback.
 - Feature 140: Persistent app shell navigation — Stopped healthy route changes from remounting the complete routed tree while preserving navigation-based route-error recovery, with focused frontend regression coverage.
 - Feature 141: Production audit closure — Added enforced browser security headers, versioned and live operational-readiness verification, and narrow repository contract boundaries with lint enforcement, closing LS-026, LS-028, and LS-030 with full release verification.
+- Feature 142: Useless function cleanup — Removed the unused functions, hooks, standalone search-page cluster, local helpers, and moderation helper parameter identified in Part 2 of the unused-code audit while preserving live shared search exports and behavior.
 
 ## Entry Format
 

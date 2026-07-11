@@ -14,6 +14,3 @@ if (sentryEnabled) {
 }
 
 export { Sentry };
-
-export const isSentryEnabled = () => sentryEnabled;
-
