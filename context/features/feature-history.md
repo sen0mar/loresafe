@@ -148,6 +148,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 142: Useless function cleanup — Removed the unused functions, hooks, standalone search-page cluster, local helpers, and moderation helper parameter identified in Part 2 of the unused-code audit while preserving live shared search exports and behavior.
 - Feature 143: Other unused code cleanup — Removed the unreachable frontend prototypes, dead dashboard web clients, unused constants, local types, fixtures, and schema aliases identified in Part 3 of the unused-code audit while preserving backend dashboard contracts.
 - Feature 144: Unused health router cleanup — Removed the final unused eagerly created health router instance identified by the second-pass audit while preserving the live dependency-aware router factory and health endpoints.
+- Feature 145: True-black app background — Changed the global page canvas and desktop app-shell sidebar to true black while preserving existing surface, component, and steel-blue accent colors.
 
 ## Entry Format
 

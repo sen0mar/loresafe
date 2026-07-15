@@ -31,7 +31,7 @@
 :root {
   color-scheme: dark;
   --radius: 1.125rem;
-  --bg-base: #07090c;
+  --bg-base: #000000;
   --bg-base-deep: #000000;
   --bg-surface: #090b0e;
   --bg-elevated: #0e1116;
@@ -97,7 +97,7 @@
   );
   --divider-soft-glow: rgba(96, 145, 214, 0.12);
   --gradient-primary: linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%);
-  --gradient-app: #07090c;
+  --gradient-app: #000000;
   --glass-tabs-surface: rgba(6, 8, 11, 0.76);
   --glass-tabs-surface-shine: rgba(246, 247, 244, 0.035);
   --glass-tabs-border: rgba(170, 203, 250, 0.16);
@@ -160,7 +160,7 @@
 }
 
 @utility bg-base-90 {
-  background-color: rgba(7, 9, 12, 0.9);
+  background-color: rgba(0, 0, 0, 0.9);
 }
 
 @utility bg-base-deep {
@@ -405,13 +405,7 @@
   }
 
   .app-shell-sidebar {
-    background:
-      linear-gradient(180deg, rgba(246, 247, 244, 0.035), transparent 36%),
-      linear-gradient(
-        90deg,
-        var(--bg-surface),
-        color-mix(in srgb, var(--bg-surface) 84%, var(--bg-active) 16%)
-      );
+    background: var(--bg-base);
     box-shadow: var(--shadow-shell-sidebar);
   }
 

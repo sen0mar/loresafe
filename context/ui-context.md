@@ -24,7 +24,7 @@ Colors below define the current app palette in `apps/web/src/styles.css`.
 
 | Role | CSS variable | HEX / value |
 | --- | --- | --- |
-| Page background | `--bg-base` | `#07090c` |
+| Page background | `--bg-base` | `#000000` |
 | Deep background | `--bg-base-deep` | `#000000` |
 | Surface | `--bg-surface` | `#090b0e` |
 | Elevated surface | `--bg-elevated` | `#0e1116` |
@@ -71,7 +71,7 @@ Colors below define the current app palette in `apps/web/src/styles.css`.
 | Soft vertical divider line | `--divider-soft-line-vertical` | faded token-based vertical separator |
 | Soft divider glow | `--divider-soft-glow` | low-opacity brand glow for separators |
 | Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
-| App background | `--gradient-app` | `#07090c` |
+| App background | `--gradient-app` | `#000000` |
 | Glass tab surface | `--glass-tabs-surface` | `rgba(6, 8, 11, 0.76)` |
 | Glass tab border | `--glass-tabs-border` | `rgba(170, 203, 250, 0.16)` |
 | Glass tab highlight | `--glass-tab-highlight` | `rgba(16, 26, 39, 0.78)` |
@@ -83,7 +83,7 @@ Recommended CSS starting point:
 ```css
 :root {
   color-scheme: dark;
-  --bg-base: #07090c;
+  --bg-base: #000000;
   --bg-base-deep: #000000;
   --bg-surface: #090b0e;
   --bg-elevated: #0e1116;
@@ -183,6 +183,8 @@ standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
   - main content: flexible, min width protected.
   - right sidebar: about `320px` fixed.
 - Main content has top search/header, club header, tabs, filters, feed cards, and lower summary panels.
+- The desktop left sidebar uses the true-black page base; its nested controls
+  retain their normal surface and active-state tokens.
 - Right sidebar contains quick progress update, reading mode, stats, and contextual panels.
 - Bottom panels can use a 3-column grid on wide screens.
 - On mobile/tablet, collapse left navigation and right sidebar into drawers or route-level panels.
