@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.ingest.sentry.io; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.ingest.sentry.io https://*.ingest.de.sentry.io; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests"
         },
         {
           "key": "Cross-Origin-Opener-Policy",

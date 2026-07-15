@@ -78,6 +78,20 @@ describe("AppShell layout", () => {
     );
   });
 
+  it("does not cap the authenticated shell on ultra-wide viewports", () => {
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    const shellFrame = screen.getByRole("main").parentElement?.parentElement
+      ?.parentElement;
+
+    expect(shellFrame).toHaveClass("w-full");
+    expect(shellFrame).not.toHaveClass("max-w-[112rem]");
+  });
+
   it("keeps the desktop context column when a right rail is provided", () => {
     renderWithProviders(
       <AppShell

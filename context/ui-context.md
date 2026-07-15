@@ -182,6 +182,10 @@ standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
   - left sidebar: about `252px` fixed.
   - main content: flexible, min width protected.
   - right sidebar: about `320px` fixed.
+- The authenticated shell uses the full desktop viewport instead of stopping at
+  a fixed maximum width. On ultra-wide displays, card listing grids add columns
+  progressively so cards stay compact while forms and reading-focused pages may
+  keep their intentional content-width limits.
 - Main content has top search/header, club header, tabs, filters, feed cards, and lower summary panels.
 - The desktop left sidebar uses the true-black page base; its nested controls
   retain their normal surface and active-state tokens.

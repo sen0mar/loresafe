@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Filter, PlusCircle, Search } from "lucide-react";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
+import { ClubCardGrid } from "@/features/clubs/components/club-card-grid";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -207,11 +208,11 @@ export const ExplorePage = () => {
         ) : clubsQuery.data.clubs.length === 0 ? (
           <ExploreClubsEmpty />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <ClubCardGrid>
             {clubsQuery.data.clubs.slice(0, exploreClubLimit).map((club) => (
               <ClubDiscoveryCard key={club.id} club={club} />
             ))}
-          </div>
+          </ClubCardGrid>
         )}
       </div>
     </AuthenticatedAppShell>

@@ -150,6 +150,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 144: Unused health router cleanup — Removed the final unused eagerly created health router instance identified by the second-pass audit while preserving the live dependency-aware router factory and health endpoints.
 - Feature 145: True-black app background — Changed the global page canvas and desktop app-shell sidebar to true black while preserving existing surface, component, and steel-blue accent colors.
 - Feature 146: Persistent floating sidebar drawer — Added motion-safe desktop sidebar hide/show controls with locally persisted preference, inert hidden navigation, expanding main content, unchanged mobile behavior, and focused frontend coverage.
+- Feature 147: Ultra-wide layout and Sentry CSP compatibility — Expanded the authenticated shell across ultra-wide viewports, added progressive club-card columns, allowed standard and DE regional Sentry ingest hosts in deployed CSP headers, and added focused frontend and security regression coverage.
 
 ## Entry Format
 

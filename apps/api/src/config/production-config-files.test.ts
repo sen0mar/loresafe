@@ -120,13 +120,17 @@ describe("production configuration files", () => {
         )
       ]);
     const vercel = JSON.parse(vercelSource) as {
-      headers?: Array<{ headers?: Array<{ key?: string }> }>;
+      headers?: Array<{ headers?: Array<{ key?: string; value?: string }> }>;
     };
-    const headerNames = vercel.headers
-      ?.flatMap((entry) => entry.headers ?? [])
-      .map((header) => header.key);
+    const headers = vercel.headers?.flatMap((entry) => entry.headers ?? []);
+    const headerNames = headers?.map((header) => header.key);
+    const contentSecurityPolicy = headers?.find(
+      (header) => header.key === "Content-Security-Policy"
+    )?.value;
 
     expect(headerNames).toContain("Content-Security-Policy");
+    expect(contentSecurityPolicy).toContain("https://*.ingest.sentry.io");
+    expect(contentSecurityPolicy).toContain("https://*.ingest.de.sentry.io");
     expect(headerNames).toContain("Strict-Transport-Security");
     expect(headerNames).toContain("X-Content-Type-Options");
     expect(JSON.parse(rootPackage).scripts["production:readiness:check"]).toBe(

@@ -15,6 +15,12 @@ describe("securityHeadersMiddleware", () => {
     expect(response.headers["content-security-policy"]).toContain(
       "frame-ancestors 'none'"
     );
+    expect(response.headers["content-security-policy"]).toContain(
+      "https://*.ingest.sentry.io"
+    );
+    expect(response.headers["content-security-policy"]).toContain(
+      "https://*.ingest.de.sentry.io"
+    );
     expect(response.headers["strict-transport-security"]).toContain(
       "max-age=63072000"
     );

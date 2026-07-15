@@ -8,8 +8,10 @@ import {
 } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
+import { ClubCardGrid } from "./club-card-grid.js";
+
 export const ExploreClubsLoading = () => (
-  <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+  <ClubCardGrid>
     {Array.from({ length: 6 }, (_, index) => (
       <Card key={index}>
         <CardHeader>
@@ -35,7 +37,7 @@ export const ExploreClubsLoading = () => (
         </CardContent>
       </Card>
     ))}
-  </div>
+  </ClubCardGrid>
 );
 
 export const ExploreClubsEmpty = () => (

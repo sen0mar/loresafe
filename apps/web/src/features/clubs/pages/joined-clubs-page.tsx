@@ -19,6 +19,7 @@ import {
   useJoinedClubsInfiniteQuery
 } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
+import { ClubCardGrid } from "@/features/clubs/components/club-card-grid";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -131,11 +132,11 @@ export const JoinedClubsPage = () => {
                 </Button>
               </div>
             ) : null}
-            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            <ClubCardGrid>
               {clubs.map((club) => (
                 <JoinedClubCard key={club.id} club={club} />
               ))}
-            </div>
+            </ClubCardGrid>
             {joinedClubsQuery.hasNextPage ? (
               <div className="flex justify-center">
                 <Button
@@ -212,7 +213,7 @@ const ClubMetric = ({ label, value }: { label: string; value: string }) => (
 );
 
 const JoinedClubsLoading = () => (
-  <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+  <ClubCardGrid>
     {Array.from({ length: 6 }, (_, index) => (
       <Card key={index}>
         <CardHeader className="space-y-3">
@@ -225,7 +226,7 @@ const JoinedClubsLoading = () => (
         </CardContent>
       </Card>
     ))}
-  </div>
+  </ClubCardGrid>
 );
 
 const JoinedClubsError = ({ onRetry }: { onRetry: () => void }) => (

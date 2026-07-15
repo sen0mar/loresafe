@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
+import { ClubCardGrid } from "@/features/clubs/components/club-card-grid";
 import { PostCard } from "@/features/clubs/components/club-feed-tab";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
@@ -39,11 +40,11 @@ export const ClubResults = ({ clubs }: { clubs: SearchClub[] }) => {
           {countFormatter.format(clubs.length)} shown
         </Badge>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <ClubCardGrid className="gap-3">
         {clubs.map((club) => (
           <SearchClubCard key={club.id} club={club} />
         ))}
-      </div>
+      </ClubCardGrid>
     </section>
   );
 };
@@ -148,7 +149,7 @@ export const SearchEmpty = ({
 export const SearchLoading = ({ filters }: { filters: SearchFilter[] }) => (
   <div className="space-y-5">
     {filters.includes("clubs") ? (
-      <div className="grid gap-3 md:grid-cols-2">
+      <ClubCardGrid className="gap-3">
         {Array.from({ length: 2 }, (_, index) => (
           <Card key={index}>
             <CardHeader className="space-y-3">
@@ -158,7 +159,7 @@ export const SearchLoading = ({ filters }: { filters: SearchFilter[] }) => (
             </CardHeader>
           </Card>
         ))}
-      </div>
+      </ClubCardGrid>
     ) : null}
     {filters.includes("posts") ? (
       <div className="space-y-3">

@@ -3,7 +3,7 @@ import type { RequestHandler } from "express";
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
-  "connect-src 'self' https://*.ingest.sentry.io",
+  "connect-src 'self' https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
   "font-src 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",

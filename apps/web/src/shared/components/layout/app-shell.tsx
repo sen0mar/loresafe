@@ -55,7 +55,7 @@ export const AppShell = ({
     <div className="min-h-screen bg-gradient-app text-primary">
       <div
         className={cn(
-          "mx-auto flex min-h-screen w-full max-w-[112rem] p-2 transition-[gap] duration-200 ease-out motion-reduce:transition-none lg:p-3",
+          "flex min-h-screen w-full p-2 transition-[gap] duration-200 ease-out motion-reduce:transition-none lg:p-3",
           isDesktopSidebarOpen ? "gap-3" : "gap-0"
         )}
       >
