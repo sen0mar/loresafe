@@ -185,6 +185,9 @@ standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
 - Main content has top search/header, club header, tabs, filters, feed cards, and lower summary panels.
 - The desktop left sidebar uses the true-black page base; its nested controls
   retain their normal surface and active-state tokens.
+- The desktop sidebar may slide away as one complete floating panel. When it is
+  hidden, the main column expands and the top bar exposes a compact brand-colored
+  reopen control; do not replace the panel with a permanent icon-only rail.
 - Right sidebar contains quick progress update, reading mode, stats, and contextual panels.
 - Bottom panels can use a 3-column grid on wide screens.
 - On mobile/tablet, collapse left navigation and right sidebar into drawers or route-level panels.

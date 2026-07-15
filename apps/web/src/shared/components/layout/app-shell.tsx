@@ -1,6 +1,8 @@
 import { type ReactNode } from "react";
+import { PanelLeftOpen } from "lucide-react";
 
 import { NotificationPreviewMenu } from "@/features/notifications/components/notification-preview-menu";
+import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
 import {
@@ -12,6 +14,7 @@ import {
   SessionMenu,
   type AppShellUser
 } from "./app-shell-session-menu.js";
+import { useDesktopSidebar } from "./use-desktop-sidebar.js";
 
 type AppShellProps = {
   children: ReactNode;
@@ -42,17 +45,37 @@ export const AppShell = ({
   onRetryJoinedClubs,
   rightRail
 }: AppShellProps) => {
+  const {
+    closeDesktopSidebar,
+    isDesktopSidebarOpen,
+    openDesktopSidebar
+  } = useDesktopSidebar();
+
   return (
     <div className="min-h-screen bg-gradient-app text-primary">
-      <div className="mx-auto flex min-h-screen w-full max-w-[112rem] gap-3 p-2 lg:p-3">
-        <DesktopSidebar
-          joinedClubs={joinedClubs}
-          joinedClubsTotal={joinedClubsTotal}
-          isJoinedClubsError={isJoinedClubsError}
-          isJoinedClubsLoading={isJoinedClubsLoading}
-          onRetryJoinedClubs={onRetryJoinedClubs}
-          notificationUnreadCount={notificationUnreadCount}
-        />
+      <div
+        className={cn(
+          "mx-auto flex min-h-screen w-full max-w-[112rem] p-2 transition-[gap] duration-200 ease-out motion-reduce:transition-none lg:p-3",
+          isDesktopSidebarOpen ? "gap-3" : "gap-0"
+        )}
+      >
+        <div
+          className={cn(
+            "relative hidden shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:sticky lg:top-3 lg:block lg:h-[calc(100dvh-1.5rem)]",
+            isDesktopSidebarOpen ? "w-[252px]" : "w-0"
+          )}
+        >
+          <DesktopSidebar
+            isOpen={isDesktopSidebarOpen}
+            joinedClubs={joinedClubs}
+            joinedClubsTotal={joinedClubsTotal}
+            isJoinedClubsError={isJoinedClubsError}
+            isJoinedClubsLoading={isJoinedClubsLoading}
+            onClose={closeDesktopSidebar}
+            onRetryJoinedClubs={onRetryJoinedClubs}
+            notificationUnreadCount={notificationUnreadCount}
+          />
+        </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <header className="app-shell-topbar flex items-center gap-3 rounded-2xl border px-2 py-3 backdrop-blur-md lg:px-6">
@@ -64,6 +87,18 @@ export const AppShell = ({
               onRetryJoinedClubs={onRetryJoinedClubs}
               notificationUnreadCount={notificationUnreadCount}
             />
+            {!isDesktopSidebarOpen ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hidden text-brand hover:bg-active hover:text-brand lg:inline-flex"
+                onClick={openDesktopSidebar}
+                aria-label="Show sidebar"
+              >
+                <PanelLeftOpen />
+              </Button>
+            ) : null}
             <div className="min-w-0 flex-1" />
             <NotificationPreviewMenu unreadCount={notificationUnreadCount} />
             <SessionMenu

@@ -60,6 +60,10 @@ const getContentGrid = () => {
 };
 
 describe("AppShell layout", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("uses a single full-width content column when no right rail is provided", () => {
     renderWithProviders(
       <AppShell currentUser={currentUser}>
@@ -117,7 +121,7 @@ describe("AppShell layout", () => {
       </AppShell>
     );
 
-    expect(screen.getByLabelText("Primary sidebar")).toHaveClass(
+    expect(screen.getByLabelText("Primary sidebar").parentElement).toHaveClass(
       "lg:h-[calc(100dvh-1.5rem)]"
     );
     expect(screen.getByText("First Club")).toBeVisible();
@@ -128,6 +132,49 @@ describe("AppShell layout", () => {
       "href",
       "/app/clubs"
     );
+  });
+
+  it("hides, restores, and remembers the desktop sidebar", async () => {
+    const user = userEvent.setup();
+    const firstRender = renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+    const sidebar = screen.getByLabelText("Primary sidebar");
+
+    expect(sidebar).toHaveAttribute("aria-hidden", "false");
+    expect(sidebar.parentElement).toHaveClass("w-[252px]");
+
+    await user.click(screen.getByRole("button", { name: "Hide sidebar" }));
+
+    expect(sidebar).toHaveAttribute("aria-hidden", "true");
+    expect(sidebar).toHaveAttribute("inert");
+    expect(sidebar.parentElement).toHaveClass("w-0");
+    expect(
+      screen.getByRole("button", { name: "Show sidebar" })
+    ).toBeInTheDocument();
+
+    firstRender.unmount();
+    renderWithProviders(
+      <AppShell currentUser={currentUser}>
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    const persistedSidebar = screen.getByLabelText("Primary sidebar");
+
+    expect(persistedSidebar).toHaveAttribute("aria-hidden", "true");
+    expect(persistedSidebar.parentElement).toHaveClass("w-0");
+
+    await user.click(screen.getByRole("button", { name: "Show sidebar" }));
+
+    expect(persistedSidebar).toHaveAttribute("aria-hidden", "false");
+    expect(persistedSidebar).not.toHaveAttribute("inert");
+    expect(persistedSidebar.parentElement).toHaveClass("w-[252px]");
+    expect(
+      screen.getByRole("button", { name: "Hide sidebar" })
+    ).toBeInTheDocument();
   });
 
   it("routes desktop Home navigation to the authenticated homepage", () => {

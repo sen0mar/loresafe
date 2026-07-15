@@ -9,6 +9,7 @@ import {
   KeyRound,
   LockKeyhole,
   Menu,
+  PanelLeftClose,
   RefreshCw,
   Settings,
   TrendingUp,
@@ -56,6 +57,11 @@ type AppShellNavigationProps = {
   onRetryJoinedClubs?: () => void;
 };
 
+type DesktopSidebarProps = AppShellNavigationProps & {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
 type NavItem = {
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -93,13 +99,15 @@ const memberFormatter = new Intl.NumberFormat(undefined, {
 });
 
 export const DesktopSidebar = ({
+  isOpen,
   joinedClubs = [],
   joinedClubsTotal,
   isJoinedClubsError = false,
   isJoinedClubsLoading = false,
   notificationUnreadCount = 0,
+  onClose,
   onRetryJoinedClubs
-}: AppShellNavigationProps) => {
+}: DesktopSidebarProps) => {
   const location = useLocation();
   const activePrimaryNavValue = getPrimaryNavActiveValue(location.pathname);
   const activeJoinedClubValue = getJoinedClubActiveValue(
@@ -110,9 +118,16 @@ export const DesktopSidebar = ({
   return (
     <aside
       aria-label="Primary sidebar"
-      className="app-shell-sidebar relative isolate hidden w-[252px] shrink-0 overflow-y-auto rounded-2xl border border-default px-3 pb-4 lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-1.5rem)] lg:max-h-[calc(100dvh-1.5rem)] lg:flex-col"
+      aria-hidden={!isOpen}
+      inert={!isOpen}
+      className={cn(
+        "app-shell-sidebar absolute inset-0 isolate hidden w-[252px] overflow-y-auto rounded-2xl border border-default px-3 pb-4 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex lg:flex-col",
+        isOpen
+          ? "translate-x-0 opacity-100"
+          : "pointer-events-none -translate-x-[calc(100%+0.75rem)] opacity-0"
+      )}
     >
-      <ShellBrand />
+      <ShellBrand onClose={onClose} />
       <PrimaryNavigation
         activeValue={activePrimaryNavValue}
         notificationUnreadCount={notificationUnreadCount}
@@ -199,15 +214,27 @@ export const MobileNav = ({
   </DropdownMenu>
 );
 
-const ShellBrand = () => (
-  <Link
-    to={AUTHENTICATED_HOME_PATH}
-    aria-label="LoreSafe home"
-    className="flex items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-  >
-    <BrandMark isDecorative className="size-10" />
-    <BrandWordmark className="text-xl font-semibold" />
-  </Link>
+const ShellBrand = ({ onClose }: { onClose: () => void }) => (
+  <div className="flex items-center gap-1">
+    <Link
+      to={AUTHENTICATED_HOME_PATH}
+      aria-label="LoreSafe home"
+      className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 pt-3 pb-2 text-primary transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <BrandMark isDecorative className="size-10 shrink-0" />
+      <BrandWordmark className="truncate text-xl font-semibold" />
+    </Link>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="mt-1 shrink-0 text-faint hover:bg-active hover:text-brand"
+      onClick={onClose}
+      aria-label="Hide sidebar"
+    >
+      <PanelLeftClose />
+    </Button>
+  </div>
 );
 
 const PrimaryNavigation = ({
