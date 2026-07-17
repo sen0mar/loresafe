@@ -147,32 +147,60 @@ test("denies a banned member and verifies upload CORS at the browser boundary", 
   }
 });
 
-test("closes the authenticated event lifecycle and rejects it after logout", async ({
+test("avoids automatic event streams and rejects protected API reads after logout", async ({
   page
 }) => {
-  await loginAsDemo(page);
-  const eventRequest = page.waitForRequest((request) =>
-    request.url().includes("/api/events")
-  );
-
-  await page.reload();
-  await eventRequest;
-  await page.getByRole("button", { name: new RegExp(demoDisplayName) }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/login/);
-
-  const revokedEventRead = await page.context().request.get("/api/events", {
-    headers: { Accept: "text/event-stream" },
-    timeout: 5_000
+  const suffix = `${Date.now()}`.slice(-8);
+  const username = `idle_${suffix}`;
+  const email = `${username}@example.com`;
+  const password = "browser-idle-password";
+  const signupResponse = await page.context().request.post("/api/auth/signup", {
+    data: { email, username, password },
+    headers: { Origin: browserOrigin }
   });
 
-  expect(revokedEventRead.status()).toBe(401);
+  expect(signupResponse.status()).toBe(201);
+
+  try {
+    const eventRequests: string[] = [];
+
+    page.on("request", (request) => {
+      if (request.url().includes("/api/events")) {
+        eventRequests.push(request.url());
+      }
+    });
+
+    await page.goto("/app");
+    await page.waitForLoadState("networkidle");
+    expect(eventRequests).toEqual([]);
+    await page.getByRole("button", { name: new RegExp(username) }).click();
+    await page.getByRole("menuitem", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    const revokedNotificationRead = await page
+      .context()
+      .request.get("/api/notifications?limit=1");
+
+    expect(revokedNotificationRead.status()).toBe(401);
+  } finally {
+    const loginResponse = await page.context().request.post("/api/auth/login", {
+      data: { email, password },
+      headers: { Origin: browserOrigin }
+    });
+
+    if (loginResponse.ok()) {
+      await page.context().request.delete("/api/users/me", {
+        data: { confirmation: "delete", password },
+        headers: { Origin: browserOrigin }
+      });
+    }
+  }
 });
 
 const loginAsDemo = async (page: Page) => {
   await page.goto("/login");
   await page.getByLabel("Email").fill(demoEmail);
-  await page.getByLabel("Password").fill(demoPassword);
+  await page.getByLabel("Password", { exact: true }).fill(demoPassword);
   await page.getByRole("button", { name: /^log in/i }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText(demoDisplayName).first()).toBeVisible();

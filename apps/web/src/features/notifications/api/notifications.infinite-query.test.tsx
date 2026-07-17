@@ -1,11 +1,18 @@
 import type { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider
+} from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
-import { useNotificationsInfiniteQuery } from "./notifications.js";
+import {
+  useNotificationsInfiniteQuery,
+  useUnreadNotificationsQuery
+} from "./notifications.js";
 
 describe("notifications infinite query retention", () => {
   it("drops the oldest page after the retained-page limit", async () => {
@@ -62,6 +69,36 @@ describe("notifications infinite query retention", () => {
     expect(result.current.data?.pages[0]?.notifications[0]?.id).toBe(
       "notification-2"
     );
+  });
+
+  it("refetches stale notification data when the window regains focus", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        notifications: [],
+        unreadCount: 0,
+        pagination: {
+          limit: 1,
+          nextCursor: null,
+          hasMore: false
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } }
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useUnreadNotificationsQuery(), { wrapper });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    focusManager.setFocused(undefined);
   });
 });
 

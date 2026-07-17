@@ -1,10 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { prisma } from "../../core/prisma/client.js";
-import {
-  startNotificationJobQueue,
-  stopNotificationJobQueue
-} from "../../jobs/notification-job-queue.js";
 import { usersRepository } from "../users/users.repository.js";
 import { uploadsRepository } from "./uploads.repository.js";
 
@@ -12,14 +8,6 @@ const describeDatabase =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
 
 describeDatabase("upload deletion lifecycle", () => {
-  beforeAll(async () => {
-    await startNotificationJobQueue();
-  });
-
-  afterAll(async () => {
-    await stopNotificationJobQueue();
-  });
-
   it("retains replacement and account-deletion cleanup after asset metadata cascades", async () => {
     const suffix = crypto.randomUUID();
     const objectKeys = [
@@ -88,7 +76,10 @@ describeDatabase("upload deletion lifecycle", () => {
 
       await expect(
         usersRepository.deleteCurrentUserAccount(user.id, 1)
-      ).resolves.toBe("DELETED");
+      ).resolves.toEqual({
+        status: "DELETED",
+        deletionIds: expect.any(Array)
+      });
 
       expect(
         await prisma.fileAsset.count({
@@ -98,33 +89,37 @@ describeDatabase("upload deletion lifecycle", () => {
         })
       ).toBe(0);
       const deletionRows = await prisma.storageObjectDeletion.findMany({
-          where: {
-            objectKey: {
-              in: objectKeys
-            }
-          },
-          orderBy: {
-            objectKey: "asc"
-          },
-          select: {
-            objectKey: true,
-            reason: true,
-            status: true
+        where: {
+          objectKey: {
+            in: objectKeys
           }
-        });
+        },
+        orderBy: {
+          objectKey: "asc"
+        },
+        select: {
+          objectKey: true,
+          reason: true,
+          status: true
+        }
+      });
 
       expect(
         deletionRows.map(({ objectKey, reason }) => ({ objectKey, reason }))
-      ).toEqual([
-        {
-          objectKey: objectKeys[1],
-          reason: "ACCOUNT_DELETION"
-        },
-        {
-          objectKey: objectKeys[0],
-          reason: "REPLACED_ASSET"
-        }
-      ].sort((first, second) => first.objectKey.localeCompare(second.objectKey)));
+      ).toEqual(
+        [
+          {
+            objectKey: objectKeys[1],
+            reason: "ACCOUNT_DELETION"
+          },
+          {
+            objectKey: objectKeys[0],
+            reason: "REPLACED_ASSET"
+          }
+        ].sort((first, second) =>
+          first.objectKey.localeCompare(second.objectKey)
+        )
+      );
       expect(
         deletionRows.every(
           (deletion) =>

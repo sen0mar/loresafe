@@ -169,7 +169,7 @@ describe("users routes", () => {
     });
     expect(await repository.findActiveUserById(user.id)).toEqual(user);
     expect(repository.posts).toHaveLength(1);
-    expect(repository.enqueuedStorageObjectDeleteJobs).toHaveLength(0);
+    expect(repository.processedStorageDeletionIds).toHaveLength(0);
   });
 
   it("deletes the account and cascades user-owned data", async () => {
@@ -213,7 +213,10 @@ describe("users routes", () => {
     repository.createProgress(user.id, club.id);
     repository.createFileAsset(user.id, "public/avatars/user/avatar.webp");
     repository.createFileAsset(user.id, "private/post-images/club/post.webp");
-    repository.createFileAsset(otherUser.id, "public/avatars/other/avatar.webp");
+    repository.createFileAsset(
+      otherUser.id,
+      "public/avatars/other/avatar.webp"
+    );
 
     const cookie = await createSessionCookie(user);
     const response = await request(app)
@@ -232,19 +235,37 @@ describe("users routes", () => {
     expect(await repository.findActiveUserById(user.id)).toBeNull();
     expect(repository.nameReservations.has("story_fan")).toBe(false);
     expect(repository.nameReservations.has("existing reader")).toBe(false);
-    expect(repository.memberships.some((membership) => membership.userId === user.id)).toBe(false);
-    expect(repository.posts.some((post) => post.authorId === user.id)).toBe(false);
-    expect(repository.comments.some((comment) => comment.authorId === user.id)).toBe(false);
-    expect(repository.postReactions.some((reaction) => reaction.userId === user.id)).toBe(false);
-    expect(repository.commentReactions.some((reaction) => reaction.userId === user.id)).toBe(false);
+    expect(
+      repository.memberships.some((membership) => membership.userId === user.id)
+    ).toBe(false);
+    expect(repository.posts.some((post) => post.authorId === user.id)).toBe(
+      false
+    );
+    expect(
+      repository.comments.some((comment) => comment.authorId === user.id)
+    ).toBe(false);
+    expect(
+      repository.postReactions.some((reaction) => reaction.userId === user.id)
+    ).toBe(false);
+    expect(
+      repository.commentReactions.some(
+        (reaction) => reaction.userId === user.id
+      )
+    ).toBe(false);
     expect(
       repository.notifications.some(
         (notification) => notification.userId === user.id
       )
     ).toBe(false);
-    expect(repository.reports.some((report) => report.reporterId === user.id)).toBe(false);
-    expect(repository.progressRows.some((progress) => progress.userId === user.id)).toBe(false);
-    expect(repository.fileAssets.some((asset) => asset.ownerId === user.id)).toBe(false);
+    expect(
+      repository.reports.some((report) => report.reporterId === user.id)
+    ).toBe(false);
+    expect(
+      repository.progressRows.some((progress) => progress.userId === user.id)
+    ).toBe(false);
+    expect(
+      repository.fileAssets.some((asset) => asset.ownerId === user.id)
+    ).toBe(false);
     expect(repository.fileAssets).toEqual([
       {
         ownerId: otherUser.id,
@@ -255,13 +276,14 @@ describe("users routes", () => {
       repository.comments.find((comment) => comment.id === otherReply.id)
         ?.parentId
     ).toBeNull();
-    expect(repository.enqueuedStorageObjectDeleteJobs).toEqual([
-      {
-        objectKeys: [
-          "public/avatars/user/avatar.webp",
-          "private/post-images/club/post.webp"
-        ]
-      }
+    expect(repository.processedStorageDeletionIds).toHaveLength(2);
+    expect(
+      repository.processedStorageDeletionIds.map((deletionId) =>
+        repository.storageDeletionObjectKeys.get(deletionId)
+      )
+    ).toEqual([
+      "public/avatars/user/avatar.webp",
+      "private/post-images/club/post.webp"
     ]);
 
     await request(app).get("/api/auth/me").set("Cookie", cookie).expect(401);
@@ -303,14 +325,24 @@ describe("users routes", () => {
     const inviteJoinedAt = new Date("2026-01-02T00:00:00.000Z");
     const privateJoinedAt = new Date("2026-01-03T00:00:00.000Z");
 
-    repository.createMembership(user.id, publicClub.id, "MEMBER", publicJoinedAt);
+    repository.createMembership(
+      user.id,
+      publicClub.id,
+      "MEMBER",
+      publicJoinedAt
+    );
     repository.createMembership(
       user.id,
       inviteOnlyClub.id,
       "MODERATOR",
       inviteJoinedAt
     );
-    repository.createMembership(user.id, privateClub.id, "OWNER", privateJoinedAt);
+    repository.createMembership(
+      user.id,
+      privateClub.id,
+      "OWNER",
+      privateJoinedAt
+    );
     repository.createMembership(otherUser.id, publicClub.id);
     repository.createMembership(otherUser.id, unjoinedClub.id);
 
@@ -370,7 +402,9 @@ describe("users routes", () => {
         "coverUrl"
       ].sort()
     );
-    expect(JSON.stringify(response.body)).not.toContain("Unjoined Spoiler Room");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "Unjoined Spoiler Room"
+    );
   });
 
   it("paginates joined clubs by newest membership first", async () => {
@@ -426,9 +460,9 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { linkName: string }) => club.linkName)).toEqual([
-      "oldest-club"
-    ]);
+    expect(
+      response.body.clubs.map((club: { linkName: string }) => club.linkName)
+    ).toEqual(["oldest-club"]);
     expect(response.body.pagination).toEqual({
       limit: 2,
       nextCursor: null,
@@ -485,9 +519,9 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
-      "Nebula Private Room"
-    ]);
+    expect(
+      response.body.clubs.map((club: { title: string }) => club.title)
+    ).toEqual(["Nebula Private Room"]);
     expect(JSON.stringify(response.body)).not.toContain("Nebula Unjoined Room");
   });
 
@@ -546,9 +580,9 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
-      "First Anime Room"
-    ]);
+    expect(
+      response.body.clubs.map((club: { title: string }) => club.title)
+    ).toEqual(["First Anime Room"]);
     expect(response.body.pagination).toEqual({
       limit: 1,
       nextCursor: null,
@@ -582,9 +616,9 @@ describe("users routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
-      "Nebula Safe Room"
-    ]);
+    expect(
+      response.body.clubs.map((club: { title: string }) => club.title)
+    ).toEqual(["Nebula Safe Room"]);
   });
 
   it("rejects invalid joined club search queries", async () => {
@@ -874,14 +908,16 @@ describe("users routes", () => {
   });
 });
 
-const createUsersTestApp = (
-  repository: AuthUsersRepository & UsersRepository
-) => {
+const createUsersTestApp = (repository: InMemoryUsersRepository) => {
   const app = express();
   const authService = createAuthService(repository);
   const authController = createAuthController(authService);
   const authMiddleware = createAuthMiddleware(authService);
-  const usersService = createUsersService(repository);
+  const usersService = createUsersService(repository, {
+    processCommittedDeletions: async (deletionIds) => {
+      repository.processedStorageDeletionIds.push(...deletionIds);
+    }
+  });
   const usersController = createUsersController(usersService);
 
   app.use(requestIdMiddleware);
@@ -911,7 +947,8 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   readonly reports: StoredReport[] = [];
   readonly progressRows: StoredProgress[] = [];
   readonly fileAssets: StoredFileAsset[] = [];
-  readonly enqueuedStorageObjectDeleteJobs: Array<{ objectKeys: string[] }> = [];
+  readonly processedStorageDeletionIds: string[] = [];
+  readonly storageDeletionObjectKeys = new Map<string, string>();
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -1211,7 +1248,10 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     );
 
     this.comments.forEach((comment) => {
-      if (comment.authorId !== userId && userCommentIds.has(comment.parentId ?? "")) {
+      if (
+        comment.authorId !== userId &&
+        userCommentIds.has(comment.parentId ?? "")
+      ) {
         comment.parentId = null;
       }
     });
@@ -1237,7 +1277,10 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
       }
     }
 
-    removeMatching(this.memberships, (membership) => membership.userId === userId);
+    removeMatching(
+      this.memberships,
+      (membership) => membership.userId === userId
+    );
     removeMatching(this.activeBans, (ban) => ban.userId === userId);
     removeMatching(this.posts, (post) => post.authorId === userId);
     removeMatching(
@@ -1253,8 +1296,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     removeMatching(
       this.commentReactions,
       (reaction) =>
-        reaction.userId === userId ||
-        deletedCommentIds.has(reaction.commentId)
+        reaction.userId === userId || deletedCommentIds.has(reaction.commentId)
     );
     removeMatching(
       this.notifications,
@@ -1274,13 +1316,17 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
     removeMatching(this.progressRows, (progress) => progress.userId === userId);
     removeMatching(this.fileAssets, (asset) => asset.ownerId === userId);
 
-    if (objectKeys.length > 0) {
-      this.enqueuedStorageObjectDeleteJobs.push({
-        objectKeys
-      });
-    }
+    const deletionIds = objectKeys.map((objectKey) => {
+      const deletionId = crypto.randomUUID();
 
-    return "DELETED";
+      this.storageDeletionObjectKeys.set(deletionId, objectKey);
+      return deletionId;
+    });
+
+    return {
+      status: "DELETED",
+      deletionIds
+    };
   };
 
   private matchesJoinedClubSearch = (
@@ -1332,8 +1378,12 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
 
     if (input.displayName !== undefined) {
       const nextDisplayNameKey = normalizeNameReservationKey(input.displayName);
-      const currentDisplayNameKey = normalizeNameReservationKey(user.displayName);
-      const currentUsernameKey = normalizeNameReservationKey(user.username ?? "");
+      const currentDisplayNameKey = normalizeNameReservationKey(
+        user.displayName
+      );
+      const currentUsernameKey = normalizeNameReservationKey(
+        user.username ?? ""
+      );
       const reservedUserId = this.nameReservations.get(nextDisplayNameKey);
 
       if (reservedUserId && reservedUserId !== userId) {

@@ -109,14 +109,16 @@ export const useNotificationsInfiniteQuery = () =>
     queryFn: ({ pageParam, signal }) => getNotifications(pageParam, 20, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
-    maxPages: RETAINED_INFINITE_QUERY_PAGES
+    maxPages: RETAINED_INFINITE_QUERY_PAGES,
+    refetchOnWindowFocus: true
   });
 
 export const useUnreadNotificationsQuery = (enabled = true) =>
   useQuery({
     queryKey: notificationsQueryKeys.unread,
     queryFn: ({ signal }) => getNotifications(null, 1, signal),
-    enabled
+    enabled,
+    refetchOnWindowFocus: true
   });
 
 export const useMarkNotificationReadMutation = () => {

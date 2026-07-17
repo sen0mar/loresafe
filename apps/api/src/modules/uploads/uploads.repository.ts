@@ -1,9 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
-import {
-  markStorageDeletionsCompleted,
-  requestStorageObjectDeletion
-} from "../../core/storage/storage-deletion.repository.js";
-import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
+import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
 import type { ValidatedImage } from "./image-validation.js";
 
 export type FileAssetPurpose = "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
@@ -52,7 +48,9 @@ export type CreateFileAssetInput = {
 };
 
 export type UploadsRepository = {
-  createPendingFileAsset: (input: CreateFileAssetInput) => Promise<FileAssetRecord>;
+  createPendingFileAsset: (
+    input: CreateFileAssetInput
+  ) => Promise<FileAssetRecord>;
   findAssetById: (assetId: string) => Promise<FileAssetRecord | null>;
   findClubByLinkNameForUser: (
     linkName: string,
@@ -61,12 +59,14 @@ export type UploadsRepository = {
   markAssetFailedAndRequestDeletion: (
     assetId: string
   ) => Promise<{ asset: FileAssetRecord; deletionId: string } | null>;
-  markDeletionCompleted: (deletionId: string) => Promise<void>;
   markAssetReadyAndAttach: (
     asset: FileAssetRecord,
     readyAt: Date,
     validation: ValidatedImage
-  ) => Promise<FileAssetRecord | null>;
+  ) => Promise<{
+    asset: FileAssetRecord;
+    deletionIds: string[];
+  } | null>;
 };
 
 const fileAssetSelect = {
@@ -216,19 +216,11 @@ export const uploadsRepository: UploadsRepository = {
         "INVALID_UPLOAD"
       );
 
-      if (deletion.status === "PENDING") {
-        await enqueueStorageObjectDeleteJob([deletion.id], transaction);
-      }
-
       return {
         asset: failedAsset,
         deletionId: deletion.id
       };
     }),
-
-  markDeletionCompleted: async (deletionId) => {
-    await markStorageDeletionsCompleted([deletionId]);
-  },
 
   markAssetReadyAndAttach: (asset, readyAt, validation) =>
     prisma.$transaction(async (transaction) => {
@@ -249,7 +241,10 @@ export const uploadsRepository: UploadsRepository = {
       });
 
       if (currentAsset.status !== "PENDING") {
-        return currentAsset;
+        return {
+          asset: currentAsset,
+          deletionIds: []
+        };
       }
 
       const updatedAsset = await transaction.fileAsset.update({
@@ -267,6 +262,8 @@ export const uploadsRepository: UploadsRepository = {
         },
         select: fileAssetSelect
       });
+
+      const deletionIds: string[] = [];
 
       if (asset.purpose === "AVATAR") {
         const previousAsset = await transaction.user.findUnique({
@@ -295,7 +292,10 @@ export const uploadsRepository: UploadsRepository = {
           }
         });
 
-        if (previousAsset?.avatarAsset?.id !== asset.id && previousAsset?.avatarAsset) {
+        if (
+          previousAsset?.avatarAsset?.id !== asset.id &&
+          previousAsset?.avatarAsset
+        ) {
           const deletion = await requestStorageObjectDeletion(
             transaction,
             previousAsset.avatarAsset.objectKey,
@@ -303,7 +303,7 @@ export const uploadsRepository: UploadsRepository = {
           );
 
           if (deletion.status === "PENDING") {
-            await enqueueStorageObjectDeleteJob([deletion.id], transaction);
+            deletionIds.push(deletion.id);
           }
         }
       } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
@@ -333,7 +333,10 @@ export const uploadsRepository: UploadsRepository = {
           }
         });
 
-        if (previousAsset?.coverAsset?.id !== asset.id && previousAsset?.coverAsset) {
+        if (
+          previousAsset?.coverAsset?.id !== asset.id &&
+          previousAsset?.coverAsset
+        ) {
           const deletion = await requestStorageObjectDeletion(
             transaction,
             previousAsset.coverAsset.objectKey,
@@ -341,11 +344,14 @@ export const uploadsRepository: UploadsRepository = {
           );
 
           if (deletion.status === "PENDING") {
-            await enqueueStorageObjectDeleteJob([deletion.id], transaction);
+            deletionIds.push(deletion.id);
           }
         }
       }
 
-      return updatedAsset;
+      return {
+        asset: updatedAsset,
+        deletionIds
+      };
     })
 };

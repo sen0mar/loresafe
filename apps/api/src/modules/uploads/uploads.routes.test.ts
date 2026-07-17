@@ -8,7 +8,10 @@ import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
 import { createSessionToken } from "../../core/security/session-token.js";
-import type { ObjectStorage, PresignedUpload } from "../../core/storage/r2-storage.js";
+import type {
+  ObjectStorage,
+  PresignedUpload
+} from "../../core/storage/r2-storage.js";
 import { createAuthMiddleware } from "../auth/auth.middleware.js";
 import type {
   AuthUserCredentialsRecord,
@@ -291,7 +294,9 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send(validAvatarIntent())
       .expect(201);
-    const invalidBytesAsset = repository.fileAssets.get(firstResponse.body.asset.id);
+    const invalidBytesAsset = repository.fileAssets.get(
+      firstResponse.body.asset.id
+    );
 
     if (!invalidBytesAsset) {
       throw new Error("Expected invalid-byte asset fixture.");
@@ -316,7 +321,9 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .send(validAvatarIntent())
       .expect(201);
-    const oversizedAsset = repository.fileAssets.get(secondResponse.body.asset.id);
+    const oversizedAsset = repository.fileAssets.get(
+      secondResponse.body.asset.id
+    );
 
     if (!oversizedAsset) {
       throw new Error("Expected oversized-image asset fixture.");
@@ -458,7 +465,8 @@ describe("uploads routes", () => {
       contentLength: asset.sizeBytes,
       contentType: asset.contentType
     });
-    (repository as UploadsRepository).markAssetReadyAndAttach = async () => null;
+    (repository as UploadsRepository).markAssetReadyAndAttach = async () =>
+      null;
 
     const response = await request(app)
       .post(`/api/uploads/${asset.id}/complete`)
@@ -467,7 +475,8 @@ describe("uploads routes", () => {
 
     expect(response.body.error).toMatchObject({
       code: "CONFLICT",
-      message: "This upload changed state before completion. Refresh and try again."
+      message:
+        "This upload changed state before completion. Refresh and try again."
     });
   });
 });
@@ -498,7 +507,18 @@ const createUploadsTestApp = (
   const app = express();
   const authService = createAuthService(repository);
   const authMiddleware = createAuthMiddleware(authService);
-  const uploadsService = createUploadsService(repository, storage);
+  const uploadsService = createUploadsService(repository, storage, {
+    processCommittedDeletions: async (deletionIds) => {
+      await storage.deleteObjects(
+        deletionIds.flatMap((deletionId) => {
+          const objectKey = repository.deletionObjectKeys.get(deletionId);
+
+          return objectKey ? [objectKey] : [];
+        })
+      );
+    },
+    runAfterUploadTraffic: () => undefined
+  });
   const uploadsController = createUploadsController(uploadsService);
 
   app.use(requestIdMiddleware);
@@ -537,6 +557,7 @@ class InMemoryUploadsRepository
 {
   readonly users = new Map<string, StoredUser>();
   readonly clubs = new Map<string, StoredClub>();
+  readonly deletionObjectKeys = new Map<string, string>();
   readonly fileAssets = new Map<string, FileAssetRecord>();
   readonly memberships: Array<{
     clubId: string;
@@ -544,7 +565,11 @@ class InMemoryUploadsRepository
     userId: string;
   }> = [];
 
-  createUser = async ({ email, displayName, passwordHash }: CreateAuthUserInput) => {
+  createUser = async ({
+    email,
+    displayName,
+    passwordHash
+  }: CreateAuthUserInput) => {
     const now = new Date();
     const user: StoredUser = {
       id: randomUUID(),
@@ -565,12 +590,14 @@ class InMemoryUploadsRepository
   };
 
   findActiveUserByEmail = async (email: string) =>
-    Array.from(this.users.values()).find((user) => user.email === email) ?? null;
+    Array.from(this.users.values()).find((user) => user.email === email) ??
+    null;
 
   findActiveUserById = async (id: string) => this.users.get(id) ?? null;
 
   findActiveUserCredentialsByEmail = async (email: string) =>
-    Array.from(this.users.values()).find((user) => user.email === email) ?? null;
+    Array.from(this.users.values()).find((user) => user.email === email) ??
+    null;
 
   createClub = (linkName: string) => {
     const club = {
@@ -598,15 +625,15 @@ class InMemoryUploadsRepository
   createPendingFileAsset = async (input: CreateFileAssetInput) => {
     const now = new Date();
     const asset: FileAssetRecord = {
-	      id: randomUUID(),
-	      ownerId: input.ownerId,
-	      clubId: input.clubId,
-	      postId: null,
-	      commentId: null,
-	      purpose: input.purpose,
-	      visibility: input.visibility ?? "PUBLIC",
-	      safePreview: input.safePreview ?? false,
-	      objectKey: input.objectKey,
+      id: randomUUID(),
+      ownerId: input.ownerId,
+      clubId: input.clubId,
+      postId: null,
+      commentId: null,
+      purpose: input.purpose,
+      visibility: input.visibility ?? "PUBLIC",
+      safePreview: input.safePreview ?? false,
+      objectKey: input.objectKey,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
       status: "PENDING",
@@ -631,24 +658,25 @@ class InMemoryUploadsRepository
     userId: string
   ): Promise<UploadClubRecord | null> => {
     const club =
-      Array.from(this.clubs.values()).find((candidate) => candidate.linkName === linkName) ??
-      null;
+      Array.from(this.clubs.values()).find(
+        (candidate) => candidate.linkName === linkName
+      ) ?? null;
 
     if (!club) {
       return null;
     }
 
     return {
-	      id: club.id,
-	      linkName: club.linkName,
-	      currentUserRole:
-	        this.memberships.find(
-	          (membership) =>
-	            membership.clubId === club.id && membership.userId === userId
-	        )?.role ?? null,
-	      isCurrentUserBanned: false
-	    };
-	  };
+      id: club.id,
+      linkName: club.linkName,
+      currentUserRole:
+        this.memberships.find(
+          (membership) =>
+            membership.clubId === club.id && membership.userId === userId
+        )?.role ?? null,
+      isCurrentUserBanned: false
+    };
+  };
 
   markAssetFailedAndRequestDeletion = async (assetId: string) => {
     const asset = this.fileAssets.get(assetId);
@@ -663,13 +691,14 @@ class InMemoryUploadsRepository
       updatedAt: new Date()
     };
     this.fileAssets.set(assetId, failedAsset);
+    const deletionId = randomUUID();
+    this.deletionObjectKeys.set(deletionId, asset.objectKey);
+
     return {
       asset: failedAsset,
-      deletionId: randomUUID()
+      deletionId
     };
   };
-
-  markDeletionCompleted = async (_deletionId: string) => undefined;
 
   markAssetReadyAndAttach = async (
     asset: FileAssetRecord,
@@ -695,7 +724,7 @@ class InMemoryUploadsRepository
       if (user) {
         user.avatarAssetId = asset.id;
       }
-	    } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
+    } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
       const club = this.clubs.get(asset.clubId);
 
       if (club) {
@@ -703,7 +732,10 @@ class InMemoryUploadsRepository
       }
     }
 
-    return readyAsset;
+    return {
+      asset: readyAsset,
+      deletionIds: []
+    };
   };
 
   getOnlyAsset = () => {
@@ -722,18 +754,18 @@ class FakeObjectStorage implements ObjectStorage {
       contentType: string | null;
     }
   >();
-	  readonly objectBytes = new Map<string, Uint8Array>();
-	  readonly deletedObjectKeys: string[] = [];
-	  readonly presignedUploads: Array<{
-	    contentLength: number;
-	    contentType: string;
-	    objectKey: string;
-	  }> = [];
+  readonly objectBytes = new Map<string, Uint8Array>();
+  readonly deletedObjectKeys: string[] = [];
+  readonly presignedUploads: Array<{
+    contentLength: number;
+    contentType: string;
+    objectKey: string;
+  }> = [];
 
-	  createPresignedRead = async (objectKey: string) => ({
-	    readUrl: `https://reads.example/${objectKey}`,
-	    expiresAt: new Date("2026-06-16T12:05:00.000Z")
-	  });
+  createPresignedRead = async (objectKey: string) => ({
+    readUrl: `https://reads.example/${objectKey}`,
+    expiresAt: new Date("2026-06-16T12:05:00.000Z")
+  });
 
   createPresignedUpload = async ({
     contentLength,

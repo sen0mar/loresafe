@@ -5,7 +5,6 @@ import { HttpError } from "../../core/errors/http-error.js";
 import { logger, sanitizeError } from "../../core/logging/logger.js";
 import {
   createNoopEventsTransport,
-  createPostgresEventsTransport,
   type EventEnvelope,
   type EventName,
   type EventsTransport
@@ -91,9 +90,7 @@ export const createEventsService = (
   };
 
   const disconnectLocalUser = (userId: string) => {
-    const connectionIds = [
-      ...(connectionsByUserId.get(userId)?.keys() ?? [])
-    ];
+    const connectionIds = [...(connectionsByUserId.get(userId)?.keys() ?? [])];
 
     for (const connectionId of connectionIds) {
       closeConnection(userId, connectionId);
@@ -228,9 +225,7 @@ export const createEventsService = (
   };
 };
 
-export const eventsService = createEventsService(
-  createPostgresEventsTransport()
-);
+export const eventsService = createEventsService();
 
 const publishLocal = (
   connectionsByUserId: Map<string, Map<string, Connection>>,

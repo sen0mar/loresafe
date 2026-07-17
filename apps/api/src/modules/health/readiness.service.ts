@@ -1,16 +1,9 @@
 import { prisma } from "../../core/prisma/client.js";
 import { checkUpstashRedisReady } from "../../core/security/upstash-rate-limit-store.js";
 import { r2Storage } from "../../core/storage/r2-storage.js";
-import { isNotificationJobQueueReady } from "../../jobs/notification-job-queue.js";
-import { eventsService } from "../events/events.service.js";
 import { operationsMetrics } from "../../core/monitoring/operations-metrics.js";
 
-export type ReadinessDependencyName =
-  | "database"
-  | "eventTransport"
-  | "jobWorker"
-  | "redis"
-  | "storage";
+export type ReadinessDependencyName = "database" | "redis" | "storage";
 
 export type ReadinessDependencies = Record<
   ReadinessDependencyName,
@@ -32,16 +25,6 @@ const readinessTimeoutMs = 2_000;
 export const defaultReadinessDependencies: ReadinessDependencies = {
   database: async () => {
     await prisma.$queryRaw`SELECT 1`;
-  },
-  eventTransport: async () => {
-    if (!eventsService.getStatus?.().ready) {
-      throw new Error("Event transport is not started.");
-    }
-  },
-  jobWorker: async () => {
-    if (!isNotificationJobQueueReady()) {
-      throw new Error("Job worker is not started.");
-    }
   },
   redis: checkUpstashRedisReady,
   storage: async () => {
@@ -70,10 +53,7 @@ export const checkReadiness = async (
       const durationMs = Math.round(performance.now() - startedAt);
       operationsMetrics.recordReadinessDuration(name, durationMs);
 
-      return [
-        name as ReadinessDependencyName,
-        { durationMs, status }
-      ] as const;
+      return [name as ReadinessDependencyName, { durationMs, status }] as const;
     })
   );
   const checks = Object.fromEntries(entries) as ReadinessResult["checks"];

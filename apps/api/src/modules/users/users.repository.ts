@@ -2,7 +2,6 @@ import { prisma } from "../../core/prisma/client.js";
 import type { TimestampUuidCursor } from "../../core/http/cursor.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
-import { enqueueStorageObjectDeleteJob } from "../../jobs/notification-job-queue.js";
 import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
@@ -22,10 +21,13 @@ export type JoinedClubRecord = {
   id: string;
   title: string;
   linkName: string;
-  coverAsset?: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined;
+  coverAsset?:
+    | {
+        objectKey: string;
+        status: "PENDING" | "READY" | "FAILED";
+      }
+    | null
+    | undefined;
   visibility: ClubVisibility;
   role: ClubMembershipRole;
   memberCount: number;
@@ -43,7 +45,7 @@ export type ListJoinedClubsInput = Omit<ListCurrentUserClubsQuery, "cursor"> & {
 };
 
 export type DeleteCurrentUserAccountResult =
-  | "DELETED"
+  | { status: "DELETED"; deletionIds: string[] }
   | "REAUTH_REQUIRED"
   | "SOLE_OWNER"
   | "USER_NOT_FOUND";
@@ -205,17 +207,16 @@ export const usersRepository: UsersRepository = {
         }
       });
 
-      if (deletionIds.length > 0) {
-        await enqueueStorageObjectDeleteJob(deletionIds, transaction);
-      }
-
       await transaction.user.delete({
         where: {
           id: userId
         }
       });
 
-      return "DELETED";
+      return {
+        status: "DELETED",
+        deletionIds
+      };
     }),
 
   findActiveUserCredentialsById: (userId) =>
@@ -282,41 +283,41 @@ export const usersRepository: UsersRepository = {
     };
 
     const memberships = await prisma.clubMembership.findMany({
-        where: membershipWhere,
-        orderBy: [
-          {
-            createdAt: "desc"
-          },
-          {
-            id: "asc"
-          }
-        ],
-        take: limit + 1,
-        select: {
-          id: true,
-          role: true,
-          createdAt: true,
-          club: {
-            select: {
-              id: true,
-              title: true,
-              linkName: true,
-              coverAsset: {
-                select: {
-                  objectKey: true,
-                  status: true
-                }
-              },
-              visibility: true,
-              _count: {
-                select: {
-                  memberships: true
-                }
+      where: membershipWhere,
+      orderBy: [
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "asc"
+        }
+      ],
+      take: limit + 1,
+      select: {
+        id: true,
+        role: true,
+        createdAt: true,
+        club: {
+          select: {
+            id: true,
+            title: true,
+            linkName: true,
+            coverAsset: {
+              select: {
+                objectKey: true,
+                status: true
+              }
+            },
+            visibility: true,
+            _count: {
+              select: {
+                memberships: true
               }
             }
           }
         }
-      });
+      }
+    });
     const hasMore = memberships.length > limit;
     const pageMemberships = memberships.slice(0, limit);
     const lastMembership = pageMemberships.at(-1);
@@ -376,7 +377,9 @@ export const usersRepository: UsersRepository = {
           }
         };
 
-        const nextDisplayNameKey = normalizeNameReservationKey(input.displayName);
+        const nextDisplayNameKey = normalizeNameReservationKey(
+          input.displayName
+        );
         const currentDisplayNameKey = normalizeNameReservationKey(
           currentUser.displayName
         );
@@ -527,8 +530,4 @@ const buildJoinedClubRoleSearchWhere = (
 };
 
 const normalizeSearchText = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replaceAll("-", " ")
-    .replace(/\s+/g, " ");
+  value.trim().toLowerCase().replaceAll("-", " ").replace(/\s+/g, " ");

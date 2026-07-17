@@ -36,7 +36,7 @@ LoreSafe gives each club an ordered milestone timeline. Content declares the mil
 - Personalized Safe, Locked, All, My Posts, and Unanswered feeds.
 - Discussions, questions, theories, predictions, polls, reactions, reviews, images, quotes, and milestone updates.
 - Nested comments, emoji reactions, spoiler-aware media, and recently unlocked discussions.
-- Spoiler-safe notifications with authenticated Server-Sent Events.
+- Spoiler-safe durable notifications with refresh-on-focus delivery.
 - Club and discussion search that preserves membership, ban, and progress rules.
 - Reporting, moderator queues, spoiler-level correction, hiding, deletion, warnings, bans, and audit history.
 - Public club pages, sitemap generation, crawler metadata, PWA assets, and route-level SEO controls.
@@ -61,12 +61,10 @@ flowchart LR
     API -->|"presigned uploads and authorized reads"| R2["Cloudflare R2"]
     API -->|"rate-limit counters"| Redis["Upstash Redis"]
     API -->|"errors and traces"| Sentry["Sentry"]
-    PostgreSQL -->|"pg-boss jobs"| Workers["Background workers"]
-    PostgreSQL -->|"LISTEN / NOTIFY"| API
-    API -->|"safe SSE events"| Browser
+    Browser -->|"focus and notification-open refresh"| API
 ```
 
-The frontend owns presentation, optimistic interactions, and small UI state. The API owns validation, authentication, authorization, club policies, progress checks, response shaping, and storage access. PostgreSQL is the source of truth for membership, roles, bans, progress, visibility, audit records, file metadata, and background jobs.
+The frontend owns presentation, optimistic interactions, and small UI state. The API owns validation, authentication, authorization, club policies, progress checks, response shaping, and storage access. PostgreSQL is the source of truth for membership, roles, bans, progress, visibility, audit records, file metadata, durable notifications, and storage-deletion records.
 
 Browser requests use same-origin `/api` paths. Vite proxies them to the local API during development; Vercel rewrites them to the Render service in production.
 
@@ -79,7 +77,7 @@ Browser requests use same-origin `/api` paths. Vite proxies them to the local AP
 | API                    | Node.js 22, Express 5, TypeScript, Zod                                                        |
 | Auth                   | Argon2id, short-lived JWT access sessions, rotating opaque refresh sessions, HttpOnly cookies |
 | Database               | PostgreSQL, Prisma ORM, PostgreSQL full-text search                                           |
-| Realtime and jobs      | Server-Sent Events, PostgreSQL `LISTEN/NOTIFY`, pg-boss                                       |
+| Deferred work          | Atomic request transactions and bounded request-driven storage cleanup                        |
 | Storage and limits     | Cloudflare R2, Upstash Redis                                                                  |
 | Quality and operations | Vitest, Testing Library, Playwright, axe, ESLint, Prettier, Sentry                            |
 | Hosting                | Vercel for the web app, Render for the long-running API                                       |
@@ -144,7 +142,7 @@ SESSION_COOKIE_NAME=loresafe_session
 SESSION_COOKIE_SECURE=false
 ```
 
-`DATABASE_URL` may use a pooler at runtime. `DIRECT_URL` must use a direct/session PostgreSQL endpoint because Prisma migrations cannot run through a transaction pooler. `EVENTS_DATABASE_URL` is optional in development and falls back to `DATABASE_URL`; set it to a direct/session endpoint when testing cross-instance SSE.
+`DATABASE_URL` may use a pooler at runtime. `DIRECT_URL` must use a direct/session PostgreSQL endpoint because Prisma migrations cannot run through a transaction pooler.
 
 Generate a suitable local secret with, for example, `openssl rand -hex 32`. Do not commit `.env` files.
 
@@ -199,7 +197,7 @@ The API validates its environment with Zod at startup and exits on invalid produ
 | ---------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | App        | `APP_NAME`, `NODE_ENV`, `PORT`, `CLIENT_ORIGIN(S)`, `PUBLIC_SITE_ORIGIN`                                               | Runtime mode, ports, browser origins, and canonical URLs                |
 | Proxy      | `TRUST_PROXY_CIDRS`                                                                                                    | Explicit trusted proxy addresses/subnets for correct client IP handling |
-| Database   | `DATABASE_URL`, `DIRECT_URL`, `EVENTS_DATABASE_URL`                                                                    | Pooled runtime traffic, direct migrations, and direct realtime events   |
+| Database   | `DATABASE_URL`, `DIRECT_URL`                                                                                           | Pooled runtime traffic and direct migrations                            |
 | Sessions   | `JWT_SECRET`, `JWT_PREVIOUS_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `SESSION_*`                                         | Access signing, key rotation, cookie behavior, and lifetimes            |
 | Redis      | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`                                                                   | Distributed rate-limit counters                                         |
 | R2         | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL`, `R2_*_TIMEOUT_MS` | Public and protected image storage                                      |
@@ -284,10 +282,10 @@ Database integration and browser checks require their corresponding local or dep
 The production topology is intentionally split:
 
 - **Web:** Vercel serves the static Vite app at [www.loresafe.org](https://www.loresafe.org), applies browser security/noindex headers, and proxies `/api` to the backend.
-- **API:** Render runs the long-lived Express process at `api.loresafe.org`, including SSE and background workers.
-- **Database:** Managed PostgreSQL supplies pooled application traffic plus direct endpoints for migrations and `LISTEN/NOTIFY`.
+- **API:** Render runs the long-lived Express process at `api.loresafe.org` without database-polling workers or startup database connections.
+- **Database:** Managed PostgreSQL supplies pooled application traffic plus a direct endpoint for migrations and can suspend during idle periods.
 - **Storage and limits:** Cloudflare R2 stores files; Upstash Redis stores distributed rate-limit counters.
-- **Observability:** Sentry, protected application metrics, readiness probes, alert definitions, and synthetic checks cover production operations.
+- **Observability:** Sentry, protected application metrics, database-free liveness probes, manual deep readiness, alert definitions, and synthetic checks cover production operations.
 
 `render.yaml` is the source of truth for API deployment. Migrations run in Render's pre-deploy phase, never in the web start command, so the service can bind its port immediately. Vercel behavior lives in `apps/web/vercel.json`, and the production R2 CORS policy is in `infra/cloudflare/r2-cors-production.json`.
 

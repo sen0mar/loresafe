@@ -24,8 +24,8 @@ Backend/API:
 - Auth/session strategy: Argon2id password hashing + JWT in HttpOnly secure cookies.
 - Logging/error tracking: structured logs + Sentry.
 - Rate limiting: express-rate-limit + rate-limit-redis + Upstash Redis.
-- Background jobs: pg-boss backed by PostgreSQL.
-- Realtime: Server-Sent Events for lightweight authenticated events.
+- Deferred work: request-driven transactions plus bounded opportunistic cleanup; no database-polling worker.
+- Notification delivery: durable PostgreSQL notifications refreshed on shell mount, browser focus, and notification-surface open.
 
 Data and infrastructure:
 
@@ -48,8 +48,7 @@ Explicit exclusions for MVP:
 
 - Frontend — renders UI, calls the API with credentials, owns optimistic UX and local UI state only.
 - API/backend — owns authentication, authorization, progress checks, club policies, validation, and response shaping.
-- PostgreSQL — stores normalized application data, metadata, audit logs, and pg-boss jobs.
-- PostgreSQL realtime connection — uses a direct/session URL for `LISTEN/NOTIFY`; transaction-pooler URLs are not valid for the SSE transport.
+- PostgreSQL — stores normalized application data, metadata, audit logs, notifications, and durable storage-deletion records.
 - R2 — stores avatars, covers, and post/comment media; PostgreSQL stores metadata and access rules.
 - Upstash Redis — stores rate-limit counters only in the initial architecture.
 - External services — accessed through small integration modules.
@@ -83,14 +82,15 @@ File/object storage:
 - Use backend-issued presigned upload URLs.
 - Avatars and club covers may be public-safe after validation.
 - Post/comment media that may contain spoilers must be private or served only after backend authorization.
-- Cleanup orphaned uploads with a pg-boss job.
+- Reconcile orphaned uploads in bounded batches during real upload traffic, at most once per API process every six hours.
 
-Cache, rate-limit, and queue:
+Cache, rate-limit, and deferred work:
 
 - TanStack Query handles client-side API caching.
 - Upstash Redis is for rate-limit counters.
-- pg-boss handles jobs such as notifications, invite expiry, upload cleanup, prediction reveal, and unlock summaries.
-- Jobs must be idempotent where retries are possible.
+- Comment and progress-unlock notifications are persisted atomically in their owning transactions with deterministic unique event keys.
+- R2 deletion records remain durable; committed deletions are attempted after the transaction and retried in a bounded batch during later real upload traffic.
+- No timer, cron, startup initializer, or reconnect loop may query PostgreSQL in the Free-plan deployment.
 
 Storage invariants:
 
@@ -160,14 +160,13 @@ Backend modules mirror domains:
 - `notifications`
 - `moderation`
 - `uploads`
-- `jobs`
 - `events`
 
 Each backend module follows the Express flow: routes → controllers → services → repositories → policies.
 
 ## API and Data Flow Model
 
-API style: REST JSON, with SSE for realtime events.
+API style: REST JSON. A local-only SSE route remains available for explicitly connected clients, but the browser does not open it automatically and the API has no PostgreSQL event transport.
 
 The versioned OpenAPI artifact and compatibility, idempotency, error,
 pagination, retry, and deprecation policies are defined in
@@ -192,13 +191,14 @@ File upload flow:
 3. Backend creates pending file metadata and returns a presigned upload URL.
 4. Client uploads directly to R2.
 5. Client confirms upload; backend verifies/marks it complete.
-6. Unconfirmed files are cleaned by background jobs.
+6. Real upload traffic opportunistically reconciles a bounded batch of stale, unconfirmed, or unattached assets.
 
-SSE flow:
+Notification refresh flow:
 
-- Authenticated endpoint streams notification/unlock/moderation events.
-- Events contain safe text and IDs only; clients refetch details through normal authorized API endpoints.
-- Connections must close cleanly on logout, tab close, and server shutdown.
+- The authenticated shell fetches the unread preview when it mounts.
+- Notification queries refetch when the browser regains focus and when the dropdown or page opens.
+- Current-browser mutations invalidate affected queries; there is no fixed-interval polling.
+- Persisted notification responses remain backend-filtered against current membership, bans, progress, and content visibility.
 
 Expected route groups:
 
@@ -265,7 +265,7 @@ Important query paths/indexes:
 Render API deployment:
 
 - `render.yaml` is the source of truth for the Render web service, including the
-  build, pre-deploy migration, start, readiness, shutdown, and required
+  build, pre-deploy migration, start, liveness, shutdown, and required
   environment configuration. Dashboard changes must be reconciled back into it.
 - Node `22.17.1` is pinned in `.node-version`, Render, and CI. Package manifests
   accept only compatible Node 22 releases at or above that patch level.
@@ -286,8 +286,7 @@ Release gate:
   checks, typechecking, unit/route tests, real PostgreSQL integration tests,
   production builds, and a full-history secret scan.
 - The PostgreSQL integration suite runs separately through
-  `pnpm test:integration:database` and must use a direct/session database URL so
-  LISTEN/NOTIFY coverage is meaningful.
+  `pnpm test:integration:database` and must use a direct/session database URL.
 - Operational liveness/readiness, metrics, alert/synthetic expectations, backup
   retention, restore drills, incident response, and rollback procedures are
   versioned in `context/operations-runbook.md` and `infra/monitoring/`.
@@ -298,7 +297,6 @@ Required groups:
 - App URLs and environment mode.
 - A pooled runtime database URL plus a direct/session Prisma migration URL and
   migration/deploy credentials.
-- A direct/session PostgreSQL events URL for cross-instance SSE delivery.
 - Current/previous JWT signing secrets, issuer/audience, access/session lifetimes, and cookie settings.
 - R2 account, bucket, endpoint, access key, and secret.
 - Upstash Redis connection details.
@@ -323,8 +321,9 @@ Prisma drift checks:
 - Prisma queries overfetch related data or leak hidden fields.
 - Missing indexes make the personalized feed slow.
 - Rate limiting reads the wrong IP because proxy settings are wrong.
-- SSE streams leak events after logout or send unsafe notification text.
-- Background jobs are retried and create duplicate notifications/actions.
+- Notification refresh returns unsafe text or relies on stale frontend authorization.
+- Request retries create duplicate notifications instead of using deterministic event keys.
+- Opportunistic cleanup runs from a timer or loses durable deletion records after R2 failures.
 - Storage succeeds but metadata fails, or metadata succeeds but storage fails.
 
 ## Invariants

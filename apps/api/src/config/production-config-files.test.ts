@@ -44,6 +44,34 @@ describe("production configuration files", () => {
     expect(productionEnv).toContain("DIRECT_URL=");
   });
 
+  it("keeps API startup and authenticated browser sessions database-idle", async () => {
+    const [server, prismaClient, authenticatedShell, notifications] =
+      await Promise.all([
+        readFile(repositoryFile("apps/api/src/server.ts"), "utf8"),
+        readFile(repositoryFile("apps/api/src/core/prisma/client.ts"), "utf8"),
+        readFile(
+          repositoryFile(
+            "apps/web/src/features/auth/components/authenticated-app-shell.tsx"
+          ),
+          "utf8"
+        ),
+        readFile(
+          repositoryFile(
+            "apps/web/src/features/notifications/api/notifications.ts"
+          ),
+          "utf8"
+        )
+      ]);
+
+    expect(server).not.toContain("startNotificationJobs");
+    expect(server).not.toContain("eventsService.start");
+    expect(prismaClient).toContain("new Proxy");
+    expect(authenticatedShell).not.toContain("EventSource");
+    expect(authenticatedShell).not.toContain("useAuthenticatedEvents");
+    expect(notifications).toContain("refetchOnWindowFocus: true");
+    expect(notifications).not.toContain("refetchInterval");
+  });
+
   it("pins one compatible Node runtime across packages, CI, and Render", async () => {
     const [rootPackage, apiPackage, webPackage, nodeVersion, workflow, render] =
       await Promise.all([
@@ -66,7 +94,8 @@ describe("production configuration files", () => {
       "preDeployCommand: pnpm --filter @loresafe/api prisma:migrate:deploy"
     );
     expect(render).toContain("startCommand: pnpm --filter @loresafe/api start");
-    expect(render).toContain("healthCheckPath: /api/health/ready");
+    expect(render).toContain("healthCheckPath: /api/health");
+    expect(render).not.toContain("healthCheckPath: /api/health/ready");
   });
 
   it("enforces a zero-advisory production audit and contract validation", async () => {

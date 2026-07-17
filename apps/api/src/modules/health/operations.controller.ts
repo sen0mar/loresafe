@@ -3,15 +3,19 @@ import type { RequestHandler } from "express";
 
 import type { AppEnv } from "../../config/env.js";
 import { renderOperationsMetrics } from "../../core/monitoring/operations-metrics.js";
-import { isNotificationJobQueueReady } from "../../jobs/notification-job-queue.js";
 import { eventsService } from "../events/events.service.js";
 
-export const createGetOperationsMetrics = (appEnv: AppEnv): RequestHandler =>
+export const createGetOperationsMetrics =
+  (appEnv: AppEnv): RequestHandler =>
   (req, res) => {
     const configuredToken = appEnv.OPERATIONS_BEARER_TOKEN;
     const suppliedToken = req.get("authorization")?.replace(/^Bearer\s+/i, "");
 
-    if (!configuredToken || !suppliedToken || !tokensMatch(configuredToken, suppliedToken)) {
+    if (
+      !configuredToken ||
+      !suppliedToken ||
+      !tokensMatch(configuredToken, suppliedToken)
+    ) {
       res.status(404).json({
         error: {
           code: "NOT_FOUND",
@@ -26,15 +30,11 @@ export const createGetOperationsMetrics = (appEnv: AppEnv): RequestHandler =>
       connectionCount: 0,
       ready: false
     };
-    res
-      .type("text/plain; version=0.0.4; charset=utf-8")
-      .send(
-        renderOperationsMetrics({
-          eventConnections: eventStatus.connectionCount,
-          eventTransportReady: eventStatus.ready,
-          jobWorkerReady: isNotificationJobQueueReady()
-        })
-      );
+    res.type("text/plain; version=0.0.4; charset=utf-8").send(
+      renderOperationsMetrics({
+        eventConnections: eventStatus.connectionCount
+      })
+    );
   };
 
 const tokensMatch = (expected: string, actual: string) => {

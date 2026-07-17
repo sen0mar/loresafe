@@ -1,8 +1,9 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../../app.js";
 import { parseEnv } from "../../config/env.js";
+import { isPrismaClientInitialized } from "../../core/prisma/client.js";
 import type { ReadinessDependencies } from "./readiness.service.js";
 
 describe("health routes", () => {
@@ -22,6 +23,28 @@ describe("health routes", () => {
     expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow");
   });
 
+  it("performs no dependency work across repeated liveness probes", async () => {
+    const dependencies = {
+      database: vi.fn(async () => undefined),
+      redis: vi.fn(async () => undefined),
+      storage: vi.fn(async () => undefined)
+    } satisfies ReadinessDependencies;
+    const livenessApp = createApp(undefined, dependencies);
+    const server = livenessApp.listen(0);
+
+    expect(isPrismaClientInitialized()).toBe(false);
+    await request(server).get("/api/health").expect(200);
+    await request(server).get("/api/health").expect(200);
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+
+    expect(isPrismaClientInitialized()).toBe(false);
+    expect(dependencies.database).not.toHaveBeenCalled();
+    expect(dependencies.redis).not.toHaveBeenCalled();
+    expect(dependencies.storage).not.toHaveBeenCalled();
+  });
+
   it("reports ready only when every bounded dependency check succeeds", async () => {
     const readinessApp = createApp(undefined, createReadinessDependencies());
     const response = await request(readinessApp)
@@ -31,8 +54,6 @@ describe("health routes", () => {
     expect(response.body.status).toBe("ready");
     expect(response.body.checks).toEqual({
       database: expect.objectContaining({ status: "ready" }),
-      eventTransport: expect.objectContaining({ status: "ready" }),
-      jobWorker: expect.objectContaining({ status: "ready" }),
       redis: expect.objectContaining({ status: "ready" }),
       storage: expect.objectContaining({ status: "ready" })
     });
@@ -73,7 +94,9 @@ describe("health routes", () => {
 
     expect(response.body.status).toBe("degraded");
     expect(response.body.checks.storage.status).toBe("unavailable");
-    expect(JSON.stringify(response.body)).not.toContain("private storage detail");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "private storage detail"
+    );
   });
 
   it("allows the Vite fallback dev origin", async () => {
@@ -92,9 +115,9 @@ describe("health routes", () => {
     const productionApp = createApp(
       parseEnv({
         CLIENT_ORIGIN: "https://legacy.loresafe.example",
-        CLIENT_ORIGINS: "https://app.loresafe.example,https://admin.loresafe.example",
+        CLIENT_ORIGINS:
+          "https://app.loresafe.example,https://admin.loresafe.example",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
-        EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
         JWT_SECRET: "a".repeat(32),
         NODE_ENV: "production",
         R2_ACCESS_KEY_ID: "r2-access-key",
@@ -138,7 +161,6 @@ describe("health routes", () => {
         CLIENT_ORIGIN: "https://legacy.loresafe.example",
         CLIENT_ORIGINS: "https://app.loresafe.example",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/loresafe",
-        EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
         JWT_SECRET: "a".repeat(32),
         NODE_ENV: "production",
         R2_ACCESS_KEY_ID: "r2-access-key",
@@ -201,8 +223,6 @@ const createReadinessDependencies = (
   overrides: Partial<ReadinessDependencies> = {}
 ): ReadinessDependencies => ({
   database: async () => undefined,
-  eventTransport: async () => undefined,
-  jobWorker: async () => undefined,
   redis: async () => undefined,
   storage: async () => undefined,
   ...overrides

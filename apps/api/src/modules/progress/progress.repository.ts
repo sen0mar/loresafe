@@ -1,8 +1,8 @@
 import { prisma } from "../../core/prisma/client.js";
 import { HttpError } from "../../core/errors/http-error.js";
 import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
-import { enqueueProgressUnlockedNotificationJob } from "../../jobs/notification-job-queue.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { createProgressUnlockNotificationInTransaction } from "../notifications/notifications.commands.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { PostReactionEmoji } from "../posts/posts.schema.js";
@@ -301,9 +301,9 @@ export const progressRepository: ProgressRepository = {
             }
           });
 
-          await enqueueProgressUnlockedNotificationJob(
-            progressHistory.id,
-            transaction
+          await createProgressUnlockNotificationInTransaction(
+            transaction,
+            progressHistory.id
           );
         }
 
@@ -377,9 +377,9 @@ export const progressRepository: ProgressRepository = {
         }
       });
 
-      await enqueueProgressUnlockedNotificationJob(
-        progressHistory.id,
-        transaction
+      await createProgressUnlockNotificationInTransaction(
+        transaction,
+        progressHistory.id
       );
       await recordProgressCommand(transaction, {
         userId,
@@ -496,9 +496,9 @@ export const progressRepository: ProgressRepository = {
           }
         });
 
-        await enqueueProgressUnlockedNotificationJob(
-          progressHistory.id,
-          transaction
+        await createProgressUnlockNotificationInTransaction(
+          transaction,
+          progressHistory.id
         );
       }
       await recordProgressCommand(transaction, {

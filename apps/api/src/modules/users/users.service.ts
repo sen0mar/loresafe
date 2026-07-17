@@ -6,10 +6,7 @@ import {
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { verifyPassword } from "../../core/security/password.js";
 import { type AuthUserDto, toAuthUserDto } from "../auth/auth.dto.js";
-import {
-  type JoinedClubsResponse,
-  toJoinedClubDto
-} from "./users.dto.js";
+import { type JoinedClubsResponse, toJoinedClubDto } from "./users.dto.js";
 import type {
   DeleteCurrentUserAccountRequest,
   ListCurrentUserClubsQuery,
@@ -20,6 +17,10 @@ import {
   usersRepository,
   type UsersRepository
 } from "./users.repository.js";
+import {
+  uploadsCleanupService,
+  type UploadsCleanupService
+} from "../uploads/uploads-cleanup.service.js";
 
 export type UsersService = {
   deleteCurrentUserAccount: (
@@ -37,7 +38,11 @@ export type UsersService = {
 };
 
 export const createUsersService = (
-  repository: UsersRepository = usersRepository
+  repository: UsersRepository = usersRepository,
+  cleanupService: Pick<
+    UploadsCleanupService,
+    "processCommittedDeletions"
+  > = uploadsCleanupService
 ): UsersService => ({
   deleteCurrentUserAccount: async (userId, input) => {
     const credentials = await repository.findActiveUserCredentialsById(userId);
@@ -75,6 +80,8 @@ export const createUsersService = (
     if (result === "REAUTH_REQUIRED") {
       throw invalidAccountDeletionCredentialsError();
     }
+
+    await cleanupService.processCommittedDeletions(result.deletionIds);
   },
 
   listCurrentUserClubs: async (userId, query) => {
@@ -107,7 +114,10 @@ export const createUsersService = (
     }
 
     try {
-      const updatedUser = await repository.updateActiveUserProfile(userId, input);
+      const updatedUser = await repository.updateActiveUserProfile(
+        userId,
+        input
+      );
 
       if (!updatedUser) {
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
@@ -129,7 +139,8 @@ export const usersService = createUsersService();
 const duplicateDisplayNameError = () =>
   new HttpError(409, "CONFLICT", "That display name is already taken.");
 
-const duplicateProfileFieldError = (_error: unknown) => duplicateDisplayNameError();
+const duplicateProfileFieldError = (_error: unknown) =>
+  duplicateDisplayNameError();
 
 const invalidAccountDeletionCredentialsError = () =>
   new HttpError(403, "FORBIDDEN", "Invalid credentials");

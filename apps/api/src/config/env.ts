@@ -90,16 +90,13 @@ const envSchema = z
     PUBLIC_SITE_ORIGIN: optionalUrlSchema,
     TRUST_PROXY_CIDRS: optionalStringSchema,
     DATABASE_URL: z.string().trim().min(1),
-    EVENTS_DATABASE_URL: optionalStringSchema,
     JWT_SECRET: z.string().min(32),
-    JWT_PREVIOUS_SECRET: optionalStringSchema.pipe(z.string().min(32).optional()),
+    JWT_PREVIOUS_SECRET: optionalStringSchema.pipe(
+      z.string().min(32).optional()
+    ),
     JWT_ISSUER: z.string().trim().min(1).default("loresafe-api"),
     JWT_AUDIENCE: z.string().trim().min(1).default("loresafe-web"),
-    SESSION_COOKIE_NAME: z
-      .string()
-      .trim()
-      .min(1)
-      .default("loresafe_session"),
+    SESSION_COOKIE_NAME: z.string().trim().min(1).default("loresafe_session"),
     SESSION_COOKIE_SECURE: booleanStringSchema.optional(),
     SESSION_TTL_SECONDS: z.coerce
       .number()
@@ -125,12 +122,39 @@ const envSchema = z
       .positive()
       .max(3600)
       .default(300),
-    R2_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(3_000),
-    R2_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(15_000),
-    SERVER_HEADERS_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(15_000),
-    SERVER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
-    SERVER_KEEP_ALIVE_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5_000),
-    OPERATIONS_BEARER_TOKEN: optionalStringSchema.pipe(z.string().min(32).optional()),
+    R2_CONNECTION_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(30_000)
+      .default(3_000),
+    R2_REQUEST_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(60_000)
+      .default(15_000),
+    SERVER_HEADERS_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(120_000)
+      .default(15_000),
+    SERVER_REQUEST_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(120_000)
+      .default(30_000),
+    SERVER_KEEP_ALIVE_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(30_000)
+      .default(5_000),
+    OPERATIONS_BEARER_TOKEN: optionalStringSchema.pipe(
+      z.string().min(32).optional()
+    ),
     SENTRY_DSN: optionalUrlSchema,
     SENTRY_ENVIRONMENT: optionalStringSchema,
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
@@ -159,7 +183,6 @@ const envSchema = z
 
     const productionRequiredFields = [
       "DATABASE_URL",
-      "EVENTS_DATABASE_URL",
       "JWT_SECRET",
       "UPSTASH_REDIS_REST_URL",
       "UPSTASH_REDIS_REST_TOKEN",
@@ -208,7 +231,8 @@ const envSchema = z
       context.addIssue({
         code: "custom",
         path: ["TRUST_PROXY_CIDRS"],
-        message: "Explicit trusted proxy addresses or subnets are required in production"
+        message:
+          "Explicit trusted proxy addresses or subnets are required in production"
       });
     }
 
@@ -225,14 +249,10 @@ const envSchema = z
 
 type ParsedEnv = z.infer<typeof envSchema>;
 
-export type AppEnv = Omit<
-  ParsedEnv,
-  "CLIENT_ORIGIN" | "EVENTS_DATABASE_URL" | "TRUST_PROXY_CIDRS"
-> & {
+export type AppEnv = Omit<ParsedEnv, "CLIENT_ORIGIN" | "TRUST_PROXY_CIDRS"> & {
   CLIENT_ORIGIN: string;
   CLIENT_ORIGIN_ALLOWLIST: string[];
   PUBLIC_SITE_ORIGIN: string;
-  EVENTS_DATABASE_URL: string;
   SESSION_COOKIE_SECURE: boolean;
   TRUST_PROXY_CIDRS: string[];
 };
@@ -253,8 +273,6 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
     PUBLIC_SITE_ORIGIN: normalizeOrigin(
       parsedEnv.PUBLIC_SITE_ORIGIN ?? "https://www.loresafe.org"
     ),
-    EVENTS_DATABASE_URL:
-      parsedEnv.EVENTS_DATABASE_URL ?? parsedEnv.DATABASE_URL,
     TRUST_PROXY_CIDRS: parseOriginList(parsedEnv.TRUST_PROXY_CIDRS),
     SESSION_COOKIE_SECURE: isProduction
       ? true

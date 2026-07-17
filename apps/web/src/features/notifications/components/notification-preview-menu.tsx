@@ -31,12 +31,19 @@ export const NotificationPreviewMenu = ({
 }: NotificationPreviewMenuProps) => {
   const notificationsQuery = useQuery({
     queryKey: notificationsQueryKeys.preview,
-    queryFn: ({ signal }) => getNotifications(null, previewLimit, signal)
+    queryFn: ({ signal }) => getNotifications(null, previewLimit, signal),
+    refetchOnWindowFocus: true
   });
   const notifications = notificationsQuery.data?.notifications ?? [];
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(isOpen) => {
+        if (isOpen) {
+          void notificationsQuery.refetch();
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -68,9 +75,7 @@ export const NotificationPreviewMenu = ({
             Notifications could not load.
           </p>
         ) : notifications.length === 0 ? (
-          <p className="px-2 py-4 text-sm text-muted">
-            No notifications yet.
-          </p>
+          <p className="px-2 py-4 text-sm text-muted">No notifications yet.</p>
         ) : (
           <div className="space-y-1">
             {notifications.map((notification) => (

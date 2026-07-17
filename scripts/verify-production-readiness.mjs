@@ -22,7 +22,11 @@ for (const alertName of manifest.requiredAlertRules) {
   if (!alerts.includes(`name: ${alertName}`))
     fail(`missing alert ${alertName}`);
 }
-for (const path of [manifest.readinessPath, manifest.metricsPath]) {
+for (const path of [
+  manifest.livenessPath,
+  manifest.deepReadinessPath,
+  manifest.metricsPath
+]) {
   if (!synthetics.includes(path) && !runbook.includes(path)) {
     fail(`missing operational endpoint documentation for ${path}`);
   }
@@ -60,18 +64,24 @@ if (process.env.PRODUCTION_READINESS_LIVE === "1") {
     fail(`restore drill evidence is ${Math.floor(drillAgeDays)} days old`);
   }
 
-  const readinessResponse = await fetch(
-    new URL(manifest.readinessPath, origin),
+  const livenessResponse = await fetch(new URL(manifest.livenessPath, origin), {
+    signal: AbortSignal.timeout(5_000)
+  });
+  if (!livenessResponse.ok)
+    fail(`liveness returned ${livenessResponse.status}`);
+  for (const header of manifest.requiredSecurityHeaders) {
+    if (!livenessResponse.headers.has(header))
+      fail(`live response is missing ${header}`);
+  }
+
+  const deepReadinessResponse = await fetch(
+    new URL(manifest.deepReadinessPath, origin),
     {
       signal: AbortSignal.timeout(5_000)
     }
   );
-  if (!readinessResponse.ok)
-    fail(`readiness returned ${readinessResponse.status}`);
-  for (const header of manifest.requiredSecurityHeaders) {
-    if (!readinessResponse.headers.has(header))
-      fail(`live response is missing ${header}`);
-  }
+  if (!deepReadinessResponse.ok)
+    fail(`deep readiness returned ${deepReadinessResponse.status}`);
 
   const metricsResponse = await fetch(new URL(manifest.metricsPath, origin), {
     headers: { authorization: `Bearer ${operationsToken}` },

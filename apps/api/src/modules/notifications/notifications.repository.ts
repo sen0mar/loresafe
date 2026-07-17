@@ -300,10 +300,7 @@ export const notificationsRepository: NotificationsRepository = {
 
       if (
         !existingNotification ||
-        !(await lockClubAuthorization(
-          transaction,
-          existingNotification.clubId
-        ))
+        !(await lockClubAuthorization(transaction, existingNotification.clubId))
       ) {
         return null;
       }
@@ -431,8 +428,7 @@ export const notificationsRepository: NotificationsRepository = {
 export const createNotificationInTransaction = (
   transaction: Prisma.TransactionClient,
   input: CreateCommentNotificationInput
-) =>
-  createNotificationIfMissingInTransaction(transaction, input);
+) => createNotificationIfMissingInTransaction(transaction, input);
 
 const createNotificationIfMissingInTransaction = async (
   transaction: Prisma.TransactionClient,
@@ -451,46 +447,42 @@ const createNotificationIfMissingInTransaction = async (
     return null;
   }
 
-  try {
-    const notification = await transaction.notification.create({
-      data: {
-        eventKey: input.eventKey,
-        userId: input.userId,
-        type: input.type,
-        safeText: input.safeText,
-        clubId: input.clubId,
-        postId: input.postId,
-        commentId: input.commentId,
-        requiredMilestoneId: input.requiredMilestoneId
-      },
-      select: notificationEventSelect
-    });
+  await transaction.$executeRaw`
+    SELECT pg_advisory_xact_lock(hashtextextended(${input.eventKey}, 0))
+  `;
 
-    return {
-      ...notification,
-      wasCreated: true
-    };
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      throw error;
-    }
+  const existingNotification = await transaction.notification.findUnique({
+    where: {
+      eventKey: input.eventKey
+    },
+    select: notificationEventSelect
+  });
 
-    const existingNotification = await transaction.notification.findUnique({
-      where: {
-        eventKey: input.eventKey
-      },
-      select: notificationEventSelect
-    });
-
-    if (!existingNotification) {
-      throw error;
-    }
-
+  if (existingNotification) {
     return {
       ...existingNotification,
       wasCreated: false
     };
   }
+
+  const notification = await transaction.notification.create({
+    data: {
+      eventKey: input.eventKey,
+      userId: input.userId,
+      type: input.type,
+      safeText: input.safeText,
+      clubId: input.clubId,
+      postId: input.postId,
+      commentId: input.commentId,
+      requiredMilestoneId: input.requiredMilestoneId
+    },
+    select: notificationEventSelect
+  });
+
+  return {
+    ...notification,
+    wasCreated: true
+  };
 };
 
 const hasCurrentNotificationAccess = async (
@@ -608,16 +600,9 @@ const toNotificationRecord = (
     },
     progress: {
       mode: (progress?.mode ?? "STRICT") as ProgressMode,
-      currentMilestonePosition:
-        progress?.currentMilestone?.position ?? null
+      currentMilestonePosition: progress?.currentMilestone?.position ?? null
     },
     readAt: notification.readAt,
     createdAt: notification.createdAt
   };
 };
-
-const isUniqueConstraintError = (error: unknown) =>
-  !!error &&
-  typeof error === "object" &&
-  "code" in error &&
-  (error as { code: unknown }).code === "P2002";

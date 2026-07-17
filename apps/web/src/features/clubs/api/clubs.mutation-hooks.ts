@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
+import { notificationsQueryKeys } from "@/features/notifications/api/notifications";
 
 import type {
   BanClubMemberInput,
@@ -814,6 +815,9 @@ export const invalidateClubProgressDependencies = (
   queryClient: ReturnType<typeof useQueryClient>,
   linkName: string
 ) => {
+  void queryClient.invalidateQueries({
+    queryKey: notificationsQueryKeys.root
+  });
   void queryClient.invalidateQueries({
     queryKey: clubsQueryKeys.progress(linkName)
   });

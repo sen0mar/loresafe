@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { HttpError } from "../../core/errors/http-error.js";
-import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  r2Storage,
+  type ObjectStorage
+} from "../../core/storage/r2-storage.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 import { canUploadClubCover, canUploadPostImage } from "./uploads.policy.js";
 import {
@@ -20,6 +23,10 @@ import {
   toFileAssetDto
 } from "./uploads.dto.js";
 import { validateUploadedImage } from "./image-validation.js";
+import {
+  uploadsCleanupService,
+  type UploadsCleanupService
+} from "./uploads-cleanup.service.js";
 
 export type UploadsService = {
   completePublicAssetUpload: (
@@ -38,12 +45,16 @@ export type UploadsService = {
 
 export const createUploadsService = (
   repository: UploadsRepository = uploadsRepository,
-  storage: ObjectStorage = r2Storage
+  storage: ObjectStorage = r2Storage,
+  cleanupService: UploadsCleanupService = uploadsCleanupService
 ): UploadsService => ({
   createPublicAssetUpload: async (userId, input) => {
     const club =
       input.purpose === "CLUB_COVER"
-        ? await repository.findClubByLinkNameForUser(input.clubLinkName ?? "", userId)
+        ? await repository.findClubByLinkNameForUser(
+            input.clubLinkName ?? "",
+            userId
+          )
         : null;
 
     if (input.purpose === "CLUB_COVER") {
@@ -84,7 +95,7 @@ export const createUploadsService = (
       contentLength: input.sizeBytes
     });
 
-    return {
+    const response: CreatePublicAssetUploadResponse = {
       asset: toFileAssetDto(asset, storage),
       upload: {
         url: upload.uploadUrl,
@@ -93,10 +104,17 @@ export const createUploadsService = (
         expiresAt: upload.expiresAt.toISOString()
       }
     };
+
+    cleanupService.runAfterUploadTraffic();
+
+    return response;
   },
 
   createPostImageUpload: async (userId, input) => {
-    const club = await repository.findClubByLinkNameForUser(input.clubLinkName, userId);
+    const club = await repository.findClubByLinkNameForUser(
+      input.clubLinkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -134,7 +152,7 @@ export const createUploadsService = (
       contentLength: input.sizeBytes
     });
 
-    return {
+    const response: CreatePostImageUploadResponse = {
       asset: toFileAssetDto(asset, storage),
       upload: {
         url: upload.uploadUrl,
@@ -143,6 +161,10 @@ export const createUploadsService = (
         expiresAt: upload.expiresAt.toISOString()
       }
     };
+
+    cleanupService.runAfterUploadTraffic();
+
+    return response;
   },
 
   completePublicAssetUpload: async (userId, assetId) => {
@@ -167,7 +189,7 @@ export const createUploadsService = (
     }
 
     if (!doesMetadataMatchAsset(metadata, asset)) {
-      await rejectInvalidUpload(repository, storage, asset);
+      await rejectInvalidUpload(repository, cleanupService, asset);
       throw new HttpError(
         400,
         "BAD_REQUEST",
@@ -175,17 +197,26 @@ export const createUploadsService = (
       );
     }
 
-    const bytes = await storage.getObjectBytes(asset.objectKey, asset.sizeBytes);
+    const bytes = await storage.getObjectBytes(
+      asset.objectKey,
+      asset.sizeBytes
+    );
     let validation;
 
     try {
       if (bytes.byteLength !== asset.sizeBytes) {
-        throw new Error("Stored object length did not match the upload request.");
+        throw new Error(
+          "Stored object length did not match the upload request."
+        );
       }
 
-      validation = validateUploadedImage(bytes, asset.contentType, asset.purpose);
+      validation = validateUploadedImage(
+        bytes,
+        asset.contentType,
+        asset.purpose
+      );
     } catch {
-      await rejectInvalidUpload(repository, storage, asset);
+      await rejectInvalidUpload(repository, cleanupService, asset);
       throw new HttpError(
         400,
         "BAD_REQUEST",
@@ -193,22 +224,24 @@ export const createUploadsService = (
       );
     }
 
-    const readyAsset = await repository.markAssetReadyAndAttach(
+    const readyResult = await repository.markAssetReadyAndAttach(
       asset,
       new Date(),
       validation
     );
 
-    if (!readyAsset) {
+    if (!readyResult) {
       throw uploadStateConflict();
     }
 
-    if (readyAsset.status === "FAILED") {
+    if (readyResult.asset.status === "FAILED") {
       throw failedUploadConflict();
     }
 
+    cleanupService.runAfterUploadTraffic(readyResult.deletionIds);
+
     return {
-      asset: toFileAssetDto(readyAsset, storage)
+      asset: toFileAssetDto(readyResult.asset, storage)
     };
   }
 });
@@ -267,7 +300,7 @@ const doesMetadataMatchAsset = (
 
 const rejectInvalidUpload = async (
   repository: UploadsRepository,
-  storage: ObjectStorage,
+  cleanupService: UploadsCleanupService,
   asset: FileAssetRecord
 ) => {
   const rejected = await repository.markAssetFailedAndRequestDeletion(asset.id);
@@ -277,10 +310,9 @@ const rejectInvalidUpload = async (
   }
 
   try {
-    await storage.deleteObjects([asset.objectKey]);
-    await repository.markDeletionCompleted(rejected.deletionId);
+    await cleanupService.processCommittedDeletions([rejected.deletionId]);
   } catch {
-    // The durable deletion ledger and queued retry keep failed R2 cleanup recoverable.
+    // The durable deletion ledger keeps failed R2 cleanup recoverable.
   }
 };
 

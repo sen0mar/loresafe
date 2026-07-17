@@ -9,21 +9,9 @@ alerts:
     severity: ticket
     expression: sum(rate(loresafe_http_request_duration_ms_sum[10m])) / sum(rate(loresafe_http_request_duration_ms_count[10m])) > 1000
     for: 15m
-  - name: api-readiness-failing
+  - name: api-liveness-failing
     severity: page
-    expression: synthetic_readiness_success == 0
-    for: 5m
-  - name: job-worker-unavailable
-    severity: page
-    expression: loresafe_job_worker_ready == 0
-    for: 5m
-  - name: job-failures-increasing
-    severity: ticket
-    expression: increase(loresafe_job_failures_total[15m]) > 3
-    for: 5m
-  - name: event-transport-unavailable
-    severity: page
-    expression: loresafe_sse_transport_ready == 0
+    expression: synthetic_liveness_success == 0
     for: 5m
   - name: storage-cleanup-failures
     severity: ticket

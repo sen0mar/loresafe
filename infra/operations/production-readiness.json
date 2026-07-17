@@ -1,13 +1,12 @@
 {
   "version": 1,
-  "readinessPath": "/api/health/ready",
+  "livenessPath": "/api/health",
+  "deepReadinessPath": "/api/health/ready",
   "metricsPath": "/api/health/metrics",
   "requiredAlertRules": [
-    "api-readiness-failing",
+    "api-liveness-failing",
     "api-high-error-rate",
     "api-high-latency",
-    "job-worker-unavailable",
-    "job-failures-increasing",
     "storage-cleanup-failures"
   ],
   "backup": {

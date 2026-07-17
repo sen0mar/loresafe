@@ -5,10 +5,7 @@ import {
 } from "../../core/storage/storage-deletion.repository.js";
 
 export type UploadsCleanupRepository = {
-  requestCleanupForStaleAssets: (
-    now: Date,
-    limit: number
-  ) => Promise<string[]>;
+  requestCleanupForStaleAssets: (now: Date, limit: number) => Promise<string[]>;
 };
 
 const pendingUploadLifetimeMs = 20 * 60 * 1000;
@@ -85,21 +82,25 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
         }
       }
 
-      const retryableDeletions = await transaction.storageObjectDeletion.findMany({
-        where: {
-          status: "PENDING",
-          updatedAt: {
-            lt: retryCutoff
-          }
-        },
-        orderBy: {
-          updatedAt: "asc"
-        },
-        take: limit,
-        select: {
-          id: true
-        }
-      });
+      const remainingRetryCapacity = Math.max(limit - deletionIds.length, 0);
+      const retryableDeletions =
+        remainingRetryCapacity === 0
+          ? []
+          : await transaction.storageObjectDeletion.findMany({
+              where: {
+                status: "PENDING",
+                updatedAt: {
+                  lt: retryCutoff
+                }
+              },
+              orderBy: {
+                updatedAt: "asc"
+              },
+              take: remainingRetryCapacity,
+              select: {
+                id: true
+              }
+            });
 
       return [
         ...new Set([

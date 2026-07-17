@@ -58,9 +58,7 @@ describe("events routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain(
-      "text/event-stream"
-    );
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
     expect(streamText).toContain("retry: 3000");
     expect(streamText).toContain(": connected");
     expect(streamText).toContain(": heartbeat");
@@ -91,40 +89,22 @@ describe("events routes", () => {
     );
 
     expect(streamText).toContain("event: notification.created");
-    expect(streamText).toContain("\"linkName\":\"safe-club\"");
+    expect(streamText).toContain('"linkName":"safe-club"');
     expect(streamText).not.toContain("safeText");
     expect(streamText).not.toContain("UNSAFE_STORY_CONTENT");
     expect(streamText).not.toContain("Milestone");
-  });
-
-  it("closes an open stream when periodic session revalidation fails", async () => {
-    const user = repository.createStoredUser(validUserInput());
-    app = createEventsTestApp(repository, events, async () => false);
-    const response = await openEventsStream(
-      app,
-      await createSessionCookie(user)
-    );
-
-    server = response.server;
-
-    const streamText = await readUntil(response, () => false);
-
-    expect(streamText).toContain(": connected");
-    expect(streamText).not.toContain(": heartbeat");
   });
 });
 
 const createEventsTestApp = (
   repository: InMemoryEventsAuthRepository,
-  events: EventsService,
-  isSessionValid: () => Promise<boolean> = async () => true
+  events: EventsService
 ) => {
   const app = express();
   const authService = createAuthService(repository);
   const authMiddleware = createAuthMiddleware(authService);
   const eventsController = createEventsController(events, {
-    heartbeatMs: 10,
-    isSessionValid
+    heartbeatMs: 10
   });
 
   app.disable("x-powered-by");
@@ -145,15 +125,12 @@ const openEventsStream = async (app: express.Express, cookie: string) => {
   }
 
   const controller = new AbortController();
-  const response = await fetch(
-    `http://127.0.0.1:${address.port}/api/events`,
-    {
-      headers: {
-        Cookie: cookie
-      },
-      signal: controller.signal
-    }
-  );
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/events`, {
+    headers: {
+      Cookie: cookie
+    },
+    signal: controller.signal
+  });
 
   return {
     response,

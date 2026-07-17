@@ -11,8 +11,8 @@ const baseEnv = {
 } satisfies NodeJS.ProcessEnv;
 
 const productionServiceEnv = {
-  CLIENT_ORIGINS: "https://app.loresafe.example, https://admin.loresafe.example",
-  EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
+  CLIENT_ORIGINS:
+    "https://app.loresafe.example, https://admin.loresafe.example",
   R2_ACCESS_KEY_ID: "r2-access-key",
   R2_ACCOUNT_ID: "r2-account",
   R2_BUCKET_NAME: "loresafe-assets",
@@ -37,7 +37,6 @@ describe("env validation", () => {
     expect(issues).toEqual(
       expect.arrayContaining([
         expect.stringContaining("DATABASE_URL"),
-        expect.stringContaining("EVENTS_DATABASE_URL"),
         expect.stringContaining("JWT_SECRET"),
         expect.stringContaining("UPSTASH_REDIS_REST_URL"),
         expect.stringContaining("UPSTASH_REDIS_REST_TOKEN"),
@@ -78,7 +77,6 @@ describe("env validation", () => {
       "uniquelocal"
     ]);
     expect(env.PUBLIC_SITE_ORIGIN).toBe("https://www.loresafe.org");
-    expect(env.EVENTS_DATABASE_URL).toBe(productionServiceEnv.EVENTS_DATABASE_URL);
     expect(env.CLIENT_ORIGIN_ALLOWLIST).toEqual([
       "https://app.loresafe.example",
       "https://admin.loresafe.example"
@@ -123,10 +121,8 @@ describe("env validation", () => {
 
   it("requires an explicit production client origin", () => {
     const { CLIENT_ORIGIN: _clientOrigin, ...envWithoutOrigin } = baseEnv;
-    const {
-      CLIENT_ORIGINS: _clientOrigins,
-      ...servicesWithoutOrigins
-    } = productionServiceEnv;
+    const { CLIENT_ORIGINS: _clientOrigins, ...servicesWithoutOrigins } =
+      productionServiceEnv;
     const issues = getEnvIssueSummary({
       ...envWithoutOrigin,
       ...servicesWithoutOrigins,
@@ -148,7 +144,6 @@ describe("env validation", () => {
     expect(env.CLIENT_ORIGIN).toBe("http://localhost:5173");
     expect(env.CLIENT_ORIGIN_ALLOWLIST).toEqual([]);
     expect(env.PUBLIC_SITE_ORIGIN).toBe("https://www.loresafe.org");
-    expect(env.EVENTS_DATABASE_URL).toBe(baseEnv.DATABASE_URL);
     expect(env.SESSION_COOKIE_SECURE).toBe(false);
     expect(env.TRUST_PROXY_CIDRS).toEqual([]);
     expect(env).not.toHaveProperty("DEMO_USER_EMAIL");

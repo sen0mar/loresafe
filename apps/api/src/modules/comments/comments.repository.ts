@@ -1,7 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
-import { enqueueCommentCreatedNotificationJob } from "../../jobs/notification-job-queue.js";
 import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
+import { createCommentNotificationInTransaction } from "../notifications/notifications.commands.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
@@ -504,7 +504,10 @@ export const commentsRepository: CommentsRepository = {
       return null;
     }
 
-    const reactionMap = await userReactionMapForCommentIds([comment.id], userId);
+    const reactionMap = await userReactionMapForCommentIds(
+      [comment.id],
+      userId
+    );
     const { post, ...commentRecord } = comment;
 
     return {
@@ -564,22 +567,22 @@ export const commentsRepository: CommentsRepository = {
       });
       const parent = input.parentId
         ? await transaction.comment.findFirst({
-          where: {
-            id: input.parentId,
-            postId,
-            status: "VISIBLE",
-            deletedAt: null
-          },
-          select: {
-            id: true,
-            parentId: true,
-            requiredMilestone: {
-              select: {
-                position: true
+            where: {
+              id: input.parentId,
+              postId,
+              status: "VISIBLE",
+              deletedAt: null
+            },
+            select: {
+              id: true,
+              parentId: true,
+              requiredMilestone: {
+                select: {
+                  position: true
+                }
               }
             }
-          }
-        })
+          })
         : null;
       const inheritedPosition =
         parent?.requiredMilestone.position ?? post?.requiredMilestone.position;
@@ -608,7 +611,7 @@ export const commentsRepository: CommentsRepository = {
         select: commentSelect
       });
 
-      await enqueueCommentCreatedNotificationJob(comment.id, transaction);
+      await createCommentNotificationInTransaction(transaction, comment.id);
 
       return toCommentRecord(comment);
     }),
@@ -753,7 +756,11 @@ export const commentsRepository: CommentsRepository = {
           authorId: true
         }
       });
-      const post = await findCommentPostForCommand(transaction, postId, actorId);
+      const post = await findCommentPostForCommand(
+        transaction,
+        postId,
+        actorId
+      );
 
       if (
         !authorizedComment ||
@@ -957,7 +964,5 @@ const userReactionMapForCommentIds = async (
   return reactionMap;
 };
 
-const isCommentReactionEmoji = (
-  emoji: string
-): emoji is CommentReactionEmoji =>
+const isCommentReactionEmoji = (emoji: string): emoji is CommentReactionEmoji =>
   commentReactionEmojis.some((allowedEmoji) => allowedEmoji === emoji);

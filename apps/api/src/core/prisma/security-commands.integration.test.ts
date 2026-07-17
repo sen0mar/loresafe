@@ -17,7 +17,11 @@ describeDatabase("security-sensitive database commands", () => {
     let clubId: string | null = null;
 
     try {
-      const users = await createFixtureUsers(suffix, ["owner", "first", "second"]);
+      const users = await createFixtureUsers(suffix, [
+        "owner",
+        "first",
+        "second"
+      ]);
       const owner = users[0];
       const first = users[1];
       const second = users[2];
@@ -54,8 +58,16 @@ describeDatabase("security-sensitive database commands", () => {
       clubId = club.id;
 
       const results = await Promise.all([
-        invitesRepository.acceptInviteByTokenHash(tokenHash, first.id, new Date()),
-        invitesRepository.acceptInviteByTokenHash(tokenHash, second.id, new Date())
+        invitesRepository.acceptInviteByTokenHash(
+          tokenHash,
+          first.id,
+          new Date()
+        ),
+        invitesRepository.acceptInviteByTokenHash(
+          tokenHash,
+          second.id,
+          new Date()
+        )
       ]);
       const invite = await prisma.clubInvite.findUniqueOrThrow({
         where: {
@@ -268,7 +280,7 @@ describeDatabase("security-sensitive database commands", () => {
         )
       ]);
 
-      expect(results.map((result) => result?.status)).toEqual([
+      expect(results.map((result) => result?.asset.status)).toEqual([
         "READY",
         "READY"
       ]);

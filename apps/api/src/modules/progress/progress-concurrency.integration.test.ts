@@ -1,24 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { prisma } from "../../core/prisma/client.js";
-import {
-  startNotificationJobQueue,
-  stopNotificationJobQueue
-} from "../../jobs/notification-job-queue.js";
 import { progressRepository } from "./progress.repository.js";
 
 const describeDatabase =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
 
 describeDatabase("progress command database invariants", () => {
-  beforeAll(async () => {
-    await startNotificationJobQueue();
-  });
-
-  afterAll(async () => {
-    await stopNotificationJobQueue();
-  });
-
   it("deduplicates concurrent retries and keeps a versioned history chain", async () => {
     const suffix = crypto.randomUUID();
     let clubId: string | null = null;
@@ -63,10 +51,34 @@ describeDatabase("progress command database invariants", () => {
           }
         },
         select: {
-          id: true
+          id: true,
+          milestones: {
+            orderBy: {
+              position: "asc"
+            },
+            select: {
+              id: true
+            }
+          }
         }
       });
       clubId = club.id;
+      const finalMilestone = club.milestones[1];
+
+      if (!finalMilestone) {
+        throw new Error("Expected the final milestone fixture.");
+      }
+
+      await prisma.post.create({
+        data: {
+          clubId: club.id,
+          authorId: user.id,
+          type: "DISCUSSION",
+          title: "Finale discussion",
+          body: "A discussion unlocked at the finale.",
+          requiredMilestoneId: finalMilestone.id
+        }
+      });
       const retryCommandId = crypto.randomUUID();
 
       const duplicateResults = await Promise.all([
@@ -94,10 +106,16 @@ describeDatabase("progress command database invariants", () => {
         })
       ).toBe(1);
 
+      const finalCommandId = crypto.randomUUID();
       await progressRepository.advanceProgressToNextMilestoneForUserClub(
         user.id,
         club.id,
-        crypto.randomUUID()
+        finalCommandId
+      );
+      await progressRepository.advanceProgressToNextMilestoneForUserClub(
+        user.id,
+        club.id,
+        finalCommandId
       );
 
       const progress = await prisma.clubProgress.findUniqueOrThrow({
@@ -161,6 +179,23 @@ describeDatabase("progress command database invariants", () => {
           toMilestone: {
             position: 2
           }
+        }
+      ]);
+      expect(
+        await prisma.notification.findMany({
+          where: {
+            userId: user.id,
+            type: "PROGRESS_UNLOCK"
+          },
+          select: {
+            safeText: true,
+            requiredMilestoneId: true
+          }
+        })
+      ).toEqual([
+        {
+          safeText: "New discussions unlocked in Progress race fixture",
+          requiredMilestoneId: finalMilestone.id
         }
       ]);
     } finally {

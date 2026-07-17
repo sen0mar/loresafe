@@ -10,7 +10,6 @@ const baseEnv = {
 } satisfies NodeJS.ProcessEnv;
 
 const productionServiceEnv = {
-  EVENTS_DATABASE_URL: "postgresql://user:pass@db.example/loresafe",
   R2_ACCESS_KEY_ID: "r2-access-key",
   R2_ACCOUNT_ID: "r2-account",
   R2_BUCKET_NAME: "loresafe-assets",
@@ -28,7 +27,8 @@ describe("CORS config", () => {
     const env = parseEnv({
       ...baseEnv,
       ...productionServiceEnv,
-      CLIENT_ORIGINS: "https://app.loresafe.example,https://admin.loresafe.example",
+      CLIENT_ORIGINS:
+        "https://app.loresafe.example,https://admin.loresafe.example",
       NODE_ENV: "production"
     });
 
