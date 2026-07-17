@@ -154,6 +154,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 148: Neon Free-plan compute remediation — Made production startup and liveness database-free, replaced queue and PostgreSQL event listeners with atomic notifications and bounded request-driven storage cleanup, refreshed notifications without automatic SSE, and updated deployment and operations guidance without schema changes.
 - Feature 149: Codebase cleanup audit implementation — Removed stale and redundant surfaces, consolidated frontend and backend domain logic, simplified local-only events, narrowed exports, reorganized club types and tests, and preserved API, authorization, spoiler, session, upload, and data contracts.
 - Feature 150: Development database wipe — Added a wipe-only command that preserves Prisma migration history, verifies the configured direct Neon development endpoint with explicit destructive guards, leaves external R2 objects unchanged, and includes focused guardrail tests and usage documentation.
+- Feature 151: Recruiter showcase seed — Added an empty-target, transactional Neon showcase seed with nine natural personas, four franchise clubs across every visibility, recognizable spoiler-gated discussions, progress modes, reactions, predictions, notifications, moderation scenarios, an invite, focused guardrail tests, and a verified development run without R2 data.
 
 ## Entry Format
 

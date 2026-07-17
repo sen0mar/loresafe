@@ -12,6 +12,7 @@
     "dev:web": "pnpm --filter @loresafe/web dev",
     "build": "pnpm -r build",
     "db:check": "pnpm --filter @loresafe/api prisma:check",
+    "db:seed:showcase": "pnpm --filter @loresafe/api prisma:seed:showcase",
     "db:reset:development": "pnpm --filter @loresafe/api db:reset:development",
     "db:wipe:development": "pnpm --filter @loresafe/api db:wipe:development",
     "lint": "eslint . --max-warnings 0",

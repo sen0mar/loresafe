@@ -20,6 +20,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "node scripts/migrate-deploy-with-retry.mjs",
     "prisma:seed": "prisma db seed",
+    "prisma:seed:showcase": "tsx prisma/showcase-seed.ts",
     "db:reset:development": "tsx scripts/reset-development-database.ts",
     "db:wipe:development": "tsx scripts/wipe-development-database.ts",
     "perf:seed-check": "tsx scripts/perf-seed-check.ts",

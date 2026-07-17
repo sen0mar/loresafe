@@ -213,6 +213,51 @@ pnpm db:wipe:development
 The command is forbidden outside `NODE_ENV=development`, rejects non-Neon and
 pooled destructive connections, and leaves external R2 objects unchanged.
 
+### One-time recruiter showcase data
+
+The showcase seed is separate from the normal development seed. It accepts an
+explicitly approved Neon development or production endpoint, refuses any database
+that already contains application data, and writes the complete dataset in one
+serializable transaction.
+
+Configure the matching endpoint ID, recruiter login, shared showcase password,
+and exact confirmation:
+
+```dotenv
+SHOWCASE_SEED_NEON_ENDPOINT_ID=ep-example-showcase-123456
+SHOWCASE_SEED_CONFIRM=I_UNDERSTAND_THIS_WRITES_SHOWCASE_DATA_TO_AN_EMPTY_DATABASE
+SHOWCASE_RECRUITER_EMAIL=recruiter.demo@loresafe.org
+SHOWCASE_USER_PASSWORD=replace-with-a-password-of-at-least-12-characters
+```
+
+Run the command once from the repository root:
+
+```bash
+pnpm db:seed:showcase
+```
+
+The seed creates two public clubs (Harry Potter and Game of Thrones), one private
+Star Wars club, and one invite-only Lord of the Rings club. Its nine natural-name
+personas cover owner, moderator, regular member, behind/ahead progress, Strict,
+Brave, Finished, banned, and outsider behavior. All personas use the configured
+shared password:
+
+| Persona      | Login email                      | Main showcase state                                 |
+| ------------ | -------------------------------- | --------------------------------------------------- |
+| Maya Chen    | `SHOWCASE_RECRUITER_EMAIL`       | Recruiter login; owner, moderator, and mid-progress |
+| Theo Bennett | `theo.bennett@demo.loresafe.org` | Owner and moderator; Finished/Brave progress        |
+| Nadia Flores | `nadia.flores@demo.loresafe.org` | Behind-progress Strict member                       |
+| Liam Carter  | `liam.carter@demo.loresafe.org`  | Ahead/Finished member and club owner                |
+| Priya Shah   | `priya.shah@demo.loresafe.org`   | Strict member with future content locked            |
+| Owen Brooks  | `owen.brooks@demo.loresafe.org`  | Brave-mode member                                   |
+| Elena Rossi  | `elena.rossi@demo.loresafe.org`  | Finished member and private-club owner              |
+| Jordan Blake | `jordan.blake@demo.loresafe.org` | Banned from the Harry Potter club                   |
+| Samira Khan  | `samira.khan@demo.loresafe.org`  | Outsider who can use the seeded invite              |
+
+The command prints the 43-character Lord of the Rings invite token after a
+successful run. It creates no `FileAsset` rows and does not upload or delete R2
+objects. Do not rerun it or point it at a database containing real users.
+
 ## Environment variables
 
 The API validates its environment with Zod at startup and exits on invalid production configuration. See `.env.example` for development and `.env.production.example` for deployment.
@@ -227,7 +272,7 @@ The API validates its environment with Zod at startup and exits on invalid produ
 | R2         | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL`, `R2_*_TIMEOUT_MS` | Public and protected image storage                                      |
 | Operations | `SERVER_*_TIMEOUT_MS`, `OPERATIONS_BEARER_TOKEN`                                                                       | HTTP budgets and protected metrics access                               |
 | Monitoring | `SENTRY_*`, `VITE_SENTRY_*`                                                                                            | Server and browser error reporting/tracing                              |
-| Demo only  | `DEMO_SEED_*`, `DEMO_USER_*`, `DEV_DATABASE_RESET_DATABASE_URL`, `DEV_DATABASE_WIPE_*`                                 | Explicitly authorized local seed/reset/wipe operations                  |
+| Data tools | `DEMO_SEED_*`, `DEMO_USER_*`, `DEV_DATABASE_RESET_DATABASE_URL`, `DEV_DATABASE_WIPE_*`, `SHOWCASE_*`                   | Explicitly authorized seed/reset/wipe operations                        |
 
 Production additionally requires Redis, R2, Sentry, a metrics token, secure cookies, explicit client origins, and explicit trusted proxy ranges.
 
@@ -247,6 +292,7 @@ Run commands from the repository root.
 | `pnpm test:browser`               | Run Playwright browser security/accessibility tests     |
 | `pnpm test:integration:database`  | Run the real-PostgreSQL integration suite               |
 | `pnpm db:check`                   | Check migration status and regenerate Prisma Client     |
+| `pnpm db:seed:showcase`           | Seed an approved empty Neon database with showcase data |
 | `pnpm db:wipe:development`        | Empty the explicitly approved Neon development database |
 | `pnpm api:contract:check`         | Verify the checked-in OpenAPI artifact is current       |
 | `pnpm production:readiness:check` | Validate versioned operational-readiness evidence       |

@@ -44,7 +44,7 @@ describe("wipe development database script", () => {
         ...approvedWipeEnv,
         DEV_DATABASE_WIPE_NEON_ENDPOINT_ID: "ep-production-example"
       })
-    ).toThrow("does not match DEV_DATABASE_WIPE_NEON_ENDPOINT_ID");
+    ).toThrow("does not match the approved Neon endpoint ID");
   });
 
   it("rejects non-Neon targets", () => {
