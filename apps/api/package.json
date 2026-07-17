@@ -21,6 +21,7 @@
     "prisma:migrate:deploy": "node scripts/migrate-deploy-with-retry.mjs",
     "prisma:seed": "prisma db seed",
     "db:reset:development": "tsx scripts/reset-development-database.ts",
+    "db:wipe:development": "tsx scripts/wipe-development-database.ts",
     "perf:seed-check": "tsx scripts/perf-seed-check.ts",
     "api:contract:generate": "tsx scripts/openapi-contract.ts --write",
     "api:contract:check": "tsx scripts/openapi-contract.ts"

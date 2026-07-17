@@ -189,6 +189,30 @@ pnpm --filter @loresafe/api prisma:seed
 
 The seed creates a demo reader, a public book club, milestones, progress, and representative safe and locked discussions. It is forbidden when `NODE_ENV=production`.
 
+### Empty the Neon development database
+
+The wipe-only command truncates every public application table, preserves
+`_prisma_migrations`, and does not run a seed. It requires the configured pooled
+`DATABASE_URL` and direct `DIRECT_URL` to identify the same Neon endpoint,
+database, and username.
+
+Copy the endpoint ID from the development Neon hostname (for example,
+`ep-example-development-123456`) and add both wipe guards to `.env`:
+
+```dotenv
+DEV_DATABASE_WIPE_NEON_ENDPOINT_ID=ep-example-development-123456
+DEV_DATABASE_WIPE_CONFIRM=I_UNDERSTAND_THIS_PERMANENTLY_DELETES_DEVELOPMENT_DATA
+```
+
+Then run the destructive command from the repository root:
+
+```bash
+pnpm db:wipe:development
+```
+
+The command is forbidden outside `NODE_ENV=development`, rejects non-Neon and
+pooled destructive connections, and leaves external R2 objects unchanged.
+
 ## Environment variables
 
 The API validates its environment with Zod at startup and exits on invalid production configuration. See `.env.example` for development and `.env.production.example` for deployment.
@@ -203,7 +227,7 @@ The API validates its environment with Zod at startup and exits on invalid produ
 | R2         | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL`, `R2_*_TIMEOUT_MS` | Public and protected image storage                                      |
 | Operations | `SERVER_*_TIMEOUT_MS`, `OPERATIONS_BEARER_TOKEN`                                                                       | HTTP budgets and protected metrics access                               |
 | Monitoring | `SENTRY_*`, `VITE_SENTRY_*`                                                                                            | Server and browser error reporting/tracing                              |
-| Demo only  | `DEMO_SEED_*`, `DEMO_USER_*`, `DEV_DATABASE_RESET_DATABASE_URL`                                                        | Explicitly authorized local seed/reset operations                       |
+| Demo only  | `DEMO_SEED_*`, `DEMO_USER_*`, `DEV_DATABASE_RESET_DATABASE_URL`, `DEV_DATABASE_WIPE_*`                                 | Explicitly authorized local seed/reset/wipe operations                  |
 
 Production additionally requires Redis, R2, Sentry, a metrics token, secure cookies, explicit client origins, and explicit trusted proxy ranges.
 
@@ -223,6 +247,7 @@ Run commands from the repository root.
 | `pnpm test:browser`               | Run Playwright browser security/accessibility tests     |
 | `pnpm test:integration:database`  | Run the real-PostgreSQL integration suite               |
 | `pnpm db:check`                   | Check migration status and regenerate Prisma Client     |
+| `pnpm db:wipe:development`        | Empty the explicitly approved Neon development database |
 | `pnpm api:contract:check`         | Verify the checked-in OpenAPI artifact is current       |
 | `pnpm production:readiness:check` | Validate versioned operational-readiness evidence       |
 

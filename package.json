@@ -13,6 +13,7 @@
     "build": "pnpm -r build",
     "db:check": "pnpm --filter @loresafe/api prisma:check",
     "db:reset:development": "pnpm --filter @loresafe/api db:reset:development",
+    "db:wipe:development": "pnpm --filter @loresafe/api db:wipe:development",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "node scripts/format-check.mjs",
