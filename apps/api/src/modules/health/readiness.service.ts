@@ -22,7 +22,7 @@ export type ReadinessResult = {
 
 const readinessTimeoutMs = 2_000;
 
-export const defaultReadinessDependencies: ReadinessDependencies = {
+const defaultReadinessDependencies: ReadinessDependencies = {
   database: async () => {
     await prisma.$queryRaw`SELECT 1`;
   },

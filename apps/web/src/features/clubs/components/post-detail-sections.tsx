@@ -7,7 +7,7 @@ import {
   UserCircle
 } from "lucide-react";
 
-import { PredictionStateBadges } from "@/features/clubs/components/club-feed-tab";
+import { PredictionStateBadges } from "@/features/clubs/components/club-feed-cards";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -15,16 +15,7 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { type RevealedClubPost } from "../api/clubs.js";
 import { DeletePostDialog } from "../components/delete-content-dialog.js";
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
-
-export { CommentsPanel } from "./post-detail-comment-sections.js";
+import { formatShortDateTime } from "@/shared/lib/formatters";
 
 export const PostDetailLoading = () => (
   <Card>
@@ -90,9 +81,7 @@ export const BraveRevealPostPanel = ({
           <ShieldAlert className="size-5" />
         </span>
         <div>
-          <h2 className="text-base font-semibold text-primary">
-            Brave reveal
-          </h2>
+          <h2 className="text-base font-semibold text-primary">Brave reveal</h2>
           <p className="mt-1 text-sm leading-6 text-muted">
             This will show locked post content for this view only.
           </p>
@@ -145,7 +134,7 @@ export const RevealedPostCard = ({
           Milestone {post.requiredMilestone.position}:{" "}
           {post.requiredMilestone.label}
         </span>
-        <span>{formatDateTime(post.createdAt)}</span>
+        <span>{formatShortDateTime(post.createdAt)}</span>
       </div>
       <div className="space-y-3">
         <h1 className="text-lg font-semibold text-primary">{post.title}</h1>
@@ -164,7 +153,8 @@ export const RevealedPostCard = ({
         </span>
         <div className="flex flex-wrap items-center gap-3">
           <span>
-            {post.counts.commentCount} comments / {post.counts.reactionCount} reactions
+            {post.counts.commentCount} comments / {post.counts.reactionCount}{" "}
+            reactions
           </span>
           {post.permissions.canDelete ? (
             <DeletePostDialog postId={post.id} onDeleted={onDeleted} />

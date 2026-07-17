@@ -3,9 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronDown,
   Compass,
-  Globe2,
-  KeyRound,
-  LockKeyhole,
   RefreshCw,
   Search,
   SearchX,
@@ -14,26 +11,21 @@ import {
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
 import {
-  type ClubVisibility,
   type JoinedClub,
   useJoinedClubsInfiniteQuery
 } from "@/features/clubs/api/clubs";
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { ClubCardGrid } from "@/features/clubs/components/club-card-grid";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
+import { clubVisibilityMetadata } from "@/features/clubs/lib/club-visibility";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { formatCount, formatShortDate } from "@/shared/lib/formatters";
 
 const joinedClubsPageSize = 20;
-const memberFormatter = new Intl.NumberFormat();
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric"
-});
 
 export const JoinedClubsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -160,7 +152,7 @@ export const JoinedClubsPage = () => {
 };
 
 const JoinedClubCard = ({ club }: { club: JoinedClub }) => {
-  const VisibilityIcon = visibilityIcons[club.visibility];
+  const VisibilityIcon = clubVisibilityMetadata[club.visibility].icon;
 
   return (
     <Card className="group h-full transition-colors hover:border-strong">
@@ -176,9 +168,11 @@ const JoinedClubCard = ({ club }: { club: JoinedClub }) => {
               coverUrl={club.coverUrl}
               className="size-10 border-brand shadow-glow"
             />
-            <Badge variant={club.visibility === "PUBLIC" ? "default" : "secondary"}>
+            <Badge
+              variant={club.visibility === "PUBLIC" ? "default" : "secondary"}
+            >
               <VisibilityIcon className="size-3" />
-              {formatVisibility(club.visibility)}
+              {clubVisibilityMetadata[club.visibility].label}
             </Badge>
           </div>
           <div className="min-w-0">
@@ -191,13 +185,10 @@ const JoinedClubCard = ({ club }: { club: JoinedClub }) => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <ClubMetric label="Role" value={formatRole(club.role)} />
-            <ClubMetric
-              label="Members"
-              value={memberFormatter.format(club.memberCount)}
-            />
+            <ClubMetric label="Members" value={formatCount(club.memberCount)} />
           </div>
           <p className="text-sm text-muted">
-            Joined {dateFormatter.format(new Date(club.joinedAt))}
+            Joined {formatShortDate(club.joinedAt)}
           </p>
         </CardContent>
       </Link>
@@ -302,16 +293,5 @@ const PanelMessage = ({
   </Card>
 );
 
-const visibilityIcons: Record<ClubVisibility, typeof Globe2> = {
-  PUBLIC: Globe2,
-  PRIVATE: LockKeyhole,
-  INVITE_ONLY: KeyRound
-};
-
 const formatRole = (role: JoinedClub["role"]) =>
   role === "OWNER" ? "Owner" : role === "MODERATOR" ? "Moderator" : "Member";
-
-const formatVisibility = (visibility: ClubVisibility) =>
-  visibility === "INVITE_ONLY"
-    ? "Invite-only"
-    : visibility.charAt(0) + visibility.slice(1).toLowerCase();

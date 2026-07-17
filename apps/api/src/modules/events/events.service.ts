@@ -2,13 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { Response } from "express";
 
 import { HttpError } from "../../core/errors/http-error.js";
-import { logger, sanitizeError } from "../../core/logging/logger.js";
-import {
-  createNoopEventsTransport,
-  type EventEnvelope,
-  type EventName,
-  type EventsTransport
-} from "./events.transport.js";
 
 export type NotificationEventPayload = {
   notificationId: string;
@@ -27,9 +20,7 @@ export type EventSubscription = {
 };
 
 export type EventsService = {
-  getStatus?: () => { connectionCount: number; ready: boolean };
-  start: () => Promise<void>;
-  stop: () => Promise<void>;
+  getConnectionCount: () => number;
   subscribe: (
     userId: string,
     clientIp: string,
@@ -57,17 +48,12 @@ type Connection = {
   response: Response;
 };
 
-export const createEventsService = (
-  transport: EventsTransport = createNoopEventsTransport(),
-  {
-    maxConnectionsPerIp = 20,
-    maxConnectionsPerUser = 5
-  }: EventsServiceOptions = {}
-): EventsService => {
-  const instanceId = randomUUID();
+export const createEventsService = ({
+  maxConnectionsPerIp = 20,
+  maxConnectionsPerUser = 5
+}: EventsServiceOptions = {}): EventsService => {
   const connectionsByUserId = new Map<string, Map<string, Connection>>();
   const connectionCountByIp = new Map<string, number>();
-  let started = false;
 
   const closeConnection = (userId: string, connectionId: string) => {
     const userConnections = connectionsByUserId.get(userId);
@@ -97,82 +83,27 @@ export const createEventsService = (
     }
   };
 
-  const dispatch = (event: EventEnvelope) => {
-    if (event.sourceInstanceId === instanceId) {
-      return;
-    }
-
-    if (event.eventName === "session.revoked") {
-      disconnectLocalUser(event.userId);
-      return;
-    }
-
+  const publish = (
+    userId: string,
+    eventName: NotificationEventName,
+    payload: NotificationEventPayload
+  ) => {
     publishLocal(
       connectionsByUserId,
-      event.userId,
-      event.eventName,
-      event.payload as NotificationEventPayload,
-      closeConnection
-    );
-  };
-
-  const publish = async (
-    userId: string,
-    eventName: EventName,
-    payload: unknown
-  ) => {
-    const event = {
-      sourceInstanceId: instanceId,
       userId,
       eventName,
-      payload
-    } satisfies EventEnvelope;
-
-    dispatch({
-      ...event,
-      sourceInstanceId: "local"
-    });
-
-    if (!started) {
-      return;
-    }
-
-    try {
-      await transport.publish(event);
-    } catch (error) {
-      logger.error("SSE event transport publish failed", {
-        eventName,
-        error: sanitizeError(error)
-      });
-    }
+      payload,
+      closeConnection
+    );
+    return Promise.resolve();
   };
 
   return {
-    getStatus: () => ({
-      connectionCount: [...connectionsByUserId.values()].reduce(
+    getConnectionCount: () =>
+      [...connectionsByUserId.values()].reduce(
         (total, connections) => total + connections.size,
         0
       ),
-      ready: started
-    }),
-    start: async () => {
-      if (started) {
-        return;
-      }
-
-      await transport.start(dispatch);
-      started = true;
-    },
-
-    stop: async () => {
-      started = false;
-
-      for (const userId of [...connectionsByUserId.keys()]) {
-        disconnectLocalUser(userId);
-      }
-
-      await transport.stop();
-    },
 
     subscribe: (userId, clientIp, response) => {
       const userConnections =
@@ -214,7 +145,6 @@ export const createEventsService = (
 
     disconnectUser: async (userId) => {
       disconnectLocalUser(userId);
-      await publish(userId, "session.revoked", null);
     },
 
     publishNotificationCreated: (userId, payload) =>
@@ -230,7 +160,7 @@ export const eventsService = createEventsService();
 const publishLocal = (
   connectionsByUserId: Map<string, Map<string, Connection>>,
   userId: string,
-  eventName: Exclude<EventName, "session.revoked">,
+  eventName: NotificationEventName,
   payload: NotificationEventPayload,
   closeConnection: (userId: string, connectionId: string) => void
 ) => {
@@ -278,6 +208,8 @@ const decrementIpCount = (counts: Map<string, number>, clientIp: string) => {
 };
 
 const formatEvent = (
-  eventName: Exclude<EventName, "session.revoked">,
+  eventName: NotificationEventName,
   payload: NotificationEventPayload
 ) => `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+
+type NotificationEventName = "notification.created" | "notification.read";

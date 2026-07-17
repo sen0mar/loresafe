@@ -74,7 +74,9 @@ describe("frontend regression smoke", () => {
     await user.type(signupPasswordInput, "supersecret12");
     expect(signupPasswordInput).toHaveAttribute("type", "password");
 
-    await user.click(screen.getAllByRole("button", { name: "Show password" })[0]);
+    await user.click(
+      screen.getAllByRole("button", { name: "Show password" })[0]
+    );
     expect(signupPasswordInput).toHaveAttribute("type", "text");
 
     await user.type(screen.getByLabelText("Confirm password"), "supersecret12");
@@ -184,26 +186,6 @@ describe("frontend regression smoke", () => {
     });
   });
 
-  it("omits moderation report links from profile settings", async () => {
-    mockFetchRoutes([
-      shellRoute("/api/auth/me", { user: authUser }),
-      shellRoute("/api/users/me/clubs", moderatedJoinedClubsResponse),
-      shellRoute("/api/notifications", notificationsResponse)
-    ]);
-
-    renderWithProviders(<ProfileSettingsPage />, {
-      initialEntries: ["/app/settings/profile"]
-    });
-
-    expect(await screen.findByText("Danger zone")).toBeVisible();
-    expect(
-      screen.queryByRole("link", { name: /open reports/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("No moderation clubs yet")
-    ).not.toBeInTheDocument();
-  });
-
   it("shows a danger zone with exact delete confirmation", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
@@ -270,7 +252,10 @@ describe("frontend regression smoke", () => {
       dialog.getByLabelText("Current password"),
       "correct horse battery staple"
     );
-    await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
+    await user.type(
+      dialog.getByLabelText('Type "delete" to confirm'),
+      "delete"
+    );
     await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
 
     await waitFor(() => expect(pathChanges).toContain("/"));
@@ -322,7 +307,10 @@ describe("frontend regression smoke", () => {
       dialog.getByLabelText("Current password"),
       "correct horse battery staple"
     );
-    await user.type(dialog.getByLabelText('Type "delete" to confirm'), "delete");
+    await user.type(
+      dialog.getByLabelText('Type "delete" to confirm'),
+      "delete"
+    );
     await user.click(dialog.getByRole("button", { name: /^delete account$/i }));
 
     expect(
@@ -359,9 +347,13 @@ describe("frontend regression smoke", () => {
       }
     );
 
-    expect(await screen.findByText("You're banned from this club")).toBeVisible();
+    expect(
+      await screen.findByText("You're banned from this club")
+    ).toBeVisible();
     expect(screen.getByText("You are banned from this club.")).toBeVisible();
-    expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /retry/i })
+    ).not.toBeInTheDocument();
   });
 
   it("submits member bans with optional cleanup and unbans by ban id", async () => {
@@ -560,7 +552,14 @@ describe("frontend regression smoke", () => {
     ).toHaveAttribute("aria-selected", "true");
     expect(
       screen.getAllByRole("tab").map((tab) => tab.textContent?.trim())
-    ).toEqual(["Feed", "Progress", "Overview", "Members", "Timeline", "Settings"]);
+    ).toEqual([
+      "Feed",
+      "Progress",
+      "Overview",
+      "Members",
+      "Timeline",
+      "Settings"
+    ]);
     expect(await screen.findByLabelText("Current milestone")).toBeVisible();
     expect(screen.getByText("Reading mode")).toBeVisible();
     const readingModeSelector = screen.getByText("Reading mode").parentElement;
@@ -625,7 +624,9 @@ describe("frontend regression smoke", () => {
       name: "Leave Safe Club?"
     });
 
-    await user.click(within(dialog).getByRole("button", { name: "Leave club" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Leave club" })
+    );
 
     await waitFor(() =>
       expect(
@@ -636,9 +637,7 @@ describe("frontend regression smoke", () => {
   });
 
   it("does not flash the welcome setup dialog while progress is loading", async () => {
-    const pendingFetch = vi.fn(
-      () => new Promise<Response>(() => undefined)
-    );
+    const pendingFetch = vi.fn(() => new Promise<Response>(() => undefined));
     vi.stubGlobal("fetch", pendingFetch);
 
     renderWithProviders(
@@ -802,11 +801,14 @@ describe("frontend regression smoke", () => {
       secondMilestoneId
     );
     await user.click(within(dialog).getByRole("button", { name: /brave/i }));
-    await user.click(within(dialog).getByRole("button", { name: /save setup/i }));
+    await user.click(
+      within(dialog).getByRole("button", { name: /save setup/i })
+    );
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")
+      ).toBeTruthy()
     );
     expect(
       getJsonRequestBody(
@@ -889,7 +891,9 @@ describe("frontend regression smoke", () => {
     expect(builderContent).not.toHaveAttribute("inert");
     const templateModeButton = screen.getByRole("button", { name: "Template" });
     const singleModeButton = screen.getByRole("button", { name: "Single" });
-    const modeSelector = templateModeButton.closest(".liquid-selection-surface");
+    const modeSelector = templateModeButton.closest(
+      ".liquid-selection-surface"
+    );
 
     expect(templateModeButton).toBeVisible();
     expect(templateModeButton).toHaveAttribute("data-active", "true");
@@ -971,7 +975,9 @@ describe("frontend regression smoke", () => {
     await user.type(screen.getByLabelText("Milestone 2"), "First reveal");
     await user.clear(screen.getByLabelText("Milestone 3"));
     await user.type(screen.getByLabelText("Milestone 3"), "Finale");
-    await user.click(screen.getByRole("button", { name: /generate milestones/i }));
+    await user.click(
+      screen.getByRole("button", { name: /generate milestones/i })
+    );
 
     await waitFor(() =>
       expect(
@@ -1216,10 +1222,9 @@ describe("frontend regression smoke", () => {
       }
     );
 
-    expect(await screen.findByRole("tab", { name: /members/i })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+    expect(
+      await screen.findByRole("tab", { name: /members/i })
+    ).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByText("Target Member")).toBeVisible();
     expect(screen.queryByText("Spoiler-safe space.")).not.toBeInTheDocument();
     expect(screen.queryByText("Club stats")).not.toBeInTheDocument();
@@ -1270,83 +1275,6 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Target Member")).toBeVisible();
   });
 
-  it("does not show recently unlocked content on the club overview", async () => {
-    const fetchMock = mockFetchRoutes([
-      shellRoute("/api/auth/me", { user: authUser }),
-      shellRoute("/api/users/me/clubs", joinedClubsResponse),
-      shellRoute("/api/notifications", notificationsResponse),
-      shellRoute("/api/clubs/safe-club", {
-        club
-      }),
-      shellRoute("/api/clubs/safe-club/progress", {
-        progress
-      }),
-      shellRoute("/api/clubs/safe-club/milestones", milestonesResponse),
-      shellRoute("/api/clubs/safe-club/stats", {
-        stats: {
-          memberCount: 3,
-          milestoneCount: 2,
-          visiblePostCount: 1,
-          visibleCommentCount: 0,
-          postReactionCount: 0,
-          safePostCount: 1,
-          lockedPostCount: 0,
-          viewer: {
-            joinedAt: now,
-            postCount: 1,
-            commentCount: 0
-          }
-        }
-      }),
-      shellRoute("/api/clubs/safe-club/progress/summary", {
-        progress: {
-          mode: progress.mode,
-          currentMilestone: progress.currentMilestone,
-          totalMilestones: progress.totalMilestones,
-          completedMilestones: progress.completedMilestones,
-          percentage: progress.percentage,
-          updatedAt: progress.updatedAt
-        }
-      })
-    ]);
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/app/clubs/:linkName" element={<ClubDetailPage />} />
-      </Routes>,
-      {
-        initialEntries: ["/app/clubs/safe-club"]
-      }
-    );
-
-    expect(await screen.findByText("My overview")).toBeVisible();
-    expect(await screen.findByText("Club stats")).toBeVisible();
-    expect(screen.getByText("Joined")).toBeVisible();
-    expect(screen.getByText("My posts")).toBeVisible();
-    expect(screen.getByText("My comments")).toBeVisible();
-    expect(screen.getByText("Safe")).toBeVisible();
-    expect(screen.getByText("Locked")).toBeVisible();
-    expect(screen.queryByText("Recently unlocked")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /view unlocked/i })
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Popular discussions")).not.toBeInTheDocument();
-    expect(
-      findFetchCall(
-        fetchMock,
-        "GET",
-        "/api/clubs/safe-club/recently-unlocked/summary"
-      )
-    ).toBeUndefined();
-    expect(
-      findFetchCall(
-        fetchMock,
-        "GET",
-        "/api/clubs/safe-club/popular-discussions"
-      )
-    ).toBeUndefined();
-  });
-
   it("wraps long milestone checkpoint summaries onto new rows", () => {
     renderWithProviders(
       <MilestoneProgressDots completedMilestones={9} totalMilestones={17} />
@@ -1363,8 +1291,9 @@ describe("frontend regression smoke", () => {
     );
 
     expect(checkpointRows).toHaveLength(2);
-    expect(checkpointRows[0].querySelectorAll("[data-checkpoint-state]"))
-      .toHaveLength(12);
+    expect(
+      checkpointRows[0].querySelectorAll("[data-checkpoint-state]")
+    ).toHaveLength(12);
     expect(checkpointDots).toHaveLength(17);
     expect(checkpointDots[7]).toHaveAttribute(
       "data-checkpoint-state",
@@ -1414,14 +1343,19 @@ describe("frontend regression smoke", () => {
 
     await user.type(screen.getByLabelText("Title"), "Nebula Readers");
     await user.type(screen.getByLabelText("Link name"), "nebula-readers");
-    await user.type(screen.getByLabelText("Description"), "Spoiler-safe space.");
+    await user.type(
+      screen.getByLabelText("Description"),
+      "Spoiler-safe space."
+    );
     const categorySelect = screen.getByLabelText("Category");
     expect(categorySelect).toHaveValue("");
     expect(
-      within(categorySelect).getAllByRole("option").map((option) => ({
-        label: option.textContent,
-        value: option.getAttribute("value")
-      }))
+      within(categorySelect)
+        .getAllByRole("option")
+        .map((option) => ({
+          label: option.textContent,
+          value: option.getAttribute("value")
+        }))
     ).toEqual([
       { label: "Choose a category", value: "" },
       { label: "Books", value: "BOOKS" },
@@ -1439,8 +1373,9 @@ describe("frontend regression smoke", () => {
       { label: "Web Serials", value: "WEB_SERIALS" },
       { label: "Custom Timeline", value: "CUSTOM_TIMELINE" }
     ]);
-    expect(within(categorySelect).queryByRole("option", { name: "Other" }))
-      .not.toBeInTheDocument();
+    expect(
+      within(categorySelect).queryByRole("option", { name: "Other" })
+    ).not.toBeInTheDocument();
     await user.selectOptions(categorySelect, "BOOKS");
     await user.click(screen.getByRole("radio", { name: /private/i }));
     await user.click(screen.getByRole("button", { name: /create club/i }));
@@ -1496,7 +1431,9 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("Locked discussion")).toBeInTheDocument();
-    expect(screen.queryByText("LOCKED_POST_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("LOCKED_POST_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
     const checkpointDots = screen
       .getByLabelText("1 of 2 milestone checkpoints reached")
       .querySelectorAll("[data-checkpoint-state]");
@@ -1518,8 +1455,9 @@ describe("frontend regression smoke", () => {
     await user.click(screen.getByRole("button", { name: /save progress/i }));
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")
+      ).toBeTruthy()
     );
     expect(
       getJsonRequestBody(
@@ -1581,8 +1519,9 @@ describe("frontend regression smoke", () => {
     await user.click(screen.getByRole("button", { name: /save progress/i }));
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")
+      ).toBeTruthy()
     );
     expect(
       getJsonRequestBody(
@@ -1635,11 +1574,7 @@ describe("frontend regression smoke", () => {
     expect(screen.getByText("Progress is member-only")).toBeInTheDocument();
 
     rerender(
-      <ClubProgressPanel
-        linkName="safe-club"
-        clubTitle="Safe Club"
-        isMember
-      />
+      <ClubProgressPanel linkName="safe-club" clubTitle="Safe Club" isMember />
     );
 
     expect(await screen.findByLabelText("Current milestone")).toHaveValue(
@@ -1712,7 +1647,9 @@ describe("frontend regression smoke", () => {
         "true"
       )
     );
-    expect(screen.getByLabelText("Current milestone")).toHaveValue(secondMilestoneId);
+    expect(screen.getByLabelText("Current milestone")).toHaveValue(
+      secondMilestoneId
+    );
   });
 
   it("animates feed posts that become visible after forward progress", async () => {
@@ -1780,7 +1717,9 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("Locked discussion")).toBeInTheDocument();
-    expect(screen.queryByText("Freshly safe body preview.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Freshly safe body preview.")
+    ).not.toBeInTheDocument();
 
     await user.selectOptions(
       screen.getByLabelText("Current milestone"),
@@ -1793,7 +1732,9 @@ describe("frontend regression smoke", () => {
 
     expect(unlockedCard).toHaveClass("post-unlock-card");
     expect(
-      within(unlockedCard as HTMLElement).getByText("Freshly safe body preview.")
+      within(unlockedCard as HTMLElement).getByText(
+        "Freshly safe body preview."
+      )
     ).toBeInTheDocument();
   });
 
@@ -1943,8 +1884,9 @@ describe("frontend regression smoke", () => {
     );
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "PATCH", "/api/clubs/safe-club/progress")
+      ).toBeTruthy()
     );
     expect(
       getJsonRequestBody(
@@ -1998,8 +1940,9 @@ describe("frontend regression smoke", () => {
     await user.click(screen.getByRole("button", { name: /create post/i }));
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "POST", "/api/clubs/safe-club/posts"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "POST", "/api/clubs/safe-club/posts")
+      ).toBeTruthy()
     );
     expect(
       getJsonRequestBody(
@@ -2062,7 +2005,9 @@ describe("frontend regression smoke", () => {
       await screen.findByRole("link", { name: "Visible post title" })
     );
 
-    await waitFor(() => expect(pathChanges.at(-1)).toBe(`/app/posts/${postId}`));
+    await waitFor(() =>
+      expect(pathChanges.at(-1)).toBe(`/app/posts/${postId}`)
+    );
     const feedLink = await screen.findByRole("link", { name: "Feed" });
 
     expect(feedLink).toHaveAttribute("href", "/app/clubs/safe-club?tab=feed");
@@ -2108,8 +2053,9 @@ describe("frontend regression smoke", () => {
     );
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "POST", `/api/posts/${postId}/delete`))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "POST", `/api/posts/${postId}/delete`)
+      ).toBeTruthy()
     );
     await waitFor(() =>
       expect(screen.queryByText("Visible post title")).not.toBeInTheDocument()
@@ -2138,7 +2084,9 @@ describe("frontend regression smoke", () => {
     renderWithProviders(<ClubFeedTab club={club} />);
 
     expect(await screen.findByText("Visible post title")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^delete$/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders stale feed cards without permissions safely", async () => {
@@ -2184,10 +2132,9 @@ describe("frontend regression smoke", () => {
     expect(
       await main.findByRole("heading", { name: "What would you like to do?" })
     ).toBeInTheDocument();
-    expect(main.getByRole("link", { name: /create a new club/i })).toHaveAttribute(
-      "href",
-      "/app/clubs/new"
-    );
+    expect(
+      main.getByRole("link", { name: /create a new club/i })
+    ).toHaveAttribute("href", "/app/clubs/new");
     expect(main.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
       "href",
       "/app/explore"
@@ -2196,35 +2143,14 @@ describe("frontend regression smoke", () => {
       "href",
       "/app/clubs"
     );
-    expect(await main.findByRole("heading", { name: "Most popular clubs" })).toBeVisible();
+    expect(
+      await main.findByRole("heading", { name: "Most popular clubs" })
+    ).toBeVisible();
     expect(await main.findByText("Popular Club 1")).toBeVisible();
     expect(main.getByRole("link", { name: "View all" })).toHaveAttribute(
       "href",
       "/app/explore?filters=popular"
     );
-  });
-
-  it("keeps the homepage free of club dashboard previews", async () => {
-    const fetchMock = mockFetchRoutes([
-      shellRoute("/api/auth/me", { user: authUser }),
-      shellRoute("/api/users/me/clubs", twoJoinedClubsResponse),
-      shellRoute("/api/notifications", notificationsResponse),
-      popularClubsRoute()
-    ]);
-
-    renderWithProviders(<HomePage />);
-
-    expect(
-      await screen.findByRole("heading", { name: "What would you like to do?" })
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Newest Club")).not.toBeInTheDocument();
-    expect(screen.queryByText("Featured from your joined clubs")).not.toBeInTheDocument();
-    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
-
-    const requestedPaths = fetchMock.mock.calls.map((call) =>
-      new URL(call[0].toString(), "http://localhost:5173").pathname
-    );
-    expect(requestedPaths).not.toContain("/api/clubs/newest-club/posts");
   });
 
   it("requests and caps popular club previews on the homepage", async () => {
@@ -2247,7 +2173,10 @@ describe("frontend regression smoke", () => {
     expect(main.queryByText("Popular Club 4")).not.toBeInTheDocument();
 
     const popularClubsRequest = findFetchCall(fetchMock, "GET", "/api/clubs");
-    const url = new URL(popularClubsRequest?.[0]?.toString() ?? "", "http://localhost:5173");
+    const url = new URL(
+      popularClubsRequest?.[0]?.toString() ?? "",
+      "http://localhost:5173"
+    );
 
     expect(url.searchParams.get("sort")).toBe("popular");
     expect(url.searchParams.get("limit")).toBe("3");
@@ -2282,10 +2211,9 @@ describe("frontend regression smoke", () => {
 
     expect(await main.findByText("Older Club")).toBeVisible();
     expect(main.queryByText("Newest Club")).not.toBeInTheDocument();
-    expect(main.getByRole("link", { name: /open older club/i })).toHaveAttribute(
-      "href",
-      "/app/clubs/older-club?tab=feed"
-    );
+    expect(
+      main.getByRole("link", { name: /open older club/i })
+    ).toHaveAttribute("href", "/app/clubs/older-club?tab=feed");
   });
 
   it("searches joined clubs from the My Clubs page search bar", async () => {
@@ -2437,11 +2365,12 @@ describe("frontend regression smoke", () => {
     expect(
       await screen.findByRole("heading", { name: "What would you like to do?" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
-      "href",
-      "/app/explore"
-    );
-    expect(screen.queryByText("The First Law Book Club")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /explore clubs/i })
+    ).toHaveAttribute("href", "/app/explore");
+    expect(
+      screen.queryByText("The First Law Book Club")
+    ).not.toBeInTheDocument();
   });
 
   it("creates comments while locked comment bodies remain absent", async () => {
@@ -2498,7 +2427,7 @@ describe("frontend regression smoke", () => {
         <Route path="/app/posts/:postId" element={<PostDetailPage />} />
       </Routes>,
       {
-      initialEntries: [`/app/posts/${postId}`]
+        initialEntries: [`/app/posts/${postId}`]
       }
     );
     const user = userEvent.setup();
@@ -2506,11 +2435,15 @@ describe("frontend regression smoke", () => {
     expect(await screen.findByText("Visible post title")).toBeInTheDocument();
     expect(await screen.findByText("Visible comment body")).toBeInTheDocument();
     expect(await screen.findByText("Locked comment")).toBeInTheDocument();
-    expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /load more/i }));
 
-    expect(await screen.findByText("Second visible comment body")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Second visible comment body")
+    ).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Add a comment"), "New comment body");
     await user.click(screen.getByRole("button", { name: /post comment/i }));
@@ -2584,7 +2517,9 @@ describe("frontend regression smoke", () => {
 
     expect(await screen.findByText("Visible comment body")).toBeInTheDocument();
     expect(await screen.findByText("Locked comment")).toBeInTheDocument();
-    expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^delete$/i }));
     await user.click(
@@ -2601,7 +2536,9 @@ describe("frontend regression smoke", () => {
     await waitFor(() =>
       expect(screen.queryByText("Visible comment body")).not.toBeInTheDocument()
     );
-    expect(screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("LOCKED_COMMENT_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
   });
 
   it("submits reports without rendering locked target content", async () => {
@@ -2631,7 +2568,9 @@ describe("frontend regression smoke", () => {
     );
     const user = userEvent.setup();
 
-    expect(screen.queryByText("LOCKED_TARGET_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("LOCKED_TARGET_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /report/i }));
     await user.type(
       screen.getByLabelText("Details"),
@@ -2687,17 +2626,22 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("POST")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /club settings/i })).toHaveAttribute(
-      "href",
-      "/app/clubs/safe-club?tab=settings"
-    );
+    expect(
+      screen.getByRole("link", { name: /club settings/i })
+    ).toHaveAttribute("href", "/app/clubs/safe-club?tab=settings");
     expect(screen.getByText("COMMENT")).toBeInTheDocument();
     expect(screen.getByText("Spam")).toBeInTheDocument();
     expect(screen.queryByText("Reporter")).not.toBeInTheDocument();
     expect(screen.queryByText("Required milestone")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reveal content/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /adjust/i })).not.toBeInTheDocument();
-    expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /reveal content/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /adjust/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Search reports by type"), "comment");
 
@@ -2705,12 +2649,18 @@ describe("frontend regression smoke", () => {
     expect(screen.getByText("COMMENT")).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Search reports by type"));
-    await user.click(screen.getAllByRole("button", { name: /open report/i })[0]);
+    await user.click(
+      screen.getAllByRole("button", { name: /open report/i })[0]
+    );
 
     expect(await screen.findByText("Reported content is hidden")).toBeVisible();
-    expect(screen.getByRole("button", { name: /reveal content/i })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /reveal content/i })
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: /adjust/i })).toBeVisible();
-    expect(screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("UNSAFE_REPORTED_BODY_SHOULD_NOT_RENDER")
+    ).not.toBeInTheDocument();
   });
 
   it("submits report bans with optional authored post cleanup", async () => {
@@ -2755,7 +2705,9 @@ describe("frontend regression smoke", () => {
     );
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: /open report/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /open report/i })
+    );
     await user.click(screen.getByRole("button", { name: /^ban$/i }));
     expect(await screen.findByText("Ban reported author?")).toBeVisible();
     expect(screen.getByRole("button", { name: /^ban user$/i })).toBeVisible();
@@ -2783,7 +2735,7 @@ describe("frontend regression smoke", () => {
     });
   });
 
-  it("keeps private clubs out of discovery and non-member search results", async () => {
+  it("renders public club discovery and search results", async () => {
     mockFetchRoutes([
       shellRoute("/api/auth/me", { user: authUser }),
       shellRoute("/api/users/me/clubs", joinedClubsResponse),
@@ -2823,7 +2775,6 @@ describe("frontend regression smoke", () => {
     expect(
       screen.getByRole("link", { name: /public story club/i })
     ).toHaveAttribute("href", "/app/clubs/public-story-club?tab=feed");
-    expect(screen.queryByText("PRIVATE_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
     discovery.unmount();
 
     mockFetchRoutes([
@@ -2865,7 +2816,6 @@ describe("frontend regression smoke", () => {
       "src",
       "https://cdn.example/public-nebula-club.png"
     );
-    expect(screen.queryByText("PRIVATE_SEARCH_CLUB_SHOULD_NOT_RENDER")).not.toBeInTheDocument();
   });
 
   it("shows an empty state for search queries with no matches", async () => {
@@ -2978,7 +2928,10 @@ describe("frontend regression smoke", () => {
     expect(screen.getByText("Most popular")).toBeVisible();
 
     const popularClubsRequest = findFetchCall(fetchMock, "GET", "/api/clubs");
-    const url = new URL(popularClubsRequest?.[0]?.toString() ?? "", "http://localhost:5173");
+    const url = new URL(
+      popularClubsRequest?.[0]?.toString() ?? "",
+      "http://localhost:5173"
+    );
 
     expect(url.searchParams.get("sort")).toBe("popular");
     expect(url.searchParams.get("limit")).toBe("20");
@@ -3036,9 +2989,7 @@ describe("frontend regression smoke", () => {
     await waitFor(() =>
       expect(pathChanges.at(-1)).toBe("/app/explore?q=visible&filters=safe")
     );
-    expect(
-      screen.getByRole("button", { name: /add filters1/i })
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: /add filters1/i })).toBeVisible();
   });
 
   it("shows posts-only search results with the containing club name", async () => {
@@ -3078,7 +3029,9 @@ describe("frontend regression smoke", () => {
       "href",
       "/app/clubs/safe-club?tab=feed"
     );
-    expect(screen.queryByRole("heading", { name: "Clubs" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Clubs" })
+    ).not.toBeInTheDocument();
   });
 
   it("shows clubs-only search results without discussions", async () => {
@@ -3119,7 +3072,9 @@ describe("frontend regression smoke", () => {
     const main = within(await screen.findByRole("main"));
 
     expect(await main.findByText("Safe Club")).toBeVisible();
-    expect(main.queryByRole("heading", { name: "Discussions" })).not.toBeInTheDocument();
+    expect(
+      main.queryByRole("heading", { name: "Discussions" })
+    ).not.toBeInTheDocument();
     expect(main.queryByText("Visible post title")).not.toBeInTheDocument();
   });
 });

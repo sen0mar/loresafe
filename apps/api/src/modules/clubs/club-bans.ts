@@ -1,6 +1,6 @@
 import { HttpError } from "../../core/errors/http-error.js";
 
-export const bannedFromClubMessage = "You are banned from this club.";
+const bannedFromClubMessage = "You are banned from this club.";
 
 export const bannedFromClubError = () =>
   new HttpError(403, "BANNED", bannedFromClubMessage);
@@ -34,4 +34,6 @@ export const canActorBanTarget = (
 export const canActorUnbanRole = (
   actorRole: "OWNER" | "MODERATOR" | "MEMBER",
   targetRole: "OWNER" | "MODERATOR" | "MEMBER" | null
-) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
+) =>
+  actorRole === "OWNER" ||
+  (actorRole === "MODERATOR" && targetRole === "MEMBER");

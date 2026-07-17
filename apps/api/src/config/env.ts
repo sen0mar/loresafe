@@ -257,7 +257,7 @@ export type AppEnv = Omit<ParsedEnv, "CLIENT_ORIGIN" | "TRUST_PROXY_CIDRS"> & {
   TRUST_PROXY_CIDRS: string[];
 };
 
-export const formatEnvIssues = (error: z.ZodError) =>
+const formatEnvIssues = (error: z.ZodError) =>
   error.issues
     .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
     .join("\n");
@@ -280,7 +280,7 @@ export const parseEnv = (input: NodeJS.ProcessEnv): AppEnv => {
   };
 };
 
-export const loadValidatedEnv = (input: NodeJS.ProcessEnv): AppEnv => {
+const loadValidatedEnv = (input: NodeJS.ProcessEnv): AppEnv => {
   try {
     return parseEnv(input);
   } catch (error) {

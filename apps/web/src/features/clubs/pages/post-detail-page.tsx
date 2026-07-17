@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { AuthenticatedAppShell } from "@/features/auth/components/authenticated-app-shell";
-import { PostCard } from "@/features/clubs/components/club-feed-tab";
+import { PostCard } from "@/features/clubs/components/club-feed-cards";
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 
@@ -18,12 +18,12 @@ import {
 } from "../api/clubs.js";
 import {
   BraveRevealPostPanel,
-  CommentsPanel,
   DeletedPostNotice,
   PostDetailError,
   PostDetailLoading,
   RevealedPostCard
 } from "../components/post-detail-sections.js";
+import { CommentsPanel } from "../components/post-detail-comment-sections.js";
 
 type PostDetailReturnState = {
   returnLabel?: unknown;
@@ -140,8 +140,7 @@ export const PostDetailPage = () => {
       return nextIds;
     });
     setRevealedComments((currentComments) => {
-      const { [commentId]: _removedComment, ...nextComments } =
-        currentComments;
+      const { [commentId]: _removedComment, ...nextComments } = currentComments;
 
       return nextComments;
     });

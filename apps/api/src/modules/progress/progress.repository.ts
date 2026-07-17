@@ -4,9 +4,11 @@ import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { createProgressUnlockNotificationInTransaction } from "../notifications/notifications.commands.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
-import type { ClubPostRecord } from "../posts/posts.repository.js";
-import type { PostReactionEmoji } from "../posts/posts.schema.js";
-import { postReactionEmojis } from "../posts/posts.schema.js";
+import {
+  postSelect,
+  toClubPostRecord,
+  userReactionMapForPostIds
+} from "../posts/posts.repository.js";
 import type { ProgressMode } from "./progress.schema.js";
 import type {
   ClubProgressRecord,
@@ -37,67 +39,6 @@ const historySelect = {
     select: milestoneSelect
   },
   createdAt: true
-} as const;
-
-const recentlyUnlockedPostSelect = {
-  id: true,
-  type: true,
-  status: true,
-  title: true,
-  body: true,
-  author: {
-    select: {
-      id: true,
-      displayName: true,
-      username: true
-    }
-  },
-  requiredMilestone: {
-    select: {
-      id: true,
-      position: true,
-      safeTitle: true
-    }
-  },
-  prediction: {
-    select: {
-      status: true,
-      revealMilestone: {
-        select: {
-          id: true,
-          position: true,
-          safeTitle: true
-        }
-      }
-    }
-  },
-  mediaAssets: {
-    where: {
-      purpose: "POST_IMAGE",
-      visibility: "PRIVATE",
-      status: "READY"
-    },
-    select: {
-      id: true,
-      contentType: true,
-      sizeBytes: true,
-      safePreview: true,
-      objectKey: true
-    },
-    take: 1
-  },
-  _count: {
-    select: {
-      comments: {
-        where: {
-          status: "VISIBLE",
-          deletedAt: null
-        }
-      }
-    }
-  },
-  createdAt: true,
-  updatedAt: true
 } as const;
 
 export const progressRepository: ProgressRepository = {
@@ -644,7 +585,7 @@ export const progressRepository: ProgressRepository = {
         }
       ],
       take: limit + 1,
-      select: recentlyUnlockedPostSelect
+      select: postSelect
     });
     const pagePosts = posts.slice(0, limit);
     const lastPost = pagePosts[pagePosts.length - 1];
@@ -655,9 +596,7 @@ export const progressRepository: ProgressRepository = {
 
     return {
       unlock,
-      posts: pagePosts.map((post) =>
-        toRecentlyUnlockedPostRecord(post, reactionMap)
-      ),
+      posts: pagePosts.map((post) => toClubPostRecord(post, reactionMap)),
       nextCursor:
         posts.length > limit && lastPost
           ? {
@@ -844,99 +783,3 @@ const emptyRecentlyUnlockedResult = (
   hasMore: false,
   currentProgress
 });
-
-type SelectedRecentlyUnlockedPost = Prisma.PostGetPayload<{
-  select: typeof recentlyUnlockedPostSelect;
-}>;
-
-type ReactionMap = Map<
-  string,
-  Map<PostReactionEmoji, { count: number; reactedByMe: boolean }>
->;
-
-const toRecentlyUnlockedPostRecord = (
-  post: SelectedRecentlyUnlockedPost,
-  reactionMap: ReactionMap
-): ClubPostRecord => {
-  const postReactions = reactionMap.get(post.id) ?? new Map();
-  const reactions = postReactionEmojis.map((emoji) => ({
-    emoji,
-    count: postReactions.get(emoji)?.count ?? 0,
-    reactedByMe: postReactions.get(emoji)?.reactedByMe ?? false
-  }));
-
-  return {
-    id: post.id,
-    type: post.type as ClubPostRecord["type"],
-    status: post.status as ClubPostRecord["status"],
-    title: post.title,
-    body: post.body,
-    author: post.author,
-    requiredMilestone: post.requiredMilestone,
-    prediction: post.prediction
-      ? {
-          status: post.prediction.status as NonNullable<
-            ClubPostRecord["prediction"]
-          >["status"],
-          revealMilestone: post.prediction.revealMilestone
-        }
-      : null,
-    media: post.mediaAssets[0] ?? null,
-    commentCount: post._count.comments,
-    reactionCount: reactions.reduce(
-      (total, reaction) => total + reaction.count,
-      0
-    ),
-    reactions,
-    createdAt: post.createdAt,
-    updatedAt: post.updatedAt
-  };
-};
-
-const userReactionMapForPostIds = async (
-  postIds: string[],
-  userId: string
-): Promise<ReactionMap> => {
-  if (postIds.length === 0) {
-    return new Map();
-  }
-
-  const groupedReactions = await prisma.postReaction.groupBy({
-    by: ["postId", "emoji"],
-    where: {
-      postId: {
-        in: postIds
-      }
-    },
-    _count: {
-      _all: true
-    }
-  });
-  const userReactions = await prisma.postReaction.findMany({
-    where: {
-      postId: {
-        in: postIds
-      },
-      userId
-    },
-    select: {
-      postId: true,
-      emoji: true
-    }
-  });
-  const userReactionKeys = new Set(
-    userReactions.map((reaction) => `${reaction.postId}:${reaction.emoji}`)
-  );
-
-  return groupedReactions.reduce<ReactionMap>((map, reaction) => {
-    const postReactionMap = map.get(reaction.postId) ?? new Map();
-
-    postReactionMap.set(reaction.emoji as PostReactionEmoji, {
-      count: reaction._count._all,
-      reactedByMe: userReactionKeys.has(`${reaction.postId}:${reaction.emoji}`)
-    });
-    map.set(reaction.postId, postReactionMap);
-
-    return map;
-  }, new Map());
-};

@@ -58,6 +58,7 @@ import {
   useUnbanClubBanMutation,
   useUpdateClubMemberRoleMutation
 } from "../api/clubs.js";
+import { formatShortDate } from "@/shared/lib/formatters";
 
 const roleLabels: Record<ClubMembershipRole, string> = {
   OWNER: "Owner",
@@ -72,12 +73,7 @@ const loadingRowIds = [
   "member-loading-3"
 ];
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(value));
+const formatDate = formatShortDate;
 
 const formatBanExpiry = (value: string | null) =>
   value ? `Expires ${formatDate(value)}` : "Permanent ban";
@@ -222,11 +218,8 @@ const MemberRow = ({ club, member }: { club: Club; member: ClubMember }) => {
             <Badge variant="secondary">{roleLabels[member.role]}</Badge>
           </div>
           <p className="mt-1 text-xs text-faint">
-            {member.user.username
-              ? `/${member.user.username}`
-              : "No username"}{" "}
-            - Joined{" "}
-            {formatDate(member.joinedAt)}
+            {member.user.username ? `/${member.user.username}` : "No username"}{" "}
+            - Joined {formatDate(member.joinedAt)}
           </p>
         </div>
       </div>

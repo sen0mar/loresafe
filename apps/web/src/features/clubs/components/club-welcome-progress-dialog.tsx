@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Save, Sparkles, TrendingUp } from "lucide-react";
+import { Save, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/shared/api/api-client";
@@ -12,20 +12,19 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/shared/components/ui/dialog";
-import {
-  LiquidSelectionIndicator,
-  useLiquidSelection
-} from "@/shared/components/ui/liquid-selection";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { cn } from "@/shared/lib/utils";
 
 import {
-  type ClubMilestone,
   type ProgressMode,
   useClubMilestonesQuery,
   useClubProgressQuery,
   useUpdateClubProgressMutation
 } from "../api/clubs.js";
+import { formatMilestoneOption } from "../lib/milestone-display.js";
+import {
+  ReadingModeSelection,
+  type ReadingModeOption
+} from "./reading-mode-selection.js";
 
 type ClubWelcomeProgressDialogProps = {
   clubTitle: string;
@@ -33,15 +32,9 @@ type ClubWelcomeProgressDialogProps = {
   linkName: string;
 };
 
-type ProgressModeOption = {
-  value: ProgressMode;
-  label: string;
-  description: string;
-};
-
 const notStartedValue = "not-started";
 
-const progressModeOptions: ProgressModeOption[] = [
+const progressModeOptions: ReadingModeOption[] = [
   {
     value: "STRICT",
     label: "Strict",
@@ -50,7 +43,8 @@ const progressModeOptions: ProgressModeOption[] = [
   {
     value: "BRAVE",
     label: "Brave",
-    description: "Keep Strict protection, with a manual reveal choice for locked posts."
+    description:
+      "Keep Strict protection, with a manual reveal choice for locked posts."
   },
   {
     value: "FINISHED",
@@ -83,20 +77,17 @@ export const ClubWelcomeProgressDialog = ({
   const [selectedMilestoneId, setSelectedMilestoneId] =
     useState(notStartedValue);
   const [selectedMode, setSelectedMode] = useState<ProgressMode>("STRICT");
-  const readingModeSelection = useLiquidSelection<HTMLDivElement>(selectedMode);
   const isLoading =
     isMember &&
     (progressQuery.isPending ||
       (progress?.needsWelcomeSetup === true && milestonesQuery.isPending));
   const shouldOpen =
-    isMember &&
-    !hasCompletedWelcome &&
-    progress?.needsWelcomeSetup === true;
+    isMember && !hasCompletedWelcome && progress?.needsWelcomeSetup === true;
   const selectedMilestone =
     selectedMilestoneId === notStartedValue
       ? null
-      : milestones.find((milestone) => milestone.id === selectedMilestoneId) ??
-        null;
+      : (milestones.find((milestone) => milestone.id === selectedMilestoneId) ??
+        null);
   const milestoneToSave =
     selectedMode === "FINISHED" && finalMilestone
       ? finalMilestone
@@ -167,33 +158,18 @@ export const ClubWelcomeProgressDialog = ({
               </select>
             </label>
 
-            <div
-              ref={readingModeSelection.groupRef}
-              className="relative isolate grid gap-2"
-            >
-              <p className="flex items-center gap-2 text-sm text-muted">
-                <TrendingUp className="size-4 text-brand" />
-                Reading mode
-              </p>
-              <LiquidSelectionIndicator
-                indicatorStyle={readingModeSelection.indicatorStyle}
-                isVisible={readingModeSelection.isIndicatorVisible}
-                motion="smooth"
-                settleAnimationKey={readingModeSelection.settleAnimationKey}
-                shouldPlaySettleAnimation={
-                  readingModeSelection.shouldPlaySettleAnimation
-                }
-              />
-              {progressModeOptions.map((mode) => (
-                <WelcomeReadingModeButton
-                  key={mode.value}
-                  disabled={updateProgressMutation.isPending}
-                  mode={mode}
-                  selectedMode={selectedMode}
-                  onSelect={() => setSelectedMode(mode.value)}
-                />
-              ))}
-            </div>
+            <ReadingModeSelection
+              disabled={updateProgressMutation.isPending}
+              label={
+                <p className="flex items-center gap-2 text-sm text-muted">
+                  <TrendingUp className="size-4 text-brand" />
+                  Reading mode
+                </p>
+              }
+              onSelect={setSelectedMode}
+              options={progressModeOptions}
+              selectedMode={selectedMode}
+            />
           </div>
         )}
 
@@ -212,52 +188,6 @@ export const ClubWelcomeProgressDialog = ({
   );
 };
 
-const WelcomeReadingModeButton = ({
-  disabled,
-  mode,
-  onSelect,
-  selectedMode
-}: {
-  disabled: boolean;
-  mode: ProgressModeOption;
-  onSelect: () => void;
-  selectedMode: ProgressMode;
-}) => {
-  const isSelected = selectedMode === mode.value;
-
-  return (
-    <button
-      data-active={isSelected ? "true" : "false"}
-      data-liquid-selection-item
-      data-liquid-selection-value={mode.value}
-      type="button"
-      className={cn(
-        "relative z-10 rounded-lg border border-default px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
-        isSelected
-          ? "border-transparent text-brand hover:text-brand"
-          : "bg-inset hover:border-strong hover:bg-active"
-      )}
-      disabled={disabled}
-      onClick={onSelect}
-    >
-      <span className="flex items-center justify-between gap-3">
-        <span
-          className={cn(
-            "text-sm font-medium",
-            isSelected ? "text-brand" : "text-primary"
-          )}
-        >
-          {mode.label}
-        </span>
-        {isSelected ? <Check className="size-4 text-brand" /> : null}
-      </span>
-      <span className="mt-1 block text-xs leading-5 text-faint">
-        {mode.description}
-      </span>
-    </button>
-  );
-};
-
 const WelcomeProgressLoading = () => (
   <div className="space-y-4">
     <Skeleton className="h-10 w-full" />
@@ -266,11 +196,3 @@ const WelcomeProgressLoading = () => (
     <Skeleton className="h-20 w-full" />
   </div>
 );
-
-const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${getMilestoneDisplayTitle(milestone)}`;
-
-const getMilestoneDisplayTitle = (milestone: {
-  safeTitle: string;
-  fullTitle?: string | null;
-}) => milestone.fullTitle ?? milestone.safeTitle;

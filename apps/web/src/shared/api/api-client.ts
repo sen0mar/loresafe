@@ -7,7 +7,7 @@ type ApiErrorResponse = {
 };
 
 // Cookie auth needs a first-party request path; Vite and Vercel proxy /api to Express.
-export const apiBaseUrl = "";
+const apiBaseUrl = "";
 
 export class ApiError extends Error {
   readonly statusCode?: number;
@@ -31,7 +31,7 @@ export class ApiError extends Error {
   }
 }
 
-export const apiGet = async <TResponse,>(
+export const apiGet = async <TResponse>(
   path: string,
   options?: ApiRequestOptions
 ): Promise<TResponse> => {
@@ -89,7 +89,7 @@ export const apiDelete = async <TResponse, TBody = unknown>(
   });
 };
 
-const apiRequest = async <TResponse,>(
+const apiRequest = async <TResponse>(
   path: string,
   options: {
     method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
@@ -210,8 +210,9 @@ type ApiRequestOptions = {
 const defaultReadTimeoutMs = 15_000;
 const defaultWriteTimeoutMs = 20_000;
 
-const getDefaultTimeoutMs = (method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT") =>
-  method === "GET" ? defaultReadTimeoutMs : defaultWriteTimeoutMs;
+const getDefaultTimeoutMs = (
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT"
+) => (method === "GET" ? defaultReadTimeoutMs : defaultWriteTimeoutMs);
 
 const createRequestDeadline = (
   callerSignal: AbortSignal | undefined,
@@ -256,9 +257,7 @@ const readJson = async (response: Response): Promise<unknown> => {
   }
 };
 
-const isApiErrorResponse = (
-  payload: unknown
-): payload is ApiErrorResponse => {
+const isApiErrorResponse = (payload: unknown): payload is ApiErrorResponse => {
   if (!payload || typeof payload !== "object" || !("error" in payload)) {
     return false;
   }

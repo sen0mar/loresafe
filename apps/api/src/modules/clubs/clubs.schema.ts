@@ -74,7 +74,6 @@ export const listPublicSeoClubsQuerySchema = z
       });
     }
 
-
     if (query.sort === "popular" && query.cursor) {
       context.addIssue({
         code: "custom",
@@ -118,15 +117,14 @@ export const createClubRequestSchema = z
 export const updateClubSettingsRequestSchema = z
   .object({
     visibility: clubVisibilitySchema,
-    rules: z
-      .union([
-        z
-          .string()
-          .trim()
-          .max(2000)
-          .transform((value) => (value.length > 0 ? value : null)),
-        z.null()
-      ])
+    rules: z.union([
+      z
+        .string()
+        .trim()
+        .max(2000)
+        .transform((value) => (value.length > 0 ? value : null)),
+      z.null()
+    ])
   })
   .strict();
 

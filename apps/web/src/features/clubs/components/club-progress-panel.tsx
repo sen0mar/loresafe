@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   CircleDot,
   ListChecks,
   LockKeyhole,
@@ -21,12 +20,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/shared/components/ui/card";
-import {
-  LiquidSelectionIndicator,
-  useLiquidSelection
-} from "@/shared/components/ui/liquid-selection";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { cn } from "@/shared/lib/utils";
 
 import {
   type ClubProgress,
@@ -37,7 +31,15 @@ import {
   useClubProgressQuery,
   useUpdateClubProgressMutation
 } from "../api/clubs.js";
+import {
+  formatMilestoneOption,
+  getMilestoneDisplayTitle
+} from "../lib/milestone-display.js";
 import { MilestoneProgressDots } from "./milestone-progress-dots.js";
+import {
+  ReadingModeSelection,
+  type ReadingModeOption
+} from "./reading-mode-selection.js";
 
 type ClubProgressPanelProps = {
   linkName: string;
@@ -47,13 +49,7 @@ type ClubProgressPanelProps = {
 
 const notStartedValue = "not-started";
 
-type ProgressModeOption = {
-  value: ProgressMode;
-  label: string;
-  description: string;
-};
-
-const progressModeOptions: ProgressModeOption[] = [
+const progressModeOptions: ReadingModeOption[] = [
   {
     value: "STRICT",
     label: "Strict",
@@ -62,7 +58,8 @@ const progressModeOptions: ProgressModeOption[] = [
   {
     value: "BRAVE",
     label: "Brave",
-    description: "Same as Strict, but lets me manually reveal locked posts when I choose."
+    description:
+      "Same as Strict, but lets me manually reveal locked posts when I choose."
   },
   {
     value: "FINISHED",
@@ -70,61 +67,6 @@ const progressModeOptions: ProgressModeOption[] = [
     description: "I've finished this story, so unlock the full timeline."
   }
 ];
-
-const ReadingModeButton = ({
-  currentProgressMode,
-  disabled,
-  isRewindSelection,
-  mode,
-  onSelect,
-  selectedMode
-}: {
-  currentProgressMode: ProgressMode;
-  disabled: boolean;
-  isRewindSelection: boolean;
-  mode: ProgressModeOption;
-  onSelect: () => void;
-  selectedMode: ProgressMode;
-}) => {
-  const isSelected = selectedMode === mode.value;
-  const isDisabled =
-    disabled ||
-    (isRewindSelection &&
-      (mode.value === "FINISHED" ||
-        (currentProgressMode === "FINISHED" && mode.value !== "STRICT")));
-
-  return (
-    <button
-      data-active={isSelected ? "true" : "false"}
-      data-liquid-selection-item
-      data-liquid-selection-value={mode.value}
-      type="button"
-      className={cn(
-        "relative z-10 rounded-lg border border-default px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60",
-        isSelected
-          ? "border-transparent text-brand hover:text-brand"
-          : "bg-inset hover:border-strong hover:bg-active"
-      )}
-      disabled={isDisabled}
-      onClick={onSelect}
-    >
-      <span className="flex items-center justify-between gap-3">
-        <span
-          className={cn(
-            "text-sm font-medium",
-            isSelected ? "text-brand" : "text-primary"
-          )}
-        >
-          {mode.label}
-        </span>
-        {isSelected ? <Check className="size-4 text-brand" /> : null}
-      </span>
-      <span className="mt-1 block text-xs leading-5 text-faint">
-        {mode.description}
-      </span>
-    </button>
-  );
-};
 
 const getProgressSelectionMilestoneId = (
   progress: ClubProgress,
@@ -169,8 +111,6 @@ export const ClubProgressPanel = ({
     );
     setSelectedMode(progress.mode);
   }, [finalMilestone, progress]);
-
-  const readingModeSelection = useLiquidSelection<HTMLDivElement>(selectedMode);
 
   if (!isMember) {
     return <ProgressMembershipRequired />;
@@ -226,8 +166,8 @@ export const ClubProgressPanel = ({
   const selectedMilestone =
     selectedMilestoneId === notStartedValue
       ? null
-      : milestones.find((milestone) => milestone.id === selectedMilestoneId) ??
-        null;
+      : (milestones.find((milestone) => milestone.id === selectedMilestoneId) ??
+        null);
   const currentSafePosition = getSafeProgressPosition({
     mode: progress.mode,
     milestonePosition: progress.currentMilestone?.position ?? null,
@@ -245,8 +185,8 @@ export const ClubProgressPanel = ({
       : selectedMilestone;
   const savedMilestoneId =
     progress.mode === "FINISHED"
-      ? finalMilestone?.id ?? progress.currentMilestone?.id ?? null
-      : progress.currentMilestone?.id ?? null;
+      ? (finalMilestone?.id ?? progress.currentMilestone?.id ?? null)
+      : (progress.currentMilestone?.id ?? null);
   const previousMilestone = getPreviousMilestone(
     milestones,
     currentSafePosition
@@ -263,7 +203,7 @@ export const ClubProgressPanel = ({
     currentSafePosition >= finalMilestonePosition;
   const displayedProgressMilestone =
     progress.mode === "FINISHED"
-      ? finalMilestone ?? progress.currentMilestone
+      ? (finalMilestone ?? progress.currentMilestone)
       : progress.currentMilestone;
   const isProgressSaving =
     updateProgressMutation.isPending || advanceProgressMutation.isPending;
@@ -279,7 +219,10 @@ export const ClubProgressPanel = ({
       milestones
     );
 
-    if (milestonePosition < currentSafePosition && selectedMode === "FINISHED") {
+    if (
+      milestonePosition < currentSafePosition &&
+      selectedMode === "FINISHED"
+    ) {
       setSelectedMode("STRICT");
     }
   };
@@ -465,32 +408,18 @@ export const ClubProgressPanel = ({
             </Button>
           </div>
 
-          <div
-            ref={readingModeSelection.groupRef}
-            className="relative isolate grid gap-2"
-          >
-            <p className="text-sm text-muted">Reading mode</p>
-            <LiquidSelectionIndicator
-              indicatorStyle={readingModeSelection.indicatorStyle}
-              isVisible={readingModeSelection.isIndicatorVisible}
-              motion="smooth"
-              settleAnimationKey={readingModeSelection.settleAnimationKey}
-              shouldPlaySettleAnimation={
-                readingModeSelection.shouldPlaySettleAnimation
-              }
-            />
-            {progressModeOptions.map((mode) => (
-              <ReadingModeButton
-                key={mode.value}
-                currentProgressMode={progress.mode}
-                disabled={isProgressSaving}
-                isRewindSelection={isRewindSelection}
-                mode={mode}
-                selectedMode={selectedMode}
-                onSelect={() => setSelectedMode(mode.value)}
-              />
-            ))}
-          </div>
+          <ReadingModeSelection
+            disabled={isProgressSaving}
+            isOptionDisabled={(mode) =>
+              isRewindSelection &&
+              (mode === "FINISHED" ||
+                (progress.mode === "FINISHED" && mode !== "STRICT"))
+            }
+            label={<p className="text-sm text-muted">Reading mode</p>}
+            onSelect={setSelectedMode}
+            options={progressModeOptions}
+            selectedMode={selectedMode}
+          />
 
           <Button
             className="w-full"
@@ -550,9 +479,6 @@ const getProgressLabel = (
     ? `Milestone ${milestone.position}: ${getMilestoneDisplayTitle(milestone)}`
     : "Not started";
 
-const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${getMilestoneDisplayTitle(milestone)}`;
-
 const getSelectedMilestonePosition = (
   milestoneId: string,
   milestones: ClubMilestone[]
@@ -581,11 +507,6 @@ const getPreviousMilestone = (
     null
   );
 };
-
-const getMilestoneDisplayTitle = (milestone: {
-  safeTitle: string;
-  fullTitle?: string | null;
-}) => milestone.fullTitle ?? milestone.safeTitle;
 
 const getSafeProgressPosition = ({
   milestonePosition,

@@ -17,13 +17,12 @@ import {
   useClubDashboardStatsQuery,
   useClubProgressSummaryQuery
 } from "../api/clubs.js";
+import { formatCount, formatShortDate } from "@/shared/lib/formatters";
 import { MilestoneProgressDots } from "./milestone-progress-dots.js";
 
 type ClubDashboardPanelsProps = {
   club: Club;
 };
-
-const numberFormatter = new Intl.NumberFormat();
 
 const progressModeLabels: Record<ProgressMode, string> = {
   STRICT: "Strict",
@@ -31,13 +30,7 @@ const progressModeLabels: Record<ProgressMode, string> = {
   FINISHED: "Finished"
 };
 
-const formatCount = (count: number) => numberFormatter.format(count);
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(value));
+const formatDate = formatShortDate;
 
 const isHiddenPanelError = (error: Error | null) =>
   error instanceof ApiError &&
@@ -122,9 +115,18 @@ const StatsPanel = ({
         <Metric label="Members" value={formatCount(stats.memberCount)} />
         <Metric label="Created" value={formatDate(createdAt)} />
         <Metric label="Milestones" value={formatCount(stats.milestoneCount)} />
-        <Metric label="Discussions" value={formatCount(stats.visiblePostCount)} />
-        <Metric label="Comments" value={formatCount(stats.visibleCommentCount)} />
-        <Metric label="Reactions" value={formatCount(stats.postReactionCount)} />
+        <Metric
+          label="Discussions"
+          value={formatCount(stats.visiblePostCount)}
+        />
+        <Metric
+          label="Comments"
+          value={formatCount(stats.visibleCommentCount)}
+        />
+        <Metric
+          label="Reactions"
+          value={formatCount(stats.postReactionCount)}
+        />
       </CardContent>
     </Card>
   );
@@ -233,7 +235,9 @@ const ProgressSummaryPanel = ({
           <TrendingUp className="size-5 text-brand" />
           Progress summary
         </CardTitle>
-        <CardDescription>{progressModeLabels[progress.mode]} mode</CardDescription>
+        <CardDescription>
+          {progressModeLabels[progress.mode]} mode
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -254,7 +258,8 @@ const ProgressSummaryPanel = ({
           />
         </div>
         <p className="text-sm text-muted">
-          {progress.completedMilestones} of {progress.totalMilestones} milestones complete
+          {progress.completedMilestones} of {progress.totalMilestones}{" "}
+          milestones complete
         </p>
       </CardContent>
     </Card>

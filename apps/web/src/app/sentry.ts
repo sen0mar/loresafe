@@ -27,11 +27,8 @@ if (sentryDsn) {
         matchRoutes
       })
     ],
-    tracesSampleRate: Number.isFinite(tracesSampleRate)
-      ? tracesSampleRate
-      : 0
+    tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0
   });
 }
 
 export { Sentry };
-

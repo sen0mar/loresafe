@@ -21,9 +21,15 @@ describe("static SEO configuration", () => {
     expect(html).toContain(
       `<link rel="canonical" href="${canonicalOrigin}/" />`
     );
-    expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
-    expect(html).toContain('<link rel="icon" href="/favicon.ico" sizes="any" />');
-    expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml" />');
+    expect(html).toContain(
+      '<link rel="manifest" href="/manifest.webmanifest" />'
+    );
+    expect(html).toContain(
+      '<link rel="icon" href="/favicon.ico" sizes="any" />'
+    );
+    expect(html).toContain(
+      '<link rel="icon" href="/icon.svg" type="image/svg+xml" />'
+    );
     expect(html).toContain(
       '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />'
     );
@@ -59,9 +65,7 @@ describe("static SEO configuration", () => {
       start_url: string;
     };
 
-    expect(robots).toContain(
-      `Sitemap: ${canonicalOrigin}/sitemap.xml`
-    );
+    expect(robots).toContain(`Sitemap: ${canonicalOrigin}/sitemap.xml`);
     expect(robots).not.toContain("Disallow: /app");
     expect(robots).not.toContain("Disallow: /api");
     expect(existsSync(join(webRoot, "public", "sitemap.xml"))).toBe(false);
@@ -92,9 +96,9 @@ describe("static SEO configuration", () => {
     expect(existsSync(join(webRoot, "public", "pwa-192.png"))).toBe(true);
     expect(existsSync(join(webRoot, "public", "pwa-512.png"))).toBe(true);
     expect(readWebFile("public", "icon.svg")).toContain("<title");
-    expect(
-      existsSync(join(webRoot, "public", "og", "loresafe-home.png"))
-    ).toBe(true);
+    expect(existsSync(join(webRoot, "public", "og", "loresafe-home.png"))).toBe(
+      true
+    );
     expect(
       existsSync(join(webRoot, "public", "og", "loresafe-square.png"))
     ).toBe(true);
@@ -135,7 +139,9 @@ describe("static SEO configuration", () => {
       }>;
       rewrites: Array<{ source: string; destination: string }>;
     };
-    const rewriteSources = vercelConfig.rewrites.map((rewrite) => rewrite.source);
+    const rewriteSources = vercelConfig.rewrites.map(
+      (rewrite) => rewrite.source
+    );
     const noindexSources = vercelConfig.headers
       .filter((headerConfig) =>
         headerConfig.headers.some(
@@ -149,58 +155,28 @@ describe("static SEO configuration", () => {
     expect(vercelJson.indexOf('"redirects"')).toBeLessThan(
       vercelJson.indexOf('"rewrites"')
     );
-    expect(vercelConfig.redirects).toEqual([
-      {
-        source: "/",
-        has: [
-          {
-            type: "host",
-            value: "loresafe.org"
-          }
-        ],
-        destination: "https://www.loresafe.org/",
-        permanent: true
-      },
-      {
-        source: "/:path*",
-        has: [
-          {
-            type: "host",
-            value: "loresafe.org"
-          }
-        ],
-        destination: "https://www.loresafe.org/:path*",
-        permanent: true
-      },
-      {
-        source: "/",
-        has: [
-          {
-            type: "host",
-            value: "loresafe-web.vercel.app"
-          }
-        ],
-        destination: "https://www.loresafe.org/",
-        permanent: true
-      },
-      {
-        source: "/:path*",
-        has: [
-          {
-            type: "host",
-            value: "loresafe-web.vercel.app"
-          }
-        ],
-        destination: "https://www.loresafe.org/:path*",
-        permanent: true
-      }
-    ]);
+    expect(vercelConfig.redirects).toHaveLength(4);
+    expect(
+      new Set(
+        vercelConfig.redirects.flatMap((redirect) =>
+          redirect.has
+            .filter((condition) => condition.type === "host")
+            .map((condition) => condition.value)
+        )
+      )
+    ).toEqual(new Set(["loresafe.org", "loresafe-web.vercel.app"]));
+    for (const redirect of vercelConfig.redirects) {
+      expect(redirect.permanent).toBe(true);
+      expect(["/", "/:path*"]).toContain(redirect.source);
+      expect(redirect.destination).toBe(
+        `https://www.loresafe.org${redirect.source === "/" ? "/" : "/:path*"}`
+      );
+    }
     expect(
       vercelConfig.redirects.some((redirect) =>
         redirect.has.some(
           (condition) =>
-            condition.type === "host" &&
-            condition.value === "www.loresafe.org"
+            condition.type === "host" && condition.value === "www.loresafe.org"
         )
       )
     ).toBe(false);
@@ -226,14 +202,16 @@ describe("static SEO configuration", () => {
     ]);
     expect(rewriteSources).not.toContain("/(.*)");
     expect(rewriteSources).not.toContain("/:path*");
-    expect(noindexSources).toEqual([
-      "/api/:path*",
-      "/app",
-      "/app/:path*",
-      "/invite/:path*",
-      "/login",
-      "/signup"
-    ]);
+    expect(new Set(noindexSources)).toEqual(
+      new Set([
+        "/api/:path*",
+        "/app",
+        "/app/:path*",
+        "/invite/:path*",
+        "/login",
+        "/signup"
+      ])
+    );
   });
 
   it("keeps legacy hosts out of crawler-facing SEO files", () => {

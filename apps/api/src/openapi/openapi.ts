@@ -170,7 +170,7 @@ const publicRoute = (
   auth: false
 });
 
-export const apiRouteContracts: RouteContract[] = [
+const apiRouteContracts: RouteContract[] = [
   publicRoute("get", "/api/health", "Operations", "getLiveness", "LivenessDto"),
   publicRoute(
     "get",

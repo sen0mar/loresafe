@@ -5,10 +5,8 @@ import type {
   RecentlyUnlockedRecord
 } from "./progress.repository.types.js";
 import type { ProgressMode } from "./progress.schema.js";
-import {
-  canViewRequiredMilestone,
-  getCompletedMilestoneCount
-} from "../spoilers/spoiler.policy.js";
+import { getCompletedMilestoneCount } from "../spoilers/spoiler.policy.js";
+import { projectMilestoneSpoilerTitle } from "../spoilers/milestone-title-projection.js";
 import { type ClubPostCardDto, toClubPostCardDto } from "../posts/posts.dto.js";
 import type { ObjectStorage } from "../../core/storage/r2-storage.js";
 
@@ -154,19 +152,19 @@ const toProgressMilestoneDto = (
     currentMilestonePosition: number | null;
   }
 ): ProgressMilestoneDto => {
-  const canSeeSpoilerName =
-    !milestone.spoilerName ||
-    canViewRequiredMilestone({
-      mode: viewerProgress.mode,
-      currentMilestonePosition: viewerProgress.currentMilestonePosition,
-      requiredMilestonePosition: milestone.position
-    });
+  const spoilerTitle = projectMilestoneSpoilerTitle({
+    fullTitle: milestone.fullTitle,
+    spoilerName: milestone.spoilerName,
+    position: milestone.position,
+    mode: viewerProgress.mode,
+    currentMilestonePosition: viewerProgress.currentMilestonePosition
+  });
 
   return {
     id: milestone.id,
     position: milestone.position,
     safeTitle: milestone.safeTitle,
-    fullTitle: canSeeSpoilerName ? milestone.fullTitle : null,
-    isFullTitleHidden: milestone.spoilerName && !canSeeSpoilerName
+    fullTitle: spoilerTitle.fullTitle,
+    isFullTitleHidden: spoilerTitle.isFullTitleHidden
   };
 };

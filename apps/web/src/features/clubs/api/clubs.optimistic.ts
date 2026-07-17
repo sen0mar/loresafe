@@ -1,8 +1,12 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 
 import type {
-  ClubPostCard, ClubPostsResponse, Comment, CommentReactionEmoji,
-  PostCommentsResponse, PostReactionEmoji
+  ClubPostCard,
+  ClubPostsResponse,
+  Comment,
+  CommentReactionEmoji,
+  PostCommentsResponse,
+  PostReactionEmoji
 } from "./clubs.types.js";
 
 export const updatePostInInfiniteData = (
@@ -38,7 +42,7 @@ export const removePostFromPostListQueries = (
   );
 };
 
-export const removePostFromInfiniteData = <TPage extends { posts: ClubPostCard[] }>(
+const removePostFromInfiniteData = <TPage extends { posts: ClubPostCard[] }>(
   currentData: InfiniteData<TPage> | undefined,
   postId: string
 ) => {

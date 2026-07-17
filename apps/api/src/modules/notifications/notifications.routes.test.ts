@@ -125,7 +125,9 @@ describe("notifications routes", () => {
     });
 
     const secondPage = await request(app)
-      .get(`/api/notifications?limit=1&cursor=${firstPage.body.pagination.nextCursor}`)
+      .get(
+        `/api/notifications?limit=1&cursor=${firstPage.body.pagination.nextCursor}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
@@ -228,10 +230,13 @@ describe("notifications routes", () => {
         readAt: expect.any(String)
       }
     });
-    expect(repository.notifications.find((row) => row.id === notification.id)?.readAt)
-      .toBeInstanceOf(Date);
-    expect(repository.notifications.find((row) => row.id === otherNotification.id)?.readAt)
-      .toBeNull();
+    expect(
+      repository.notifications.find((row) => row.id === notification.id)?.readAt
+    ).toBeInstanceOf(Date);
+    expect(
+      repository.notifications.find((row) => row.id === otherNotification.id)
+        ?.readAt
+    ).toBeNull();
   });
 
   it("marks all current-user notifications as read without touching other users", async () => {
@@ -516,8 +521,7 @@ const createNotificationsTestApp = (
 };
 
 const createMockEventsService = (): EventsService => ({
-  start: vi.fn(async () => undefined),
-  stop: vi.fn(async () => undefined),
+  getConnectionCount: vi.fn(() => 0),
   subscribe: vi.fn(() => ({
     heartbeat: () => true,
     close: () => undefined
@@ -841,7 +845,10 @@ class InMemoryNotificationsRepository
   private withCurrentProgress = (
     notification: StoredNotification
   ): NotificationRecord => {
-    const progress = this.findProgress(notification.userId, notification.club.id);
+    const progress = this.findProgress(
+      notification.userId,
+      notification.club.id
+    );
 
     return {
       id: notification.id,

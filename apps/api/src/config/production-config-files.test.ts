@@ -64,7 +64,6 @@ describe("production configuration files", () => {
       ]);
 
     expect(server).not.toContain("startNotificationJobs");
-    expect(server).not.toContain("eventsService.start");
     expect(prismaClient).toContain("new Proxy");
     expect(authenticatedShell).not.toContain("EventSource");
     expect(authenticatedShell).not.toContain("useAuthenticatedEvents");

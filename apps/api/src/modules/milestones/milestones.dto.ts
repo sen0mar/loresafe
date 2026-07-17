@@ -2,7 +2,7 @@ import type {
   MilestoneRecord,
   MilestoneViewerProgress
 } from "./milestones.repository.js";
-import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import { projectMilestoneSpoilerTitle } from "../spoilers/milestone-title-projection.js";
 
 export type MilestoneDto = {
   id: string;
@@ -49,21 +49,21 @@ export const toMilestoneDto = (
   milestone: MilestoneRecord,
   viewerProgress: MilestoneViewerProgress = defaultViewerProgress
 ): MilestoneDto => {
-  const canSeeSpoilerName =
-    !milestone.spoilerName ||
-    canViewRequiredMilestone({
-      mode: viewerProgress.mode,
-      currentMilestonePosition: viewerProgress.currentMilestonePosition,
-      requiredMilestonePosition: milestone.position
-    });
+  const spoilerTitle = projectMilestoneSpoilerTitle({
+    fullTitle: milestone.fullTitle,
+    spoilerName: milestone.spoilerName,
+    position: milestone.position,
+    mode: viewerProgress.mode,
+    currentMilestonePosition: viewerProgress.currentMilestonePosition
+  });
 
   return {
     id: milestone.id,
     position: milestone.position,
     safeTitle: milestone.safeTitle,
-    fullTitle: canSeeSpoilerName ? milestone.fullTitle : null,
+    fullTitle: spoilerTitle.fullTitle,
     description: milestone.description,
     spoilerName: milestone.spoilerName,
-    isFullTitleHidden: milestone.spoilerName && !canSeeSpoilerName
+    isFullTitleHidden: spoilerTitle.isFullTitleHidden
   };
 };

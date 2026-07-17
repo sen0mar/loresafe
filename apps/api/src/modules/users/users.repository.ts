@@ -8,6 +8,10 @@ import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ListCurrentUserClubsQuery } from "./users.schema.js";
 import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
+import {
+  activeUserSelect,
+  findActiveUserByReservedName
+} from "../../core/identity/active-user.js";
 
 export type UpdateCurrentUserProfileInput = {
   displayName?: string;
@@ -75,23 +79,6 @@ export type UsersRepository = {
     input: UpdateCurrentUserProfileInput
   ) => Promise<AuthUserRecord | null>;
 };
-
-const userSelect = {
-  id: true,
-  email: true,
-  displayName: true,
-  username: true,
-  bio: true,
-  avatarAsset: {
-    select: {
-      objectKey: true,
-      status: true
-    }
-  },
-  sessionVersion: true,
-  createdAt: true,
-  updatedAt: true
-} as const;
 
 export const usersRepository: UsersRepository = {
   deleteCurrentUserAccount: (userId, expectedSessionVersion) =>
@@ -231,23 +218,7 @@ export const usersRepository: UsersRepository = {
       }
     }),
 
-  findActiveUserByReservedName: async (normalizedName) => {
-    const reservation = await prisma.userNameReservation.findFirst({
-      where: {
-        normalizedName,
-        user: {
-          deletedAt: null
-        }
-      },
-      select: {
-        user: {
-          select: userSelect
-        }
-      }
-    });
-
-    return reservation?.user ?? null;
-  },
+  findActiveUserByReservedName,
 
   listJoinedClubsForUser: async (userId, { cursor, limit, q }) => {
     const now = new Date();
@@ -348,7 +319,7 @@ export const usersRepository: UsersRepository = {
           id: userId,
           deletedAt: null
         },
-        select: userSelect
+        select: activeUserSelect
       });
 
       if (!currentUser) {
@@ -416,7 +387,7 @@ export const usersRepository: UsersRepository = {
           id: userId,
           deletedAt: null
         },
-        select: userSelect
+        select: activeUserSelect
       });
     })
 };

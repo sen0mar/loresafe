@@ -9,18 +9,15 @@ import {
   ArrowLeft,
   BookOpen,
   FileWarning,
-  Globe2,
-  KeyRound,
-  ListChecks,
   LockKeyhole,
+  ListChecks,
   LogOut,
   MessageSquareText,
   RefreshCw,
   ShieldCheck,
   TrendingUp,
   UserPlus,
-  Users,
-  type LucideIcon
+  Users
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,11 +35,7 @@ import { ClubInviteSection } from "@/features/invites/components/club-invite-sec
 import { ApiError } from "@/shared/api/api-client";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader
-} from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -64,32 +57,11 @@ import {
 import {
   type Club,
   type ClubMembershipRole,
-  type ClubVisibility,
   useClubQuery,
   useJoinClubMutation,
   useLeaveClubMutation
 } from "../api/clubs.js";
-
-const visibilityMeta: Record<
-  ClubVisibility,
-  {
-    label: string;
-    icon: LucideIcon;
-  }
-> = {
-  PUBLIC: {
-    label: "Public",
-    icon: Globe2
-  },
-  PRIVATE: {
-    label: "Private",
-    icon: LockKeyhole
-  },
-  INVITE_ONLY: {
-    label: "Invite-only",
-    icon: KeyRound
-  }
-};
+import { clubVisibilityMetadata } from "../lib/club-visibility.js";
 
 const roleLabels: Record<ClubMembershipRole, string> = {
   OWNER: "Owner",
@@ -98,12 +70,7 @@ const roleLabels: Record<ClubMembershipRole, string> = {
 };
 
 type ClubDetailTab =
-  | "feed"
-  | "progress"
-  | "overview"
-  | "members"
-  | "timeline"
-  | "settings";
+  "feed" | "progress" | "overview" | "members" | "timeline" | "settings";
 
 const clubDetailTabs = new Set<ClubDetailTab>([
   "feed",
@@ -144,7 +111,7 @@ export const ClubDetailPage = () => {
 const ClubDetailContent = ({ club }: { club: Club }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
+  const VisibilityIcon = clubVisibilityMetadata[club.settings.visibility].icon;
   const joinClubMutation = useJoinClubMutation();
   const leaveClubMutation = useLeaveClubMutation();
   const role = club.membership.role;
@@ -231,7 +198,7 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
         <div className="flex min-w-0 flex-wrap gap-2 md:justify-end">
           <Badge>
             <VisibilityIcon className="size-3" />
-            {visibilityMeta[club.settings.visibility].label}
+            {clubVisibilityMetadata[club.settings.visibility].label}
           </Badge>
           {role ? (
             <Badge>
@@ -329,7 +296,8 @@ const ClubDetailContent = ({ club }: { club: Club }) => {
                       Moderation reports
                     </h2>
                     <p className="mt-1 text-sm leading-6 text-muted">
-                      Review open reports without revealing unsafe content by default.
+                      Review open reports without revealing unsafe content by
+                      default.
                     </p>
                   </div>
                   <Button asChild variant="secondary" size="sm">
@@ -467,7 +435,10 @@ const ClubDetailError = ({
               Retry
             </Button>
           )}
-          <Button variant={isNotFound || isBanned ? "secondary" : "ghost"} asChild>
+          <Button
+            variant={isNotFound || isBanned ? "secondary" : "ghost"}
+            asChild
+          >
             <Link to="/app/explore">
               <ArrowLeft />
               Explore

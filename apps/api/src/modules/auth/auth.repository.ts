@@ -1,5 +1,9 @@
 import { prisma } from "../../core/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
+import {
+  activeUserSelect,
+  findActiveUserByReservedName
+} from "../../core/identity/active-user.js";
 
 export type AuthUserRecord = {
   id: string;
@@ -7,10 +11,13 @@ export type AuthUserRecord = {
   displayName: string;
   username: string | null;
   bio: string | null;
-  avatarAsset?: {
-    objectKey: string;
-    status: "PENDING" | "READY" | "FAILED";
-  } | null | undefined;
+  avatarAsset?:
+    | {
+        objectKey: string;
+        status: "PENDING" | "READY" | "FAILED";
+      }
+    | null
+    | undefined;
   sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
@@ -39,25 +46,8 @@ export type AuthUsersRepository = {
   createUser: (input: CreateAuthUserInput) => Promise<AuthUserRecord>;
 };
 
-const userSelect = {
-  id: true,
-  email: true,
-  displayName: true,
-  username: true,
-  bio: true,
-  avatarAsset: {
-    select: {
-      objectKey: true,
-      status: true
-    }
-  },
-  sessionVersion: true,
-  createdAt: true,
-  updatedAt: true
-} as const;
-
 const userCredentialsSelect = {
-  ...userSelect,
+  ...activeUserSelect,
   // Login verification is the only read path that may load the password hash.
   passwordHash: true
 } as const;
@@ -70,26 +60,10 @@ export const authUsersRepository: AuthUsersRepository = {
         // Soft-deleted users do not reserve their email for future active accounts.
         deletedAt: null
       },
-      select: userSelect
+      select: activeUserSelect
     }),
 
-  findActiveUserByReservedName: async (normalizedName) => {
-    const reservation = await prisma.userNameReservation.findFirst({
-      where: {
-        normalizedName,
-        user: {
-          deletedAt: null
-        }
-      },
-      select: {
-        user: {
-          select: userSelect
-        }
-      }
-    });
-
-    return reservation?.user ?? null;
-  },
+  findActiveUserByReservedName,
 
   findActiveUserById: (id) =>
     prisma.user.findFirst({
@@ -97,7 +71,7 @@ export const authUsersRepository: AuthUsersRepository = {
         id,
         deletedAt: null
       },
-      select: userSelect
+      select: activeUserSelect
     }),
 
   findActiveUserCredentialsByEmail: (email) =>
@@ -120,7 +94,7 @@ export const authUsersRepository: AuthUsersRepository = {
           username: lockedUsername,
           passwordHash
         },
-        select: userSelect
+        select: activeUserSelect
       });
 
       const reservationKeys = new Set([

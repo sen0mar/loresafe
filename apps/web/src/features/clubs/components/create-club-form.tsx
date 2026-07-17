@@ -5,9 +5,6 @@ import {
   ArrowRight,
   BookOpen,
   FileText,
-  Globe2,
-  KeyRound,
-  LockKeyhole,
   ScrollText,
   Sparkles
 } from "lucide-react";
@@ -32,12 +29,15 @@ import {
   useCreateClubMutation
 } from "../api/clubs.js";
 import { clubCategoryOptions } from "../lib/club-categories.js";
+import { clubVisibilityOptions } from "../lib/club-visibility.js";
 import {
   createClubFormSchema,
   type CreateClubFormValues
 } from "../schemas/create-club.schema.js";
 
-type CreateClubFieldErrors = Partial<Record<keyof CreateClubFormValues, string>>;
+type CreateClubFieldErrors = Partial<
+  Record<keyof CreateClubFormValues, string>
+>;
 
 const initialValues: CreateClubFormValues = {
   title: "",
@@ -47,32 +47,6 @@ const initialValues: CreateClubFormValues = {
   visibility: "PUBLIC",
   rules: ""
 };
-
-const visibilityOptions: Array<{
-  value: ClubVisibility;
-  label: string;
-  description: string;
-  icon: ReactNode;
-}> = [
-  {
-    value: "PUBLIC",
-    label: "Public",
-    description: "Listed in discovery for signed-in readers.",
-    icon: <Globe2 className="size-4" />
-  },
-  {
-    value: "PRIVATE",
-    label: "Private",
-    description: "Only members can open the club page.",
-    icon: <LockKeyhole className="size-4" />
-  },
-  {
-    value: "INVITE_ONLY",
-    label: "Invite-only",
-    description: "Hidden from discovery and reserved for invites.",
-    icon: <KeyRound className="size-4" />
-  }
-];
 
 export const CreateClubForm = () => {
   const navigate = useNavigate();
@@ -209,7 +183,10 @@ export const CreateClubForm = () => {
             icon={<Sparkles className="size-4" />}
             error={fieldErrors.linkName}
           >
-            <p className="text-xs leading-5 text-muted" id="linkName-description">
+            <p
+              className="text-xs leading-5 text-muted"
+              id="linkName-description"
+            >
               This becomes the club's public link, like
               /app/clubs/the-first-law-book-club.
             </p>
@@ -279,8 +256,9 @@ export const CreateClubForm = () => {
               Visibility
             </legend>
             <div className="grid gap-3 md:grid-cols-3">
-              {visibilityOptions.map((option) => {
+              {clubVisibilityOptions.map((option) => {
                 const isSelected = values.visibility === option.value;
+                const VisibilityIcon = option.icon;
 
                 return (
                   <label
@@ -301,7 +279,9 @@ export const CreateClubForm = () => {
                       disabled={createClubMutation.isPending}
                     />
                     <span className="flex items-center gap-2 font-medium text-primary">
-                      <span className="text-brand">{option.icon}</span>
+                      <span className="text-brand">
+                        <VisibilityIcon className="size-4" />
+                      </span>
                       {option.label}
                     </span>
                     <span className="text-xs leading-5 text-muted">

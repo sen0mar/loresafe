@@ -1,8 +1,8 @@
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
+import { canDeleteClubContent } from "../clubs/club-content.policy.js";
 import type { CommentPostRecord } from "./comments.repository.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
-type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export const canViewPostComments = (post: {
   club: {
@@ -36,8 +36,5 @@ export const canDeleteComment = ({
 }: {
   authorId: string;
   currentUserId: string;
-  currentUserRole: ClubMembershipRole | null;
-}) =>
-  authorId === currentUserId ||
-  currentUserRole === "OWNER" ||
-  currentUserRole === "MODERATOR";
+  currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
+}) => canDeleteClubContent({ authorId, currentUserId, currentUserRole });

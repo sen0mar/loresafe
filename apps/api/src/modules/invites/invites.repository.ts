@@ -2,10 +2,9 @@ import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeBanWhere, activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubDetailRecord } from "../clubs/clubs.repository.types.js";
-import type { ClubCategory } from "../clubs/clubs.schema.js";
+import { toClubDetailRecord } from "../clubs/club-detail-record.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
-type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
 export type ClubInviteCreationClubRecord = {
   id: string;
@@ -365,33 +364,3 @@ const findClubDetail = async (
 
   return toClubDetailRecord(club);
 };
-
-const toClubDetailRecord = (club: {
-  id: string;
-  title: string;
-  linkName: string;
-  description: string | null;
-  category: ClubCategory;
-  rules: string | null;
-  visibility: ClubVisibility;
-  createdAt: Date;
-  updatedAt: Date;
-  memberships: Array<{ role: ClubMembershipRole }>;
-  bans: Array<{ id: string }>;
-  _count: {
-    memberships: number;
-  };
-}): ClubDetailRecord => ({
-  id: club.id,
-  title: club.title,
-  linkName: club.linkName,
-  description: club.description,
-  category: club.category,
-  rules: club.rules,
-  visibility: club.visibility,
-  memberCount: club._count.memberships,
-  currentUserRole: club.memberships[0]?.role ?? null,
-  isCurrentUserBanned: club.bans.length > 0,
-  createdAt: club.createdAt,
-  updatedAt: club.updatedAt
-});

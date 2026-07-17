@@ -152,6 +152,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 146: Persistent floating sidebar drawer — Added motion-safe desktop sidebar hide/show controls with locally persisted preference, inert hidden navigation, expanding main content, unchanged mobile behavior, and focused frontend coverage.
 - Feature 147: Ultra-wide layout and Sentry CSP compatibility — Expanded the authenticated shell across ultra-wide viewports, added progressive club-card columns, allowed standard and DE regional Sentry ingest hosts in deployed CSP headers, and added focused frontend and security regression coverage.
 - Feature 148: Neon Free-plan compute remediation — Made production startup and liveness database-free, replaced queue and PostgreSQL event listeners with atomic notifications and bounded request-driven storage cleanup, refreshed notifications without automatic SSE, and updated deployment and operations guidance without schema changes.
+- Feature 149: Codebase cleanup audit implementation — Removed stale and redundant surfaces, consolidated frontend and backend domain logic, simplified local-only events, narrowed exports, reorganized club types and tests, and preserved API, authorization, spoiler, session, upload, and data contracts.
 
 ## Entry Format
 

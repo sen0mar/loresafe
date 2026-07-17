@@ -4,7 +4,6 @@ import { getBoundedPageOffset } from "../../core/http/pagination.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { createAuditLogInTransaction } from "../audit/audit-log.repository.js";
 import type {
-  ClubCategory,
   ListClubsQuery,
   ListPublicSeoClubsQuery
 } from "./clubs.schema.js";
@@ -19,14 +18,13 @@ import { lockClubAuthorizationChangesByLinkName } from "./club-authorization-loc
 
 import type {
   ClubBanRecord,
-  ClubDetailRecord,
   ClubMemberRecord,
   ClubMembershipRole,
-  ClubVisibility,
   ClubsRepository,
   ListPublicClubsInput,
   ListPublicClubsResult
 } from "./clubs.repository.types.js";
+import { toClubDetailRecord } from "./club-detail-record.js";
 
 export type * from "./clubs.repository.types.js";
 
@@ -1254,44 +1252,6 @@ const canManageClubBans = (role: ClubMembershipRole) =>
 
 const canManageClubSettings = (role: ClubMembershipRole | null) =>
   role === "OWNER" || role === "MODERATOR";
-
-const toClubDetailRecord = (club: {
-  id: string;
-  title: string;
-  linkName: string;
-  description: string | null;
-  category: ClubCategory;
-  coverAsset:
-    | {
-        objectKey: string;
-        status: "PENDING" | "READY" | "FAILED";
-      }
-    | null
-    | undefined;
-  rules: string | null;
-  visibility: ClubVisibility;
-  createdAt: Date;
-  updatedAt: Date;
-  memberships: Array<{ role: ClubMembershipRole }>;
-  bans: Array<{ id: string }>;
-  _count: {
-    memberships: number;
-  };
-}): ClubDetailRecord => ({
-  id: club.id,
-  title: club.title,
-  linkName: club.linkName,
-  description: club.description,
-  category: club.category,
-  coverAsset: club.coverAsset,
-  rules: club.rules,
-  visibility: club.visibility,
-  memberCount: club._count.memberships,
-  currentUserRole: club.memberships[0]?.role ?? null,
-  isCurrentUserBanned: club.bans.length > 0,
-  createdAt: club.createdAt,
-  updatedAt: club.updatedAt
-});
 
 const toClubMemberRecord = (member: {
   id: string;

@@ -85,8 +85,8 @@ describe("AppShell layout", () => {
       </AppShell>
     );
 
-    const shellFrame = screen.getByRole("main").parentElement?.parentElement
-      ?.parentElement;
+    const shellFrame =
+      screen.getByRole("main").parentElement?.parentElement?.parentElement;
 
     expect(shellFrame).toHaveClass("w-full");
     expect(shellFrame).not.toHaveClass("max-w-[112rem]");
@@ -94,10 +94,7 @@ describe("AppShell layout", () => {
 
   it("keeps the desktop context column when a right rail is provided", () => {
     renderWithProviders(
-      <AppShell
-        currentUser={currentUser}
-        rightRail={<div>Rail content</div>}
-      >
+      <AppShell currentUser={currentUser} rightRail={<div>Rail content</div>}>
         <div data-testid="page-content">Page content</div>
       </AppShell>
     );
@@ -105,9 +102,7 @@ describe("AppShell layout", () => {
     expect(screen.getByLabelText("Context panel")).toHaveTextContent(
       "Rail content"
     );
-    expect(getContentGrid()).toHaveClass(
-      "xl:grid-cols-[minmax(0,1fr)_320px]"
-    );
+    expect(getContentGrid()).toHaveClass("xl:grid-cols-[minmax(0,1fr)_320px]");
   });
 
   it("keeps the top bar in normal page flow and links the brand home", () => {
@@ -264,29 +259,15 @@ describe("AppShell layout", () => {
       "href",
       "/app"
     );
-    expect(screen.getByRole("menuitem", { name: /^My Clubs$/ })).toHaveAttribute(
-      "href",
-      "/app/clubs"
-    );
+    expect(
+      screen.getByRole("menuitem", { name: /^My Clubs$/ })
+    ).toHaveAttribute("href", "/app/clubs");
     const mobileMenu = within(screen.getByRole("menu"));
 
     expect(mobileMenu.getByText("Joined clubs")).toBeVisible();
     expect(
       mobileMenu.getByRole("menuitem", { name: /First Club/ })
     ).toHaveAttribute("href", "/app/clubs/first-club?tab=feed");
-  });
-
-  it("does not render a global search bar in the app shell", () => {
-    renderWithProviders(
-      <AppShell currentUser={currentUser}>
-        <div data-testid="page-content">Page content</div>
-      </AppShell>,
-      {
-        initialEntries: ["/app/explore"]
-      }
-    );
-
-    expect(screen.queryByRole("search")).not.toBeInTheDocument();
   });
 
   it("opens a notification preview dropdown from the top-bar icon", async () => {

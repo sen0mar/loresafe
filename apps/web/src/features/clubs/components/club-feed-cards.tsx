@@ -23,33 +23,19 @@ import {
   type ClubPostCounts,
   type ClubPostCard,
   type ClubPostPrediction,
-  type PostType,
   postReactionEmojis,
   useTogglePostReactionMutation
 } from "../api/clubs.js";
 import { ReactionButtonGroup } from "./reaction-button-group.js";
 import { ReportDialog } from "./report-dialog.js";
 import { DeletePostDialog } from "./delete-content-dialog.js";
+import { postTypeLabels } from "../lib/post-types.js";
+import { formatCount, formatShortDateTime } from "@/shared/lib/formatters";
 
 type PostDetailLinkState = {
   returnLabel: string;
   returnTo: string;
 };
-
-const postTypeLabels: Record<PostType, string> = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  THEORY: "Theory",
-  PREDICTION: "Prediction",
-  POLL: "Poll",
-  REACTION: "Reaction",
-  REVIEW: "Review",
-  IMAGE_MEME: "Image/meme",
-  QUOTE_COMMENTARY: "Quote",
-  JUST_REACHED: "Just reached"
-};
-
-const countFormatter = new Intl.NumberFormat();
 
 const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
   UNRESOLVED: "Unresolved",
@@ -57,14 +43,6 @@ const predictionStatusLabels: Record<ClubPostPrediction["status"], string> = {
   WRONG: "Wrong",
   PARTIAL: "Partial"
 };
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
 
 export const PostCard = ({
   linked = false,
@@ -204,9 +182,7 @@ const PostUnlockOverlay = () => (
 const PostMediaPreview = ({
   media
 }: {
-  media: NonNullable<
-    Extract<ClubPostCard, { visibility: "VISIBLE" }>["media"]
-  >;
+  media: NonNullable<Extract<ClubPostCard, { visibility: "VISIBLE" }>["media"]>;
 }) => (
   <figure className="overflow-hidden rounded-lg border border-subtle bg-inset">
     <img
@@ -280,7 +256,7 @@ const LockedPostCard = ({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-inset px-3 py-2">
         <span className="flex items-center gap-2 text-xs text-faint">
           <Clock3 className="size-4" />
-          {formatDateTime(post.createdAt)}
+          {formatShortDateTime(post.createdAt)}
         </span>
         <div className="relative z-10 flex flex-1 flex-wrap items-center justify-end gap-3">
           <PostCounts post={post} />
@@ -313,14 +289,14 @@ const PostMetaRow = ({ post }: { post: ClubPostCard }) => (
         Locked
       </Badge>
     ) : null}
-    <span>{formatDateTime(post.createdAt)}</span>
+    <span>{formatShortDateTime(post.createdAt)}</span>
   </div>
 );
 
 const PostCounts = ({ post }: { post: ClubPostCard }) => (
   <span className="text-xs text-faint">
-    {countFormatter.format(post.counts.commentCount)} comments /{" "}
-    {countFormatter.format(post.counts.reactionCount)} reactions
+    {formatCount(post.counts.commentCount)} comments /{" "}
+    {formatCount(post.counts.reactionCount)} reactions
   </span>
 );
 
@@ -352,9 +328,8 @@ export const PostReactionButtons = ({
       reactionMutation.mutate(
         {
           emoji,
-          active:
-            !counts.reactions.find((reaction) => reaction.emoji === emoji)
-              ?.reactedByMe
+          active: !counts.reactions.find((reaction) => reaction.emoji === emoji)
+            ?.reactedByMe
         },
         {
           onError: (error) => {

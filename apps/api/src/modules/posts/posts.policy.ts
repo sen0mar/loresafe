@@ -1,5 +1,6 @@
+import { canDeleteClubContent } from "../clubs/club-content.policy.js";
+
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
-type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
 export const canViewClubFeed = (club: {
   visibility: ClubVisibility;
@@ -21,8 +22,5 @@ export const canDeletePost = ({
 }: {
   authorId: string;
   currentUserId: string;
-  currentUserRole: ClubMembershipRole | null;
-}) =>
-  authorId === currentUserId ||
-  currentUserRole === "OWNER" ||
-  currentUserRole === "MODERATOR";
+  currentUserRole: "OWNER" | "MODERATOR" | "MEMBER" | null;
+}) => canDeleteClubContent({ authorId, currentUserId, currentUserRole });

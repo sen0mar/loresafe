@@ -21,7 +21,7 @@ import {
   SearchEmpty,
   SearchLoading,
   toEffectiveSearchFilters
-} from "@/features/search/pages/search-results-page";
+} from "@/features/search/components/search-results";
 import {
   defaultSearchFilters,
   searchFilters,
@@ -130,7 +130,8 @@ export const ExplorePage = () => {
                 Public clubs
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-muted">
-                Find spoiler-safe spaces and discussions that are open for discovery.
+                Find spoiler-safe spaces and discussions that are open for
+                discovery.
               </p>
             </div>
             <div className="flex shrink-0">
@@ -185,7 +186,8 @@ export const ExplorePage = () => {
               {searchQuery.hasNextPage ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-default bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted">
-                    {countFormatter.format(clubs.length + posts.length)} results loaded
+                    {countFormatter.format(clubs.length + posts.length)} results
+                    loaded
                   </p>
                   <Button
                     className="w-full sm:w-fit"
@@ -296,7 +298,12 @@ const ExploreFilterMenu = ({
         ))}
         <DropdownMenuSeparator />
         <div className="p-1">
-          <Button className="w-full" size="sm" type="button" onClick={saveFilters}>
+          <Button
+            className="w-full"
+            size="sm"
+            type="button"
+            onClick={saveFilters}
+          >
             Save
           </Button>
         </div>
@@ -319,7 +326,9 @@ const ActiveExploreFilterBadges = ({
   </div>
 );
 
-const parseExploreFilters = (searchParams: URLSearchParams): ExploreFilter[] => {
+const parseExploreFilters = (
+  searchParams: URLSearchParams
+): ExploreFilter[] => {
   const filters = searchParams.get("filters");
 
   if (filters) {

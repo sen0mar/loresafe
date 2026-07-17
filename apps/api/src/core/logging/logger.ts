@@ -116,4 +116,3 @@ const sanitizeString = (value: string) =>
       /[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,
       "[redacted-jwt]"
     );
-

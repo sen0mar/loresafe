@@ -16,7 +16,5 @@ export const requestIdMiddleware: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const isValidRequestId = (
-  requestId: string | undefined
-): requestId is string =>
+const isValidRequestId = (requestId: string | undefined): requestId is string =>
   requestId !== undefined && requestIdPattern.test(requestId);

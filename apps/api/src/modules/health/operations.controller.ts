@@ -26,13 +26,9 @@ export const createGetOperationsMetrics =
       return;
     }
 
-    const eventStatus = eventsService.getStatus?.() ?? {
-      connectionCount: 0,
-      ready: false
-    };
     res.type("text/plain; version=0.0.4; charset=utf-8").send(
       renderOperationsMetrics({
-        eventConnections: eventStatus.connectionCount
+        eventConnections: eventsService.getConnectionCount()
       })
     );
   };

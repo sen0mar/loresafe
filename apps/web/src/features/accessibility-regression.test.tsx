@@ -4,7 +4,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 import { ReportDialog } from "@/features/clubs/components/report-dialog";
-import { PostReactionButtons } from "@/features/clubs/components/club-feed-tab";
+import { PostReactionButtons } from "@/features/clubs/components/club-feed-cards";
 import { ReactionButtonGroup } from "@/features/clubs/components/reaction-button-group";
 import { ClubProgressPanel } from "@/features/clubs/components/club-progress-panel";
 import {
@@ -12,11 +12,13 @@ import {
   useTogglePostReactionMutation
 } from "@/features/clubs/api/clubs";
 import { Button } from "@/shared/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import {
-  mockFetchRoutes,
-  renderWithProviders
-} from "@/test/render";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/shared/components/ui/tabs";
+import { mockFetchRoutes, renderWithProviders } from "@/test/render";
 
 import type { PostDetailResponse } from "@/features/clubs/api/clubs";
 
@@ -154,9 +156,7 @@ describe("frontend accessibility regressions", () => {
 
   it("keeps visible post reaction controls enabled without duplicate pending toggles", async () => {
     const user = userEvent.setup();
-    const pendingFetch = vi.fn(
-      () => new Promise<Response>(() => undefined)
-    );
+    const pendingFetch = vi.fn(() => new Promise<Response>(() => undefined));
 
     vi.stubGlobal("fetch", pendingFetch);
 
@@ -244,9 +244,7 @@ describe("frontend accessibility regressions", () => {
 
   it("applies post reaction optimistic feedback before the request resolves", async () => {
     const user = userEvent.setup();
-    const pendingFetch = vi.fn(
-      () => new Promise<Response>(() => undefined)
-    );
+    const pendingFetch = vi.fn(() => new Promise<Response>(() => undefined));
 
     vi.stubGlobal("fetch", pendingFetch);
 

@@ -26,7 +26,7 @@ export const checkUpstashRedisReady = async () => {
   }
 };
 
-export const sendUpstashRateLimitCommand = async (
+const sendUpstashRateLimitCommand = async (
   client: UpstashRateLimitRedis,
   [rawCommand, ...args]: string[]
 ): Promise<RedisReply> => {

@@ -112,7 +112,9 @@ describe("comments routes", () => {
 
   it("rejects comment reaction toggles without an authenticated session", async () => {
     const response = await request(app)
-      .put(`/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
+      .put(
+        `/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`
+      )
       .set("x-request-id", "comment-reaction-missing-session")
       .send({
         emoji: "👍"
@@ -138,7 +140,9 @@ describe("comments routes", () => {
       .expect(400);
 
     const response = await request(app)
-      .put(`/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
+      .put(
+        `/api/comments/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "🔥"
@@ -362,7 +366,7 @@ describe("comments routes", () => {
     });
   });
 
-  it("enqueues an ID-only notification job for new comments", async () => {
+  it("creates an ID-only notification record for new comments", async () => {
     const author = repository.createStoredUser(validUserInput());
     const commenter = repository.createStoredUser({
       ...validUserInput(),
@@ -382,16 +386,16 @@ describe("comments routes", () => {
       })
       .expect(201);
 
-    expect(repository.enqueuedCommentNotificationJobs).toHaveLength(1);
-    expect(repository.enqueuedCommentNotificationJobs[0]).toMatchObject({
+    expect(repository.createdCommentNotificationRecords).toHaveLength(1);
+    expect(repository.createdCommentNotificationRecords[0]).toMatchObject({
       commentId: repository.comments[0].id
     });
-    expect(JSON.stringify(repository.enqueuedCommentNotificationJobs[0])).not.toContain(
-      "UNSAFE_COMMENT_BODY_SHOULD_NOT_LEAK"
-    );
+    expect(
+      JSON.stringify(repository.createdCommentNotificationRecords[0])
+    ).not.toContain("UNSAFE_COMMENT_BODY_SHOULD_NOT_LEAK");
   });
 
-  it("enqueues reply notification jobs without unsafe comment content", async () => {
+  it("creates reply notification records without unsafe comment content", async () => {
     const postAuthor = repository.createStoredUser(validUserInput());
     const parentAuthor = repository.createStoredUser({
       ...validUserInput(),
@@ -435,12 +439,10 @@ describe("comments routes", () => {
       })
       .expect(201);
 
-    expect(repository.enqueuedCommentNotificationJobs).toHaveLength(2);
+    expect(repository.createdCommentNotificationRecords).toHaveLength(2);
     expect(
-      JSON.stringify(repository.enqueuedCommentNotificationJobs)
-    ).not.toContain(
-      "UNSAFE_BODY"
-    );
+      JSON.stringify(repository.createdCommentNotificationRecords)
+    ).not.toContain("UNSAFE_BODY");
   });
 
   it("rejects comments from non-members, banned members, and users behind the inherited milestone", async () => {
@@ -1013,7 +1015,9 @@ describe("comments routes", () => {
     expect(repository.commentReactions).toHaveLength(3);
 
     const secondToggleResponse = await request(app)
-      .delete(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
+      .delete(
+        `/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`
+      )
       .set("Cookie", cookie)
       .send({
         emoji: "👍"
@@ -1132,7 +1136,9 @@ describe("comments routes", () => {
     );
 
     const privateResponse = await request(app)
-      .put(`/api/comments/${privateComment.id}/reactions/${encodeURIComponent("👍")}`)
+      .put(
+        `/api/comments/${privateComment.id}/reactions/${encodeURIComponent("👍")}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👍"
@@ -1148,7 +1154,9 @@ describe("comments routes", () => {
     );
 
     const lockedResponse = await request(app)
-      .put(`/api/comments/${lockedComment.id}/reactions/${encodeURIComponent("👍")}`)
+      .put(
+        `/api/comments/${lockedComment.id}/reactions/${encodeURIComponent("👍")}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .send({
         emoji: "👀"
@@ -1270,7 +1278,10 @@ const createCommentsTestApp = (
   app.use(requestIdMiddleware);
   app.use(express.json());
   app.use(cookieParser());
-  app.use("/api/posts", createCommentsRouter(commentsController, authMiddleware));
+  app.use(
+    "/api/posts",
+    createCommentsRouter(commentsController, authMiddleware)
+  );
   app.use(
     "/api/comments",
     createCommentReactionsRouter(commentsController, authMiddleware)
@@ -1341,12 +1352,13 @@ class InMemoryCommentsRepository
     position: number | null;
     mode: ProgressMode;
   }> = [];
-  readonly milestones: Array<CommentRecord["requiredMilestone"] & { clubId: string }> =
-    [];
+  readonly milestones: Array<
+    CommentRecord["requiredMilestone"] & { clubId: string }
+  > = [];
   readonly posts: StoredPost[] = [];
   readonly comments: Array<CommentRecord & { deletedAt: Date | null }> = [];
   readonly notifications: StoredNotification[] = [];
-  readonly enqueuedCommentNotificationJobs: Array<{ commentId: string }> = [];
+  readonly createdCommentNotificationRecords: Array<{ commentId: string }> = [];
   readonly auditLogs: StoredAuditLog[] = [];
   readonly commentReactions: Array<{
     id: string;
@@ -1663,7 +1675,8 @@ class InMemoryCommentsRepository
       )
       .sort(
         (firstComment, secondComment) =>
-          firstComment.createdAt.getTime() - secondComment.createdAt.getTime() ||
+          firstComment.createdAt.getTime() -
+            secondComment.createdAt.getTime() ||
           firstComment.id.localeCompare(secondComment.id)
       );
     const pageComments = visibleComments.slice(0, limit);
@@ -1684,10 +1697,7 @@ class InMemoryCommentsRepository
     };
   };
 
-  findVisibleCommentForReaction = async (
-    commentId: string,
-    userId: string
-  ) => {
+  findVisibleCommentForReaction = async (commentId: string, userId: string) => {
     const comment = this.comments.find(
       (storedComment) =>
         storedComment.id === commentId &&
@@ -1747,7 +1757,7 @@ class InMemoryCommentsRepository
       parentId: input.parentId ?? null
     });
 
-    this.enqueuedCommentNotificationJobs.push({
+    this.createdCommentNotificationRecords.push({
       commentId: comment.id
     });
 
@@ -1873,7 +1883,8 @@ class InMemoryCommentsRepository
   ): CommentRecord => {
     const reactions = commentReactionEmojis.map((emoji) => {
       const matchingReactions = this.commentReactions.filter(
-        (reaction) => reaction.commentId === comment.id && reaction.emoji === emoji
+        (reaction) =>
+          reaction.commentId === comment.id && reaction.emoji === emoji
       );
 
       return {

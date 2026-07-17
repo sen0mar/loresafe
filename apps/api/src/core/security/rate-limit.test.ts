@@ -75,12 +75,6 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:auth:logout:",
         windowMs: 60 * 1000
       },
-      "auth-passwordReset": {
-        limit: 9,
-        skipSuccessfulRequests: false,
-        storePrefix: "loresafe:rl:auth:password-reset:",
-        windowMs: 60 * 60 * 1000
-      },
       "auth-signup": {
         limit: 60,
         skipSuccessfulRequests: false,
@@ -249,7 +243,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(32);
+    expect(options).toHaveLength(31);
     expect(options).toEqual(
       options.map(() =>
         expect.objectContaining({

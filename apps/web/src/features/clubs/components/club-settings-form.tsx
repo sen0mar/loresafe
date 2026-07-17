@@ -1,20 +1,13 @@
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useId, useState } from "react";
-import {
-  ChevronDown,
-  Globe2,
-  KeyRound,
-  LockKeyhole,
-  Save,
-  ScrollText,
-  type LucideIcon
-} from "lucide-react";
+import { Save, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/shared/api/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
+import { ClubSettingsDisclosure } from "./club-settings-disclosure.js";
 
 import {
   type Club,
@@ -25,57 +18,14 @@ import {
   clubSettingsFormSchema,
   type ClubSettingsFormValues
 } from "../schemas/club-settings.schema.js";
+import {
+  clubVisibilityMetadata,
+  clubVisibilityOptions
+} from "../lib/club-visibility.js";
 
 type ClubSettingsFieldErrors = Partial<
   Record<keyof ClubSettingsFormValues, string>
 >;
-
-const visibilityOptions: Array<{
-  value: ClubVisibility;
-  label: string;
-  description: string;
-  icon: ReactNode;
-}> = [
-  {
-    value: "PUBLIC",
-    label: "Public",
-    description: "Listed in discovery for signed-in readers.",
-    icon: <Globe2 className="size-4" />
-  },
-  {
-    value: "PRIVATE",
-    label: "Private",
-    description: "Only members can open the club page.",
-    icon: <LockKeyhole className="size-4" />
-  },
-  {
-    value: "INVITE_ONLY",
-    label: "Invite-only",
-    description: "Hidden from discovery and reserved for invites.",
-    icon: <KeyRound className="size-4" />
-  }
-];
-
-const visibilityMeta: Record<
-  ClubVisibility,
-  {
-    label: string;
-    icon: LucideIcon;
-  }
-> = {
-  PUBLIC: {
-    label: "Public",
-    icon: Globe2
-  },
-  PRIVATE: {
-    label: "Private",
-    icon: LockKeyhole
-  },
-  INVITE_ONLY: {
-    label: "Invite-only",
-    icon: KeyRound
-  }
-};
 
 export const ClubSettingsForm = ({ club }: { club: Club }) => {
   const canManageSettings =
@@ -165,173 +115,127 @@ export const ClubSettingsForm = ({ club }: { club: Club }) => {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-default bg-inset">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors duration-150 hover:bg-active focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-base"
-        aria-controls={settingsContentId}
-        aria-expanded={isSettingsOpen}
-        onClick={() => setIsSettingsOpen((isOpen) => !isOpen)}
-      >
-        <span className="min-w-0">
-          <span className="flex items-center gap-2 text-sm font-medium text-primary">
-            <ScrollText className="size-4 text-brand" />
-            Club rules and visibility
-          </span>
-          <span className="mt-1 block text-sm leading-6 text-muted">
-            Update how readers find this club and what they see before posting.
-          </span>
-        </span>
-        <ChevronDown
-          className={cn(
-            "size-5 shrink-0 text-faint transition-transform duration-150",
-            isSettingsOpen && "rotate-180 text-brand"
-          )}
-          aria-hidden="true"
-        />
-      </button>
+    <ClubSettingsDisclosure
+      contentId={settingsContentId}
+      description="Update how readers find this club and what they see before posting."
+      icon={ScrollText}
+      isOpen={isSettingsOpen}
+      onOpenChange={setIsSettingsOpen}
+      title="Club rules and visibility"
+    >
+      <form className="grid gap-4" onSubmit={submitSettings} noValidate>
+        {formError ? (
+          <div className="rounded-lg border border-default bg-surface p-3">
+            <p className="text-sm text-error" role="alert">
+              {formError}
+            </p>
+          </div>
+        ) : null}
 
-      <div
-        id={settingsContentId}
-        className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
-          isSettingsOpen
-            ? "soft-section-divider grid-rows-[1fr]"
-            : "grid-rows-[0fr]"
-        )}
-        aria-hidden={!isSettingsOpen}
-        data-state={isSettingsOpen ? "open" : "closed"}
-        inert={!isSettingsOpen}
-      >
-        <div
-          className={cn(
-            "min-h-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-            isSettingsOpen
-              ? "translate-y-0 opacity-100 delay-75"
-              : "-translate-y-1 opacity-0"
-          )}
-        >
-          <form
-            className="grid gap-4 px-4 pb-4 pt-4"
-            onSubmit={submitSettings}
-            noValidate
+        <fieldset className="grid gap-2">
+          <legend className="text-sm font-medium text-secondary">
+            Visibility
+          </legend>
+          <div className="grid gap-3 md:grid-cols-3">
+            {clubVisibilityOptions.map((option) => {
+              const isSelected = values.visibility === option.value;
+              const VisibilityIcon = option.icon;
+
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex min-h-28 cursor-pointer flex-col gap-2 rounded-lg border border-default bg-surface p-3 text-sm transition-colors duration-150 hover:border-strong hover:bg-active",
+                    isSelected &&
+                      "border-brand bg-active text-brand shadow-glow",
+                    updateSettingsMutation.isPending &&
+                      "cursor-not-allowed opacity-70"
+                  )}
+                >
+                  <input
+                    className="sr-only"
+                    type="radio"
+                    name="club-settings-visibility"
+                    value={option.value}
+                    checked={isSelected}
+                    onChange={() => updateVisibility(option.value)}
+                    disabled={updateSettingsMutation.isPending}
+                  />
+                  <span className="flex items-center gap-2 font-medium text-primary">
+                    <span className="text-brand">
+                      <VisibilityIcon className="size-4" />
+                    </span>
+                    {option.label}
+                  </span>
+                  <span className="text-xs leading-5 text-muted">
+                    {option.description}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {fieldErrors.visibility ? (
+            <p
+              className="text-sm text-error"
+              id="club-settings-visibility-error"
+            >
+              {fieldErrors.visibility}
+            </p>
+          ) : null}
+        </fieldset>
+
+        <div className="grid gap-2">
+          <label
+            className="text-sm font-medium text-secondary"
+            htmlFor="club-settings-rules"
           >
-            {formError ? (
-              <div className="rounded-lg border border-default bg-surface p-3">
-                <p className="text-sm text-error" role="alert">
-                  {formError}
-                </p>
-              </div>
-            ) : null}
-
-            <fieldset className="grid gap-2">
-              <legend className="text-sm font-medium text-secondary">
-                Visibility
-              </legend>
-              <div className="grid gap-3 md:grid-cols-3">
-                {visibilityOptions.map((option) => {
-                  const isSelected = values.visibility === option.value;
-
-                  return (
-                    <label
-                      key={option.value}
-                      className={cn(
-                        "flex min-h-28 cursor-pointer flex-col gap-2 rounded-lg border border-default bg-surface p-3 text-sm transition-colors duration-150 hover:border-strong hover:bg-active",
-                        isSelected &&
-                          "border-brand bg-active text-brand shadow-glow",
-                        updateSettingsMutation.isPending &&
-                          "cursor-not-allowed opacity-70"
-                      )}
-                    >
-                      <input
-                        className="sr-only"
-                        type="radio"
-                        name="club-settings-visibility"
-                        value={option.value}
-                        checked={isSelected}
-                        onChange={() => updateVisibility(option.value)}
-                        disabled={updateSettingsMutation.isPending}
-                      />
-                      <span className="flex items-center gap-2 font-medium text-primary">
-                        <span className="text-brand">{option.icon}</span>
-                        {option.label}
-                      </span>
-                      <span className="text-xs leading-5 text-muted">
-                        {option.description}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {fieldErrors.visibility ? (
-                <p
-                  className="text-sm text-error"
-                  id="club-settings-visibility-error"
-                >
-                  {fieldErrors.visibility}
-                </p>
-              ) : null}
-            </fieldset>
-
-            <div className="grid gap-2">
-              <label
-                className="text-sm font-medium text-secondary"
-                htmlFor="club-settings-rules"
-              >
-                Rules
-              </label>
-              <Textarea
-                id="club-settings-rules"
-                value={values.rules}
-                onChange={updateRules}
-                disabled={updateSettingsMutation.isPending}
-                aria-invalid={!!fieldErrors.rules}
-                aria-describedby={
-                  fieldErrors.rules ? "club-settings-rules-error" : undefined
-                }
-                maxLength={2000}
-              />
-              {fieldErrors.rules ? (
-                <p
-                  className="text-sm text-error"
-                  id="club-settings-rules-error"
-                >
-                  {fieldErrors.rules}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="submit"
-                disabled={!isDirty || updateSettingsMutation.isPending}
-              >
-                <Save />
-                {updateSettingsMutation.isPending
-                  ? "Saving..."
-                  : "Save settings"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!isDirty || updateSettingsMutation.isPending}
-                onClick={resetSettings}
-              >
-                Reset
-              </Button>
-              <span className="text-xs text-faint" aria-live="polite">
-                {isDirty ? "Unsaved changes" : "Settings are up to date"}
-              </span>
-            </div>
-          </form>
+            Rules
+          </label>
+          <Textarea
+            id="club-settings-rules"
+            value={values.rules}
+            onChange={updateRules}
+            disabled={updateSettingsMutation.isPending}
+            aria-invalid={!!fieldErrors.rules}
+            aria-describedby={
+              fieldErrors.rules ? "club-settings-rules-error" : undefined
+            }
+            maxLength={2000}
+          />
+          {fieldErrors.rules ? (
+            <p className="text-sm text-error" id="club-settings-rules-error">
+              {fieldErrors.rules}
+            </p>
+          ) : null}
         </div>
-      </div>
-    </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="submit"
+            disabled={!isDirty || updateSettingsMutation.isPending}
+          >
+            <Save />
+            {updateSettingsMutation.isPending ? "Saving..." : "Save settings"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!isDirty || updateSettingsMutation.isPending}
+            onClick={resetSettings}
+          >
+            Reset
+          </Button>
+          <span className="text-xs text-faint" aria-live="polite">
+            {isDirty ? "Unsaved changes" : "Settings are up to date"}
+          </span>
+        </div>
+      </form>
+    </ClubSettingsDisclosure>
   );
 };
 
 const ClubSettingsReadOnly = ({ club }: { club: Club }) => {
-  const VisibilityIcon = visibilityMeta[club.settings.visibility].icon;
+  const VisibilityIcon = clubVisibilityMetadata[club.settings.visibility].icon;
 
   return (
     <div className="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
@@ -341,7 +245,7 @@ const ClubSettingsReadOnly = ({ club }: { club: Club }) => {
           Visibility
         </span>
         <p className="mt-2 text-sm font-medium text-primary">
-          {visibilityMeta[club.settings.visibility].label}
+          {clubVisibilityMetadata[club.settings.visibility].label}
         </p>
       </div>
       <div className="rounded-lg border border-default bg-inset p-4">

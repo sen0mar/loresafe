@@ -33,19 +33,19 @@ import {
   useMoveClubMilestoneMutation,
   useUpdateClubMilestoneMutation
 } from "../api/clubs.js";
+import { getMilestoneDisplayTitle } from "../lib/milestone-display.js";
 import {
   createMilestoneFormSchema,
   type CreateMilestoneFormValues,
-  type CreateMilestonePayload
+  type CreateMilestonePayload,
+  type MilestoneFieldErrors,
+  toMilestoneFieldErrors
 } from "../schemas/milestone.schema.js";
 
 type ClubTimelineTabProps = {
   club?: Club;
   linkName?: string;
 };
-type MilestoneFieldErrors = Partial<
-  Record<keyof CreateMilestoneFormValues, string>
->;
 
 export const ClubTimelineTab = ({
   club,
@@ -278,14 +278,7 @@ const TimelineMilestoneCard = ({
     const parseResult = createMilestoneFormSchema.safeParse(values);
 
     if (!parseResult.success) {
-      const flattenedErrors = parseResult.error.flatten().fieldErrors;
-
-      setFieldErrors({
-        safeTitle: flattenedErrors.safeTitle?.[0],
-        fullTitle: flattenedErrors.fullTitle?.[0],
-        description: flattenedErrors.description?.[0],
-        spoilerName: flattenedErrors.spoilerName?.[0]
-      });
+      setFieldErrors(toMilestoneFieldErrors(parseResult.error));
       return;
     }
 
@@ -501,9 +494,6 @@ const milestoneToFormValues = (
   description: milestone.description ?? "",
   spoilerName: milestone.spoilerName
 });
-
-const getMilestoneDisplayTitle = (milestone: ClubMilestone) =>
-  milestone.fullTitle ?? milestone.safeTitle;
 
 const TimelineLoading = () => (
   <Card>

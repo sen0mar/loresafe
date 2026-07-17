@@ -54,6 +54,7 @@ import {
   useWarnReportedContentAuthorMutation,
   useClubMilestonesQuery
 } from "../api/clubs.js";
+import { formatShortDateTime } from "@/shared/lib/formatters";
 
 const reasonLabels: Record<ReportReason, string> = {
   SPOILER: "Spoiler",
@@ -70,14 +71,6 @@ const statusLabels: Record<ModerationReport["target"]["status"], string> = {
   DELETED: "Deleted",
   UNAVAILABLE: "Unavailable"
 };
-
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
 
 const formatUser = (user: { displayName: string; username: string | null }) =>
   user.username ? `${user.displayName} / ${user.username}` : user.displayName;
@@ -260,7 +253,7 @@ const ModerationReportCard = ({
             <Badge variant="secondary">
               {statusLabels[report.target.status]}
             </Badge>
-            <span>{formatDateTime(report.createdAt)}</span>
+            <span>{formatShortDateTime(report.createdAt)}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{report.status}</Badge>

@@ -22,14 +22,8 @@ import {
 import { ReactionButtonGroup } from "../components/reaction-button-group.js";
 import { ReportDialog } from "../components/report-dialog.js";
 import { DeleteCommentDialog } from "../components/delete-content-dialog.js";
+import { formatShortDateTime } from "@/shared/lib/formatters";
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  }).format(new Date(value));
 import type { CommentThread } from "./post-detail-comment-sections.js";
 import { CommentForm } from "./post-comment-form.js";
 
@@ -171,7 +165,7 @@ const VisibleCommentBlock = ({
       </span>
       <span className="flex items-center gap-2">
         <Clock3 className="size-4" />
-        {formatDateTime(comment.createdAt)}
+        {formatShortDateTime(comment.createdAt)}
       </span>
     </div>
     <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">
@@ -225,7 +219,7 @@ const RevealedCommentBlock = ({
     </p>
     <p className="mt-3 flex items-center gap-2 text-xs text-faint">
       <Clock3 className="size-4" />
-      {formatDateTime(comment.createdAt)}
+      {formatShortDateTime(comment.createdAt)}
     </p>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
       <ReactionButtonGroup
@@ -254,7 +248,9 @@ const CommentReactionButtons = ({
 }) => {
   const reactionMutation = useToggleCommentReactionMutation(postId, comment.id);
 
-  const handleReactionToggle = (emoji: (typeof comment.counts.reactions)[number]["emoji"]) => {
+  const handleReactionToggle = (
+    emoji: (typeof comment.counts.reactions)[number]["emoji"]
+  ) => {
     if (reactionMutation.isPending) {
       return;
     }
@@ -262,10 +258,9 @@ const CommentReactionButtons = ({
     reactionMutation.mutate(
       {
         emoji,
-        active:
-          !comment.counts.reactions.find(
-            (reaction) => reaction.emoji === emoji
-          )?.reactedByMe
+        active: !comment.counts.reactions.find(
+          (reaction) => reaction.emoji === emoji
+        )?.reactedByMe
       },
       {
         onError: (error) => {
@@ -309,7 +304,7 @@ const LockedCommentBlock = ({
     <p className="mt-1 text-sm leading-6 text-muted">{comment.lockReason}</p>
     <p className="mt-3 flex items-center gap-2 text-xs text-faint">
       <Clock3 className="size-4" />
-      {formatDateTime(comment.createdAt)}
+      {formatShortDateTime(comment.createdAt)}
     </p>
     <div className="mt-3 rounded-lg border border-default bg-surface p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -359,9 +354,7 @@ export const CommentsLoading = () => (
 export const CommentsEmpty = () => (
   <div className="rounded-xl border border-default bg-subtle p-4">
     <MessageSquareText className="size-7 text-faint" />
-    <h3 className="mt-3 text-sm font-semibold text-primary">
-      No comments yet
-    </h3>
+    <h3 className="mt-3 text-sm font-semibold text-primary">No comments yet</h3>
     <p className="mt-1 text-sm leading-6 text-muted">
       Be the first to continue this discussion.
     </p>
@@ -382,7 +375,12 @@ export const CommentsError = ({
     <p className="mt-1 text-sm leading-6 text-muted">
       {error instanceof ApiError ? error.message : "Refresh and try again."}
     </p>
-    <Button className="mt-3" type="button" variant="secondary" onClick={onRetry}>
+    <Button
+      className="mt-3"
+      type="button"
+      variant="secondary"
+      onClick={onRetry}
+    >
       <RefreshCw />
       Retry
     </Button>

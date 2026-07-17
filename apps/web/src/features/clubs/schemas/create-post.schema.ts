@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const createPostTypeSchema = z.enum([
+const createPostTypeSchema = z.enum([
   "DISCUSSION",
   "QUESTION",
   "THEORY",

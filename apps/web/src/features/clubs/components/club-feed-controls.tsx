@@ -38,19 +38,8 @@ import {
 } from "../schemas/create-post.schema.js";
 import { PostImageUploadField } from "./post-image-upload-field.js";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-
-const postTypeLabels: Record<PostType, string> = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  THEORY: "Theory",
-  PREDICTION: "Prediction",
-  POLL: "Poll",
-  REACTION: "Reaction",
-  REVIEW: "Review",
-  IMAGE_MEME: "Image/meme",
-  QUOTE_COMMENTARY: "Quote",
-  JUST_REACHED: "Just reached"
-};
+import { formatMilestoneOption } from "../lib/milestone-display.js";
+import { postTypeLabels } from "../lib/post-types.js";
 
 const getDefaultPostValues = (): CreatePostFormValues => ({
   title: "",
@@ -59,9 +48,6 @@ const getDefaultPostValues = (): CreatePostFormValues => ({
   requiredMilestoneId: "",
   mediaAssetId: undefined
 });
-
-const formatMilestoneOption = (milestone: ClubMilestone) =>
-  `${milestone.position}. ${milestone.fullTitle ?? milestone.safeTitle}`;
 
 const feedTabs: Array<{ value: ClubFeedTabValue; label: string }> = [
   {

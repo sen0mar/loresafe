@@ -14,11 +14,8 @@ import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { ApiError } from "@/shared/api/api-client";
 
-import {
-  useClubQuery,
-  useRecentlyUnlockedQuery
-} from "../api/clubs.js";
-import { PostCard } from "../components/club-feed-tab.js";
+import { useClubQuery, useRecentlyUnlockedQuery } from "../api/clubs.js";
+import { PostCard } from "../components/club-feed-cards.js";
 import { getClubFeedPath } from "../lib/club-paths.js";
 
 const countFormatter = new Intl.NumberFormat();
@@ -29,8 +26,7 @@ export const RecentlyUnlockedPage = () => {
   const recentlyUnlockedQuery = useRecentlyUnlockedQuery(linkName);
   const posts =
     recentlyUnlockedQuery.data?.pages.flatMap((page) => page.posts) ?? [];
-  const latestUnlock =
-    recentlyUnlockedQuery.data?.pages[0]?.unlock ?? null;
+  const latestUnlock = recentlyUnlockedQuery.data?.pages[0]?.unlock ?? null;
   const forwardUnlock =
     latestUnlock && latestUnlock.toPosition > latestUnlock.fromPosition
       ? latestUnlock

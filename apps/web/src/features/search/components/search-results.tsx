@@ -1,14 +1,11 @@
 import { Link } from "react-router-dom";
-import {
-  Building2,
-  LockKeyhole,
-  SearchX
-} from "lucide-react";
+import { Building2, LockKeyhole, SearchX } from "lucide-react";
 
 import { ClubAvatar } from "@/features/clubs/components/club-avatar";
 import { ClubCardGrid } from "@/features/clubs/components/club-card-grid";
-import { PostCard } from "@/features/clubs/components/club-feed-tab";
+import { PostCard } from "@/features/clubs/components/club-feed-cards";
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
+import { formatClubVisibility } from "@/features/clubs/lib/club-visibility";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -111,7 +108,7 @@ const SearchClubCard = ({ club }: { club: SearchClub }) => (
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={club.visibility === "PUBLIC" ? "default" : "secondary"}>
-          {formatVisibility(club.visibility)}
+          {formatClubVisibility(club.visibility)}
         </Badge>
         {club.visibility === "PUBLIC" ? null : (
           <Badge variant="outline">
@@ -211,8 +208,3 @@ const formatFiltersForEmpty = (filters: SearchFilter[]) => {
 
   return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)} filters`;
 };
-
-const formatVisibility = (visibility: SearchClub["visibility"]) =>
-  visibility === "INVITE_ONLY"
-    ? "Invite-only"
-    : visibility.charAt(0) + visibility.slice(1).toLowerCase();

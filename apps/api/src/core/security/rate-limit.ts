@@ -12,12 +12,7 @@ import { createUpstashRateLimitStore } from "./upstash-rate-limit-store.js";
 const rateLimitMessage = "Too many attempts. Try again later.";
 
 type AuthRateLimiterName =
-  | "login"
-  | "loginAccountBurst"
-  | "loginAccountSustained"
-  | "logout"
-  | "passwordReset"
-  | "signup";
+  "login" | "loginAccountBurst" | "loginAccountSustained" | "logout" | "signup";
 
 type AuthRateLimitConfig = {
   limit: number;
@@ -33,7 +28,6 @@ export type AuthRateLimiters = {
   loginAccountSustainedRateLimiter: ReturnType<typeof rateLimit>;
   loginRateLimiter: ReturnType<typeof rateLimit>;
   logoutRateLimiter: ReturnType<typeof rateLimit>;
-  passwordResetRateLimiter: ReturnType<typeof rateLimit>;
   signupRateLimiter: ReturnType<typeof rateLimit>;
 };
 
@@ -66,11 +60,6 @@ const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
     windowMs: 60 * 1000,
     limit: 90,
     prefix: "loresafe:rl:auth:logout:"
-  },
-  passwordReset: {
-    windowMs: 60 * 60 * 1000,
-    limit: 9,
-    prefix: "loresafe:rl:auth:password-reset:"
   },
   signup: {
     windowMs: 60 * 60 * 1000,
@@ -106,12 +95,6 @@ export const createAuthRateLimiters = ({
     authRateLimitConfigs.logout,
     storeFactory,
     limitOverrides.logout
-  ),
-  passwordResetRateLimiter: createAuthRateLimiter(
-    "passwordReset",
-    authRateLimitConfigs.passwordReset,
-    storeFactory,
-    limitOverrides.passwordReset
   ),
   signupRateLimiter: createAuthRateLimiter(
     "signup",
@@ -183,7 +166,6 @@ export const {
   loginAccountSustainedRateLimiter,
   loginRateLimiter,
   logoutRateLimiter,
-  passwordResetRateLimiter,
   signupRateLimiter
 } = createAuthRateLimiters();
 
@@ -471,9 +453,7 @@ export const commentReactionToggleRateLimiter = rateLimit({
   limit: 240,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  store: createUpstashRateLimitStore(
-    "loresafe:rl:comments:reactions:toggle:"
-  ),
+  store: createUpstashRateLimitStore("loresafe:rl:comments:reactions:toggle:"),
   identifier: "comments-reactions-toggle",
   handler: (_req, _res, next) => {
     next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));

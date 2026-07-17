@@ -31,30 +31,49 @@ const templateSafeTitleSchema = z
   .min(2, "Milestone title must be at least 2 characters.")
   .max(120, "Milestone title must be 120 characters or fewer.");
 
-export const createMilestoneTemplateFormSchema = z.object({
-  template: z.enum([
-    "BOOK",
-    "SHOW",
-    "MOVIE",
-    "GAME",
-    "PODCAST_COURSE",
-    "CUSTOM"
-  ]),
-  count: z.number().int("Count must be a whole number.").min(1).max(200),
-  safeTitles: z.array(templateSafeTitleSchema).optional()
-}).superRefine((input, context) => {
-  if (input.safeTitles && input.safeTitles.length !== input.count) {
-    context.addIssue({
-      code: "custom",
-      path: ["safeTitles"],
-      message: "Milestone titles must match the count."
-    });
-  }
-});
+export const createMilestoneTemplateFormSchema = z
+  .object({
+    template: z.enum([
+      "BOOK",
+      "SHOW",
+      "MOVIE",
+      "GAME",
+      "PODCAST_COURSE",
+      "CUSTOM"
+    ]),
+    count: z.number().int("Count must be a whole number.").min(1).max(200),
+    safeTitles: z.array(templateSafeTitleSchema).optional()
+  })
+  .superRefine((input, context) => {
+    if (input.safeTitles && input.safeTitles.length !== input.count) {
+      context.addIssue({
+        code: "custom",
+        path: ["safeTitles"],
+        message: "Milestone titles must match the count."
+      });
+    }
+  });
 
 export type CreateMilestoneFormValues = z.input<
   typeof createMilestoneFormSchema
 >;
-export type CreateMilestonePayload = z.output<
-  typeof createMilestoneFormSchema
+export type CreateMilestonePayload = z.output<typeof createMilestoneFormSchema>;
+
+export type MilestoneFieldErrors = Partial<
+  Record<keyof CreateMilestoneFormValues, string>
 >;
+
+export const toMilestoneFieldErrors = (
+  error: z.ZodError
+): MilestoneFieldErrors => {
+  const fields = error.flatten().fieldErrors as Partial<
+    Record<keyof CreateMilestoneFormValues, string[]>
+  >;
+
+  return {
+    safeTitle: fields.safeTitle?.[0],
+    fullTitle: fields.fullTitle?.[0],
+    description: fields.description?.[0],
+    spoilerName: fields.spoilerName?.[0]
+  };
+};

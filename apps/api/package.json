@@ -9,7 +9,6 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "start:with-migrations": "pnpm prisma:migrate:deploy && node dist/server.js",
     "build": "pnpm prisma:generate && tsc -p tsconfig.build.json",
     "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
     "test": "pnpm prisma:generate && vitest run",

@@ -2,20 +2,16 @@ import type { Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 
 import { createEventsService } from "./events.service.js";
-import type { EventEnvelope, EventsTransport } from "./events.transport.js";
 
 describe("events service", () => {
-  it("delivers safe events and revocation across API instances", async () => {
-    const hub = new SharedEventsHub();
-    const firstService = createEventsService(hub.createTransport());
-    const secondService = createEventsService(hub.createTransport());
+  it("delivers safe events and revocation to local subscribers", async () => {
+    const service = createEventsService();
     const response = createResponse();
     const userId = crypto.randomUUID();
 
-    await Promise.all([firstService.start(), secondService.start()]);
-    secondService.subscribe(userId, "203.0.113.10", response.value);
+    service.subscribe(userId, "203.0.113.10", response.value);
 
-    await firstService.publishNotificationCreated(userId, {
+    await service.publishNotificationCreated(userId, {
       notificationId: crypto.randomUUID(),
       club: {
         id: crypto.randomUUID(),
@@ -30,10 +26,9 @@ describe("events service", () => {
       expect.stringContaining("event: notification.created")
     );
 
-    await firstService.disconnectUser(userId);
+    await service.disconnectUser(userId);
 
     expect(response.end).toHaveBeenCalledOnce();
-    await Promise.all([firstService.stop(), secondService.stop()]);
   });
 
   it("closes slow clients when response backpressure is reached", () => {
@@ -50,7 +45,7 @@ describe("events service", () => {
   });
 
   it("caps concurrent connections per user", () => {
-    const service = createEventsService(undefined, {
+    const service = createEventsService({
       maxConnectionsPerUser: 1
     });
     const userId = crypto.randomUUID();
@@ -62,31 +57,6 @@ describe("events service", () => {
     ).toThrow("Too many realtime connections are open.");
   });
 });
-
-class SharedEventsHub {
-  private readonly handlers = new Set<(event: EventEnvelope) => void>();
-
-  createTransport = (): EventsTransport => {
-    let handler: ((event: EventEnvelope) => void) | null = null;
-
-    return {
-      start: async (nextHandler) => {
-        handler = nextHandler;
-        this.handlers.add(nextHandler);
-      },
-      publish: async (event) => {
-        for (const currentHandler of this.handlers) {
-          currentHandler(event);
-        }
-      },
-      stop: async () => {
-        if (handler) {
-          this.handlers.delete(handler);
-        }
-      }
-    };
-  };
-}
 
 const createResponse = (writeResult = true) => {
   const response = {
