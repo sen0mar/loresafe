@@ -149,6 +149,19 @@ Map shadcn primitives to the semantic LoreSafe tokens:
 - Metadata should be small and calm, usually 12–14px.
 - Avoid long uppercase labels except small section headers.
 
+### Responsive Design Scale
+
+- The root font size uses
+  `clamp(16px, min(1.041667vw, 1.851852svh), 40px)` so the 16px mobile and
+  laptop baseline scales proportionally on larger displays according to the
+  viewport's limiting dimension.
+- Express typography, spacing, radii, structural rails, constrained containers,
+  and responsive thresholds in `rem` unless a value must remain a physical
+  pixel, such as a crisp border or the 320px minimum supported viewport.
+- Keep the 40px root cap so 4K and larger displays do not produce unbounded UI.
+- Verify large-screen changes for horizontal overflow at mobile, laptop, 1080p,
+  1440p, and 4K viewport sizes.
+
 ## Radius and Borders
 
 LoreSafe uses a softer, more circular radius scale from `apps/web/src/styles.css`
@@ -179,9 +192,9 @@ standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
 ### Primary App Shell
 
 - Desktop uses a three-column app shell:
-  - left sidebar: about `252px` fixed.
+  - left sidebar: `15.75rem` (`252px` at the baseline scale).
   - main content: flexible, min width protected.
-  - right sidebar: about `320px` fixed.
+  - right sidebar: `20rem` (`320px` at the baseline scale).
 - The authenticated shell uses the full desktop viewport instead of stopping at
   a fixed maximum width. On ultra-wide displays, card listing grids add columns
   progressively so cards stay compact while forms and reading-focused pages may

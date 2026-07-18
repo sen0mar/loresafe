@@ -128,7 +128,7 @@ export const NotificationRow = ({
             <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:self-end">
               {isUnread ? (
                 <Button
-                  className="h-7 min-h-7 w-full gap-1 px-2 py-0 text-[11px] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
+                  className="h-7 min-h-7 w-full gap-1 px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
                   type="button"
                   variant="outline"
                   size="sm"
@@ -151,7 +151,7 @@ export const NotificationRow = ({
                 onConfirm={onDelete}
                 trigger={
                   <Button
-                    className="h-7 min-h-7 w-full gap-1 border border-error px-2 py-0 text-[11px] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
+                    className="h-7 min-h-7 w-full gap-1 border border-error px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
                     type="button"
                     variant="destructive"
                     size="sm"

@@ -62,7 +62,7 @@ export const AppShell = ({
         <div
           className={cn(
             "relative hidden shrink-0 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:sticky lg:top-3 lg:block lg:h-[calc(100dvh-1.5rem)]",
-            isDesktopSidebarOpen ? "w-[252px]" : "w-0"
+            isDesktopSidebarOpen ? "w-[15.75rem]" : "w-0"
           )}
         >
           <DesktopSidebar
@@ -112,7 +112,7 @@ export const AppShell = ({
           <div
             className={cn(
               "grid min-w-0 flex-1 grid-cols-1 gap-4 px-2 pb-4 pt-1 lg:px-6",
-              rightRail && "xl:grid-cols-[minmax(0,1fr)_320px]"
+              rightRail && "xl:grid-cols-[minmax(0,1fr)_20rem]"
             )}
           >
             <main className="min-w-0">{children}</main>

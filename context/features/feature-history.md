@@ -156,6 +156,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 150: Development database wipe — Added a wipe-only command that preserves Prisma migration history, verifies the configured direct Neon development endpoint with explicit destructive guards, leaves external R2 objects unchanged, and includes focused guardrail tests and usage documentation.
 - Feature 151: Recruiter showcase seed — Added an empty-target, transactional Neon showcase seed with nine natural personas, four franchise clubs across every visibility, recognizable spoiler-gated discussions, progress modes, reactions, predictions, notifications, moderation scenarios, an invite, focused guardrail tests, and a verified development run without R2 data.
 
+- Feature 152: Responsive large-screen design scaling — Added bounded limiting-dimension root scaling, aligned structural dimensions and ultra-wide thresholds with the rem design system, and verified mobile-through-4K layouts without horizontal overflow.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

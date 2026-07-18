@@ -121,7 +121,7 @@ export const DesktopSidebar = ({
       aria-hidden={!isOpen}
       inert={!isOpen}
       className={cn(
-        "app-shell-sidebar absolute inset-0 isolate hidden w-[252px] overflow-y-auto rounded-2xl border border-default px-3 pb-4 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex lg:flex-col",
+        "app-shell-sidebar absolute inset-0 isolate hidden w-[15.75rem] overflow-y-auto rounded-2xl border border-default px-3 pb-4 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex lg:flex-col",
         isOpen
           ? "translate-x-0 opacity-100"
           : "pointer-events-none -translate-x-[calc(100%+0.75rem)] opacity-0"

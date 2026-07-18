@@ -28,7 +28,7 @@ export const AuthPageShell = ({
 
     <main
       className={cn(
-        "mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 pb-8 md:grid-cols-[minmax(0,1fr)_minmax(320px,448px)] md:px-6",
+        "mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 pb-8 md:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)] md:px-6",
         topLeftAction ? "pt-28 sm:pt-32 md:pt-8" : "pt-8"
       )}
     >

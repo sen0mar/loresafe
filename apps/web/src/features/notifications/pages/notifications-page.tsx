@@ -343,7 +343,7 @@ export const NotificationsPage = () => {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        className="h-7 gap-1 px-2 text-[11px] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
+                        className="h-7 gap-1 px-2 text-[0.6875rem] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
                         disabled={
                           selectedCount === 0 ||
                           deleteSelectedNotificationsMutation.isPending
@@ -374,7 +374,7 @@ export const NotificationsPage = () => {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        className="h-7 gap-1 px-2 text-[11px] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
+                        className="h-7 gap-1 px-2 text-[0.6875rem] motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 [&_svg]:size-3.5"
                         disabled={
                           notifications.length === 0 ||
                           deleteAllNotificationsMutation.isPending

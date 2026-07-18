@@ -54,7 +54,7 @@ export const NotificationPreviewMenu = ({
         >
           <Bell />
           {unreadCount > 0 ? (
-            <Badge className="absolute -right-1 -top-1 px-1.5 py-0 text-[10px]">
+            <Badge className="absolute -right-1 -top-1 px-1.5 py-0 text-[0.625rem]">
               {formatNotificationBadgeCount(unreadCount)}
             </Badge>
           ) : null}

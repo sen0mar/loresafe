@@ -74,7 +74,7 @@ describe("AppShell layout", () => {
     expect(screen.queryByLabelText("Context panel")).not.toBeInTheDocument();
     expect(getContentGrid()).toHaveClass("grid-cols-1");
     expect(getContentGrid()).not.toHaveClass(
-      "xl:grid-cols-[minmax(0,1fr)_320px]"
+      "xl:grid-cols-[minmax(0,1fr)_20rem]"
     );
   });
 
@@ -102,7 +102,7 @@ describe("AppShell layout", () => {
     expect(screen.getByLabelText("Context panel")).toHaveTextContent(
       "Rail content"
     );
-    expect(getContentGrid()).toHaveClass("xl:grid-cols-[minmax(0,1fr)_320px]");
+    expect(getContentGrid()).toHaveClass("xl:grid-cols-[minmax(0,1fr)_20rem]");
   });
 
   it("keeps the top bar in normal page flow and links the brand home", () => {
@@ -153,7 +153,7 @@ describe("AppShell layout", () => {
     const sidebar = screen.getByLabelText("Primary sidebar");
 
     expect(sidebar).toHaveAttribute("aria-hidden", "false");
-    expect(sidebar.parentElement).toHaveClass("w-[252px]");
+    expect(sidebar.parentElement).toHaveClass("w-[15.75rem]");
 
     await user.click(screen.getByRole("button", { name: "Hide sidebar" }));
 
@@ -180,7 +180,7 @@ describe("AppShell layout", () => {
 
     expect(persistedSidebar).toHaveAttribute("aria-hidden", "false");
     expect(persistedSidebar).not.toHaveAttribute("inert");
-    expect(persistedSidebar.parentElement).toHaveClass("w-[252px]");
+    expect(persistedSidebar.parentElement).toHaveClass("w-[15.75rem]");
     expect(
       screen.getByRole("button", { name: "Hide sidebar" })
     ).toBeInTheDocument();

@@ -67,7 +67,7 @@ const PublicClubProfile = ({ club }: { club: PublicClubDetail }) => {
           </Link>
         </Button>
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="space-y-5">
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
