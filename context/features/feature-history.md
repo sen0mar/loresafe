@@ -159,6 +159,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 152: Responsive large-screen design scaling — Added bounded limiting-dimension root scaling, aligned structural dimensions and ultra-wide thresholds with the rem design system, and verified mobile-through-4K layouts without horizontal overflow.
 - Feature 153: Landing page single divider — Removed the lower divider beneath the landing scroll arrow while preserving the upper divider, scroll behavior, and existing content, with focused frontend regression coverage.
 - Feature 154: Hosted browser rewind navigation — Marked seeded milestone-two demo progress onboarding complete and asserted the exact club Progress route, selected tab, and enabled rewind control before preserving the locked-content and media-metadata leak checks.
+- Feature 155: Hosted upload CORS browser probe — Replaced a same-origin synthetic OPTIONS check intercepted by Vite preview with a credentialed cross-origin browser upload probe against the API, preserving strict origin and credential enforcement.
 
 ## Entry Format
 
