@@ -1,45 +1,48 @@
 import type { Application } from "express";
 
-import {
-  accountDeleteRateLimiter,
-  clubCreateRateLimiter,
-  clubInviteCreateRateLimiter,
-  clubJoinRateLimiter,
-  clubLeaveRateLimiter,
-  clubMemberManagementRateLimiter,
-  clubMilestoneCreateRateLimiter,
-  clubMilestoneMutationRateLimiter,
-  clubPostCreateRateLimiter,
-  clubProgressUpdateRateLimiter,
-  clubSettingsUpdateRateLimiter,
-  commentReactionToggleRateLimiter,
-  contentRevealRateLimiter,
-  eventConnectionRateLimiter,
-  expensiveReadRateLimiter,
-  inviteAcceptRateLimiter,
-  loginAccountBurstRateLimiter,
-  loginAccountSustainedRateLimiter,
-  loginRateLimiter,
-  logoutRateLimiter,
-  moderationActionRateLimiter,
-  notificationMutationRateLimiter,
-  postCommentCreateRateLimiter,
-  postReactionToggleRateLimiter,
-  profileUpdateRateLimiter,
-  postImageUploadRateLimiter,
-  publicSeoReadRateLimiter,
-  publicAssetUploadRateLimiter,
-  reportCreateRateLimiter,
-  searchRateLimiter,
-  signupRateLimiter
-} from "./rate-limit.js";
+import type { RateLimiters } from "./rate-limit.js";
 
 export type RateLimiterApp = Pick<
   Application,
   "delete" | "get" | "patch" | "post" | "use"
 >;
 
-export const registerRateLimiters = (app: RateLimiterApp) => {
+export const registerRateLimiters = (
+  app: RateLimiterApp,
+  rateLimiters: RateLimiters
+) => {
+  const {
+    accountDeleteRateLimiter,
+    clubCreateRateLimiter,
+    clubInviteCreateRateLimiter,
+    clubJoinRateLimiter,
+    clubLeaveRateLimiter,
+    clubMemberManagementRateLimiter,
+    clubMilestoneCreateRateLimiter,
+    clubMilestoneMutationRateLimiter,
+    clubPostCreateRateLimiter,
+    clubProgressUpdateRateLimiter,
+    clubSettingsUpdateRateLimiter,
+    commentReactionToggleRateLimiter,
+    contentRevealRateLimiter,
+    eventConnectionRateLimiter,
+    expensiveReadRateLimiter,
+    inviteAcceptRateLimiter,
+    loginRateLimiter,
+    logoutRateLimiter,
+    moderationActionRateLimiter,
+    notificationMutationRateLimiter,
+    postCommentCreateRateLimiter,
+    postReactionToggleRateLimiter,
+    profileUpdateRateLimiter,
+    postImageUploadRateLimiter,
+    publicAssetUploadRateLimiter,
+    publicSeoReadRateLimiter,
+    reportCreateRateLimiter,
+    searchRateLimiter,
+    signupRateLimiter
+  } = rateLimiters;
+
   // Keep these before JSON parsing so blocked requests avoid expensive work.
   app.use("/api/auth/login", loginRateLimiter);
   app.use("/api/auth/refresh", loginRateLimiter);
@@ -140,7 +143,13 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.delete("/api/notifications/selected", notificationMutationRateLimiter);
 };
 
-export const registerParsedBodyRateLimiters = (app: RateLimiterApp) => {
+export const registerParsedBodyRateLimiters = (
+  app: RateLimiterApp,
+  {
+    loginAccountBurstRateLimiter,
+    loginAccountSustainedRateLimiter
+  }: RateLimiters
+) => {
   // These account-keyed buckets require the validated-shape JSON body and must
   // still run before database lookup or Argon2 verification.
   app.use("/api/auth/login", loginAccountBurstRateLimiter);

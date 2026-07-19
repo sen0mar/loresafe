@@ -1,14 +1,36 @@
 import request from "supertest";
+import { MemoryStore } from "express-rate-limit";
 import { describe, expect, it, vi } from "vitest";
 
-import { createApp } from "../../app.js";
+import { createApp as createApiApp } from "../../app.js";
 import { parseEnv } from "../../config/env.js";
 import { isPrismaClientInitialized } from "../../core/prisma/client.js";
+import { createRateLimiters } from "../../core/security/rate-limit.js";
 import type { ReadinessDependencies } from "./readiness.service.js";
+
+const createReadinessDependencies = (
+  overrides: Partial<ReadinessDependencies> = {}
+): ReadinessDependencies => ({
+  database: async () => undefined,
+  redis: async () => undefined,
+  storage: async () => undefined,
+  ...overrides
+});
+
+const createTestApp = (
+  appEnv: Parameters<typeof createApiApp>[0],
+  readiness = createReadinessDependencies()
+) =>
+  createApiApp(appEnv, {
+    rateLimiters: createRateLimiters({
+      storeFactory: () => new MemoryStore()
+    }),
+    readiness
+  });
 
 describe("health routes", () => {
   const testAppName = "LoreSafe Health Test";
-  const app = createApp(
+  const app = createTestApp(
     parseEnv({
       APP_NAME: testAppName,
       DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
@@ -36,7 +58,7 @@ describe("health routes", () => {
       redis: vi.fn(async () => undefined),
       storage: vi.fn(async () => undefined)
     } satisfies ReadinessDependencies;
-    const livenessApp = createApp(undefined, dependencies);
+    const livenessApp = createTestApp(undefined, dependencies);
     const server = livenessApp.listen(0);
 
     expect(isPrismaClientInitialized()).toBe(false);
@@ -53,7 +75,10 @@ describe("health routes", () => {
   });
 
   it("reports ready only when every bounded dependency check succeeds", async () => {
-    const readinessApp = createApp(undefined, createReadinessDependencies());
+    const readinessApp = createTestApp(
+      undefined,
+      createReadinessDependencies()
+    );
     const response = await request(readinessApp)
       .get("/api/health/ready")
       .expect(200);
@@ -68,7 +93,7 @@ describe("health routes", () => {
 
   it("keeps operations metrics hidden unless the bearer token matches", async () => {
     const operationsToken = "o".repeat(32);
-    const operationsApp = createApp(
+    const operationsApp = createTestApp(
       parseEnv({
         DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
         JWT_SECRET: "a".repeat(32),
@@ -87,7 +112,7 @@ describe("health routes", () => {
   });
 
   it("returns 503 with safe dependency status when readiness is degraded", async () => {
-    const readinessApp = createApp(
+    const readinessApp = createTestApp(
       undefined,
       createReadinessDependencies({
         storage: async () => {
@@ -119,7 +144,7 @@ describe("health routes", () => {
   });
 
   it("allows only configured production CORS origins", async () => {
-    const productionApp = createApp(
+    const productionApp = createTestApp(
       parseEnv({
         CLIENT_ORIGIN: "https://legacy.loresafe.example",
         CLIENT_ORIGINS:
@@ -163,7 +188,7 @@ describe("health routes", () => {
   });
 
   it("rejects unsafe production requests without a trusted origin", async () => {
-    const productionApp = createApp(
+    const productionApp = createTestApp(
       parseEnv({
         CLIENT_ORIGIN: "https://legacy.loresafe.example",
         CLIENT_ORIGINS: "https://app.loresafe.example",
@@ -224,13 +249,4 @@ describe("health routes", () => {
       }
     });
   });
-});
-
-const createReadinessDependencies = (
-  overrides: Partial<ReadinessDependencies> = {}
-): ReadinessDependencies => ({
-  database: async () => undefined,
-  redis: async () => undefined,
-  storage: async () => undefined,
-  ...overrides
 });

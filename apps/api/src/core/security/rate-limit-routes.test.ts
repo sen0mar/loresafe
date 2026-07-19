@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { MemoryStore } from "express-rate-limit";
 
 import {
   registerParsedBodyRateLimiters,
   registerRateLimiters,
   type RateLimiterApp
 } from "./rate-limit-routes.js";
+import { createRateLimiters } from "./rate-limit.js";
 
 const createRateLimiterApp = (): RateLimiterApp => ({
   delete: vi.fn() as unknown as RateLimiterApp["delete"],
@@ -18,7 +20,7 @@ describe("registerParsedBodyRateLimiters", () => {
   it("stacks account burst and sustained limits on login", () => {
     const app = createRateLimiterApp();
 
-    registerParsedBodyRateLimiters(app);
+    registerParsedBodyRateLimiters(app, createTestRateLimiters());
 
     expect(app.use).toHaveBeenCalledWith(
       "/api/auth/login",
@@ -32,7 +34,7 @@ describe("registerRateLimiters", () => {
   it("keeps route-specific limiters on their HTTP methods", () => {
     const app = createRateLimiterApp();
 
-    registerRateLimiters(app);
+    registerRateLimiters(app, createTestRateLimiters());
 
     expect(app.post).toHaveBeenCalledWith("/api/clubs", expect.any(Function));
     expect(app.patch).toHaveBeenCalledWith(
@@ -115,3 +117,6 @@ describe("registerRateLimiters", () => {
     );
   });
 });
+
+const createTestRateLimiters = () =>
+  createRateLimiters({ storeFactory: () => new MemoryStore() });

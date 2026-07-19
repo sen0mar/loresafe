@@ -12,6 +12,7 @@ import {
   registerParsedBodyRateLimiters,
   registerRateLimiters
 } from "./core/security/rate-limit-routes.js";
+import type { RateLimiters } from "./core/security/rate-limit.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
 import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
 import { securityHeadersMiddleware } from "./core/security/security-headers.js";
@@ -51,7 +52,10 @@ import { usersRouter } from "./modules/users/users.routes.js";
 
 export const createApp = (
   appEnv = env,
-  readinessDependencies?: ReadinessDependencies
+  dependencies: {
+    rateLimiters: RateLimiters;
+    readiness?: ReadinessDependencies;
+  }
 ) => {
   const app = express();
 
@@ -69,14 +73,14 @@ export const createApp = (
   );
 
   app.use("/api", noindexApiResponses);
-  registerRateLimiters(app);
+  registerRateLimiters(app, dependencies.rateLimiters);
   app.use(createTrustedOriginMiddleware(appEnv));
   app.use(express.json({ limit: "64kb" }));
-  registerParsedBodyRateLimiters(app);
+  registerParsedBodyRateLimiters(app, dependencies.rateLimiters);
   app.use(cookieParser());
 
   app.use("/sitemap.xml", createSitemapRouter(undefined, appEnv));
-  app.use("/api/health", createHealthRouter(readinessDependencies, appEnv));
+  app.use("/api/health", createHealthRouter(dependencies.readiness, appEnv));
   app.use("/api/debug", debugRouter);
   app.use("/api/public/clubs", publicClubsRouter);
   app.use("/api/auth", authRouter);
@@ -103,5 +107,3 @@ export const createApp = (
 
   return app;
 };
-
-export const app = createApp();
