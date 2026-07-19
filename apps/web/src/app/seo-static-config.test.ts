@@ -10,9 +10,10 @@ const readWebFile = (...pathSegments: string[]) =>
 describe("static SEO configuration", () => {
   it("ships homepage metadata and crawlable public copy in initial HTML", () => {
     const html = readWebFile("index.html");
+    const parsedHtml = new DOMParser().parseFromString(html, "text/html");
 
-    expect(html).toContain(
-      "<title>LoreSafe | Spoiler-safe clubs for books, shows, games, and courses</title>"
+    expect(parsedHtml.title.replace(/\s+/g, " ").trim()).toBe(
+      "LoreSafe | Spoiler-safe clubs for books, shows, games, and courses"
     );
     expect(html).toContain('name="description"');
     expect(html).toContain(
@@ -43,13 +44,16 @@ describe("static SEO configuration", () => {
     expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain('<script type="application/ld+json">');
     expect(html).toContain(`"url": "${canonicalOrigin}/"`);
-    expect(html).toContain(
-      [
-        "<h1>",
-        '            Lore<span style="color: #4f7fc0">S</span><span style="color: #4f7fc0">afe</span>',
-        "          </h1>"
-      ].join("\n")
-    );
+    const heading = parsedHtml.querySelector("h1");
+    const accentSpans = Array.from(heading?.querySelectorAll("span") ?? []);
+
+    expect(heading?.textContent?.replace(/\s+/g, "").trim()).toBe("LoreSafe");
+    expect(accentSpans.map((span) => span.textContent).join("")).toBe("Safe");
+    expect(
+      accentSpans.every(
+        (span) => span.getAttribute("style") === "color: #4f7fc0"
+      )
+    ).toBe(true);
     expect(html).toContain(
       "Discuss books, shows, games, and courses without stumbling into"
     );
