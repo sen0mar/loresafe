@@ -4,9 +4,9 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger, sanitizeError } from "./core/logging/logger.js";
 import { applyServerTimeouts } from "./core/http/server-timeouts.js";
-import { createRateLimiters } from "./core/security/rate-limit.js";
+import { createRuntimeRateLimiters } from "./core/security/runtime-rate-limit.js";
 
-const app = createApp(env, { rateLimiters: createRateLimiters() });
+const app = createApp(env, { rateLimiters: createRuntimeRateLimiters(env) });
 
 let server: ReturnType<typeof app.listen> | null = null;
 
