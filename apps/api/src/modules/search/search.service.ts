@@ -2,7 +2,10 @@ import {
   decodeBoundedOffsetCursor,
   encodeBoundedOffsetCursor
 } from "../../core/http/cursor.js";
-import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  r2Storage,
+  type ObjectStorage
+} from "../../core/storage/r2-storage.js";
 import { toClubPostCardDto } from "../posts/posts.dto.js";
 import {
   toSearchClubDto,
@@ -33,10 +36,7 @@ export const createSearchService = (
       return emptySearchResponse(query, filters);
     }
 
-    const cursor = decodeBoundedOffsetCursor(
-      query.cursor,
-      maximumSearchOffset
-    );
+    const cursor = decodeBoundedOffsetCursor(query.cursor, maximumSearchOffset);
     const pageInput = {
       offset: cursor?.offset ?? 0,
       limit: query.limit
@@ -84,9 +84,7 @@ export const createSearchService = (
       posts,
       pagination: {
         limit: query.limit,
-        nextCursor: hasMore
-          ? encodeBoundedOffsetCursor(nextOffset)
-          : null,
+        nextCursor: hasMore ? encodeBoundedOffsetCursor(nextOffset) : null,
         hasMore
       }
     };
@@ -136,7 +134,9 @@ const normalizeSearchFilters = (query: SearchQuery): SearchFilter[] => {
   return filters;
 };
 
-const filtersFromLegacyScope = (scope: SearchQuery["scope"]): SearchFilter[] => {
+const filtersFromLegacyScope = (
+  scope: SearchQuery["scope"]
+): SearchFilter[] => {
   if (scope === "clubs") {
     return ["clubs"];
   }

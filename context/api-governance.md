@@ -36,16 +36,16 @@ All JSON errors use `{ "error": { "code", "message", "requestId" } }`. The
 request ID is safe to quote to operators. Clients must branch on status/code,
 not message text.
 
-| Status | Stable codes | Retry guidance |
-| --- | --- | --- |
-| 400 | `BAD_REQUEST` | Fix the request; do not retry unchanged. |
-| 401 | `UNAUTHORIZED` | Refresh/re-authenticate once; login failures remain intentionally generic. |
-| 403 | `FORBIDDEN`, `BANNED` | Do not retry without a permission/state change. |
-| 404 | `NOT_FOUND` | Do not retry unless eventual creation is expected. |
-| 409 | `CONFLICT`, `INVITE_EXPIRED`, `INVITE_REVOKED` | Re-read state; retry only when the operation is documented idempotent and the conflict is transient. |
-| 429 | `TOO_MANY_REQUESTS` | Honor `Retry-After`/`RateLimit`; use jitter and never fan out retries. |
-| 500 | `INTERNAL_SERVER_ERROR` | Retry idempotent requests with bounded exponential backoff. |
-| 503 | `SERVICE_UNAVAILABLE` | Retry idempotent requests with bounded exponential backoff. |
+| Status | Stable codes                                   | Retry guidance                                                                                       |
+| ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 400    | `BAD_REQUEST`                                  | Fix the request; do not retry unchanged.                                                             |
+| 401    | `UNAUTHORIZED`                                 | Refresh/re-authenticate once; login failures remain intentionally generic.                           |
+| 403    | `FORBIDDEN`, `BANNED`                          | Do not retry without a permission/state change.                                                      |
+| 404    | `NOT_FOUND`                                    | Do not retry unless eventual creation is expected.                                                   |
+| 409    | `CONFLICT`, `INVITE_EXPIRED`, `INVITE_REVOKED` | Re-read state; retry only when the operation is documented idempotent and the conflict is transient. |
+| 429    | `TOO_MANY_REQUESTS`                            | Honor `Retry-After`/`RateLimit`; use jitter and never fan out retries.                               |
+| 500    | `INTERNAL_SERVER_ERROR`                        | Retry idempotent requests with bounded exponential backoff.                                          |
+| 503    | `SERVICE_UNAVAILABLE`                          | Retry idempotent requests with bounded exponential backoff.                                          |
 
 Rate-limited responses publish the structured `RateLimit` header and may publish
 `Retry-After`. Limits are abuse controls, not client quotas, and can tighten

@@ -30,11 +30,7 @@ export const MilestoneProgressDots = ({
       className={cn("flex max-w-full flex-col gap-1.5", className)}
     >
       {checkpointRows.map((row, rowIndex) => (
-        <CheckpointRow
-          key={rowIndex}
-          reachedCount={reachedCount}
-          row={row}
-        />
+        <CheckpointRow key={rowIndex} reachedCount={reachedCount} row={row} />
       ))}
     </div>
   );
@@ -50,11 +46,7 @@ const CheckpointRow = ({
   const progressWidth = getRowProgressWidth(row, reachedCount);
 
   return (
-    <div
-      aria-hidden="true"
-      className="relative h-7 px-2.5"
-      data-checkpoint-row
-    >
+    <div aria-hidden="true" className="relative h-7 px-2.5" data-checkpoint-row>
       <span
         aria-hidden="true"
         className="absolute inset-x-2.5 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-border"
@@ -126,6 +118,7 @@ const getCheckpointRows = (checkpointCount: number) =>
             checkpointCount - rowIndex * checkpointsPerRow
           )
         },
-        (_, checkpointIndex) => rowIndex * checkpointsPerRow + checkpointIndex + 1
+        (_, checkpointIndex) =>
+          rowIndex * checkpointsPerRow + checkpointIndex + 1
       )
   );

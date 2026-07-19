@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Globe2, LogIn, Sparkles, UserPlus, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Globe2,
+  LogIn,
+  Sparkles,
+  UserPlus,
+  Users
+} from "lucide-react";
 
 import { formatClubCategory } from "@/features/clubs/lib/club-categories";
 import { getClubFeedPath } from "@/features/clubs/lib/club-paths";

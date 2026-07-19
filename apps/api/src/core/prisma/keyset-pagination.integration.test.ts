@@ -73,7 +73,11 @@ describeDatabase("growing-list keyset pagination", () => {
       expect(firstJoinedPage.hasMore).toBe(true);
       expect(secondJoinedPage.hasMore).toBe(false);
       expect(
-        new Set([...firstJoinedPage.clubs, ...secondJoinedPage.clubs].map(({ id }) => id))
+        new Set(
+          [...firstJoinedPage.clubs, ...secondJoinedPage.clubs].map(
+            ({ id }) => id
+          )
+        )
       ).toEqual(new Set(clubs.map(({ id }) => id)));
     } finally {
       await prisma.club.deleteMany({

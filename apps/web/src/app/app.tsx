@@ -110,7 +110,10 @@ export const App = () => (
           <SentryRoutes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/clubs" element={<PublicClubsPage />} />
-            <Route path="/clubs/:linkName" element={<PublicClubProfilePage />} />
+            <Route
+              path="/clubs/:linkName"
+              element={<PublicClubProfilePage />}
+            />
             <Route
               path="/app"
               element={
@@ -347,10 +350,7 @@ const RouteFallback = () => (
 function lazyRoute<
   TModule extends Record<string, unknown>,
   TKey extends keyof TModule
->(
-  importer: () => Promise<TModule>,
-  exportName: TKey
-) {
+>(importer: () => Promise<TModule>, exportName: TKey) {
   return lazy(async () => {
     const module = await importer();
 

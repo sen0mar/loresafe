@@ -183,13 +183,21 @@ export const SignupForm = () => {
               disabled={signupMutation.isPending}
               aria-invalid={!!fieldErrors.confirmPassword}
               aria-describedby={
-                fieldErrors.confirmPassword ? "confirmPassword-error" : undefined
+                fieldErrors.confirmPassword
+                  ? "confirmPassword-error"
+                  : undefined
               }
             />
           </AuthFormField>
 
-          <Button type="submit" className="mt-2" disabled={signupMutation.isPending}>
-            {signupMutation.isPending ? "Creating account..." : "Create account"}
+          <Button
+            type="submit"
+            className="mt-2"
+            disabled={signupMutation.isPending}
+          >
+            {signupMutation.isPending
+              ? "Creating account..."
+              : "Create account"}
             <ArrowRight />
           </Button>
         </form>

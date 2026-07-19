@@ -189,18 +189,20 @@ const validDimensions = (image: ValidatedImage) => {
 };
 
 const isJpegStartOfFrame = (marker: number) =>
-  marker >= 0xc0 &&
-  marker <= 0xcf &&
-  ![0xc4, 0xc8, 0xcc].includes(marker);
+  marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
 
 const readAscii = (bytes: Uint8Array, offset: number, length: number) =>
   String.fromCharCode(...bytes.slice(offset, offset + length));
 
 const containsAscii = (bytes: Uint8Array, value: string) => {
-  const pattern = Uint8Array.from(value, (character) => character.charCodeAt(0));
+  const pattern = Uint8Array.from(value, (character) =>
+    character.charCodeAt(0)
+  );
 
   return bytes.some((_, index) =>
-    pattern.every((character, patternIndex) => bytes[index + patternIndex] === character)
+    pattern.every(
+      (character, patternIndex) => bytes[index + patternIndex] === character
+    )
   );
 };
 

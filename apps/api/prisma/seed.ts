@@ -75,14 +75,16 @@ const seedDemoClub = async (ownerId: string) => {
     },
     update: {
       title: "The First Law Book Club",
-      description: "Abercrombie fans discussing the books one chapter at a time.",
+      description:
+        "Abercrombie fans discussing the books one chapter at a time.",
       category: "BOOKS",
       visibility: "PUBLIC"
     },
     create: {
       title: "The First Law Book Club",
       linkName: "the-first-law-book-club",
-      description: "Abercrombie fans discussing the books one chapter at a time.",
+      description:
+        "Abercrombie fans discussing the books one chapter at a time.",
       category: "BOOKS",
       visibility: "PUBLIC"
     },
@@ -124,14 +126,16 @@ const seedDemoMilestones = async (clubId: string) => {
       position: 1,
       safeTitle: "Opening chapters",
       fullTitle: "The Blade Itself: opening chapters",
-      description: "Start the timeline with first impressions and early character setup.",
+      description:
+        "Start the timeline with first impressions and early character setup.",
       spoilerName: false
     },
     {
       position: 2,
       safeTitle: "Northern journey",
       fullTitle: "The Blade Itself: northern journey",
-      description: "Discussion checkpoint for early travels and shifting alliances.",
+      description:
+        "Discussion checkpoint for early travels and shifting alliances.",
       spoilerName: false
     },
     {
@@ -318,7 +322,8 @@ const seed = async () => {
 
 seed()
   .catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : "Unknown seed error";
+    const message =
+      error instanceof Error ? error.message : "Unknown seed error";
     console.error(`Seed failed: ${message}`);
     process.exit(1);
   })

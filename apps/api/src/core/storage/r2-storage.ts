@@ -35,7 +35,9 @@ export type ObjectStorage = {
     objectKey: string;
   }) => Promise<PresignedUpload>;
   deleteObjects: (objectKeys: string[]) => Promise<void>;
-  getObjectMetadata: (objectKey: string) => Promise<StoredObjectMetadata | null>;
+  getObjectMetadata: (
+    objectKey: string
+  ) => Promise<StoredObjectMetadata | null>;
   getObjectBytes: (objectKey: string, maxBytes: number) => Promise<Uint8Array>;
   getPublicUrl: (objectKey: string) => string;
 };

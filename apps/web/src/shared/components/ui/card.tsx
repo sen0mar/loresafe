@@ -24,7 +24,10 @@ const CardHeader = ({ className, ...props }: React.ComponentProps<"div">) => (
 const CardTitle = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     data-slot="card-title"
-    className={cn("text-base font-semibold leading-none text-primary", className)}
+    className={cn(
+      "text-base font-semibold leading-none text-primary",
+      className
+    )}
     {...props}
   />
 );

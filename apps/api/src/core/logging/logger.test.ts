@@ -5,9 +5,7 @@ import { sanitizeError, sanitizePath } from "./logger.js";
 describe("logger sanitization", () => {
   it("redacts sensitive URL path segments", () => {
     expect(
-      sanitizePath(
-        "/api/invites/abcdefghijklmnopqrstuvwxyz123456/accept"
-      )
+      sanitizePath("/api/invites/abcdefghijklmnopqrstuvwxyz123456/accept")
     ).toBe("/api/invites/:redacted/accept");
   });
 

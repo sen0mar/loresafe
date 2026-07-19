@@ -3,7 +3,9 @@ const authSessionHintValue = "present";
 
 export const hasAuthSessionHint = () => {
   try {
-    return window.localStorage.getItem(authSessionHintKey) === authSessionHintValue;
+    return (
+      window.localStorage.getItem(authSessionHintKey) === authSessionHintValue
+    );
   } catch {
     // If storage is unavailable, keep the existing behavior and verify with the API.
     return true;

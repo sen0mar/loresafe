@@ -67,20 +67,14 @@ export const NotificationRow = ({
 }) => {
   const isUnread = !notification.readAt;
   const isLocked = notification.visibility === "LOCKED";
-  const targetPath =
-    notification.postId
+  const targetPath = notification.postId
     ? `/app/posts/${notification.postId}`
     : notification.type === "PROGRESS_UNLOCK"
       ? `/app/clubs/${notification.club.linkName}/recently-unlocked`
-    : getClubFeedPath(notification.club.linkName);
+      : getClubFeedPath(notification.club.linkName);
 
   return (
-    <div
-      ref={rowRef}
-      className={cn(
-        "notification-row-shell"
-      )}
-    >
+    <div ref={rowRef} className={cn("notification-row-shell")}>
       <article
         aria-hidden={isExiting ? true : undefined}
         className={cn(
@@ -90,82 +84,82 @@ export const NotificationRow = ({
           isExiting && "notification-row-card-exiting pointer-events-none"
         )}
       >
-      <div className="flex items-start gap-3 p-4">
-        {isSelecting ? (
-          <input
-            type="checkbox"
-            className="mt-2 size-4 shrink-0 rounded border-default bg-inset accent-[var(--accent-primary)]"
-            checked={isSelected}
-            aria-label={`Select notification: ${notification.safeText}`}
-            onChange={onSelectChange}
-          />
-        ) : null}
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <Link
-              to={targetPath}
-              className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={isUnread ? "default" : "secondary"}>
-                  {notificationTypeLabels[notification.type]}
-                </Badge>
-                {isLocked ? <Badge variant="outline">Locked</Badge> : null}
-                <span className="text-xs text-faint">
-                  {formatNotificationTime(notification.createdAt)}
-                </span>
-              </div>
-              <div className="mt-2">
-                <p className="text-sm font-medium leading-5 text-primary">
-                  {notification.safeText}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-faint">
-                  Milestone {notification.requiredMilestone.position}:{" "}
-                  {notification.requiredMilestone.label}
-                </p>
-              </div>
-            </Link>
-            <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:self-end">
-              {isUnread ? (
-                <Button
-                  className="h-7 min-h-7 w-full gap-1 px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isMarkingRead}
-                  onClick={onMarkRead}
-                >
-                  <Check className="size-4" />
-                  {isMarkingRead ? "Marking..." : "Mark read"}
-                </Button>
-              ) : null}
-              <ConfirmNotificationActionDialog
-                title="Delete this notification?"
-                description="This permanently removes the notification from your inbox. The original discussion is not affected."
-                confirmLabel="Delete"
-                pendingLabel="Deleting..."
-                confirmIcon={<Trash2 className="size-4" />}
-                confirmVariant="destructive"
-                disabled={isDeleting}
-                isPending={isDeleting}
-                onConfirm={onDelete}
-                trigger={
+        <div className="flex items-start gap-3 p-4">
+          {isSelecting ? (
+            <input
+              type="checkbox"
+              className="mt-2 size-4 shrink-0 rounded border-default bg-inset accent-[var(--accent-primary)]"
+              checked={isSelected}
+              aria-label={`Select notification: ${notification.safeText}`}
+              onChange={onSelectChange}
+            />
+          ) : null}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <Link
+                to={targetPath}
+                className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={isUnread ? "default" : "secondary"}>
+                    {notificationTypeLabels[notification.type]}
+                  </Badge>
+                  {isLocked ? <Badge variant="outline">Locked</Badge> : null}
+                  <span className="text-xs text-faint">
+                    {formatNotificationTime(notification.createdAt)}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm font-medium leading-5 text-primary">
+                    {notification.safeText}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-faint">
+                    Milestone {notification.requiredMilestone.position}:{" "}
+                    {notification.requiredMilestone.label}
+                  </p>
+                </div>
+              </Link>
+              <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:self-end">
+                {isUnread ? (
                   <Button
-                    className="h-7 min-h-7 w-full gap-1 border border-error px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
+                    className="h-7 min-h-7 w-full gap-1 px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    disabled={isDeleting}
+                    disabled={isMarkingRead}
+                    onClick={onMarkRead}
                   >
-                    <Trash2 className="size-4" />
-                    {isDeleting ? "Deleting..." : "Delete"}
+                    <Check className="size-4" />
+                    {isMarkingRead ? "Marking..." : "Mark read"}
                   </Button>
-                }
-              />
+                ) : null}
+                <ConfirmNotificationActionDialog
+                  title="Delete this notification?"
+                  description="This permanently removes the notification from your inbox. The original discussion is not affected."
+                  confirmLabel="Delete"
+                  pendingLabel="Deleting..."
+                  confirmIcon={<Trash2 className="size-4" />}
+                  confirmVariant="destructive"
+                  disabled={isDeleting}
+                  isPending={isDeleting}
+                  onConfirm={onDelete}
+                  trigger={
+                    <Button
+                      className="h-7 min-h-7 w-full gap-1 border border-error px-2 py-0 text-[0.6875rem] leading-none motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 sm:mb-0.5 sm:w-fit [&_svg]:size-3.5"
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="size-4" />
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </Button>
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </article>
     </div>
   );
@@ -241,7 +235,9 @@ export const NotificationsLoading = () => (
 export const NotificationsEmpty = () => (
   <div className="rounded-xl border border-default bg-inset px-4 py-10 text-center">
     <Bell className="mx-auto size-8 text-faint" />
-    <p className="mt-3 text-sm font-medium text-primary">No notifications yet</p>
+    <p className="mt-3 text-sm font-medium text-primary">
+      No notifications yet
+    </p>
     <p className="mt-1 text-sm text-muted">
       Comment and reply activity will appear here.
     </p>

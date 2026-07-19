@@ -11,7 +11,12 @@ import {
   useClubMilestonesQuery
 } from "../api/clubs.js";
 import { CommentForm } from "./post-comment-form.js";
-import { CommentThreadBlock, CommentsEmpty, CommentsError, CommentsLoading } from "./post-comment-thread.js";
+import {
+  CommentThreadBlock,
+  CommentsEmpty,
+  CommentsError,
+  CommentsLoading
+} from "./post-comment-thread.js";
 
 export const CommentsPanel = ({
   clubLinkName,

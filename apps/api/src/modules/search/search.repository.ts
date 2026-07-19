@@ -136,7 +136,7 @@ const searchPostSelect = (userId: string) => {
             id: true
           },
           take: 1
-        },
+        }
       }
     }
   } as const;
@@ -406,8 +406,7 @@ const toSearchPostRecord = (
       isCurrentUserBanned: post.club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
-        currentMilestonePosition:
-          progress?.currentMilestone?.position ?? null
+        currentMilestonePosition: progress?.currentMilestone?.position ?? null
       }
     }
   };

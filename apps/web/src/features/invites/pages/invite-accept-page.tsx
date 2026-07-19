@@ -26,14 +26,8 @@ import { useAcceptInviteMutation } from "../api/invites.js";
 export const InviteAcceptPage = () => {
   const { token = "" } = useParams();
   const acceptInviteMutation = useAcceptInviteMutation();
-  const {
-    data,
-    error,
-    isError,
-    isSuccess,
-    mutate,
-    reset
-  } = acceptInviteMutation;
+  const { data, error, isError, isSuccess, mutate, reset } =
+    acceptInviteMutation;
   const hasSubmittedRef = useRef(false);
 
   useEffect(() => {
@@ -57,10 +51,7 @@ export const InviteAcceptPage = () => {
         {isSuccess ? (
           <InviteSuccessCard result={data} />
         ) : isError ? (
-          <InviteErrorCard
-            error={error}
-            onRetry={retryAccept}
-          />
+          <InviteErrorCard error={error} onRetry={retryAccept} />
         ) : (
           <InviteLoadingCard />
         )}

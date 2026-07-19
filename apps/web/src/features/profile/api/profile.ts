@@ -1,9 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import {
-  authQueryKeys,
-  type AuthResponse
-} from "@/features/auth/api/auth";
+import { authQueryKeys, type AuthResponse } from "@/features/auth/api/auth";
 import { clearAuthSessionHint } from "@/features/auth/api/auth-session-hint";
 import { apiDelete, apiPatch } from "@/shared/api/api-client";
 

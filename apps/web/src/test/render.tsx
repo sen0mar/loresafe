@@ -54,35 +54,39 @@ export const renderWithProviders = (
 };
 
 export const mockFetchRoutes = (routes: MockRoute[]) => {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = normalizeRequest(input, init);
-    const route = routes.find(
-      (candidate) =>
-        (candidate.method ?? "GET") === request.method &&
-        (typeof candidate.path === "string"
-          ? candidate.path === request.url.pathname
-          : candidate.path.test(request.url.pathname))
-    );
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = normalizeRequest(input, init);
+      const route = routes.find(
+        (candidate) =>
+          (candidate.method ?? "GET") === request.method &&
+          (typeof candidate.path === "string"
+            ? candidate.path === request.url.pathname
+            : candidate.path.test(request.url.pathname))
+      );
 
-    if (!route) {
-      throw new Error(`Unhandled fetch ${request.method} ${request.url.pathname}`);
-    }
+      if (!route) {
+        throw new Error(
+          `Unhandled fetch ${request.method} ${request.url.pathname}`
+        );
+      }
 
-    const payload =
-      typeof route.response === "function"
-        ? route.response(request)
-        : route.response;
+      const payload =
+        typeof route.response === "function"
+          ? route.response(request)
+          : route.response;
 
-    if (route.status === 204) {
-      return new Response(null, {
-        status: 204
+      if (route.status === 204) {
+        return new Response(null, {
+          status: 204
+        });
+      }
+
+      return Response.json(payload, {
+        status: route.status ?? 200
       });
     }
-
-    return Response.json(payload, {
-      status: route.status ?? 200
-    });
-  });
+  );
 
   vi.stubGlobal("fetch", fetchMock);
 

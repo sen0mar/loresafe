@@ -192,9 +192,7 @@ export const MobileNav = ({
             <Icon className="size-4" />
             {item.label}
             {item.badge ? (
-              <Badge className="ml-auto">
-                {formatBadgeCount(item.badge)}
-              </Badge>
+              <Badge className="ml-auto">{formatBadgeCount(item.badge)}</Badge>
             ) : null}
           </DropdownMenuItem>
         );

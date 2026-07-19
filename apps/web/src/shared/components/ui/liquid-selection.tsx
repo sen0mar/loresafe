@@ -79,10 +79,7 @@ const getIndicatorStyle = (indicatorRect: IndicatorRect | null) =>
       } satisfies CSSProperties)
     : undefined;
 
-const getInitialCachedSelection = (
-  activeValue?: string,
-  cacheKey?: string
-) => {
+const getInitialCachedSelection = (activeValue?: string, cacheKey?: string) => {
   if (!activeValue || !cacheKey) {
     return null;
   }
@@ -120,7 +117,7 @@ export const useLiquidSelection = <
   const shouldDeferInitialMeasurementRef = useRef(
     Boolean(
       initialCachedSelectionRef.current &&
-        initialCachedSelectionRef.current.activeValue !== activeValue
+      initialCachedSelectionRef.current.activeValue !== activeValue
     )
   );
   const [settleAnimationKey, setSettleAnimationKey] = useState(0);

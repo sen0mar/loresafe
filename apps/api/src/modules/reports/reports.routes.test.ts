@@ -206,7 +206,9 @@ describe("reports routes", () => {
       .expect(201);
 
     expect(repository.reports).toHaveLength(2);
-    expect(secondPostReport.body.report.id).toBe(firstPostReport.body.report.id);
+    expect(secondPostReport.body.report.id).toBe(
+      firstPostReport.body.report.id
+    );
     expect(secondPostReport.body.report.reason).toBe("SPOILER");
     expect(secondCommentReport.body.report.id).toBe(
       firstCommentReport.body.report.id
@@ -262,14 +264,20 @@ describe("reports routes", () => {
       membershipUserId: user.id,
       progressPosition: 2
     });
-    const hiddenComment = repository.createCommentFixture(hiddenCommentPost.id, {
-      status: "HIDDEN",
-      unsafeBody: "UNSAFE_HIDDEN_COMMENT"
-    });
-    const deletedComment = repository.createCommentFixture(hiddenCommentPost.id, {
-      deletedAt: new Date(),
-      unsafeBody: "UNSAFE_DELETED_COMMENT"
-    });
+    const hiddenComment = repository.createCommentFixture(
+      hiddenCommentPost.id,
+      {
+        status: "HIDDEN",
+        unsafeBody: "UNSAFE_HIDDEN_COMMENT"
+      }
+    );
+    const deletedComment = repository.createCommentFixture(
+      hiddenCommentPost.id,
+      {
+        deletedAt: new Date(),
+        unsafeBody: "UNSAFE_DELETED_COMMENT"
+      }
+    );
     const privatePost = repository.createPostFixture(user.id, {
       clubVisibility: "PRIVATE"
     });
@@ -290,10 +298,13 @@ describe("reports routes", () => {
       progressPosition: 1,
       requiredMilestonePosition: 1
     });
-    const lockedComment = repository.createCommentFixture(lockedCommentPost.id, {
-      requiredMilestonePosition: 2,
-      unsafeBody: "UNSAFE_LOCKED_COMMENT"
-    });
+    const lockedComment = repository.createCommentFixture(
+      lockedCommentPost.id,
+      {
+        requiredMilestonePosition: 2,
+        unsafeBody: "UNSAFE_LOCKED_COMMENT"
+      }
+    );
 
     for (const commentId of [
       hiddenComment.id,
@@ -391,7 +402,10 @@ describe("reports routes", () => {
     repository.createMembership(member.id, post.clubId, "MEMBER");
     await repository.createReport(
       reporter.id,
-      await repository.findPostTarget(post.id, reporter.id) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       {
         targetType: "POST",
         targetId: post.id,
@@ -443,7 +457,10 @@ describe("reports routes", () => {
 
       await repository.createReport(
         reporter.id,
-        await repository.findPostTarget(post.id, reporter.id) as ReportTargetRecord,
+        (await repository.findPostTarget(
+          post.id,
+          reporter.id
+        )) as ReportTargetRecord,
         {
           targetType: "POST",
           targetId: post.id,
@@ -453,7 +470,10 @@ describe("reports routes", () => {
       );
       await repository.createReport(
         reporter.id,
-        await repository.findCommentTarget(comment.id, reporter.id) as ReportTargetRecord,
+        (await repository.findCommentTarget(
+          comment.id,
+          reporter.id
+        )) as ReportTargetRecord,
         {
           targetType: "COMMENT",
           targetId: comment.id,
@@ -525,7 +545,10 @@ describe("reports routes", () => {
 
     const otherReport = await repository.createReport(
       reporter.id,
-      await repository.findPostTarget(otherPost.id, reporter.id) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        otherPost.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", otherPost.id)
     );
 
@@ -571,7 +594,10 @@ describe("reports routes", () => {
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     const report = await repository.createReport(
       reporter.id,
-      await repository.findPostTarget(post.id, reporter.id) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       {
         targetType: "POST",
         targetId: post.id,
@@ -588,7 +614,9 @@ describe("reports routes", () => {
     expect(JSON.stringify(safeResponse.body)).not.toContain("UNSAFE");
 
     const revealResponse = await request(app)
-      .post(`/api/clubs/${club.linkName}/moderation/reports/${report.id}/reveal`)
+      .post(
+        `/api/clubs/${club.linkName}/moderation/reports/${report.id}/reveal`
+      )
       .set("Cookie", await createSessionCookie(moderator))
       .expect(200);
 
@@ -632,10 +660,10 @@ describe("reports routes", () => {
 
     repository.createMembership(moderator.id, hiddenPost.clubId, "MODERATOR");
 
-    const hiddenTarget = await repository.findPostTarget(
+    const hiddenTarget = (await repository.findPostTarget(
       hiddenPost.id,
       reporter.id
-    ) as ReportTargetRecord;
+    )) as ReportTargetRecord;
     await repository.createReport(reporter.id, hiddenTarget, {
       targetType: "POST",
       targetId: hiddenPost.id,
@@ -644,15 +672,19 @@ describe("reports routes", () => {
     hiddenPost.status = "HIDDEN";
 
     const deletedReport = {
-      ...(await repository.createReport(reporter.id, {
-        ...hiddenTarget,
-        targetId: deletedPost.id
-      }, {
-        targetType: "POST",
-        targetId: deletedPost.id,
-        reason: "OTHER",
-        details: "UNSAFE_DELETED_DETAILS"
-      }))
+      ...(await repository.createReport(
+        reporter.id,
+        {
+          ...hiddenTarget,
+          targetId: deletedPost.id
+        },
+        {
+          targetType: "POST",
+          targetId: deletedPost.id,
+          reason: "OTHER",
+          details: "UNSAFE_DELETED_DETAILS"
+        }
+      ))
     };
 
     const response = await request(app)
@@ -707,7 +739,10 @@ describe("reports routes", () => {
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     const report = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
 
@@ -768,7 +803,10 @@ describe("reports routes", () => {
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     const report = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       {
         ...validReportInput("POST", post.id),
         details: "UNSAFE_REPORT_DETAILS"
@@ -836,7 +874,10 @@ describe("reports routes", () => {
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     const postReport = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
     const commentReport = await repository.createReport(
@@ -849,7 +890,9 @@ describe("reports routes", () => {
     );
 
     await request(app)
-      .post(`/api/clubs/${club.linkName}/moderation/reports/${postReport.id}/hide`)
+      .post(
+        `/api/clubs/${club.linkName}/moderation/reports/${postReport.id}/hide`
+      )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "Hide this" })
       .expect(200);
@@ -868,9 +911,9 @@ describe("reports routes", () => {
       "POST_HIDDEN",
       "COMMENT_DELETED"
     ]);
-    expect(repository.reports.find((row) => row.id === postReport.id)?.status).toBe(
-      "RESOLVED"
-    );
+    expect(
+      repository.reports.find((row) => row.id === postReport.id)?.status
+    ).toBe("RESOLVED");
     expect(
       repository.reports.find((row) => row.id === commentReport.id)?.status
     ).toBe("RESOLVED");
@@ -909,25 +952,35 @@ describe("reports routes", () => {
     });
     const warnReport = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
 
     await request(app)
-      .post(`/api/clubs/${club.linkName}/moderation/reports/${warnReport.id}/warn`)
+      .post(
+        `/api/clubs/${club.linkName}/moderation/reports/${warnReport.id}/warn`
+      )
       .set("Cookie", await createSessionCookie(moderator))
       .send({ moderatorNote: "UNSAFE_INTERNAL_NOTE" })
       .expect(200);
 
     const banReport = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     const banResponse = await request(app)
-      .post(`/api/clubs/${club.linkName}/moderation/reports/${banReport.id}/ban`)
+      .post(
+        `/api/clubs/${club.linkName}/moderation/reports/${banReport.id}/ban`
+      )
       .set("Cookie", await createSessionCookie(moderator))
       .send({
         expiresAt,
@@ -1046,7 +1099,10 @@ describe("reports routes", () => {
     repository.createMembership(moderator.id, post.clubId, "MODERATOR");
     const resolvedReport = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
 
@@ -1060,7 +1116,10 @@ describe("reports routes", () => {
 
     const dismissedReport = await repository.createReport(
       reporter.id,
-      (await repository.findPostTarget(post.id, reporter.id)) as ReportTargetRecord,
+      (await repository.findPostTarget(
+        post.id,
+        reporter.id
+      )) as ReportTargetRecord,
       validReportInput("POST", post.id)
     );
 
@@ -1124,7 +1183,9 @@ type StoredComment = {
   unsafeBody: string;
 };
 
-class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepository {
+class InMemoryReportsRepository
+  implements AuthUsersRepository, ReportsRepository
+{
   readonly usersByEmail = new Map<
     string,
     AuthUserRecord & { passwordHash: string }
@@ -1547,7 +1608,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     }
   ): Promise<ListModerationReportsResult> => {
     const reports = this.reports
-      .filter((report) => report.clubId === clubId && report.status === input.status)
+      .filter(
+        (report) => report.clubId === clubId && report.status === input.status
+      )
       .filter((report) =>
         input.cursor
           ? report.createdAt < input.cursor.createdAt ||
@@ -1556,7 +1619,8 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
           : true
       )
       .sort((left, right) => {
-        const createdAtSort = right.createdAt.getTime() - left.createdAt.getTime();
+        const createdAtSort =
+          right.createdAt.getTime() - left.createdAt.getTime();
 
         return createdAtSort || left.id.localeCompare(right.id);
       });
@@ -1564,7 +1628,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     const lastReport = pageReports[pageReports.length - 1];
 
     return {
-      reports: pageReports.map((report) => this.toModerationReportRecord(report)),
+      reports: pageReports.map((report) =>
+        this.toModerationReportRecord(report)
+      ),
       nextCursor:
         reports.length > input.limit && lastReport
           ? {
@@ -1682,8 +1748,7 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     action.target.deletedAt = new Date();
     this.resolveReport(action.report);
     this.createAuditLog({
-      action:
-        action.targetType === "POST" ? "POST_DELETED" : "COMMENT_DELETED",
+      action: action.targetType === "POST" ? "POST_DELETED" : "COMMENT_DELETED",
       actorId,
       clubId,
       report: action.report,
@@ -1732,9 +1797,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       eventKey: `moderation-warning:${reportId}:${action.target.authorId}`,
       safeText: `A moderator issued a warning in ${club?.title ?? "this club"}.`,
       clubId,
-      postId: action.targetType === "POST" ? action.target.id : action.report.postId,
-      commentId:
-        action.targetType === "COMMENT" ? action.target.id : null,
+      postId:
+        action.targetType === "POST" ? action.target.id : action.report.postId,
+      commentId: action.targetType === "COMMENT" ? action.target.id : null,
       requiredMilestoneId: action.target.requiredMilestone.id
     };
 
@@ -1785,7 +1850,8 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
           membership.clubId === clubId
       ) ?? null;
     const ownerCount = this.memberships.filter(
-      (membership) => membership.clubId === clubId && membership.role === "OWNER"
+      (membership) =>
+        membership.clubId === clubId && membership.role === "OWNER"
     ).length;
 
     if (
@@ -1940,10 +2006,11 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
     }
   ) =>
     report.targetType === "POST"
-      ? this.posts.find((storedPost) => storedPost.id === report.postId) ?? null
-      : this.comments.find(
+      ? (this.posts.find((storedPost) => storedPost.id === report.postId) ??
+        null)
+      : (this.comments.find(
           (storedComment) => storedComment.id === report.commentId
-        ) ?? null;
+        ) ?? null);
 
   private resolveReport = (
     report: ReportRecord & {
@@ -2029,10 +2096,10 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
       clubId: post.clubId,
       requiredMilestone: post.requiredMilestone,
       club: {
-	        visibility: club.visibility,
-	        currentUserRole: membership?.role ?? null,
-	        isCurrentUserBanned: this.hasActiveBan(userId, club.id),
-	        progress: {
+        visibility: club.visibility,
+        currentUserRole: membership?.role ?? null,
+        isCurrentUserBanned: this.hasActiveBan(userId, club.id),
+        progress: {
           mode: progress?.mode ?? "STRICT",
           currentMilestonePosition: progress?.position ?? null
         }
@@ -2123,7 +2190,9 @@ class InMemoryReportsRepository implements AuthUsersRepository, ReportsRepositor
 const canTestActorBanTarget = (
   actorRole: "OWNER" | "MODERATOR" | "MEMBER",
   targetRole: "OWNER" | "MODERATOR" | "MEMBER"
-) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
+) =>
+  actorRole === "OWNER" ||
+  (actorRole === "MODERATOR" && targetRole === "MEMBER");
 
 const createReportsTestApp = (
   repository: InMemoryReportsRepository,

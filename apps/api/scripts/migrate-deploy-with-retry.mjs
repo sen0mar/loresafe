@@ -6,9 +6,18 @@ const parsePositiveInt = (value, fallback) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const maxAttempts = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_ATTEMPTS, 6);
-const baseDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS, 5_000);
-const maxDelayMs = parsePositiveInt(process.env.PRISMA_MIGRATE_DEPLOY_MAX_RETRY_DELAY_MS, 30_000);
+const maxAttempts = parsePositiveInt(
+  process.env.PRISMA_MIGRATE_DEPLOY_MAX_ATTEMPTS,
+  6
+);
+const baseDelayMs = parsePositiveInt(
+  process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS,
+  5_000
+);
+const maxDelayMs = parsePositiveInt(
+  process.env.PRISMA_MIGRATE_DEPLOY_MAX_RETRY_DELAY_MS,
+  30_000
+);
 const outputLimit = 20_000;
 
 const sleep = (delayMs) =>
@@ -19,7 +28,9 @@ const sleep = (delayMs) =>
 const appendOutput = (currentOutput, chunk) => {
   const nextOutput = `${currentOutput}${chunk}`;
 
-  return nextOutput.length > outputLimit ? nextOutput.slice(-outputLimit) : nextOutput;
+  return nextOutput.length > outputLimit
+    ? nextOutput.slice(-outputLimit)
+    : nextOutput;
 };
 
 const isAdvisoryLockTimeout = (output) => {

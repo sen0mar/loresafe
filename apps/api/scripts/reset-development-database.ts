@@ -178,9 +178,7 @@ export const resetDevelopmentDatabase = async () => {
     await client.end();
   }
 
-  console.log(
-    "Running existing Prisma seed against the development database."
-  );
+  console.log("Running existing Prisma seed against the development database.");
   await runExistingSeed(databaseUrl);
   console.log("Development database reset completed.");
 };

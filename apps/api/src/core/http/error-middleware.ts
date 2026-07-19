@@ -54,4 +54,5 @@ const getSafeRequestContext = (
   };
 };
 
-const getRequestPath = (req: Request) => req.originalUrl.split("?")[0] ?? req.path;
+const getRequestPath = (req: Request) =>
+  req.originalUrl.split("?")[0] ?? req.path;

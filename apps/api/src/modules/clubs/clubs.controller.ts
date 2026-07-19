@@ -338,7 +338,10 @@ export const createClubsController = (
 
       const paramsResult = clubBanParamsSchema.safeParse(req.params);
 
-      if (!paramsResult.success || (req.body && Object.keys(req.body).length > 0)) {
+      if (
+        !paramsResult.success ||
+        (req.body && Object.keys(req.body).length > 0)
+      ) {
         throw new HttpError(
           400,
           "BAD_REQUEST",

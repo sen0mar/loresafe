@@ -273,7 +273,10 @@ const seedPerfData = async () => {
   const notifications = visiblePosts.slice(0, 1200).map((post, index) => ({
     id: uuidFor(`${PERF_PREFIX}:notification:${index}`),
     userId: users[index % users.length].id,
-    type: index % 5 === 0 ? ("PROGRESS_UNLOCK" as const) : ("POST_COMMENT" as const),
+    type:
+      index % 5 === 0
+        ? ("PROGRESS_UNLOCK" as const)
+        : ("POST_COMMENT" as const),
     eventKey: `${PERF_PREFIX}:notification:${index}`,
     safeText: `Safe notification ${index}`,
     clubId: post.clubId,
@@ -311,7 +314,10 @@ const seedPerfData = async () => {
 
   const auditLogs = reports.slice(0, 500).map((report, index) => ({
     id: uuidFor(`${PERF_PREFIX}:audit:${index}`),
-    action: index % 2 === 0 ? ("REPORT_RESOLVED" as const) : ("REPORT_DISMISSED" as const),
+    action:
+      index % 2 === 0
+        ? ("REPORT_RESOLVED" as const)
+        : ("REPORT_DISMISSED" as const),
     actorId: users[index % 4].id,
     clubId: report.clubId,
     reportId: report.id,
@@ -341,7 +347,10 @@ const seedPerfData = async () => {
 const toUserNameReservations = (
   users: Array<{ id: string; displayName: string; username: string }>
 ) => {
-  const reservations = new Map<string, { normalizedName: string; userId: string }>();
+  const reservations = new Map<
+    string,
+    { normalizedName: string; userId: string }
+  >();
 
   for (const user of users) {
     for (const name of [user.username, user.displayName]) {
@@ -359,9 +368,8 @@ const toUserNameReservations = (
 const explain = async (label: string, sql: string) => {
   const rows = await prisma.$queryRawUnsafe<Array<Record<string, string>>>(sql);
   const plan = rows.map((row) => Object.values(row)[0]).join("\n");
-  const usesIndex = /Index Scan|Index Only Scan|Bitmap Index Scan|Bitmap Heap Scan/i.test(
-    plan
-  );
+  const usesIndex =
+    /Index Scan|Index Only Scan|Bitmap Index Scan|Bitmap Heap Scan/i.test(plan);
 
   console.log(`\n[${label}]\n${plan}`);
 
@@ -370,11 +378,17 @@ const explain = async (label: string, sql: string) => {
   }
 };
 
-const verifyBoundedRows = async (label: string, sql: string, maxRows: number) => {
+const verifyBoundedRows = async (
+  label: string,
+  sql: string,
+  maxRows: number
+) => {
   const rows = await prisma.$queryRawUnsafe<unknown[]>(sql);
 
   if (rows.length > maxRows) {
-    throw new Error(`${label} returned ${rows.length} rows; expected <= ${maxRows}.`);
+    throw new Error(
+      `${label} returned ${rows.length} rows; expected <= ${maxRows}.`
+    );
   }
 
   console.log(`[bounded] ${label}: ${rows.length}/${maxRows}`);

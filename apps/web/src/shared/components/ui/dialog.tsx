@@ -47,10 +47,7 @@ const DialogContent = ({
   </DialogPortal>
 );
 
-const DialogHeader = ({
-  className,
-  ...props
-}: React.ComponentProps<"div">) => (
+const DialogHeader = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     data-slot="dialog-header"
     className={cn("flex flex-col gap-2 text-left", className)}
@@ -58,10 +55,7 @@ const DialogHeader = ({
   />
 );
 
-const DialogFooter = ({
-  className,
-  ...props
-}: React.ComponentProps<"div">) => (
+const DialogFooter = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     data-slot="dialog-footer"
     className={cn(

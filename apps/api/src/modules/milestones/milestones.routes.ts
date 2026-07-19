@@ -1,6 +1,9 @@
 import { Router } from "express";
 
-import { authMiddleware, type AuthMiddleware } from "../auth/auth.middleware.js";
+import {
+  authMiddleware,
+  type AuthMiddleware
+} from "../auth/auth.middleware.js";
 import {
   milestonesController,
   type MilestonesController

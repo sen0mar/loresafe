@@ -45,10 +45,7 @@ import type {
   PostDetailRecord,
   PostsRepository
 } from "./posts.repository.js";
-import {
-  createPostDetailsRouter,
-  createPostsRouter
-} from "./posts.routes.js";
+import { createPostDetailsRouter, createPostsRouter } from "./posts.routes.js";
 import { createPostsService } from "./posts.service.js";
 import type { CreateClubPostRequest } from "./posts.schema.js";
 import {
@@ -519,11 +516,7 @@ describe("posts routes", () => {
       deletedAt: new Date()
     });
 
-    for (const postId of [
-      crypto.randomUUID(),
-      hiddenPost.id,
-      deletedPost.id
-    ]) {
+    for (const postId of [crypto.randomUUID(), hiddenPost.id, deletedPost.id]) {
       const response = await request(app)
         .get(`/api/posts/${postId}`)
         .set("Cookie", await createSessionCookie(user))
@@ -1114,7 +1107,9 @@ describe("posts routes", () => {
 
   it("rejects post reaction toggles without an authenticated session", async () => {
     const response = await request(app)
-      .put(`/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
+      .put(
+        `/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`
+      )
       .set("x-request-id", "post-reaction-missing-session")
       .send({ emoji: "👍" })
       .expect(401);
@@ -1138,7 +1133,9 @@ describe("posts routes", () => {
       .expect(400);
 
     await request(app)
-      .put(`/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`)
+      .put(
+        `/api/posts/${crypto.randomUUID()}/reactions/${encodeURIComponent("🔥")}`
+      )
       .set("Cookie", await createSessionCookie(user))
       .send({ emoji: "🔥" })
       .expect(400);
@@ -1235,7 +1232,8 @@ describe("posts routes", () => {
 
     expect(response.body.error).toMatchObject({
       code: "FORBIDDEN",
-      message: "Reach the required milestone before reacting to this discussion."
+      message:
+        "Reach the required milestone before reacting to this discussion."
     });
     expect(JSON.stringify(response.body)).not.toContain(
       "LOCKED_REACTION_TITLE"
@@ -1402,10 +1400,15 @@ describe("posts routes", () => {
     repository.createMembership(reactor.id, club.id);
     repository.setProgress(reader.id, club.id, firstMilestone.id, "STRICT");
     repository.setProgress(reactor.id, club.id, secondMilestone.id, "STRICT");
-    const post = repository.createPost(club.id, reactor.id, secondMilestone.id, {
-      title: "LOCKED_AGGREGATE_TITLE",
-      body: "LOCKED_AGGREGATE_BODY"
-    });
+    const post = repository.createPost(
+      club.id,
+      reactor.id,
+      secondMilestone.id,
+      {
+        title: "LOCKED_AGGREGATE_TITLE",
+        body: "LOCKED_AGGREGATE_BODY"
+      }
+    );
     repository.createPostReaction(post.id, reactor.id, "👀");
 
     const response = await request(app)
@@ -1863,8 +1866,7 @@ describe("posts routes", () => {
     expect(afterProgressUpdate.body.post).toMatchObject({
       visibility: "VISIBLE",
       title: "Midpoint detail unlocked title",
-      bodyPreview:
-        "Midpoint detail body is visible after progress catches up."
+      bodyPreview: "Midpoint detail body is visible after progress catches up."
     });
   });
 
@@ -2107,7 +2109,9 @@ describe("posts routes", () => {
       fromPosition: 1,
       toPosition: 3
     });
-    expect(response.body.posts.map((post: { title: string }) => post.title)).toEqual(
+    expect(
+      response.body.posts.map((post: { title: string }) => post.title)
+    ).toEqual(
       expect.arrayContaining(["Finished middle title", "Finished end title"])
     );
   });
@@ -2292,10 +2296,15 @@ describe("posts routes", () => {
     });
     repository.createMembership(user.id, club.id);
     repository.setProgress(user.id, club.id, milestone.id, "STRICT");
-    const unansweredPost = repository.createPost(club.id, user.id, milestone.id, {
-      title: "Needs a reply",
-      body: "Nobody has answered this yet."
-    });
+    const unansweredPost = repository.createPost(
+      club.id,
+      user.id,
+      milestone.id,
+      {
+        title: "Needs a reply",
+        body: "Nobody has answered this yet."
+      }
+    );
     const answeredPost = repository.createPost(club.id, user.id, milestone.id, {
       title: "Already answered",
       body: "This one has a real answer."
@@ -2718,11 +2727,11 @@ class InMemoryPostsRepository
       type?: ClubPostRecord["type"];
       status?: ClubPostRecord["status"];
       deletedAt?: Date | null;
-	      createdAt?: Date;
-	      commentCount?: number;
-	      prediction?: StoredPrediction | null;
-	      media?: ClubPostRecord["media"];
-	    }
+      createdAt?: Date;
+      commentCount?: number;
+      prediction?: StoredPrediction | null;
+      media?: ClubPostRecord["media"];
+    }
   ) => {
     const author = this.findStoredUser(authorId);
     const requiredMilestone = this.findMilestone(milestoneId);
@@ -2746,10 +2755,10 @@ class InMemoryPostsRepository
         displayName: author.displayName,
         username: author.username
       },
-	      requiredMilestone,
-	      prediction: input.prediction ?? null,
-	      media: input.media ?? null,
-	      commentCount: input.commentCount ?? 0,
+      requiredMilestone,
+      prediction: input.prediction ?? null,
+      media: input.media ?? null,
+      commentCount: input.commentCount ?? 0,
       reactionCount: 0,
       reactions: this.emptyReactions(),
       createdAt: now,
@@ -2784,7 +2793,9 @@ class InMemoryPostsRepository
     const requiredMilestone = this.findMilestone(requiredMilestoneId);
 
     if (!post || !author || !requiredMilestone) {
-      throw new Error("Comment fixture requires existing post, author, and milestone.");
+      throw new Error(
+        "Comment fixture requires existing post, author, and milestone."
+      );
     }
 
     const comment = {
@@ -3150,7 +3161,8 @@ class InMemoryPostsRepository
       input.currentMilestoneId &&
       !this.milestones.some(
         (milestone) =>
-          milestone.id === input.currentMilestoneId && milestone.clubId === clubId
+          milestone.id === input.currentMilestoneId &&
+          milestone.clubId === clubId
       )
     ) {
       return null;
@@ -3160,21 +3172,18 @@ class InMemoryPostsRepository
     const fromMode = existingProgress?.mode ?? "STRICT";
     const fromMilestoneId = existingProgress?.currentMilestoneId ?? null;
     const hasChanged =
-      fromMode !== input.mode ||
-      fromMilestoneId !== input.currentMilestoneId;
+      fromMode !== input.mode || fromMilestoneId !== input.currentMilestoneId;
     const now = new Date();
-    const progress =
-      existingProgress ??
-      {
-        id: crypto.randomUUID(),
-        userId,
-        clubId,
-        currentMilestoneId: null,
-        mode: "STRICT" as ProgressMode,
-        onboardingCompletedAt: now,
-        createdAt: now,
-        updatedAt: now
-      };
+    const progress = existingProgress ?? {
+      id: crypto.randomUUID(),
+      userId,
+      clubId,
+      currentMilestoneId: null,
+      mode: "STRICT" as ProgressMode,
+      onboardingCompletedAt: now,
+      createdAt: now,
+      updatedAt: now
+    };
 
     progress.currentMilestoneId = input.currentMilestoneId;
     progress.mode = input.mode;
@@ -3546,8 +3555,8 @@ const validPostInput = (
   body: "This is a spoiler-safe post body.",
   type: "DISCUSSION" as const,
   requiredMilestoneId,
-	  ...overrides
-	});
+  ...overrides
+});
 
 const postImageMedia = (
   objectKey: string,

@@ -28,7 +28,10 @@ export const createSearchController = (
         );
       }
 
-      const response = await service.search(req.currentUser.id, queryResult.data);
+      const response = await service.search(
+        req.currentUser.id,
+        queryResult.data
+      );
 
       res.status(200).json(response);
     } catch (error) {

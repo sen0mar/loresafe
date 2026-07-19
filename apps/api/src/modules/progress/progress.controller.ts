@@ -4,10 +4,7 @@ import { randomUUID } from "node:crypto";
 import { HttpError } from "../../core/errors/http-error.js";
 import "../auth/auth.request.js";
 import { clubLinkNameParamsSchema } from "../clubs/clubs.schema.js";
-import {
-  progressService,
-  type ProgressService
-} from "./progress.service.js";
+import { progressService, type ProgressService } from "./progress.service.js";
 import {
   recentlyUnlockedQuerySchema,
   progressCommandIdSchema,

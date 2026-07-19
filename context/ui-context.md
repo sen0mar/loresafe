@@ -22,61 +22,61 @@ Visual language: dark, compact, flat panels with thin borders, steel-blue brand 
 
 Colors below define the current app palette in `apps/web/src/styles.css`.
 
-| Role | CSS variable | HEX / value |
-| --- | --- | --- |
-| Page background | `--bg-base` | `#000000` |
-| Deep background | `--bg-base-deep` | `#000000` |
-| Surface | `--bg-surface` | `#090b0e` |
-| Elevated surface | `--bg-elevated` | `#0e1116` |
-| Subtle surface/card | `--bg-subtle` | `#12161c` |
-| Input/inset surface | `--bg-inset` | `#06080b` |
-| Active nav/selected surface | `--bg-active` | `#101a27` |
-| Overlay | `--bg-overlay` | `rgba(0, 0, 0, 0.78)` |
-| Background pattern | `--bg-pattern` | `rgba(96, 145, 214, 0.09)` |
-| Default border | `--border-default` | `#1a2028` |
-| Subtle border/divider | `--border-subtle` | `#131820` |
-| Strong/accent border | `--border-strong` | `#334055` |
-| Brand border | `--border-brand` | `#6091d6` |
-| Primary text | `--text-primary` | `#f6f7f4` |
-| Secondary text | `--text-secondary` | `#d9ded8` |
-| Muted text | `--text-muted` | `#a8b0aa` |
-| Faint text | `--text-faint` | `#717a78` |
-| Disabled text | `--text-disabled` | `#424947` |
-| Brand accent | `--accent-primary` | `#6091d6` |
-| Brand hover | `--accent-primary-hover` | `#7ba9e7` |
-| Brand active | `--accent-primary-active` | `#4f7fc0` |
-| Brand bright | `--accent-primary-bright` | `#aacbfa` |
-| Brand text on dark | `--accent-primary-text` | `#b9d5fb` |
-| Text on brand button | `--accent-on-primary` | `#07101d` |
-| Brand soft background | `--accent-primary-soft` | `#101a27` |
-| Brand dim background | `--accent-primary-dim` | `#2d4a72` |
-| Brand glow | `--accent-primary-glow` | `rgba(96, 145, 214, 0.18)` |
-| Secondary accent | `--accent-secondary` | `#b88eea` |
-| Success/read | `--state-success` | `#91add4` |
-| Warning/brave | `--state-warning` | `#f4bd61` |
-| Error/destructive | `--state-error` | `#ff6b73` |
-| Info/locked | `--state-info` | `#82a9e7` |
-| Purple/stat accent | `--state-purple` | `#caa8ff` |
-| Hot/popular accent | `--state-hot` | `#ff9364` |
-| Chart read | `--chart-read` | `#91add4` |
-| Chart locked | `--chart-locked` | `#82a9e7` |
-| Chart available | `--chart-available` | `#a8b0aa` |
-| Chart future | `--chart-future` | `#535b5a` |
-| Card shadow | `--shadow-card` | `none` |
-| Soft shadow | `--shadow-soft` | `none` |
-| Brand glow shadow | `--shadow-glow` | `none` |
-| Shell sidebar shadow | `--shadow-shell-sidebar` | restrained dark/brand elevation |
-| Shell panel shadow | `--shadow-shell-panel` | restrained topbar/panel elevation |
-| Soft divider line | `--divider-soft-line` | faded token-based horizontal separator |
-| Soft vertical divider line | `--divider-soft-line-vertical` | faded token-based vertical separator |
-| Soft divider glow | `--divider-soft-glow` | low-opacity brand glow for separators |
-| Primary gradient | `--gradient-primary` | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
-| App background | `--gradient-app` | `#000000` |
-| Glass tab surface | `--glass-tabs-surface` | `rgba(6, 8, 11, 0.76)` |
-| Glass tab border | `--glass-tabs-border` | `rgba(170, 203, 250, 0.16)` |
-| Glass tab highlight | `--glass-tab-highlight` | `rgba(16, 26, 39, 0.78)` |
-| Glass tab highlight border | `--glass-tab-highlight-border` | `rgba(123, 169, 231, 0.82)` |
-| Glass tab highlight glow | `--glass-tab-highlight-glow` | `rgba(96, 145, 214, 0.24)` |
+| Role                        | CSS variable                   | HEX / value                                         |
+| --------------------------- | ------------------------------ | --------------------------------------------------- |
+| Page background             | `--bg-base`                    | `#000000`                                           |
+| Deep background             | `--bg-base-deep`               | `#000000`                                           |
+| Surface                     | `--bg-surface`                 | `#090b0e`                                           |
+| Elevated surface            | `--bg-elevated`                | `#0e1116`                                           |
+| Subtle surface/card         | `--bg-subtle`                  | `#12161c`                                           |
+| Input/inset surface         | `--bg-inset`                   | `#06080b`                                           |
+| Active nav/selected surface | `--bg-active`                  | `#101a27`                                           |
+| Overlay                     | `--bg-overlay`                 | `rgba(0, 0, 0, 0.78)`                               |
+| Background pattern          | `--bg-pattern`                 | `rgba(96, 145, 214, 0.09)`                          |
+| Default border              | `--border-default`             | `#1a2028`                                           |
+| Subtle border/divider       | `--border-subtle`              | `#131820`                                           |
+| Strong/accent border        | `--border-strong`              | `#334055`                                           |
+| Brand border                | `--border-brand`               | `#6091d6`                                           |
+| Primary text                | `--text-primary`               | `#f6f7f4`                                           |
+| Secondary text              | `--text-secondary`             | `#d9ded8`                                           |
+| Muted text                  | `--text-muted`                 | `#a8b0aa`                                           |
+| Faint text                  | `--text-faint`                 | `#717a78`                                           |
+| Disabled text               | `--text-disabled`              | `#424947`                                           |
+| Brand accent                | `--accent-primary`             | `#6091d6`                                           |
+| Brand hover                 | `--accent-primary-hover`       | `#7ba9e7`                                           |
+| Brand active                | `--accent-primary-active`      | `#4f7fc0`                                           |
+| Brand bright                | `--accent-primary-bright`      | `#aacbfa`                                           |
+| Brand text on dark          | `--accent-primary-text`        | `#b9d5fb`                                           |
+| Text on brand button        | `--accent-on-primary`          | `#07101d`                                           |
+| Brand soft background       | `--accent-primary-soft`        | `#101a27`                                           |
+| Brand dim background        | `--accent-primary-dim`         | `#2d4a72`                                           |
+| Brand glow                  | `--accent-primary-glow`        | `rgba(96, 145, 214, 0.18)`                          |
+| Secondary accent            | `--accent-secondary`           | `#b88eea`                                           |
+| Success/read                | `--state-success`              | `#91add4`                                           |
+| Warning/brave               | `--state-warning`              | `#f4bd61`                                           |
+| Error/destructive           | `--state-error`                | `#ff6b73`                                           |
+| Info/locked                 | `--state-info`                 | `#82a9e7`                                           |
+| Purple/stat accent          | `--state-purple`               | `#caa8ff`                                           |
+| Hot/popular accent          | `--state-hot`                  | `#ff9364`                                           |
+| Chart read                  | `--chart-read`                 | `#91add4`                                           |
+| Chart locked                | `--chart-locked`               | `#82a9e7`                                           |
+| Chart available             | `--chart-available`            | `#a8b0aa`                                           |
+| Chart future                | `--chart-future`               | `#535b5a`                                           |
+| Card shadow                 | `--shadow-card`                | `none`                                              |
+| Soft shadow                 | `--shadow-soft`                | `none`                                              |
+| Brand glow shadow           | `--shadow-glow`                | `none`                                              |
+| Shell sidebar shadow        | `--shadow-shell-sidebar`       | restrained dark/brand elevation                     |
+| Shell panel shadow          | `--shadow-shell-panel`         | restrained topbar/panel elevation                   |
+| Soft divider line           | `--divider-soft-line`          | faded token-based horizontal separator              |
+| Soft vertical divider line  | `--divider-soft-line-vertical` | faded token-based vertical separator                |
+| Soft divider glow           | `--divider-soft-glow`          | low-opacity brand glow for separators               |
+| Primary gradient            | `--gradient-primary`           | `linear-gradient(135deg, #7ba9e7 0%, #6091d6 100%)` |
+| App background              | `--gradient-app`               | `#000000`                                           |
+| Glass tab surface           | `--glass-tabs-surface`         | `rgba(6, 8, 11, 0.76)`                              |
+| Glass tab border            | `--glass-tabs-border`          | `rgba(170, 203, 250, 0.16)`                         |
+| Glass tab highlight         | `--glass-tab-highlight`        | `rgba(16, 26, 39, 0.78)`                            |
+| Glass tab highlight border  | `--glass-tab-highlight-border` | `rgba(123, 169, 231, 0.82)`                         |
+| Glass tab highlight glow    | `--glass-tab-highlight-glow`   | `rgba(96, 145, 214, 0.24)`                          |
 
 Recommended CSS starting point:
 
@@ -167,15 +167,15 @@ Map shadcn primitives to the semantic LoreSafe tokens:
 LoreSafe uses a softer, more circular radius scale from `apps/web/src/styles.css`
 with `--radius: 1.125rem`.
 
-| Context | Recommended class |
-| --- | --- |
-| Inputs, filters, badges | `rounded-md` |
-| Buttons and compact cards | `rounded-lg` |
-| Cards and panels | `rounded-xl` |
-| App shell / large panels | `rounded-2xl` |
-| Modal / overlay | `rounded-2xl` |
-| Avatars | `rounded-full` |
-| Icon wells | `rounded-lg` |
+| Context                   | Recommended class |
+| ------------------------- | ----------------- |
+| Inputs, filters, badges   | `rounded-md`      |
+| Buttons and compact cards | `rounded-lg`      |
+| Cards and panels          | `rounded-xl`      |
+| App shell / large panels  | `rounded-2xl`     |
+| Modal / overlay           | `rounded-2xl`     |
+| Avatars                   | `rounded-full`    |
+| Icon wells                | `rounded-lg`      |
 
 Current semantic radius values are approximately: `rounded-md` 16px, `rounded-lg`
 18px, `rounded-xl` 22px, and `rounded-2xl` 26px. Prefer these shared classes
@@ -245,12 +245,12 @@ standalone section rules: `soft-section-divider`, `soft-section-divider-bottom`,
 
 Icon library: lucide-react.
 
-| Context | Size |
-| --- | --- |
+| Context           | Size   |
+| ----------------- | ------ |
 | Inline text icons | `14px` |
-| Buttons/nav | `18px` |
-| Panel/card icons | `20px` |
-| Empty states | `32px` |
+| Buttons/nav       | `18px` |
+| Panel/card icons  | `20px` |
+| Empty states      | `32px` |
 
 Use stroke icons consistently. Avoid mixing emoji, 3D icons, and filled icon sets in core UI.
 

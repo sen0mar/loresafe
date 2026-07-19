@@ -288,7 +288,9 @@ export const createReportsController = (
       const paramsResult = moderationReportActionParamsSchema.safeParse(
         req.params
       );
-      const bodyResult = moderationReportResolveRequestSchema.safeParse(req.body);
+      const bodyResult = moderationReportResolveRequestSchema.safeParse(
+        req.body
+      );
 
       if (!paramsResult.success || !bodyResult.success) {
         throw new HttpError(

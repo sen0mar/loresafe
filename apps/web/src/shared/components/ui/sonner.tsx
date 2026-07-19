@@ -12,9 +12,7 @@ const Toaster = ({
   <Sonner
     theme="dark"
     richColors={false}
-    className={["loresafe-toaster", className]
-      .filter(Boolean)
-      .join(" ")}
+    className={["loresafe-toaster", className].filter(Boolean).join(" ")}
     mobileOffset={mobileOffset ?? MOBILE_TOAST_OFFSET}
     toastOptions={{
       duration: TOAST_DURATION_MS,

@@ -32,10 +32,7 @@ import {
   createClubsController,
   type ClubsController
 } from "./clubs.controller.js";
-import {
-  createClubsRouter,
-  createPublicClubsRouter
-} from "./clubs.routes.js";
+import { createClubsRouter, createPublicClubsRouter } from "./clubs.routes.js";
 import { createClubsService } from "./clubs.service.js";
 import { createSitemapRouter } from "../seo/sitemap.routes.js";
 import type {
@@ -153,26 +150,29 @@ describe("clubs routes", () => {
     "COMICS_GRAPHIC_NOVELS",
     "WEB_SERIALS",
     "CUSTOM_TIMELINE"
-  ] satisfies ClubCategory[])("creates clubs with %s category", async (category) => {
-    const user = await repository.createUser({
-      email: `${category.toLowerCase()}@example.com`,
-      displayName: "Owner",
-      passwordHash: "$argon2id$v=19$hash"
-    });
+  ] satisfies ClubCategory[])(
+    "creates clubs with %s category",
+    async (category) => {
+      const user = await repository.createUser({
+        email: `${category.toLowerCase()}@example.com`,
+        displayName: "Owner",
+        passwordHash: "$argon2id$v=19$hash"
+      });
 
-    const response = await request(app)
-      .post("/api/clubs")
-      .set("Cookie", await createSessionCookie(user))
-      .send({
-        ...validCreateClubPayload(),
-        title: `${category} Club`,
-        linkName: `${category.toLowerCase().replaceAll("_", "-")}-club`,
-        category
-      })
-      .expect(201);
+      const response = await request(app)
+        .post("/api/clubs")
+        .set("Cookie", await createSessionCookie(user))
+        .send({
+          ...validCreateClubPayload(),
+          title: `${category} Club`,
+          linkName: `${category.toLowerCase().replaceAll("_", "-")}-club`,
+          category
+        })
+        .expect(201);
 
-    expect(response.body.club.category).toBe(category);
-  });
+      expect(response.body.club.category).toBe(category);
+    }
+  );
 
   it("rejects duplicate club link names cleanly", async () => {
     const user = await repository.createUser({
@@ -738,8 +738,9 @@ describe("clubs routes", () => {
       role: "MODERATOR"
     });
     expect(
-      repository.memberships.find((membership) => membership.id === readerMembershipId)
-        ?.role
+      repository.memberships.find(
+        (membership) => membership.id === readerMembershipId
+      )?.role
     ).toBe("MODERATOR");
     expect(repository.auditLogs.map((log) => log.action)).toEqual([
       "CLUB_MEMBER_ROLE_UPDATED"
@@ -826,13 +827,15 @@ describe("clubs routes", () => {
         (membership) => membership.id === readerMembershipId
       )
     ).toBe(false);
-    expect(repository.posts.find((post) => post.id === readerPostId)?.deletedAt)
-      .toBeInstanceOf(Date);
+    expect(
+      repository.posts.find((post) => post.id === readerPostId)?.deletedAt
+    ).toBeInstanceOf(Date);
     expect(
       repository.posts.find((post) => post.id === secondReaderPostId)?.deletedAt
     ).toBeInstanceOf(Date);
-    expect(repository.posts.find((post) => post.id === ownerPostId)?.deletedAt)
-      .toBeNull();
+    expect(
+      repository.posts.find((post) => post.id === ownerPostId)?.deletedAt
+    ).toBeNull();
 
     const bansResponse = await request(app)
       .get("/api/clubs/ban-club/bans")
@@ -939,8 +942,9 @@ describe("clubs routes", () => {
       .expect(200);
 
     expect(response.body.deletedPostCount).toBe(0);
-    expect(repository.posts.find((post) => post.id === readerPostId)?.deletedAt)
-      .toBeNull();
+    expect(
+      repository.posts.find((post) => post.id === readerPostId)?.deletedAt
+    ).toBeNull();
   });
 
   it("prevents banning the last owner and blocks banned users from joining", async () => {
@@ -1036,7 +1040,9 @@ describe("clubs routes", () => {
           requestId: `clubs-join-${visibility.toLowerCase()}`
         }
       });
-      expect(JSON.stringify(response.body)).not.toContain("Hidden Story Circle");
+      expect(JSON.stringify(response.body)).not.toContain(
+        "Hidden Story Circle"
+      );
       expect(repository.memberships).toHaveLength(0);
     }
   );
@@ -1263,9 +1269,7 @@ describe("clubs routes", () => {
     const response = await request(app).get("/sitemap.xml").expect(200);
 
     expect(response.headers["content-type"]).toContain("application/xml");
-    expect(response.text).toContain(
-      "<loc>https://www.loresafe.org/</loc>"
-    );
+    expect(response.text).toContain("<loc>https://www.loresafe.org/</loc>");
     expect(response.text).toContain(
       "<loc>https://www.loresafe.org/clubs</loc>"
     );
@@ -1377,7 +1381,9 @@ describe("clubs routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { title: string }) => club.title)).toEqual([
+    expect(
+      response.body.clubs.map((club: { title: string }) => club.title)
+    ).toEqual([
       "Public Club 12",
       "Public Club 11",
       "Public Club 10",
@@ -1390,7 +1396,9 @@ describe("clubs routes", () => {
       "Public Club 3"
     ]);
     expect(
-      response.body.clubs.map((club: { memberCount: number }) => club.memberCount)
+      response.body.clubs.map(
+        (club: { memberCount: number }) => club.memberCount
+      )
     ).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
     expect(response.body.pagination).toEqual({
       limit: 10,
@@ -1833,9 +1841,9 @@ describe("clubs routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
-    expect(response.body.clubs.map((club: { linkName: string }) => club.linkName)).toEqual([
-      "first-public-club"
-    ]);
+    expect(
+      response.body.clubs.map((club: { linkName: string }) => club.linkName)
+    ).toEqual(["first-public-club"]);
     expect(response.body.pagination).toEqual({
       limit: 2,
       nextCursor: null,
@@ -2133,7 +2141,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     return club ? { id: club.id } : null;
   };
 
-  findVisibleClubByLinkNameForUser = async (linkName: string, userId: string) => {
+  findVisibleClubByLinkNameForUser = async (
+    linkName: string,
+    userId: string
+  ) => {
     const club = this.findStoredClubByLinkName(linkName);
 
     if (!club) {
@@ -2276,8 +2287,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       };
     }
 
-    const currentUserRole =
-      this.findMembership(userId, club.id)?.role ?? null;
+    const currentUserRole = this.findMembership(userId, club.id)?.role ?? null;
     const isCurrentUserBanned = this.hasActiveBan(userId, club.id);
 
     if (!currentUserRole || isCurrentUserBanned) {
@@ -2344,8 +2354,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       };
     }
 
-    const currentUserRole =
-      this.findMembership(userId, club.id)?.role ?? null;
+    const currentUserRole = this.findMembership(userId, club.id)?.role ?? null;
     const isCurrentUserBanned = this.hasActiveBan(userId, club.id);
 
     if (
@@ -2468,7 +2477,10 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       return { status: "LAST_OWNER" };
     }
 
-    const activeBan = this.findActiveBan(context.member.userId, context.club.id);
+    const activeBan = this.findActiveBan(
+      context.member.userId,
+      context.club.id
+    );
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
     let ban: (typeof this.bans)[number] | undefined;
 
@@ -2583,7 +2595,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
       .sort((leftClub, rightClub) => {
         if (sort === "popular") {
           const memberCountDifference =
-            this.countClubMembers(rightClub.id) - this.countClubMembers(leftClub.id);
+            this.countClubMembers(rightClub.id) -
+            this.countClubMembers(leftClub.id);
 
           if (memberCountDifference !== 0) {
             return memberCountDifference;
@@ -2621,11 +2634,12 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     currentUserId: string | null,
     { cursor, limit, sort }: ListPublicClubsInput
   ) => {
-    const publicClubs = this.getPublicSeoClubs(currentUserId)
-      .sort((leftClub, rightClub) => {
+    const publicClubs = this.getPublicSeoClubs(currentUserId).sort(
+      (leftClub, rightClub) => {
         if (sort === "popular") {
           const memberCountDifference =
-            this.countClubMembers(rightClub.id) - this.countClubMembers(leftClub.id);
+            this.countClubMembers(rightClub.id) -
+            this.countClubMembers(leftClub.id);
 
           if (memberCountDifference !== 0) {
             return memberCountDifference;
@@ -2636,7 +2650,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
           rightClub.createdAt.getTime() - leftClub.createdAt.getTime() ||
           leftClub.id.localeCompare(rightClub.id)
         );
-      });
+      }
+    );
     const start = cursor
       ? publicClubs.findIndex((club) => club.id === cursor.id) + 1
       : 0;
@@ -2693,7 +2708,8 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
   });
 
   private countClubMembers = (clubId: string) =>
-    this.memberships.filter((membership) => membership.clubId === clubId).length;
+    this.memberships.filter((membership) => membership.clubId === clubId)
+      .length;
 
   private getPublicSeoClubs = (currentUserId: string | null) =>
     Array.from(this.clubs.values()).filter(
@@ -2813,8 +2829,7 @@ class InMemoryClubsRepository implements AuthUsersRepository, ClubsRepository {
     revokedAt: Date | null;
     expiresAt: Date | null;
   }) =>
-    !ban.revokedAt &&
-    (!ban.expiresAt || ban.expiresAt.getTime() > Date.now());
+    !ban.revokedAt && (!ban.expiresAt || ban.expiresAt.getTime() > Date.now());
 
   private createAuditLog = (
     action:
@@ -2938,19 +2953,22 @@ const roleSortValue = (role: "OWNER" | "MODERATOR" | "MEMBER") =>
 const canTestActorBanTarget = (
   actorRole: "OWNER" | "MODERATOR" | "MEMBER",
   targetRole: "OWNER" | "MODERATOR" | "MEMBER"
-) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
+) =>
+  actorRole === "OWNER" ||
+  (actorRole === "MODERATOR" && targetRole === "MEMBER");
 
 const canTestActorUnbanRole = (
   actorRole: "OWNER" | "MODERATOR" | "MEMBER",
   targetRole: "OWNER" | "MODERATOR" | "MEMBER" | null
-) => actorRole === "OWNER" || (actorRole === "MODERATOR" && targetRole === "MEMBER");
+) =>
+  actorRole === "OWNER" ||
+  (actorRole === "MODERATOR" && targetRole === "MEMBER");
 
 const canTestManageBans = (role: "OWNER" | "MODERATOR" | "MEMBER") =>
   role === "OWNER" || role === "MODERATOR";
 
-const canTestManageSettings = (
-  role: "OWNER" | "MODERATOR" | "MEMBER" | null
-) => role === "OWNER" || role === "MODERATOR";
+const canTestManageSettings = (role: "OWNER" | "MODERATOR" | "MEMBER" | null) =>
+  role === "OWNER" || role === "MODERATOR";
 
 const createSessionCookie = async (user: AuthUserRecord) => {
   const token = await createSessionToken({

@@ -1,4 +1,9 @@
-import type { ClubFeedTab, ClubMembersQueryInput, JoinedClubsQueryInput, PublicClubsQueryInput } from "./clubs.types.js";
+import type {
+  ClubFeedTab,
+  ClubMembersQueryInput,
+  JoinedClubsQueryInput,
+  PublicClubsQueryInput
+} from "./clubs.types.js";
 
 export const clubsQueryKeys = {
   discoveryRoot: ["clubs", "discovery"] as const,
@@ -20,7 +25,8 @@ export const clubsQueryKeys = {
     ["clubs", "detail", linkName, "milestones"] as const,
   milestones: (linkName: string, page: number) =>
     ["clubs", "detail", linkName, "milestones", page] as const,
-  progress: (linkName: string) => ["clubs", "detail", linkName, "progress"] as const,
+  progress: (linkName: string) =>
+    ["clubs", "detail", linkName, "progress"] as const,
   membersRoot: (linkName: string) =>
     ["clubs", "detail", linkName, "members"] as const,
   members: (linkName: string, { page = 1, q = "" }: ClubMembersQueryInput) =>
@@ -29,7 +35,8 @@ export const clubsQueryKeys = {
     ["clubs", "detail", linkName, "bans"] as const,
   bans: (linkName: string, page: number) =>
     ["clubs", "detail", linkName, "bans", page] as const,
-  feedRoot: (linkName: string) => ["clubs", "detail", linkName, "feed"] as const,
+  feedRoot: (linkName: string) =>
+    ["clubs", "detail", linkName, "feed"] as const,
   feed: (linkName: string, tab: ClubFeedTab) =>
     ["clubs", "detail", linkName, "feed", tab] as const,
   dashboardRoot: (linkName: string) =>

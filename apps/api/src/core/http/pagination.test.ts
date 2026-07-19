@@ -8,7 +8,9 @@ import {
 
 describe("bounded page pagination", () => {
   it("rejects excessive page values", () => {
-    expect(boundedPageSchema.safeParse(maximumPageNumber + 1).success).toBe(false);
+    expect(boundedPageSchema.safeParse(maximumPageNumber + 1).success).toBe(
+      false
+    );
   });
 
   it("keeps repository offsets within the explicit page bound", () => {

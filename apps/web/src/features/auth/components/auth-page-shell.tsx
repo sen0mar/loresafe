@@ -34,15 +34,14 @@ export const AuthPageShell = ({
     >
       <section className="min-w-0 space-y-6">
         <div className="flex items-center gap-3">
-          <BrandMark
-            isDecorative
-            className="size-12"
-          />
+          <BrandMark isDecorative className="size-12" />
           <BrandWordmark className="text-2xl font-semibold" />
         </div>
 
         <div className="max-w-2xl space-y-4">
-          {eyebrow ? <p className="text-sm font-medium text-brand">{eyebrow}</p> : null}
+          {eyebrow ? (
+            <p className="text-sm font-medium text-brand">{eyebrow}</p>
+          ) : null}
           <h1 className="text-3xl font-semibold tracking-normal text-primary sm:text-5xl">
             {title}
           </h1>
@@ -50,7 +49,10 @@ export const AuthPageShell = ({
         </div>
       </section>
 
-      <section className="flex min-w-0 justify-center md:justify-end" aria-label={formLabel}>
+      <section
+        className="flex min-w-0 justify-center md:justify-end"
+        aria-label={formLabel}
+      >
         {children}
       </section>
     </main>

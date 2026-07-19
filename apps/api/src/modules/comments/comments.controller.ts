@@ -8,12 +8,9 @@ import {
   createPostCommentRequestSchema,
   listPostCommentsQuerySchema,
   postCommentsParamsSchema,
-  revealPostCommentParamsSchema,
+  revealPostCommentParamsSchema
 } from "./comments.schema.js";
-import {
-  commentsService,
-  type CommentsService
-} from "./comments.service.js";
+import { commentsService, type CommentsService } from "./comments.service.js";
 
 export type CommentsController = {
   listPostComments: RequestHandler;
@@ -119,7 +116,9 @@ export const createCommentsController = (
         throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
       }
 
-      const paramsResult = commentReactionCommandParamsSchema.safeParse(req.params);
+      const paramsResult = commentReactionCommandParamsSchema.safeParse(
+        req.params
+      );
 
       if (!paramsResult.success) {
         throw new HttpError(

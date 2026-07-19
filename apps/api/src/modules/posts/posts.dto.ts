@@ -22,10 +22,7 @@ export type PostTypeDto =
 export type PostStatusDto = "VISIBLE" | "HIDDEN";
 
 export type PredictionStatusDto =
-  | "UNRESOLVED"
-  | "CORRECT"
-  | "WRONG"
-  | "PARTIAL";
+  "UNRESOLVED" | "CORRECT" | "WRONG" | "PARTIAL";
 
 type PostCountsDto = {
   commentCount: number;
@@ -96,9 +93,7 @@ export type LockedClubPostCardDto = {
   updatedAt: string;
 };
 
-export type ClubPostCardDto =
-  | VisibleClubPostCardDto
-  | LockedClubPostCardDto;
+export type ClubPostCardDto = VisibleClubPostCardDto | LockedClubPostCardDto;
 
 export type RevealedClubPostDto = Omit<
   VisibleClubPostCardDto,
@@ -247,10 +242,10 @@ const toLockedPostDto = ({
   base: Omit<LockedClubPostCardDto, "visibility" | "lockReason">;
   requiredMilestone: RequiredMilestoneDto;
 }): LockedClubPostCardDto => ({
-    ...base,
-    visibility: "LOCKED",
-    lockReason: `Reach milestone ${requiredMilestone.position}: ${requiredMilestone.label} to unlock this discussion.`
-  });
+  ...base,
+  visibility: "LOCKED",
+  lockReason: `Reach milestone ${requiredMilestone.position}: ${requiredMilestone.label} to unlock this discussion.`
+});
 
 const toVisiblePostDto = async ({
   base,

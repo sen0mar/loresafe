@@ -42,7 +42,9 @@ export const SessionMenu = ({
         <Avatar className="size-8">
           <AvatarFallback>TS</AvatarFallback>
         </Avatar>
-        <span className="hidden text-sm text-faint sm:inline">Checking session</span>
+        <span className="hidden text-sm text-faint sm:inline">
+          Checking session
+        </span>
       </Button>
     );
   }
@@ -88,10 +90,14 @@ export const SessionMenu = ({
                 alt={`${currentUser.displayName} avatar`}
               />
             ) : null}
-            <AvatarFallback>{getUserInitials(currentUser.displayName)}</AvatarFallback>
+            <AvatarFallback>
+              {getUserInitials(currentUser.displayName)}
+            </AvatarFallback>
           </Avatar>
           <span className="hidden text-left sm:grid">
-            <span className="text-sm text-primary">{currentUser.displayName}</span>
+            <span className="text-sm text-primary">
+              {currentUser.displayName}
+            </span>
             <span className="text-xs text-faint">{currentUser.email}</span>
           </span>
           <ChevronDown className="hidden size-4 sm:block" />

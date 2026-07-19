@@ -272,8 +272,7 @@ export const postsRepository: PostsRepository = {
       isCurrentUserBanned: club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
-        currentMilestonePosition:
-          progress?.currentMilestone?.position ?? null
+        currentMilestonePosition: progress?.currentMilestone?.position ?? null
       }
     };
   },
@@ -346,8 +345,7 @@ export const postsRepository: PostsRepository = {
       isCurrentUserBanned: club.bans.length > 0,
       progress: {
         mode: (progress?.mode ?? "STRICT") as ProgressMode,
-        currentMilestonePosition:
-          progress?.currentMilestone?.position ?? null
+        currentMilestonePosition: progress?.currentMilestone?.position ?? null
       }
     };
   },
@@ -550,11 +548,11 @@ export const postsRepository: PostsRepository = {
                   }
                 }
               }
-          : tab === "my-posts"
-            ? {
-                authorId
-              }
-            : {};
+            : tab === "my-posts"
+              ? {
+                  authorId
+                }
+              : {};
     const posts = await prisma.post.findMany({
       where: {
         clubId,
@@ -664,8 +662,7 @@ export const postsRepository: PostsRepository = {
         isCurrentUserBanned: post.club.bans.length > 0,
         progress: {
           mode: (progress?.mode ?? "STRICT") as ProgressMode,
-          currentMilestonePosition:
-            progress?.currentMilestone?.position ?? null
+          currentMilestonePosition: progress?.currentMilestone?.position ?? null
         }
       }
     };
@@ -684,7 +681,10 @@ export const postsRepository: PostsRepository = {
         }
       });
 
-      if (!target || !(await lockClubAuthorization(transaction, target.clubId))) {
+      if (
+        !target ||
+        !(await lockClubAuthorization(transaction, target.clubId))
+      ) {
         return false;
       }
 
@@ -1000,8 +1000,7 @@ export const userReactionMapForPostIds = async (
       continue;
     }
 
-    const reactionsForPost =
-      reactionMap.get(reactionCount.postId) ?? new Map();
+    const reactionsForPost = reactionMap.get(reactionCount.postId) ?? new Map();
 
     reactionsForPost.set(reactionCount.emoji, {
       count: reactionCount._count._all,

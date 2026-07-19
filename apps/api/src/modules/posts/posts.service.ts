@@ -30,7 +30,10 @@ import {
   canViewRequiredMilestone
 } from "../spoilers/spoiler.policy.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
-import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  r2Storage,
+  type ObjectStorage
+} from "../../core/storage/r2-storage.js";
 import {
   decodeTimestampUuidCursor,
   encodeTimestampUuidCursor
@@ -196,8 +199,7 @@ export const createPostsService = (
     if (
       !canRevealRequiredMilestone({
         mode: detail.club.progress.mode,
-        currentMilestonePosition:
-          detail.club.progress.currentMilestonePosition,
+        currentMilestonePosition: detail.club.progress.currentMilestonePosition,
         requiredMilestonePosition: detail.post.requiredMilestone.position
       })
     ) {
@@ -243,8 +245,7 @@ export const createPostsService = (
     if (
       !canViewRequiredMilestone({
         mode: detail.club.progress.mode,
-        currentMilestonePosition:
-          detail.club.progress.currentMilestonePosition,
+        currentMilestonePosition: detail.club.progress.currentMilestonePosition,
         requiredMilestonePosition: detail.post.requiredMilestone.position
       })
     ) {

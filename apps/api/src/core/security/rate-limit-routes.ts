@@ -85,14 +85,8 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
     "/api/comments/:commentId/reactions/:emoji",
     commentReactionToggleRateLimiter
   );
-  app.post(
-    "/api/comments/:commentId/delete",
-    moderationActionRateLimiter
-  );
-  app.use(
-    "/api/posts/:postId/reactions/:emoji",
-    postReactionToggleRateLimiter
-  );
+  app.post("/api/comments/:commentId/delete", moderationActionRateLimiter);
+  app.use("/api/posts/:postId/reactions/:emoji", postReactionToggleRateLimiter);
   app.post("/api/posts/:postId/delete", moderationActionRateLimiter);
   app.post("/api/posts/:postId/reveal", contentRevealRateLimiter);
   app.post(
@@ -103,10 +97,7 @@ export const registerRateLimiters = (app: RateLimiterApp) => {
   app.get("/api/search", searchRateLimiter);
   app.get("/api/events", eventConnectionRateLimiter);
   app.get("/api/clubs/:linkName/stats", expensiveReadRateLimiter);
-  app.get(
-    "/api/clubs/:linkName/popular-discussions",
-    expensiveReadRateLimiter
-  );
+  app.get("/api/clubs/:linkName/popular-discussions", expensiveReadRateLimiter);
   app.get("/api/clubs/:linkName/progress/summary", expensiveReadRateLimiter);
   app.get(
     "/api/clubs/:linkName/recently-unlocked/summary",

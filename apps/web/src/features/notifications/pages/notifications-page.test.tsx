@@ -57,7 +57,9 @@ describe("NotificationsPage", () => {
       "href",
       "/app/posts/00000000-0000-4000-8000-000000000020"
     );
-    expect(screen.queryByRole("link", { name: "Open" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Open" })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByLabelText("Select notification: First safe notification")
     ).not.toBeInTheDocument();
@@ -85,8 +87,9 @@ describe("NotificationsPage", () => {
     await user.click(dialog.getByRole("button", { name: "Delete selected" }));
 
     await waitFor(() =>
-      expect(findFetchCall(fetchMock, "DELETE", "/api/notifications/selected"))
-        .toBeTruthy()
+      expect(
+        findFetchCall(fetchMock, "DELETE", "/api/notifications/selected")
+      ).toBeTruthy()
     );
     const deleteCall = findFetchCall(
       fetchMock,

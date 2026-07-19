@@ -19,5 +19,7 @@ if (process.argv.includes("--write")) {
     );
   }
 
-  console.log("OpenAPI contract is current and generated from the registered Zod schemas.");
+  console.log(
+    "OpenAPI contract is current and generated from the registered Zod schemas."
+  );
 }

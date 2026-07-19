@@ -56,16 +56,12 @@ describe("reset development database script", () => {
   it("uses the development reset URL when running the existing seed", () => {
     const developmentDatabaseUrl =
       "postgresql://dev_user:dev_pass@localhost:5432/loresafe_dev";
-    const command = buildSeedCommand(
-      developmentDatabaseUrl,
-      "/repo/apps/api",
-      {
-        DATABASE_URL:
-          "postgresql://prod_user:prod_pass@db.example.com:5432/loresafe_prod",
-        NODE_ENV: "production",
-        PATH: "/usr/bin"
-      }
-    );
+    const command = buildSeedCommand(developmentDatabaseUrl, "/repo/apps/api", {
+      DATABASE_URL:
+        "postgresql://prod_user:prod_pass@db.example.com:5432/loresafe_prod",
+      NODE_ENV: "production",
+      PATH: "/usr/bin"
+    });
 
     expect(command.command).toBe("pnpm");
     expect(command.args).toEqual(["prisma:seed"]);
