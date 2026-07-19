@@ -2147,6 +2147,7 @@ describe("frontend regression smoke", () => {
       await main.findByRole("heading", { name: "Most popular clubs" })
     ).toBeVisible();
     expect(await main.findByText("Popular Club 1")).toBeVisible();
+    expect(main.getByText("/popular-club-1")).toHaveClass("text-muted");
     expect(main.getByRole("link", { name: "View all" })).toHaveAttribute(
       "href",
       "/app/explore?filters=popular"
