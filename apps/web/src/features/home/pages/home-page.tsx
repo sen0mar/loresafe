@@ -201,7 +201,7 @@ const HomePopularClubCard = ({ club }: { club: ClubDiscoveryClub }) => (
       <h3 className="truncate text-base font-semibold tracking-normal transition-colors group-hover:text-brand">
         {club.title}
       </h3>
-      <p className="mt-0.5 truncate text-xs text-faint">/{club.linkName}</p>
+      <p className="mt-0.5 truncate text-xs text-muted">/{club.linkName}</p>
     </div>
     <p className="mt-2 line-clamp-3 text-sm leading-5 text-muted">
       {club.description ?? "No description yet."}
