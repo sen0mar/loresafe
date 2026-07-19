@@ -40,9 +40,20 @@ test("keeps locked content and media metadata out of the browser after rewind", 
 }) => {
   await loginAsDemo(page);
   await page.goto(`/app/clubs/${clubLinkName}?tab=progress`);
-  await completeWelcomeSetupIfNeeded(page);
+  await expect(page).toHaveURL(
+    new RegExp(`/app/clubs/${clubLinkName}\\?tab=progress$`)
+  );
+  await expect(page.getByRole("tab", { name: "Progress" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
 
-  await page.getByRole("button", { name: "Previous milestone" }).click();
+  const rewindButton = page.getByRole("button", {
+    name: "Previous milestone"
+  });
+
+  await expect(rewindButton).toBeEnabled();
+  await rewindButton.click();
   await expect(
     page.getByText(/Future discussions are locked again/i)
   ).toBeVisible();
@@ -204,15 +215,6 @@ const loginAsDemo = async (page: Page) => {
   await page.getByRole("button", { name: /^log in/i }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText(demoDisplayName).first()).toBeVisible();
-};
-
-const completeWelcomeSetupIfNeeded = async (page: Page) => {
-  const saveSetupButton = page.getByRole("button", { name: "Save setup" });
-
-  if (await saveSetupButton.isVisible()) {
-    await saveSetupButton.click();
-    await expect(saveSetupButton).not.toBeVisible();
-  }
 };
 
 const expectNoSeriousAccessibilityViolations = async (page: Page) => {

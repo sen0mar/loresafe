@@ -181,6 +181,7 @@ const seedDemoMilestones = async (clubId: string) => {
 };
 
 const seedDemoProgress = async (userId: string, clubId: string) => {
+  const onboardingCompletedAt = new Date();
   const currentMilestone = await prisma.milestone.findUnique({
     where: {
       clubId_position: {
@@ -202,13 +203,15 @@ const seedDemoProgress = async (userId: string, clubId: string) => {
     },
     update: {
       currentMilestoneId: currentMilestone?.id ?? null,
-      mode: "STRICT"
+      mode: "STRICT",
+      onboardingCompletedAt
     },
     create: {
       userId,
       clubId,
       currentMilestoneId: currentMilestone?.id ?? null,
-      mode: "STRICT"
+      mode: "STRICT",
+      onboardingCompletedAt
     },
     select: {
       id: true
