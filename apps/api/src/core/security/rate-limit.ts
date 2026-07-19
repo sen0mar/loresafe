@@ -137,6 +137,9 @@ const createLoginAccountRateLimiter = (
     skipSuccessfulRequests: true,
     store: storeFactory(config.prefix),
     identifier: `auth-${name}`,
+    // These stacked account buckets have independent stores and namespaces;
+    // express-rate-limit cannot prove that separation from the request alone.
+    validate: { singleCount: false },
     keyGenerator: (req) => createLoginAccountBucket(req),
     handler: (req, res, next) => {
       logger.warn("Credential stuffing throttle triggered", {
@@ -161,325 +164,226 @@ export const createLoginAccountBucket = (req: Pick<Request, "body">) => {
     .digest("hex");
 };
 
-export const {
-  loginAccountBurstRateLimiter,
-  loginAccountSustainedRateLimiter,
-  loginRateLimiter,
-  logoutRateLimiter,
-  signupRateLimiter
-} = createAuthRateLimiters();
+type StandardRateLimitConfig = {
+  identifier: string;
+  limit: number;
+  prefix: string;
+  skipSuccessfulRequests?: boolean;
+  windowMs: number;
+};
 
-export const profileUpdateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 60,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:users:profile-update:"),
-  identifier: "users-profile-update",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
+const createStandardRateLimitConfig = (
+  windowMinutes: number,
+  limit: number,
+  identifier: string,
+  prefix: string
+): StandardRateLimitConfig => ({
+  windowMs: windowMinutes * 60 * 1000,
+  limit,
+  identifier,
+  prefix
 });
 
-export const accountDeleteRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 6,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:users:account-delete:"),
-  identifier: "users-account-delete",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+const standardRateLimitConfigs = {
+  profileUpdateRateLimiter: createStandardRateLimitConfig(
+    10,
+    60,
+    "users-profile-update",
+    "loresafe:rl:users:profile-update:"
+  ),
+  accountDeleteRateLimiter: createStandardRateLimitConfig(
+    60,
+    6,
+    "users-account-delete",
+    "loresafe:rl:users:account-delete:"
+  ),
+  publicAssetUploadRateLimiter: createStandardRateLimitConfig(
+    10,
+    90,
+    "uploads-public-assets",
+    "loresafe:rl:uploads:public-assets:"
+  ),
+  postImageUploadRateLimiter: createStandardRateLimitConfig(
+    10,
+    60,
+    "uploads-post-images",
+    "loresafe:rl:uploads:post-images:"
+  ),
+  eventConnectionRateLimiter: {
+    ...createStandardRateLimitConfig(
+      10,
+      30,
+      "events-connections",
+      "loresafe:rl:events:connections:v2:"
+    ),
+    // Closed healthy streams should not consume the reconnect budget for the
+    // entire window; concurrent limits are enforced by eventsService.
+    skipSuccessfulRequests: true
+  },
+  clubCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    45,
+    "clubs-create",
+    "loresafe:rl:clubs:create:"
+  ),
+  clubJoinRateLimiter: createStandardRateLimitConfig(
+    10,
+    90,
+    "clubs-join",
+    "loresafe:rl:clubs:join:"
+  ),
+  clubLeaveRateLimiter: createStandardRateLimitConfig(
+    10,
+    30,
+    "clubs-leave",
+    "loresafe:rl:clubs:leave:"
+  ),
+  clubInviteCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    60,
+    "clubs-invites-create",
+    "loresafe:rl:clubs:invites:create:"
+  ),
+  clubMemberManagementRateLimiter: createStandardRateLimitConfig(
+    10,
+    180,
+    "clubs-members-manage",
+    "loresafe:rl:clubs:members:manage:"
+  ),
+  clubSettingsUpdateRateLimiter: createStandardRateLimitConfig(
+    10,
+    120,
+    "clubs-settings-update",
+    "loresafe:rl:clubs:settings:update:"
+  ),
+  clubMilestoneCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    90,
+    "clubs-milestones-create",
+    "loresafe:rl:clubs:milestones:create:"
+  ),
+  clubMilestoneMutationRateLimiter: createStandardRateLimitConfig(
+    10,
+    120,
+    "clubs-milestones-mutate",
+    "loresafe:rl:clubs:milestones:mutate:"
+  ),
+  clubPostCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    90,
+    "clubs-posts-create",
+    "loresafe:rl:clubs:posts:create:"
+  ),
+  postCommentCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    120,
+    "posts-comments-create",
+    "loresafe:rl:posts:comments:create:"
+  ),
+  postReactionToggleRateLimiter: createStandardRateLimitConfig(
+    10,
+    240,
+    "posts-reactions-toggle",
+    "loresafe:rl:posts:reactions:toggle:"
+  ),
+  reportCreateRateLimiter: createStandardRateLimitConfig(
+    10,
+    30,
+    "reports-create",
+    "loresafe:rl:reports:create:"
+  ),
+  searchRateLimiter: createStandardRateLimitConfig(
+    10,
+    360,
+    "search",
+    "loresafe:rl:search:"
+  ),
+  expensiveReadRateLimiter: createStandardRateLimitConfig(
+    10,
+    240,
+    "reads-expensive",
+    "loresafe:rl:reads:expensive:"
+  ),
+  publicSeoReadRateLimiter: createStandardRateLimitConfig(
+    10,
+    600,
+    "public-seo-read",
+    "loresafe:rl:public-seo:read:"
+  ),
+  moderationActionRateLimiter: createStandardRateLimitConfig(
+    10,
+    180,
+    "moderation-actions",
+    "loresafe:rl:moderation:actions:"
+  ),
+  contentRevealRateLimiter: createStandardRateLimitConfig(
+    10,
+    120,
+    "content-reveal",
+    "loresafe:rl:content:reveal:"
+  ),
+  notificationMutationRateLimiter: createStandardRateLimitConfig(
+    10,
+    180,
+    "notifications-mutate",
+    "loresafe:rl:notifications:mutate:"
+  ),
+  commentReactionToggleRateLimiter: createStandardRateLimitConfig(
+    10,
+    240,
+    "comments-reactions-toggle",
+    "loresafe:rl:comments:reactions:toggle:"
+  ),
+  clubProgressUpdateRateLimiter: createStandardRateLimitConfig(
+    10,
+    120,
+    "clubs-progress-update",
+    "loresafe:rl:clubs:progress:update:"
+  ),
+  inviteAcceptRateLimiter: createStandardRateLimitConfig(
+    10,
+    90,
+    "invites-accept",
+    "loresafe:rl:invites:accept:"
+  )
+} satisfies Record<string, StandardRateLimitConfig>;
 
-export const publicAssetUploadRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 90,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:uploads:public-assets:"),
-  identifier: "uploads-public-assets",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+type StandardRateLimiters = {
+  [Name in keyof typeof standardRateLimitConfigs]: ReturnType<typeof rateLimit>;
+};
 
-export const postImageUploadRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 60,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:uploads:post-images:"),
-  identifier: "uploads-post-images",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+export type RateLimiters = AuthRateLimiters & StandardRateLimiters;
 
-export const eventConnectionRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  // Closed healthy streams should not consume the reconnect budget for the
-  // entire window; concurrent limits are enforced by eventsService.
-  skipSuccessfulRequests: true,
-  store: createUpstashRateLimitStore("loresafe:rl:events:connections:v2:"),
-  identifier: "events-connections",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+export const createRateLimiters = (
+  options: AuthRateLimiterOptions = {}
+): RateLimiters => {
+  const storeFactory = options.storeFactory ?? createUpstashRateLimitStore;
+  const standardRateLimiters = Object.fromEntries(
+    Object.entries(standardRateLimitConfigs).map(([name, limiterConfig]) => [
+      name,
+      createStandardRateLimiter(limiterConfig, storeFactory)
+    ])
+  ) as StandardRateLimiters;
 
-export const clubCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 45,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:create:"),
-  identifier: "clubs-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+  return {
+    ...createAuthRateLimiters(options),
+    ...standardRateLimiters
+  };
+};
 
-export const clubJoinRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 90,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:join:"),
-  identifier: "clubs-join",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubLeaveRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:leave:"),
-  identifier: "clubs-leave",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubInviteCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 60,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:invites:create:"),
-  identifier: "clubs-invites-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubMemberManagementRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 180,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:members:manage:"),
-  identifier: "clubs-members-manage",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubSettingsUpdateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 120,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:settings:update:"),
-  identifier: "clubs-settings-update",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubMilestoneCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 90,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:milestones:create:"),
-  identifier: "clubs-milestones-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubMilestoneMutationRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 120,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:milestones:mutate:"),
-  identifier: "clubs-milestones-mutate",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubPostCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 90,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:posts:create:"),
-  identifier: "clubs-posts-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const postCommentCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 120,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:posts:comments:create:"),
-  identifier: "posts-comments-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const postReactionToggleRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 240,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:posts:reactions:toggle:"),
-  identifier: "posts-reactions-toggle",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const reportCreateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:reports:create:"),
-  identifier: "reports-create",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const searchRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 360,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:search:"),
-  identifier: "search",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const expensiveReadRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 240,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:reads:expensive:"),
-  identifier: "reads-expensive",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const publicSeoReadRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 600,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:public-seo:read:"),
-  identifier: "public-seo-read",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const moderationActionRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 180,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:moderation:actions:"),
-  identifier: "moderation-actions",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const contentRevealRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 120,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:content:reveal:"),
-  identifier: "content-reveal",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const notificationMutationRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 180,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:notifications:mutate:"),
-  identifier: "notifications-mutate",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const commentReactionToggleRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 240,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:comments:reactions:toggle:"),
-  identifier: "comments-reactions-toggle",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const clubProgressUpdateRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 120,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:clubs:progress:update:"),
-  identifier: "clubs-progress-update",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
-
-export const inviteAcceptRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 90,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  store: createUpstashRateLimitStore("loresafe:rl:invites:accept:"),
-  identifier: "invites-accept",
-  handler: (_req, _res, next) => {
-    next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
-  }
-});
+const createStandardRateLimiter = (
+  limiterConfig: StandardRateLimitConfig,
+  storeFactory: AuthRateLimitStoreFactory
+) =>
+  rateLimit({
+    windowMs: limiterConfig.windowMs,
+    limit: limiterConfig.limit,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    skipSuccessfulRequests: limiterConfig.skipSuccessfulRequests,
+    store: storeFactory(limiterConfig.prefix),
+    identifier: limiterConfig.identifier,
+    handler: (_req, _res, next) => {
+      next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+    }
+  });

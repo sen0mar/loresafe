@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Store } from "express-rate-limit";
+
+import type { AuthRateLimitStoreFactory } from "./rate-limit.js";
 
 type CapturedRateLimitOptions = {
   identifier?: string;
@@ -8,6 +11,9 @@ type CapturedRateLimitOptions = {
   standardHeaders?: string;
   store?: {
     prefix: string;
+  };
+  validate?: {
+    singleCount?: boolean;
   };
   windowMs?: number;
 };
@@ -30,7 +36,9 @@ const loadRateLimitOptions = async () => {
   createStoreMock.mockClear();
   rateLimitMock.mockClear();
 
-  await import("./rate-limit.js");
+  const { createRateLimiters } = await import("./rate-limit.js");
+
+  createRateLimiters();
 
   return rateLimitMock.mock.calls.map(([options]) => options);
 };
@@ -252,5 +260,40 @@ describe("rate limit defaults", () => {
         })
       )
     );
+  });
+
+  it("uses independent stores and prefixes for stacked account limits", async () => {
+    const options = await loadRateLimitOptions();
+    const burst = options.find(
+      ({ identifier }) => identifier === "auth-loginAccountBurst"
+    );
+    const sustained = options.find(
+      ({ identifier }) => identifier === "auth-loginAccountSustained"
+    );
+
+    expect(burst?.store).not.toBe(sustained?.store);
+    expect(burst?.store?.prefix).toBe(
+      "loresafe:rl:auth:login-account-burst:v1:"
+    );
+    expect(sustained?.store?.prefix).toBe(
+      "loresafe:rl:auth:login-account-sustained:v1:"
+    );
+    expect(burst?.validate).toEqual({ singleCount: false });
+    expect(sustained?.validate).toEqual({ singleCount: false });
+  });
+
+  it("does not create Upstash stores when a test store factory is injected", async () => {
+    vi.resetModules();
+    createStoreMock.mockClear();
+    rateLimitMock.mockClear();
+    const { createRateLimiters } = await import("./rate-limit.js");
+    const testStoreFactory: AuthRateLimitStoreFactory = vi.fn(
+      (prefix: string) => ({ prefix }) as unknown as Store
+    );
+
+    createRateLimiters({ storeFactory: testStoreFactory });
+
+    expect(createStoreMock).not.toHaveBeenCalled();
+    expect(testStoreFactory).toHaveBeenCalledTimes(31);
   });
 });

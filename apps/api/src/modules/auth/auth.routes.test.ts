@@ -356,6 +356,25 @@ describe("auth routes", () => {
     expect(repository.credentialLookupCount).toBe(2);
   });
 
+  it("enforces the account burst limit independently of the sustained limit", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({
+        login: 100,
+        loginAccountBurst: 2,
+        loginAccountSustained: 100
+      })
+    });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await request(app)
+        .post("/api/auth/login")
+        .send({ email: "target@example.com", password: "wrong password" })
+        .expect(attempt < 3 ? 401 : 429);
+    }
+
+    expect(repository.credentialLookupCount).toBe(2);
+  });
+
   it("clears the session cookie on logout", async () => {
     const response = await request(app)
       .post("/api/auth/logout")
@@ -839,6 +858,8 @@ class InMemoryRateLimitStore implements Store {
   private clients = new Map<string, InMemoryRateLimitClient>();
   private windowMs = 0;
 
+  constructor(readonly prefix: string) {}
+
   init = (options: RateLimitOptions) => {
     this.windowMs = options.windowMs;
   };
@@ -883,7 +904,7 @@ const createAuthTestRateLimiters = (
 ) =>
   createAuthRateLimiters({
     limitOverrides,
-    storeFactory: () => new InMemoryRateLimitStore()
+    storeFactory: (prefix) => new InMemoryRateLimitStore(prefix)
   });
 
 const waitForRateLimitDecrement = () =>

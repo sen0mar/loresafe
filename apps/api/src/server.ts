@@ -1,9 +1,12 @@
 import "./core/monitoring/sentry.js";
 
-import { app } from "./app.js";
+import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger, sanitizeError } from "./core/logging/logger.js";
 import { applyServerTimeouts } from "./core/http/server-timeouts.js";
+import { createRateLimiters } from "./core/security/rate-limit.js";
+
+const app = createApp(env, { rateLimiters: createRateLimiters() });
 
 let server: ReturnType<typeof app.listen> | null = null;
 
