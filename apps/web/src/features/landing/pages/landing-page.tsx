@@ -128,7 +128,7 @@ export const LandingPage = () => {
         </button>
       </section>
       <div id="landing-more" className="scroll-mt-6">
-        <section className="soft-section-divider relative z-10 bg-background px-5 py-10 sm:px-8 lg:px-12">
+        <section className="relative z-10 bg-background px-5 py-10 sm:px-8 lg:px-12">
           <div className="max-w-5xl space-y-5">
             <div className="max-w-2xl space-y-2">
               <h2 className="text-2xl font-semibold tracking-normal text-primary">

@@ -43,9 +43,18 @@ describe("LandingPage", () => {
     expect(heroImage).toHaveAttribute("fetchpriority", "high");
     expect(container.querySelector('source[type="image/avif"]')).toBeTruthy();
     expect(container.querySelector('source[type="image/webp"]')).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /scroll to landing page details/i })
-    ).toHaveAttribute("aria-controls", "landing-more");
+    const scrollButton = screen.getByRole("button", {
+      name: /scroll to landing page details/i
+    });
+    const detailsSection = document.getElementById("landing-more");
+
+    expect(scrollButton).toHaveAttribute("aria-controls", "landing-more");
+    expect(scrollButton.closest("section")).toHaveClass(
+      "soft-section-divider"
+    );
+    expect(detailsSection?.firstElementChild).not.toHaveClass(
+      "soft-section-divider"
+    );
     expect(
       screen.queryByText("Create clubs", { selector: "span" })
     ).not.toBeInTheDocument();
