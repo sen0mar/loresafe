@@ -291,7 +291,7 @@ Run commands from the repository root.
 | `pnpm build`                      | Generate Prisma Client, type-check, and build both apps |
 | `pnpm typecheck`                  | Type-check every workspace package                      |
 | `pnpm lint`                       | Run ESLint with zero warnings allowed                   |
-| `pnpm format:check`               | Verify formatting without changing files                |
+| `pnpm format:check`               | Verify repository-wide formatting without changes       |
 | `pnpm test`                       | Run API and web unit/route tests                        |
 | `pnpm test:coverage`              | Run configured API and web coverage gates               |
 | `pnpm test:browser`               | Run Playwright browser security/accessibility tests     |

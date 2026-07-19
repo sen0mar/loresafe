@@ -17,7 +17,7 @@
     "db:wipe:development": "pnpm --filter @loresafe/api db:wipe:development",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "format:check": "node scripts/format-check.mjs",
+    "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:coverage": "pnpm --filter @loresafe/api test:coverage && pnpm --filter @loresafe/web test:coverage",

@@ -121,10 +121,8 @@ jobs:
       - name: Lint source and enforce import boundaries
         run: pnpm lint
 
-      - name: Check formatting on changed files
+      - name: Check repository formatting
         run: pnpm format:check
-        env:
-          FORMAT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
 
       - name: Apply committed migrations
         run: pnpm --filter @loresafe/api prisma:migrate:deploy

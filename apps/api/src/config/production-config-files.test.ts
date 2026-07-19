@@ -118,8 +118,8 @@ describe("production configuration files", () => {
     };
 
     expect(rootPackageJson.scripts?.lint).toContain("eslint");
-    expect(rootPackageJson.scripts?.["format:check"]).toContain(
-      "format-check.mjs"
+    expect(rootPackageJson.scripts?.["format:check"]).toBe(
+      "prettier --check ."
     );
     expect(rootPackageJson.scripts?.["test:coverage"]).toContain(
       "test:coverage"
@@ -129,6 +129,7 @@ describe("production configuration files", () => {
       rootPackageJson.devDependencies?.["@axe-core/playwright"]
     ).toBeTruthy();
     expect(workflow).toContain("pnpm lint");
+    expect(workflow).toContain("name: Check repository formatting");
     expect(workflow).toContain("pnpm format:check");
     expect(workflow).toContain("pnpm test:coverage");
     expect(workflow).toContain("pnpm test:browser");
