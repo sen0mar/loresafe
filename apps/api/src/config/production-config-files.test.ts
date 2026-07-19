@@ -115,6 +115,40 @@ describe("production configuration files", () => {
     expect(render).not.toContain("healthCheckPath: /api/health/ready");
   });
 
+  it("uses the reviewed Node 24 pnpm action with the root package version", async () => {
+    const [rootPackage, workflow] = await Promise.all([
+      readFile(repositoryFile("package.json"), "utf8"),
+      readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8")
+    ]);
+    const node24CompatiblePnpmAction =
+      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9";
+    const pnpmJobs = [
+      "static-quality",
+      "unit-and-coverage",
+      "database-integration",
+      "build",
+      "browser-accessibility"
+    ];
+
+    expect(JSON.parse(rootPackage).packageManager).toBe("pnpm@11.5.3");
+    expect(workflow.split(node24CompatiblePnpmAction)).toHaveLength(
+      pnpmJobs.length + 1
+    );
+
+    for (const jobId of pnpmJobs) {
+      const job = workflowJob(workflow, jobId);
+
+      expect(job).toContain(node24CompatiblePnpmAction);
+      expect(job).toContain("run_install: false");
+    }
+
+    expect(workflow).not.toContain(
+      "pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa"
+    );
+    expect(workflow).not.toMatch(/pnpm\/action-setup@[^\n]+# v4\b/);
+    expect(workflow).not.toContain("version: 11.5.3");
+  });
+
   it("enforces a zero-advisory production audit and contract validation", async () => {
     const workflow = await readFile(
       repositoryFile(".github/workflows/release-gate.yml"),
