@@ -22,7 +22,9 @@ export const ReactionButtonGroup = ({
   onToggle,
   reactions
 }: ReactionButtonGroupProps) => {
-  const [poppingEmoji, setPoppingEmoji] = useState<PostReactionEmoji | null>(null);
+  const [poppingEmoji, setPoppingEmoji] = useState<PostReactionEmoji | null>(
+    null
+  );
   const popTimeoutRef = useRef<number | null>(null);
 
   useEffect(
@@ -71,7 +73,9 @@ export const ReactionButtonGroup = ({
           >
             {reaction.emoji}
           </span>
-          <span className="text-xs">{countFormatter.format(reaction.count)}</span>
+          <span className="text-xs">
+            {countFormatter.format(reaction.count)}
+          </span>
         </button>
       ))}
     </div>

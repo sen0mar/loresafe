@@ -1,9 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import {
-  type Club,
-  clubsQueryKeys
-} from "@/features/clubs/api/clubs";
+import { type Club, clubsQueryKeys } from "@/features/clubs/api/clubs";
 import { apiPost } from "@/shared/api/api-client";
 
 import type { CreateInvitePayload } from "../schemas/invite.schema.js";
@@ -45,7 +42,8 @@ export const acceptInvite = (token: string) =>
 
 export const useCreateClubInviteMutation = (linkName: string) =>
   useMutation({
-    mutationFn: (input: CreateInvitePayload) => createClubInvite(linkName, input)
+    mutationFn: (input: CreateInvitePayload) =>
+      createClubInvite(linkName, input)
   });
 
 export const useAcceptInviteMutation = () => {
@@ -54,10 +52,9 @@ export const useAcceptInviteMutation = () => {
   return useMutation({
     mutationFn: acceptInvite,
     onSuccess: (response) => {
-      queryClient.setQueryData(
-        clubsQueryKeys.detail(response.club.linkName),
-        { club: response.club }
-      );
+      queryClient.setQueryData(clubsQueryKeys.detail(response.club.linkName), {
+        club: response.club
+      });
       void queryClient.invalidateQueries({
         queryKey: clubsQueryKeys.discoveryRoot
       });

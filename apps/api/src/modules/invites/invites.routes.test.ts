@@ -289,36 +289,39 @@ describe("invite routes", () => {
         revokedAt: null
       }
     }
-  ])("$label invites fail without granting membership", async ({ code, invite, token }) => {
-    const reader = await repository.createUser({
-      email: `${code.toLowerCase()}@example.com`,
-      displayName: "Reader",
-      passwordHash: "$argon2id$v=19$hash"
-    });
-    const club = repository.createClub({
-      title: `${code} Club`,
-      linkName: `${code.toLowerCase().replace("_", "-")}-club`,
-      visibility: "INVITE_ONLY"
-    });
+  ])(
+    "$label invites fail without granting membership",
+    async ({ code, invite, token }) => {
+      const reader = await repository.createUser({
+        email: `${code.toLowerCase()}@example.com`,
+        displayName: "Reader",
+        passwordHash: "$argon2id$v=19$hash"
+      });
+      const club = repository.createClub({
+        title: `${code} Club`,
+        linkName: `${code.toLowerCase().replace("_", "-")}-club`,
+        visibility: "INVITE_ONLY"
+      });
 
-    repository.createStoredInvite({
-      clubId: club.id,
-      tokenHash: hashInviteToken(token),
-      ...invite
-    });
+      repository.createStoredInvite({
+        clubId: club.id,
+        tokenHash: hashInviteToken(token),
+        ...invite
+      });
 
-    const response = await request(app)
-      .post(`/api/invites/${token}/accept`)
-      .set("x-request-id", `invites-${code.toLowerCase()}`)
-      .set("Cookie", await createSessionCookie(reader))
-      .expect(409);
+      const response = await request(app)
+        .post(`/api/invites/${token}/accept`)
+        .set("x-request-id", `invites-${code.toLowerCase()}`)
+        .set("Cookie", await createSessionCookie(reader))
+        .expect(409);
 
-    expect(response.body.error).toMatchObject({
-      code,
-      requestId: `invites-${code.toLowerCase()}`
-    });
-    expect(repository.findMembership(reader.id, club.id)).toBeNull();
-  });
+      expect(response.body.error).toMatchObject({
+        code,
+        requestId: `invites-${code.toLowerCase()}`
+      });
+      expect(repository.findMembership(reader.id, club.id)).toBeNull();
+    }
+  );
 
   it("rejects unknown and malformed invite tokens cleanly", async () => {
     const reader = await repository.createUser({
@@ -464,7 +467,10 @@ const createInvitesTestApp = (
     "/api/clubs",
     createClubInvitesRouter(invitesController, authMiddleware)
   );
-  app.use("/api/invites", createInvitesRouter(invitesController, authMiddleware));
+  app.use(
+    "/api/invites",
+    createInvitesRouter(invitesController, authMiddleware)
+  );
   app.use(errorHandler);
 
   return app;
@@ -672,8 +678,9 @@ class InMemoryInvitesRepository
     now: Date
   ): Promise<AcceptInviteRecord> => {
     const invite =
-      this.invites.find((storedInvite) => storedInvite.tokenHash === tokenHash) ??
-      null;
+      this.invites.find(
+        (storedInvite) => storedInvite.tokenHash === tokenHash
+      ) ?? null;
 
     if (!invite) {
       return {

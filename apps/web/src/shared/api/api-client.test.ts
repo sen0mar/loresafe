@@ -9,10 +9,13 @@ describe("API request cancellation and deadlines", () => {
   });
 
   it("aborts the fetch when the caller signal is cancelled", async () => {
-    const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
-      new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-      })
+    const fetchMock = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason)
+          );
+        })
     );
     vi.stubGlobal("fetch", fetchMock);
     const controller = new AbortController();
@@ -28,10 +31,13 @@ describe("API request cancellation and deadlines", () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
-      vi.fn((_url: string, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-        })
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason)
+            );
+          })
       )
     );
     const request = apiGet("/api/test", { timeoutMs: 25 });

@@ -20,10 +20,7 @@ export const createTrustedOriginMiddleware = (
     const origin = req.get("origin");
     const isProduction = appEnv.NODE_ENV === "production";
 
-    if (
-      (origin && !trustedOrigins.has(origin)) ||
-      (!origin && isProduction)
-    ) {
+    if ((origin && !trustedOrigins.has(origin)) || (!origin && isProduction)) {
       next(new HttpError(403, "FORBIDDEN", "Invalid request origin"));
       return;
     }

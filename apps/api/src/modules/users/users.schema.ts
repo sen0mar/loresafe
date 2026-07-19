@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-const displayNameSchema = z
-  .string()
-  .trim()
-  .min(2)
-  .max(80);
+const displayNameSchema = z.string().trim().min(2).max(80);
 
 const bioSchema = z
   .string()

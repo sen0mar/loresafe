@@ -168,7 +168,8 @@ export const CommentForm = ({
             Advanced comment options
           </span>
           <span className="shrink-0 text-faint">
-            Milestone {getSelectedMilestoneLabel(requiredMilestoneId, milestoneOptions)}
+            Milestone{" "}
+            {getSelectedMilestoneLabel(requiredMilestoneId, milestoneOptions)}
           </span>
         </button>
         {isAdvancedOpen ? (

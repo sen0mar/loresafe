@@ -1,7 +1,4 @@
-import type {
-  AuditLogAction,
-  Prisma
-} from "../../generated/prisma/client.js";
+import type { AuditLogAction, Prisma } from "../../generated/prisma/client.js";
 
 type TransactionClient = Prisma.TransactionClient;
 

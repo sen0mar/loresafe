@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-export const progressModeSchema = z.enum([
-  "STRICT",
-  "BRAVE",
-  "FINISHED"
-]);
+export const progressModeSchema = z.enum(["STRICT", "BRAVE", "FINISHED"]);
 
 export const updateProgressRequestSchema = z
   .object({
@@ -23,9 +19,5 @@ export const recentlyUnlockedQuerySchema = z
 export const progressCommandIdSchema = z.uuid();
 
 export type ProgressMode = z.infer<typeof progressModeSchema>;
-export type UpdateProgressRequest = z.infer<
-  typeof updateProgressRequestSchema
->;
-export type RecentlyUnlockedQuery = z.infer<
-  typeof recentlyUnlockedQuerySchema
->;
+export type UpdateProgressRequest = z.infer<typeof updateProgressRequestSchema>;
+export type RecentlyUnlockedQuery = z.infer<typeof recentlyUnlockedQuerySchema>;

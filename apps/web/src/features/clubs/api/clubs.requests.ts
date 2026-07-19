@@ -1,31 +1,72 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/shared/api/api-client";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut
+} from "@/shared/api/api-client";
 
 import type {
-  BanClubMemberInput, BanReportedContentAuthorInput, ClubBanResponse,
-  ClubBansResponse, ClubDashboardStatsResponse, ClubFeedTab,
-  ClubMemberResponse, ClubMembersQueryInput, ClubMembersResponse,
-  ClubMilestonesResponse, ClubPostsResponse, ClubProgressResponse,
-  ClubResponse, ClubsDiscoveryResponse, CreateClubInput,
-  CreateClubMilestoneInput, CreateClubMilestoneResponse,
-  CreateClubMilestoneTemplateInput, CreateClubMilestoneTemplateResponse,
-  CreateClubPostInput, CreateClubPostResponse, CreatePostCommentInput,
-  CreatePostCommentResponse, CreateReportInput, CreateReportResponse,
-  DeleteCommentResponse, DeletePostResponse, JoinedClubsQueryInput,
-  JoinedClubsResponse, LeaveClubResponse, ModerationReportActionResponse,
-  ModerationReportNoteInput, ModerationReportsResponse,
-  MoveClubMilestoneInput, MoveClubMilestoneResponse,
-  PostCommentsResponse, PostDetailResponse, ProgressSummaryResponse,
-  PublicClubsQueryInput, RecentlyUnlockedResponse,
+  BanClubMemberInput,
+  BanReportedContentAuthorInput,
+  ClubBanResponse,
+  ClubBansResponse,
+  ClubDashboardStatsResponse,
+  ClubFeedTab,
+  ClubMemberResponse,
+  ClubMembersQueryInput,
+  ClubMembersResponse,
+  ClubMilestonesResponse,
+  ClubPostsResponse,
+  ClubProgressResponse,
+  ClubResponse,
+  ClubsDiscoveryResponse,
+  CreateClubInput,
+  CreateClubMilestoneInput,
+  CreateClubMilestoneResponse,
+  CreateClubMilestoneTemplateInput,
+  CreateClubMilestoneTemplateResponse,
+  CreateClubPostInput,
+  CreateClubPostResponse,
+  CreatePostCommentInput,
+  CreatePostCommentResponse,
+  CreateReportInput,
+  CreateReportResponse,
+  DeleteCommentResponse,
+  DeletePostResponse,
+  JoinedClubsQueryInput,
+  JoinedClubsResponse,
+  LeaveClubResponse,
+  ModerationReportActionResponse,
+  ModerationReportNoteInput,
+  ModerationReportsResponse,
+  MoveClubMilestoneInput,
+  MoveClubMilestoneResponse,
+  PostCommentsResponse,
+  PostDetailResponse,
+  ProgressSummaryResponse,
+  PublicClubsQueryInput,
+  RecentlyUnlockedResponse,
   ResolveModerationReportInput,
-  RevealCommentResponse, RevealModerationReportResponse, RevealPostResponse,
-  ToggleCommentReactionInput, ToggleCommentReactionResponse,
-  TogglePostReactionInput, TogglePostReactionResponse,
-  UpdateClubMemberRoleInput, UpdateClubMilestoneInput,
-  UpdateClubMilestoneResponse, UpdateClubProgressInput,
-  UpdateClubSettingsInput, UpdateReportRequiredMilestoneInput
+  RevealCommentResponse,
+  RevealModerationReportResponse,
+  RevealPostResponse,
+  ToggleCommentReactionInput,
+  ToggleCommentReactionResponse,
+  TogglePostReactionInput,
+  TogglePostReactionResponse,
+  UpdateClubMemberRoleInput,
+  UpdateClubMilestoneInput,
+  UpdateClubMilestoneResponse,
+  UpdateClubProgressInput,
+  UpdateClubSettingsInput,
+  UpdateReportRequiredMilestoneInput
 } from "./clubs.types.js";
 
-export const getPublicClubs = (input: PublicClubsQueryInput = {}, signal?: AbortSignal) => {
+export const getPublicClubs = (
+  input: PublicClubsQueryInput = {},
+  signal?: AbortSignal
+) => {
   const params = new URLSearchParams();
 
   if (input.cursor) {
@@ -42,7 +83,10 @@ export const getPublicClubs = (input: PublicClubsQueryInput = {}, signal?: Abort
 
   const query = params.toString();
 
-  return apiGet<ClubsDiscoveryResponse>(query ? `/api/clubs?${query}` : "/api/clubs", { signal });
+  return apiGet<ClubsDiscoveryResponse>(
+    query ? `/api/clubs?${query}` : "/api/clubs",
+    { signal }
+  );
 };
 
 export const getClubByLinkName = (linkName: string, signal?: AbortSignal) =>
@@ -70,9 +114,16 @@ export const getClubMembers = (
 };
 
 export const getClubBans = (linkName: string, page = 1, signal?: AbortSignal) =>
-  apiGet<ClubBansResponse>(`/api/clubs/${linkName}/bans?page=${page}&limit=20`, { signal });
+  apiGet<ClubBansResponse>(
+    `/api/clubs/${linkName}/bans?page=${page}&limit=20`,
+    { signal }
+  );
 
-export const getClubMilestones = (linkName: string, page = 1, signal?: AbortSignal) =>
+export const getClubMilestones = (
+  linkName: string,
+  page = 1,
+  signal?: AbortSignal
+) =>
   apiGet<ClubMilestonesResponse>(
     `/api/clubs/${linkName}/milestones?page=${page}&limit=100`,
     { signal }
@@ -96,7 +147,9 @@ export const getClubPosts = (
     params.set("cursor", cursor);
   }
 
-  return apiGet<ClubPostsResponse>(`/api/clubs/${linkName}/posts?${params}`, { signal });
+  return apiGet<ClubPostsResponse>(`/api/clubs/${linkName}/posts?${params}`, {
+    signal
+  });
 };
 
 export const getRecentlyUnlockedPosts = (
@@ -119,15 +172,26 @@ export const getRecentlyUnlockedPosts = (
 };
 
 export const getClubDashboardStats = (linkName: string, signal?: AbortSignal) =>
-  apiGet<ClubDashboardStatsResponse>(`/api/clubs/${linkName}/stats`, { signal });
+  apiGet<ClubDashboardStatsResponse>(`/api/clubs/${linkName}/stats`, {
+    signal
+  });
 
-export const getClubProgressSummary = (linkName: string, signal?: AbortSignal) =>
-  apiGet<ProgressSummaryResponse>(`/api/clubs/${linkName}/progress/summary`, { signal });
+export const getClubProgressSummary = (
+  linkName: string,
+  signal?: AbortSignal
+) =>
+  apiGet<ProgressSummaryResponse>(`/api/clubs/${linkName}/progress/summary`, {
+    signal
+  });
 
 export const getPostById = (postId: string, signal?: AbortSignal) =>
   apiGet<PostDetailResponse>(`/api/posts/${postId}`, { signal });
 
-export const getPostComments = (postId: string, cursor?: string, signal?: AbortSignal) => {
+export const getPostComments = (
+  postId: string,
+  cursor?: string,
+  signal?: AbortSignal
+) => {
   const params = new URLSearchParams({
     limit: "20"
   });
@@ -178,7 +242,10 @@ export const revealPostComment = (postId: string, commentId: string) =>
     `/api/posts/${postId}/comments/${commentId}/reveal`
   );
 
-export const getJoinedClubs = (input: JoinedClubsQueryInput = {}, signal?: AbortSignal) => {
+export const getJoinedClubs = (
+  input: JoinedClubsQueryInput = {},
+  signal?: AbortSignal
+) => {
   const params = new URLSearchParams();
   const query = input.q?.trim();
 
@@ -366,12 +433,9 @@ export const moveClubMilestone = (
   apiPost<
     MoveClubMilestoneResponse,
     { direction: MoveClubMilestoneInput["direction"] }
-  >(
-    `/api/clubs/${linkName}/milestones/${input.milestoneId}/move`,
-    {
-      direction: input.direction
-    }
-  );
+  >(`/api/clubs/${linkName}/milestones/${input.milestoneId}/move`, {
+    direction: input.direction
+  });
 
 export const createClubMilestoneTemplate = (
   linkName: string,

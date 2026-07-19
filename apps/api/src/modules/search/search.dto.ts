@@ -1,7 +1,10 @@
 import { r2Storage } from "../../core/storage/r2-storage.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
 import type { ClubPostCardDto } from "../posts/posts.dto.js";
-import type { SearchClubRecord, SearchPostRecord } from "./search.repository.js";
+import type {
+  SearchClubRecord,
+  SearchPostRecord
+} from "./search.repository.js";
 import type { SearchFilter } from "./search.schema.js";
 
 export type SearchClubDto = {

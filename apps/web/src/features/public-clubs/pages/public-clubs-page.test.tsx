@@ -2,10 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { screen, waitFor } from "@testing-library/react";
 
 import { ClubDiscoveryCard } from "@/features/clubs/components/club-discovery-card";
-import {
-  mockFetchRoutes,
-  renderWithProviders
-} from "@/test/render";
+import { mockFetchRoutes, renderWithProviders } from "@/test/render";
 
 import { PublicClubProfilePage } from "./public-club-profile-page";
 import { PublicClubsPage } from "./public-clubs-page";
@@ -51,10 +48,9 @@ describe("public club SEO pages", () => {
     );
 
     expect(await screen.findByText("Story Circle")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Open Story Circle" })).toHaveAttribute(
-      "href",
-      "/clubs/story-circle"
-    );
+    expect(
+      screen.getByRole("link", { name: "Open Story Circle" })
+    ).toHaveAttribute("href", "/clubs/story-circle");
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/public/clubs?sort=popular&limit=20",
       expect.objectContaining({
@@ -94,15 +90,21 @@ describe("public club SEO pages", () => {
       }
     );
 
-    expect(await screen.findByRole("heading", { name: "Story Circle" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { name: "Story Circle" })
+    ).toBeVisible();
     expect(
       screen.getByText("Keep future chapters out of early threads.")
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: /create account/i })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: /create account/i })
+    ).toHaveAttribute(
       "href",
       "/signup?redirectTo=%2Fapp%2Fclubs%2Fstory-circle%3Ftab%3Dfeed"
     );
-    expect(screen.getByRole("link", { name: /log in to join/i })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: /log in to join/i })
+    ).toHaveAttribute(
       "href",
       "/login?redirectTo=%2Fapp%2Fclubs%2Fstory-circle%3Ftab%3Dfeed"
     );
@@ -140,7 +142,9 @@ describe("public club SEO pages", () => {
       }
     );
 
-    expect(await screen.findByRole("heading", { name: "Club not found" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { name: "Club not found" })
+    ).toBeVisible();
 
     await waitFor(() => {
       expect(document.title).toBe("Club not found | LoreSafe");
@@ -154,10 +158,9 @@ describe("public club SEO pages", () => {
   it("keeps discovery cards pointed at authenticated club pages by default", () => {
     renderWithProviders(<ClubDiscoveryCard club={publicClub} />);
 
-    expect(screen.getByRole("link", { name: "Open Story Circle" })).toHaveAttribute(
-      "href",
-      "/app/clubs/story-circle?tab=feed"
-    );
+    expect(
+      screen.getByRole("link", { name: "Open Story Circle" })
+    ).toHaveAttribute("href", "/app/clubs/story-circle?tab=feed");
   });
 });
 

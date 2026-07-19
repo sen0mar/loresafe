@@ -65,7 +65,10 @@ export const createMilestonesService = (
   repository: MilestonesRepository = milestonesRepository
 ): MilestonesService => ({
   createMilestoneTemplateForClubLinkName: async (linkName, userId, input) => {
-    const club = await repository.findClubForMilestoneCreation(linkName, userId);
+    const club = await repository.findClubForMilestoneCreation(
+      linkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -112,7 +115,10 @@ export const createMilestonesService = (
   },
 
   createMilestoneForClubLinkName: async (linkName, userId, input) => {
-    const club = await repository.findClubForMilestoneCreation(linkName, userId);
+    const club = await repository.findClubForMilestoneCreation(
+      linkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -143,8 +149,16 @@ export const createMilestonesService = (
     };
   },
 
-  updateMilestoneForClubLinkName: async (linkName, milestoneId, userId, input) => {
-    const club = await repository.findClubForMilestoneCreation(linkName, userId);
+  updateMilestoneForClubLinkName: async (
+    linkName,
+    milestoneId,
+    userId,
+    input
+  ) => {
+    const club = await repository.findClubForMilestoneCreation(
+      linkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");
@@ -176,8 +190,16 @@ export const createMilestonesService = (
     };
   },
 
-  moveMilestoneForClubLinkName: async (linkName, milestoneId, userId, input) => {
-    const club = await repository.findClubForMilestoneCreation(linkName, userId);
+  moveMilestoneForClubLinkName: async (
+    linkName,
+    milestoneId,
+    userId,
+    input
+  ) => {
+    const club = await repository.findClubForMilestoneCreation(
+      linkName,
+      userId
+    );
 
     if (!club) {
       throw new HttpError(404, "NOT_FOUND", "Club not found");

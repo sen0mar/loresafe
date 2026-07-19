@@ -19,12 +19,8 @@ import { createAuthService } from "../auth/auth.service.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { createDashboardController } from "./dashboard.controller.js";
-import {
-  createDashboardRouter
-} from "./dashboard.routes.js";
-import {
-  createDashboardService
-} from "./dashboard.service.js";
+import { createDashboardRouter } from "./dashboard.routes.js";
+import { createDashboardService } from "./dashboard.service.js";
 import type {
   ClubDashboardStatsRecord,
   DashboardClubRecord,
@@ -52,13 +48,11 @@ describe("dashboard routes", () => {
 
   it("returns real club stats from visible records only", async () => {
     const user = repository.createStoredUser(validUserInput());
-    const otherUser = repository.createStoredUser(
-      {
-        ...validUserInput(),
-        email: "other@example.com",
-        displayName: "Other Reader"
-      }
-    );
+    const otherUser = repository.createStoredUser({
+      ...validUserInput(),
+      email: "other@example.com",
+      displayName: "Other Reader"
+    });
     const club = repository.createClub("stats-story-circle");
     const firstMilestone = repository.createMilestone(club.id, 1, "Opening");
     const secondMilestone = repository.createMilestone(club.id, 2, "Midpoint");
@@ -132,10 +126,15 @@ describe("dashboard routes", () => {
       title: "Safe popular title",
       body: "Safe popular body."
     });
-    const lockedPost = repository.createPost(club.id, user.id, secondMilestone, {
-      title: "UNSAFE_POPULAR_TITLE",
-      body: "UNSAFE_POPULAR_BODY"
-    });
+    const lockedPost = repository.createPost(
+      club.id,
+      user.id,
+      secondMilestone,
+      {
+        title: "UNSAFE_POPULAR_TITLE",
+        body: "UNSAFE_POPULAR_BODY"
+      }
+    );
     repository.createComment(safePost.id, user.id);
     repository.createComment(lockedPost.id, user.id);
     repository.createPostReaction(lockedPost.id, user.id, "👍");
@@ -182,7 +181,9 @@ describe("dashboard routes", () => {
     });
 
     const response = await request(app)
-      .get("/api/clubs/unlock-summary-story-circle/recently-unlocked/summary?limit=3")
+      .get(
+        "/api/clubs/unlock-summary-story-circle/recently-unlocked/summary?limit=3"
+      )
       .set("Cookie", await createSessionCookie(user))
       .expect(200);
 
@@ -535,7 +536,8 @@ class InMemoryDashboardRepository
       lockedPostCount: visiblePosts.length - safePostCount,
       viewer: {
         joinedAt: viewerMembership?.createdAt ?? null,
-        postCount: visiblePosts.filter((post) => post.authorId === userId).length,
+        postCount: visiblePosts.filter((post) => post.authorId === userId)
+          .length,
         commentCount: this.comments.filter(
           (comment) =>
             comment.authorId === userId &&
@@ -592,7 +594,9 @@ class InMemoryDashboardRepository
 
     return {
       mode: progress?.mode ?? "STRICT",
-      currentMilestone: this.findMilestone(progress?.currentMilestoneId ?? null),
+      currentMilestone: this.findMilestone(
+        progress?.currentMilestoneId ?? null
+      ),
       totalMilestones: this.milestones.filter(
         (milestone) => milestone.clubId === clubId
       ).length,
@@ -666,9 +670,7 @@ class InMemoryDashboardRepository
   private visiblePostsForClub = (clubId: string) =>
     this.posts.filter(
       (post) =>
-        post.clubId === clubId &&
-        post.status === "VISIBLE" &&
-        !post.deletedAt
+        post.clubId === clubId && post.status === "VISIBLE" && !post.deletedAt
     );
 
   private visibleCommentCount = (postId: string) =>
@@ -693,10 +695,7 @@ class InMemoryDashboardRepository
   private findMilestone = (milestoneId: string | null) =>
     this.milestones.find((milestone) => milestone.id === milestoneId) ?? null;
 
-  private toPostRecord = (
-    post: StoredPost,
-    userId: string
-  ): ClubPostRecord => {
+  private toPostRecord = (post: StoredPost, userId: string): ClubPostRecord => {
     const reactions = ["👍", "❤️", "😂", "😮", "👀"].map((emoji) => {
       const postReactions = this.postReactions.filter(
         (reaction) => reaction.postId === post.id && reaction.emoji === emoji

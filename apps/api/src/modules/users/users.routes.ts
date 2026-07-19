@@ -1,6 +1,9 @@
 import { Router } from "express";
 
-import { authMiddleware, type AuthMiddleware } from "../auth/auth.middleware.js";
+import {
+  authMiddleware,
+  type AuthMiddleware
+} from "../auth/auth.middleware.js";
 import { usersController, type UsersController } from "./users.controller.js";
 
 export const createUsersRouter = (

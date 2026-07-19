@@ -54,10 +54,10 @@ type PasswordVerifier = typeof verifyPassword;
 
 export const createAuthService = (
   usersRepository: AuthUsersRepository = authUsersRepository,
-  sessionsRepository: AuthSessionsRepository =
-    usersRepository === authUsersRepository
-      ? authSessionsRepository
-      : createMemoryAuthSessionsRepository(),
+  sessionsRepository: AuthSessionsRepository = usersRepository ===
+  authUsersRepository
+    ? authSessionsRepository
+    : createMemoryAuthSessionsRepository(),
   passwordVerifier: PasswordVerifier = verifyPassword
 ): AuthService => {
   const allowLegacyUnpersistedTestTokens =
@@ -84,7 +84,7 @@ export const createAuthService = (
     const isKnownPersistedSession =
       !session && allowLegacyUnpersistedTestTokens
         ? await sessionsRepository.hasSessionIdHash(
-          hashSessionIdentifier(verifiedSession.sessionId)
+            hashSessionIdentifier(verifiedSession.sessionId)
           )
         : session !== null;
 
@@ -129,10 +129,7 @@ export const createAuthService = (
           username,
           passwordHash
         });
-        const tokens = await createPersistedSession(
-          user,
-          sessionsRepository
-        );
+        const tokens = await createPersistedSession(user, sessionsRepository);
 
         return {
           user: toAuthUserDto(user),
@@ -149,7 +146,8 @@ export const createAuthService = (
     },
 
     login: async ({ email, password }) => {
-      const user = await usersRepository.findActiveUserCredentialsByEmail(email);
+      const user =
+        await usersRepository.findActiveUserCredentialsByEmail(email);
 
       const isPasswordValid = await passwordVerifier(
         user?.passwordHash ?? dummyPasswordHash,
@@ -184,11 +182,7 @@ export const createAuthService = (
         ? await usersRepository.findActiveUserById(session.userId)
         : null;
 
-      if (
-        !session ||
-        !user ||
-        session.sessionVersion !== user.sessionVersion
-      ) {
+      if (!session || !user || session.sessionVersion !== user.sessionVersion) {
         throw authenticationRequiredError();
       }
 
@@ -313,7 +307,9 @@ const uniqueConstraintTargets = (error: unknown) => {
   const meta = (error as { meta?: { target?: unknown } }).meta;
 
   if (Array.isArray(meta?.target)) {
-    return meta.target.filter((target): target is string => typeof target === "string");
+    return meta.target.filter(
+      (target): target is string => typeof target === "string"
+    );
   }
 
   return typeof meta?.target === "string" ? [meta.target] : [];

@@ -11,14 +11,12 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-gradient-primary text-on-brand shadow-glow hover:shadow-soft",
-        destructive:
-          "bg-error text-primary hover:opacity-90",
+        destructive: "bg-error text-primary hover:opacity-90",
         outline:
           "border border-default bg-surface text-secondary hover:border-strong hover:bg-active hover:text-primary",
         secondary:
           "border border-default bg-active text-secondary hover:border-strong hover:text-primary",
-        ghost:
-          "text-muted hover:bg-active hover:text-primary",
+        ghost: "text-muted hover:bg-active hover:text-primary",
         link: "h-auto text-brand underline-offset-4 hover:underline"
       },
       size: {

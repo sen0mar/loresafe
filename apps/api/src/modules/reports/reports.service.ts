@@ -159,67 +159,33 @@ export const createReportsService = (
     userId,
     input
   ) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) =>
-        repository.updateReportRequiredMilestone(
-          club.id,
-          reportId,
-          userId,
-          input
-        )
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.updateReportRequiredMilestone(club.id, reportId, userId, input)
     ),
 
   hideReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) => repository.hideReportedContent(club.id, reportId, userId, input)
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.hideReportedContent(club.id, reportId, userId, input)
     ),
 
   deleteReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) =>
-        repository.deleteReportedContent(club.id, reportId, userId, input)
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.deleteReportedContent(club.id, reportId, userId, input)
     ),
 
   warnReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) =>
-        repository.warnReportedContentAuthor(club.id, reportId, userId, input)
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.warnReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   banReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) =>
-        repository.banReportedContentAuthor(club.id, reportId, userId, input)
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.banReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   resolveModerationReportForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(
-      linkName,
-      userId,
-      repository,
-      eventPublisher,
-      (club) =>
-        repository.resolveModerationReport(club.id, reportId, userId, input)
+    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+      repository.resolveModerationReport(club.id, reportId, userId, input)
     )
 });
 

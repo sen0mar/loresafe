@@ -243,11 +243,20 @@ describe("auth routes", () => {
     const service = createAuthService(repository, undefined, passwordVerifier);
 
     await expect(
-      service.login({ email: "missing@example.com", password: "wrong password" })
-    ).rejects.toMatchObject({ statusCode: 401, message: "Invalid credentials" });
+      service.login({
+        email: "missing@example.com",
+        password: "wrong password"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Invalid credentials"
+    });
     await expect(
       service.login({ email: "reader@example.com", password: "wrong password" })
-    ).rejects.toMatchObject({ statusCode: 401, message: "Invalid credentials" });
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Invalid credentials"
+    });
 
     expect(passwordVerifier.mock.calls).toEqual([
       [dummyPasswordHash, "wrong password"],
@@ -893,7 +902,8 @@ const extractSessionCookie = (response: Response) => {
 };
 
 const extractResponseCookies = (response: Response): string[] => {
-  const header = response.headers["set-cookie"] as string | string[] | undefined;
+  const header = response.headers["set-cookie"] as
+    string | string[] | undefined;
   const cookies = Array.isArray(header) ? header : header ? [header] : [];
 
   return cookies.map((cookie) => cookie.split(";")[0] ?? "");

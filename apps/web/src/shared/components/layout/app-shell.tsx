@@ -10,10 +10,7 @@ import {
   MobileNav,
   type AppShellJoinedClub
 } from "./app-shell-navigation.js";
-import {
-  SessionMenu,
-  type AppShellUser
-} from "./app-shell-session-menu.js";
+import { SessionMenu, type AppShellUser } from "./app-shell-session-menu.js";
 import { useDesktopSidebar } from "./use-desktop-sidebar.js";
 
 type AppShellProps = {
@@ -45,11 +42,8 @@ export const AppShell = ({
   onRetryJoinedClubs,
   rightRail
 }: AppShellProps) => {
-  const {
-    closeDesktopSidebar,
-    isDesktopSidebarOpen,
-    openDesktopSidebar
-  } = useDesktopSidebar();
+  const { closeDesktopSidebar, isDesktopSidebarOpen, openDesktopSidebar } =
+    useDesktopSidebar();
 
   return (
     <div className="min-h-screen bg-gradient-app text-primary">

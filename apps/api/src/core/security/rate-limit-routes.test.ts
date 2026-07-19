@@ -34,10 +34,7 @@ describe("registerRateLimiters", () => {
 
     registerRateLimiters(app);
 
-    expect(app.post).toHaveBeenCalledWith(
-      "/api/clubs",
-      expect.any(Function)
-    );
+    expect(app.post).toHaveBeenCalledWith("/api/clubs", expect.any(Function));
     expect(app.patch).toHaveBeenCalledWith(
       "/api/users/me",
       expect.any(Function)
@@ -46,14 +43,8 @@ describe("registerRateLimiters", () => {
       "/api/users/me",
       expect.any(Function)
     );
-    expect(app.get).toHaveBeenCalledWith(
-      "/api/search",
-      expect.any(Function)
-    );
-    expect(app.get).toHaveBeenCalledWith(
-      "/api/events",
-      expect.any(Function)
-    );
+    expect(app.get).toHaveBeenCalledWith("/api/search", expect.any(Function));
+    expect(app.get).toHaveBeenCalledWith("/api/events", expect.any(Function));
     expect(app.get).toHaveBeenCalledWith(
       "/api/clubs/:linkName/posts",
       expect.any(Function)

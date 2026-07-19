@@ -150,78 +150,79 @@ export const authSessionsRepository: AuthSessionsRepository = {
   }
 };
 
-export const createMemoryAuthSessionsRepository = (): AuthSessionsRepository => {
-  const sessions = new Map<string, AuthSessionRecord>();
-  const knownSessionIdHashes = new Set<string>();
+export const createMemoryAuthSessionsRepository =
+  (): AuthSessionsRepository => {
+    const sessions = new Map<string, AuthSessionRecord>();
+    const knownSessionIdHashes = new Set<string>();
 
-  const findActive = (session: AuthSessionRecord | undefined, now: Date) =>
-    session && !session.revokedAt && session.expiresAt > now ? session : null;
+    const findActive = (session: AuthSessionRecord | undefined, now: Date) =>
+      session && !session.revokedAt && session.expiresAt > now ? session : null;
 
-  return {
-    createSession: async (input) => {
-      const session = { ...input, revokedAt: null };
-      sessions.set(input.sessionIdHash, session);
-      knownSessionIdHashes.add(input.sessionIdHash);
-      return session;
-    },
-    findActiveBySessionIdHash: async (sessionIdHash, now) =>
-      findActive(sessions.get(sessionIdHash), now),
-    findActiveByRefreshTokenHash: async (refreshTokenHash, now) =>
-      findActive(
-        [...sessions.values()].find(
-          (session) => session.refreshTokenHash === refreshTokenHash
+    return {
+      createSession: async (input) => {
+        const session = { ...input, revokedAt: null };
+        sessions.set(input.sessionIdHash, session);
+        knownSessionIdHashes.add(input.sessionIdHash);
+        return session;
+      },
+      findActiveBySessionIdHash: async (sessionIdHash, now) =>
+        findActive(sessions.get(sessionIdHash), now),
+      findActiveByRefreshTokenHash: async (refreshTokenHash, now) =>
+        findActive(
+          [...sessions.values()].find(
+            (session) => session.refreshTokenHash === refreshTokenHash
+          ),
+          now
         ),
+      hasSessionIdHash: async (sessionIdHash) =>
+        knownSessionIdHashes.has(sessionIdHash),
+      rotateRefreshToken: async (
+        sessionIdHash,
+        currentRefreshTokenHash,
+        nextSessionIdHash,
+        nextRefreshTokenHash,
         now
-      ),
-    hasSessionIdHash: async (sessionIdHash) =>
-      knownSessionIdHashes.has(sessionIdHash),
-    rotateRefreshToken: async (
-      sessionIdHash,
-      currentRefreshTokenHash,
-      nextSessionIdHash,
-      nextRefreshTokenHash,
-      now
-    ) => {
-      const session = findActive(sessions.get(sessionIdHash), now);
+      ) => {
+        const session = findActive(sessions.get(sessionIdHash), now);
 
-      if (!session || session.refreshTokenHash !== currentRefreshTokenHash) {
-        return false;
-      }
-
-      session.refreshTokenHash = nextRefreshTokenHash;
-      sessions.delete(sessionIdHash);
-      session.sessionIdHash = nextSessionIdHash;
-      sessions.set(nextSessionIdHash, session);
-      knownSessionIdHashes.add(nextSessionIdHash);
-      return true;
-    },
-    revokeSession: async (identifiers, now) => {
-      const session = [...sessions.values()].find(
-        (candidate) =>
-          (!candidate.revokedAt &&
-            identifiers.sessionIdHash === candidate.sessionIdHash) ||
-          (!candidate.revokedAt &&
-            identifiers.refreshTokenHash === candidate.refreshTokenHash)
-      );
-
-      if (!session) {
-        return null;
-      }
-
-      session.revokedAt = now;
-      return session.userId;
-    },
-    revokeAllSessions: async (userId, now) => {
-      let count = 0;
-
-      for (const session of sessions.values()) {
-        if (session.userId === userId && !session.revokedAt) {
-          session.revokedAt = now;
-          count += 1;
+        if (!session || session.refreshTokenHash !== currentRefreshTokenHash) {
+          return false;
         }
-      }
 
-      return count;
-    }
+        session.refreshTokenHash = nextRefreshTokenHash;
+        sessions.delete(sessionIdHash);
+        session.sessionIdHash = nextSessionIdHash;
+        sessions.set(nextSessionIdHash, session);
+        knownSessionIdHashes.add(nextSessionIdHash);
+        return true;
+      },
+      revokeSession: async (identifiers, now) => {
+        const session = [...sessions.values()].find(
+          (candidate) =>
+            (!candidate.revokedAt &&
+              identifiers.sessionIdHash === candidate.sessionIdHash) ||
+            (!candidate.revokedAt &&
+              identifiers.refreshTokenHash === candidate.refreshTokenHash)
+        );
+
+        if (!session) {
+          return null;
+        }
+
+        session.revokedAt = now;
+        return session.userId;
+      },
+      revokeAllSessions: async (userId, now) => {
+        let count = 0;
+
+        for (const session of sessions.values()) {
+          if (session.userId === userId && !session.revokedAt) {
+            session.revokedAt = now;
+            count += 1;
+          }
+        }
+
+        return count;
+      }
+    };
   };
-};

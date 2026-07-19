@@ -1,11 +1,7 @@
 import { Compass, RefreshCw, SearchX } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader
-} from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 import { ClubCardGrid } from "./club-card-grid.js";
@@ -47,7 +43,9 @@ export const ExploreClubsEmpty = () => (
         <SearchX className="size-6" />
       </span>
       <div>
-        <h2 className="text-lg font-semibold text-primary">No public clubs yet</h2>
+        <h2 className="text-lg font-semibold text-primary">
+          No public clubs yet
+        </h2>
         <p className="mt-1 max-w-md text-sm leading-6 text-muted">
           Public discovery will fill in as clubs are published.
         </p>
@@ -56,11 +54,7 @@ export const ExploreClubsEmpty = () => (
   </Card>
 );
 
-export const ExploreClubsError = ({
-  onRetry
-}: {
-  onRetry: () => void;
-}) => (
+export const ExploreClubsError = ({ onRetry }: { onRetry: () => void }) => (
   <Card>
     <CardContent className="flex min-h-72 flex-col items-center justify-center gap-4 text-center">
       <span className="flex size-12 items-center justify-center rounded-xl border border-default bg-inset text-warning">

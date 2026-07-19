@@ -14,15 +14,19 @@ describe("cursor codec", () => {
       id: crypto.randomUUID()
     };
 
-    expect(decodeTimestampUuidCursor(encodeTimestampUuidCursor(cursor))).toEqual(
-      cursor
-    );
+    expect(
+      decodeTimestampUuidCursor(encodeTimestampUuidCursor(cursor))
+    ).toEqual(cursor);
   });
 
   it.each([
     { createdAt: "not-a-date", id: crypto.randomUUID() },
     { createdAt: "2026-07-10T12:30:00.000Z", id: "not-a-uuid" },
-    { createdAt: "2026-07-10T12:30:00.000Z", id: crypto.randomUUID(), extra: true }
+    {
+      createdAt: "2026-07-10T12:30:00.000Z",
+      id: crypto.randomUUID(),
+      extra: true
+    }
   ])("rejects malformed keyset cursor payloads", (payload) => {
     const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
 
@@ -32,7 +36,9 @@ describe("cursor codec", () => {
   });
 
   it("enforces safe bounded offset cursors", () => {
-    expect(decodeBoundedOffsetCursor(encodeBoundedOffsetCursor(50), 100)).toEqual({
+    expect(
+      decodeBoundedOffsetCursor(encodeBoundedOffsetCursor(50), 100)
+    ).toEqual({
       offset: 50
     });
     expect(() =>

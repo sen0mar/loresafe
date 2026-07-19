@@ -1,8 +1,5 @@
 import { getCompletedMilestoneCount } from "../spoilers/spoiler.policy.js";
-import {
-  type ClubPostCardDto,
-  toClubPostCardDto
-} from "../posts/posts.dto.js";
+import { type ClubPostCardDto, toClubPostCardDto } from "../posts/posts.dto.js";
 import type { ClubPostRecord } from "../posts/posts.repository.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type { ObjectStorage } from "../../core/storage/r2-storage.js";

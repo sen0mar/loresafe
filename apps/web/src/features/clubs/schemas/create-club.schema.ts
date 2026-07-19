@@ -10,10 +10,9 @@ const optionalTrimmedText = (maxLength: number, message: string) =>
     .transform((value) => (value.length > 0 ? value : null))
     .optional();
 
-const clubCategoryValues = clubCategoryOptions.map((option) => option.value) as [
-  ClubCategory,
-  ...ClubCategory[]
-];
+const clubCategoryValues = clubCategoryOptions.map(
+  (option) => option.value
+) as [ClubCategory, ...ClubCategory[]];
 
 const clubCategoryFormSchema = z
   .union([z.enum(clubCategoryValues), z.literal("")])

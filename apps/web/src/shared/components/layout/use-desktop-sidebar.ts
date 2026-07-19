@@ -4,7 +4,9 @@ const desktopSidebarPreferenceKey = "loresafe.desktop-sidebar";
 
 const readDesktopSidebarPreference = () => {
   try {
-    return window.localStorage.getItem(desktopSidebarPreferenceKey) !== "closed";
+    return (
+      window.localStorage.getItem(desktopSidebarPreferenceKey) !== "closed"
+    );
   } catch {
     return true;
   }

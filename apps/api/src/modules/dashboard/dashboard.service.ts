@@ -1,5 +1,8 @@
 import { HttpError } from "../../core/errors/http-error.js";
-import { r2Storage, type ObjectStorage } from "../../core/storage/r2-storage.js";
+import {
+  r2Storage,
+  type ObjectStorage
+} from "../../core/storage/r2-storage.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
 import { canViewClubFeed } from "../posts/posts.policy.js";
 import { canReadClubProgress } from "../progress/progress.policy.js";

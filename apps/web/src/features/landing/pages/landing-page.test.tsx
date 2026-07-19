@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor
+} from "@testing-library/react";
 import { vi } from "vitest";
 
 import { App } from "@/app/app";
@@ -23,9 +29,9 @@ describe("LandingPage", () => {
         /Discuss books, shows, games, and courses without stumbling into spoilers/i
       )
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /create account/i })).toHaveLength(
-      2
-    );
+    expect(
+      screen.getAllByRole("link", { name: /create account/i })
+    ).toHaveLength(2);
     screen
       .getAllByRole("link", { name: /create account/i })
       .forEach((link) => expect(link).toHaveAttribute("href", "/signup"));
@@ -49,9 +55,7 @@ describe("LandingPage", () => {
     const detailsSection = document.getElementById("landing-more");
 
     expect(scrollButton).toHaveAttribute("aria-controls", "landing-more");
-    expect(scrollButton.closest("section")).toHaveClass(
-      "soft-section-divider"
-    );
+    expect(scrollButton.closest("section")).toHaveClass("soft-section-divider");
     expect(detailsSection?.firstElementChild).not.toHaveClass(
       "soft-section-divider"
     );
@@ -64,7 +68,9 @@ describe("LandingPage", () => {
         name: "Spoiler-safe by design"
       })
     ).toBeVisible();
-    expect(screen.getByText("How does LoreSafe prevent spoilers?")).toBeVisible();
+    expect(
+      screen.getByText("How does LoreSafe prevent spoilers?")
+    ).toBeVisible();
     expect(
       screen.getByText("What kinds of stories can I create clubs for?")
     ).toBeVisible();
@@ -81,13 +87,12 @@ describe("LandingPage", () => {
       screen.getByRole("heading", { level: 2, name: "LoreSafe" })
     ).toBeVisible();
     expect(screen.queryByText("Navigation")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /explore clubs/i })).toHaveAttribute(
-      "href",
-      "/clubs"
-    );
-    expect(screen.getAllByRole("link", { name: /create account/i })).toHaveLength(
-      2
-    );
+    expect(
+      screen.getByRole("link", { name: /explore clubs/i })
+    ).toHaveAttribute("href", "/clubs");
+    expect(
+      screen.getAllByRole("link", { name: /create account/i })
+    ).toHaveLength(2);
     const copyright = container.querySelector("footer p.text-faint");
 
     expect(copyright).toBeVisible();
@@ -141,8 +146,7 @@ describe("LandingPage", () => {
 
   it("updates the arrow direction when the lower landing content enters view", () => {
     let observerCallback:
-      | ((entries: MockIntersectionObserverEntry[]) => void)
-      | undefined;
+      ((entries: MockIntersectionObserverEntry[]) => void) | undefined;
     const observe = vi.fn();
     const disconnect = vi.fn();
     const OriginalIntersectionObserver = window.IntersectionObserver;
@@ -232,9 +236,7 @@ describe("LandingPage", () => {
     await waitFor(() => {
       expect(document.title).toBe("Create club | LoreSafe");
       expect(getMeta("robots")).toBe("noindex, nofollow");
-      expect(getCanonical()).toBe(
-        "https://www.loresafe.org/app/clubs/new"
-      );
+      expect(getCanonical()).toBe("https://www.loresafe.org/app/clubs/new");
     });
   });
 
@@ -273,9 +275,10 @@ describe("LandingPage", () => {
         name: "Welcome back"
       })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /back to home/i })
-    ).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /back to home/i })).toHaveAttribute(
+      "href",
+      "/"
+    );
     await waitFor(() => expect(window.location.pathname).toBe("/login"));
     expect(window.location.search).toBe("?redirectTo=%2Fapp");
   });

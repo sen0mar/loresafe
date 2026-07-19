@@ -5,7 +5,11 @@ import { applyServerTimeouts } from "./server-timeouts.js";
 
 describe("server timeout budgets", () => {
   it("applies the validated HTTP timeout configuration", () => {
-    const server = { headersTimeout: 0, keepAliveTimeout: 0, requestTimeout: 0 };
+    const server = {
+      headersTimeout: 0,
+      keepAliveTimeout: 0,
+      requestTimeout: 0
+    };
     const appEnv = parseEnv({
       DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
       JWT_SECRET: "a".repeat(32),

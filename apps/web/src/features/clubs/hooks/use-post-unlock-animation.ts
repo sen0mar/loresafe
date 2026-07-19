@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  ClubPostCard,
-  ClubProgress,
-  ProgressMode
-} from "../api/clubs.js";
+import type { ClubPostCard, ClubProgress, ProgressMode } from "../api/clubs.js";
 
 const unlockAnimationDurationMs = 1500;
 

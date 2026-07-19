@@ -122,7 +122,9 @@ export const PostImageUploadField = ({
       {selectedFile ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-faint">
-            {completedAsset ? "Image ready" : "Upload before creating the post."}
+            {completedAsset
+              ? "Image ready"
+              : "Upload before creating the post."}
           </p>
           <Button
             type="button"

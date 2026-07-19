@@ -24,7 +24,10 @@ import {
   AuthFormField,
   PasswordInput
 } from "./auth-form-elements.js";
-import { loginFormSchema, type LoginFormValues } from "../schemas/login.schema.js";
+import {
+  loginFormSchema,
+  type LoginFormValues
+} from "../schemas/login.schema.js";
 
 type LoginFieldErrors = Partial<Record<keyof LoginFormValues, string>>;
 
@@ -138,7 +141,11 @@ export const LoginForm = () => {
             />
           </AuthFormField>
 
-          <Button type="submit" className="mt-2" disabled={loginMutation.isPending}>
+          <Button
+            type="submit"
+            className="mt-2"
+            disabled={loginMutation.isPending}
+          >
             {loginMutation.isPending ? "Logging in..." : "Log in"}
             <ArrowRight />
           </Button>

@@ -34,8 +34,7 @@ export const AccountDangerZone = () => {
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const canDelete =
-    confirmation === deleteConfirmation && password.length > 0;
+  const canDelete = confirmation === deleteConfirmation && password.length > 0;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (deleteAccountMutation.isPending) {
@@ -144,8 +143,7 @@ export const AccountDangerZone = () => {
                   className="text-sm font-medium text-secondary"
                   htmlFor="delete-account-confirmation"
                 >
-                  Type <span className="text-primary">"delete"</span> to
-                  confirm
+                  Type <span className="text-primary">"delete"</span> to confirm
                 </label>
                 <Input
                   id="delete-account-confirmation"

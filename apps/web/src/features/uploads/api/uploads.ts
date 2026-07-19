@@ -125,7 +125,9 @@ export const uploadFileToPresignedUrl = ({
         return;
       }
 
-      finish(() => reject(new Error(`Upload failed with status ${request.status}.`)));
+      finish(() =>
+        reject(new Error(`Upload failed with status ${request.status}.`))
+      );
     };
 
     request.onerror = () => {
@@ -133,15 +135,21 @@ export const uploadFileToPresignedUrl = ({
     };
 
     request.onabort = () => {
-      finish(() => reject(new DOMException("The upload was cancelled.", "AbortError")));
+      finish(() =>
+        reject(new DOMException("The upload was cancelled.", "AbortError"))
+      );
     };
 
     request.ontimeout = () => {
-      finish(() => reject(new Error("The upload timed out. Please try again.")));
+      finish(() =>
+        reject(new Error("The upload timed out. Please try again."))
+      );
     };
 
     if (signal?.aborted) {
-      finish(() => reject(new DOMException("The upload was cancelled.", "AbortError")));
+      finish(() =>
+        reject(new DOMException("The upload was cancelled.", "AbortError"))
+      );
       return;
     }
 

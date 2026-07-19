@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const searchScopeSchema = z.enum(["all", "clubs", "posts"]).default("all");
+export const searchScopeSchema = z
+  .enum(["all", "clubs", "posts"])
+  .default("all");
 export const searchFilterSchema = z.enum(["safe", "spoiler", "clubs", "posts"]);
 
 export const searchQuerySchema = z

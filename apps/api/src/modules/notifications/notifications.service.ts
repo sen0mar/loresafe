@@ -3,10 +3,7 @@ import {
   decodeTimestampUuidCursor,
   encodeTimestampUuidCursor
 } from "../../core/http/cursor.js";
-import {
-  eventsService,
-  type EventsService
-} from "../events/events.service.js";
+import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   type DeleteNotificationResponse,
   type MarkAllNotificationsReadResponse,

@@ -242,11 +242,7 @@ export const createCommentsService = (
     }
 
     if (!canToggleCommentReaction(target.post)) {
-      throw new HttpError(
-        403,
-        "FORBIDDEN",
-        "You cannot react in this club."
-      );
+      throw new HttpError(403, "FORBIDDEN", "You cannot react in this club.");
     }
 
     if (

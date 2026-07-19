@@ -44,7 +44,9 @@ export const ClubCoverUploadPanel = ({ club }: { club: Club }) => {
             <ImageUp className="size-4 text-brand" />
             Club cover
           </h2>
-          <p className="mt-1 text-sm text-muted">JPEG, PNG, or WebP up to 5 MB.</p>
+          <p className="mt-1 text-sm text-muted">
+            JPEG, PNG, or WebP up to 5 MB.
+          </p>
         </div>
         <Button
           type="button"

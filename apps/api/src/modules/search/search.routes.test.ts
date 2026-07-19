@@ -152,8 +152,12 @@ describe("search routes", () => {
         visibility: "PUBLIC"
       })
     ]);
-    expect(JSON.stringify(outsiderResponse.body)).not.toContain("Nebula Private");
-    expect(JSON.stringify(outsiderResponse.body)).not.toContain("nebula-private");
+    expect(JSON.stringify(outsiderResponse.body)).not.toContain(
+      "Nebula Private"
+    );
+    expect(JSON.stringify(outsiderResponse.body)).not.toContain(
+      "nebula-private"
+    );
 
     const memberResponse = await request(app)
       .get("/api/search?q=nebula&scope=clubs")
@@ -231,18 +235,20 @@ describe("search routes", () => {
         linkName: "spoiler-club"
       },
       post: {
-      visibility: "LOCKED",
-      requiredMilestone: {
-        id: future.id,
-        position: 2,
-        label: "Future checkpoint"
-      }
+        visibility: "LOCKED",
+        requiredMilestone: {
+          id: future.id,
+          position: 2,
+          label: "Future checkpoint"
+        }
       }
     });
     expect(response.body.posts[0].post).not.toHaveProperty("title");
     expect(response.body.posts[0].post).not.toHaveProperty("bodyPreview");
     expect(response.body.posts[0].post).not.toHaveProperty("author");
-    expect(JSON.stringify(response.body.posts)).not.toContain("Late twist title");
+    expect(JSON.stringify(response.body.posts)).not.toContain(
+      "Late twist title"
+    );
     expect(JSON.stringify(response.body.posts)).not.toContain(
       "Future phrase hidden"
     );
@@ -692,7 +698,9 @@ class InMemorySearchRepository
     clubId: string,
     authorId: string,
     requiredMilestoneId: string,
-    overrides: Partial<Pick<StoredPost, "body" | "deletedAt" | "status" | "title">>
+    overrides: Partial<
+      Pick<StoredPost, "body" | "deletedAt" | "status" | "title">
+    >
   ) => {
     const now = new Date();
     const milestone = this.milestones.get(requiredMilestoneId);

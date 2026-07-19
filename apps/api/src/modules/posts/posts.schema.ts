@@ -84,9 +84,7 @@ export const postDetailParamsSchema = z
   })
   .strict();
 
-export type CreateClubPostRequest = z.infer<
-  typeof createClubPostRequestSchema
->;
+export type CreateClubPostRequest = z.infer<typeof createClubPostRequestSchema>;
 export type PostReactionEmoji = z.infer<typeof postReactionEmojiSchema>;
 export type SetPostReactionRequest = {
   emoji: PostReactionEmoji;

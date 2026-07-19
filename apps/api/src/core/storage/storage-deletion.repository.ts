@@ -114,7 +114,8 @@ export const recordStorageDeletionFailure = (
   });
 
 const storageErrorMessage = (error: unknown) => {
-  const message = error instanceof Error ? error.message : "Storage deletion failed";
+  const message =
+    error instanceof Error ? error.message : "Storage deletion failed";
 
   return message.replace(/[\r\n\t]/g, " ").slice(0, 500);
 };

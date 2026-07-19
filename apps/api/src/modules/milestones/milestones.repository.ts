@@ -35,14 +35,16 @@ export type MilestoneViewerProgress = {
   currentMilestonePosition: number | null;
 };
 
-export type ListMilestonesResult = {
-  status: "SUCCESS";
-  milestones: MilestoneRecord[];
-  total: number;
-  viewerProgress: MilestoneViewerProgress;
-} | {
-  status: "BANNED";
-};
+export type ListMilestonesResult =
+  | {
+      status: "SUCCESS";
+      milestones: MilestoneRecord[];
+      total: number;
+      viewerProgress: MilestoneViewerProgress;
+    }
+  | {
+      status: "BANNED";
+    };
 
 export type MilestonesRepository = {
   createMilestonesFromTemplateIfEmpty: (
@@ -131,7 +133,11 @@ export const milestonesRepository: MilestonesRepository = {
   createMilestonesFromTemplateIfEmpty: async (input) => {
     try {
       return await prisma.$transaction(async (transaction) => {
-        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
+        await assertCanManageMilestones(
+          transaction,
+          input.clubId,
+          input.actorId
+        );
         const existingMilestoneCount = await transaction.milestone.count({
           where: {
             clubId: input.clubId
@@ -178,7 +184,11 @@ export const milestonesRepository: MilestonesRepository = {
   createMilestoneAtNextPosition: async (input) => {
     const createMilestone = async () =>
       prisma.$transaction(async (transaction) => {
-        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
+        await assertCanManageMilestones(
+          transaction,
+          input.clubId,
+          input.actorId
+        );
         const lastMilestone = await transaction.milestone.findFirst({
           where: {
             clubId: input.clubId
@@ -249,7 +259,11 @@ export const milestonesRepository: MilestonesRepository = {
   moveMilestoneForClub: async (input) => {
     try {
       return await prisma.$transaction(async (transaction) => {
-        await assertCanManageMilestones(transaction, input.clubId, input.actorId);
+        await assertCanManageMilestones(
+          transaction,
+          input.clubId,
+          input.actorId
+        );
         const milestone = await transaction.milestone.findFirst({
           where: {
             id: input.milestoneId,
@@ -398,7 +412,11 @@ export const milestonesRepository: MilestonesRepository = {
     };
   },
 
-  listVisibleMilestonesByClubLinkName: async (linkName, userId, { page, limit }) => {
+  listVisibleMilestonesByClubLinkName: async (
+    linkName,
+    userId,
+    { page, limit }
+  ) => {
     const now = new Date();
     const club = await prisma.club.findUnique({
       where: {

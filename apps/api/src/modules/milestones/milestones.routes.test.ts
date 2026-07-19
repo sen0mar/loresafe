@@ -669,9 +669,7 @@ describe("milestones routes", () => {
       })
       .expect(409);
 
-    expect(getSortedPositions(repository.milestones, club.id)).toEqual([
-      1, 2
-    ]);
+    expect(getSortedPositions(repository.milestones, club.id)).toEqual([1, 2]);
   });
 
   it("does not move milestones from another club", async () => {
@@ -1253,7 +1251,9 @@ describe("milestones routes", () => {
         isFullTitleHidden: true
       }
     ]);
-    expect(JSON.stringify(response.body)).not.toContain("Future midpoint title");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "Future midpoint title"
+    );
   });
 
   it("reveals all spoiler milestone full titles in Finished mode", async () => {
