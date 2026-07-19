@@ -42,8 +42,12 @@ export const AppShell = ({
   onRetryJoinedClubs,
   rightRail
 }: AppShellProps) => {
-  const { closeDesktopSidebar, isDesktopSidebarOpen, openDesktopSidebar } =
-    useDesktopSidebar();
+  const {
+    closeDesktopSidebar,
+    isDesktopSidebarOpen,
+    openDesktopSidebar,
+    showSidebarButtonRef
+  } = useDesktopSidebar();
 
   return (
     <div className="min-h-screen bg-gradient-app text-primary">
@@ -83,6 +87,7 @@ export const AppShell = ({
             />
             {!isDesktopSidebarOpen ? (
               <Button
+                ref={showSidebarButtonRef}
                 type="button"
                 variant="ghost"
                 size="icon"

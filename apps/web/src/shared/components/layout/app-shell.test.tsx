@@ -177,14 +177,17 @@ describe("AppShell layout", () => {
     expect(sidebar).toHaveAttribute("aria-hidden", "false");
     expect(sidebar.parentElement).toHaveClass("w-[15.75rem]");
 
-    await user.click(screen.getByRole("button", { name: "Hide sidebar" }));
+    const hideSidebarButton = screen.getByRole("button", {
+      name: "Hide sidebar"
+    });
+
+    await user.click(hideSidebarButton);
 
     expect(sidebar).toHaveAttribute("aria-hidden", "true");
     expect(sidebar).toHaveAttribute("inert");
+    expect(hideSidebarButton).not.toHaveFocus();
     expect(sidebar.parentElement).toHaveClass("w-0");
-    expect(
-      screen.getByRole("button", { name: "Show sidebar" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show sidebar" })).toHaveFocus();
 
     firstRender.unmount();
     renderWithProviders(

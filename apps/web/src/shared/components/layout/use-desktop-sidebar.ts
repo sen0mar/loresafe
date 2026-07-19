@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 const desktopSidebarPreferenceKey = "loresafe.desktop-sidebar";
 
@@ -16,6 +16,8 @@ export const useDesktopSidebar = () => {
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(
     readDesktopSidebarPreference
   );
+  const shouldRestoreFocusRef = useRef(false);
+  const showSidebarButtonRef = useRef<HTMLButtonElement>(null);
 
   const updateDesktopSidebar = useCallback((isOpen: boolean) => {
     setIsDesktopSidebarOpen(isOpen);
@@ -30,9 +32,28 @@ export const useDesktopSidebar = () => {
     }
   }, []);
 
+  const closeDesktopSidebar = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    shouldRestoreFocusRef.current = true;
+    updateDesktopSidebar(false);
+  }, [updateDesktopSidebar]);
+
+  useLayoutEffect(() => {
+    if (isDesktopSidebarOpen || !shouldRestoreFocusRef.current) {
+      return;
+    }
+
+    showSidebarButtonRef.current?.focus();
+    shouldRestoreFocusRef.current = false;
+  }, [isDesktopSidebarOpen]);
+
   return {
-    closeDesktopSidebar: () => updateDesktopSidebar(false),
+    closeDesktopSidebar,
     isDesktopSidebarOpen,
-    openDesktopSidebar: () => updateDesktopSidebar(true)
+    openDesktopSidebar: () => updateDesktopSidebar(true),
+    showSidebarButtonRef
   };
 };
