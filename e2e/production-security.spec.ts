@@ -7,6 +7,7 @@ const demoDisplayName =
   process.env.DEMO_USER_DISPLAY_NAME ?? "Browser Demo Reader";
 const clubLinkName = "the-first-law-book-club";
 const browserOrigin = "http://127.0.0.1:4173";
+const apiOrigin = "http://127.0.0.1:3000";
 
 test.describe.configure({ mode: "serial" });
 
@@ -135,24 +136,21 @@ test("denies a banned member and verifies upload CORS at the browser boundary", 
     );
     expect(bannedRead.status()).toBe(403);
 
-    const corsPreflight = await page
-      .context()
-      .request.fetch("/api/uploads/post-images", {
-        method: "OPTIONS",
-        headers: {
-          Origin: browserOrigin,
-          "Access-Control-Request-Method": "POST",
-          "Access-Control-Request-Headers": "content-type"
+    const uploadCorsProbe = await page.evaluate(async (directApiOrigin) => {
+      const response = await fetch(
+        `${directApiOrigin}/api/uploads/post-images`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
         }
-      });
+      );
 
-    expect(corsPreflight.ok()).toBe(true);
-    expect(corsPreflight.headers()["access-control-allow-origin"]).toBe(
-      browserOrigin
-    );
-    expect(corsPreflight.headers()["access-control-allow-credentials"]).toBe(
-      "true"
-    );
+      return { status: response.status, type: response.type };
+    }, apiOrigin);
+
+    expect(uploadCorsProbe).toEqual({ status: 400, type: "cors" });
   } finally {
     await memberContext.close();
   }
