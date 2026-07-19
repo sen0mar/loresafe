@@ -433,6 +433,10 @@ describe("production configuration files", () => {
     expect(browserJob).toContain(
       "browser-runtime-${{ github.run_id }}-build-attempt-${{ github.run_attempt }}"
     );
+    expect(browserJob).toContain("path: apps");
+    expect(browserJob).toMatch(
+      /name: Upload Playwright test results[\s\S]*?if-no-files-found: ignore/
+    );
   });
 
   it("enforces security headers and production readiness verification", async () => {
