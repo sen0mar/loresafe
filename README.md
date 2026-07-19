@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/sen0mar/loresafe/actions/workflows/release-gate.yml?query=branch%3Amain"><img src="https://github.com/sen0mar/loresafe/actions/workflows/release-gate.yml/badge.svg?branch=main" alt="Release gate status" /></a>
+  <a href="https://github.com/sen0mar/loresafe/actions/workflows/codeql.yml?query=branch%3Amain"><img src="https://github.com/sen0mar/loresafe/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status" /></a>
+</p>
+
+<p align="center">
   <a href="https://www.loresafe.org">Live app</a> ·
   <a href="https://www.loresafe.org/clubs">Public clubs</a> ·
   <a href="apps/api/openapi/openapi.json">OpenAPI contract</a> ·
