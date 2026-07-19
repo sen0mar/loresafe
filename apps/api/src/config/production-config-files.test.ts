@@ -401,7 +401,7 @@ describe("production configuration files", () => {
       "utf8"
     );
     const uploadArtifact =
-      "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02";
+      "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
     const buildJob = workflowJob(workflow, "build");
     const unitJob = workflowJob(workflow, "unit-and-coverage");
     const browserJob = workflowJob(workflow, "browser-accessibility");
