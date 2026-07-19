@@ -8,7 +8,7 @@ import {
   showcaseNotifications,
   showcaseReports
 } from "./showcase.activities.js";
-import { showcaseClubs, showcaseInviteToken } from "./showcase.clubs.js";
+import { showcaseClubs } from "./showcase.clubs.js";
 import { showcaseComments, showcasePosts } from "./showcase.discussions.js";
 import type { ShowcaseClubKey, ShowcaseUserKey } from "./showcase.types.js";
 import {
@@ -31,6 +31,7 @@ type WriteContext = {
 };
 
 export type ShowcaseWriteInput = {
+  inviteToken: string;
   passwordHash: string;
   recruiterEmail: string;
   seededAt: Date;
@@ -59,7 +60,7 @@ export const writeShowcaseData = async (
   };
 
   await createMembershipsAndProgress(transaction, context);
-  await createBanAndInvite(transaction, context);
+  await createBanAndInvite(transaction, context, input.inviteToken);
   await createPosts(transaction, context);
   await createComments(transaction, context);
   await createReactions(transaction, context);
@@ -242,7 +243,8 @@ const createMembershipsAndProgress = async (
 
 const createBanAndInvite = async (
   transaction: TransactionClient,
-  context: WriteContext
+  context: WriteContext,
+  inviteToken: string
 ) => {
   await transaction.clubBan.create({
     data: {
@@ -254,14 +256,33 @@ const createBanAndInvite = async (
     }
   });
 
+  await createShowcaseInvite(transaction, {
+    clubId: clubId(context, "lordOfTheRings"),
+    createdById: userId(context, "liam"),
+    inviteToken,
+    seededAt: context.seededAt
+  });
+};
+
+type ShowcaseInviteWriteInput = {
+  clubId: string;
+  createdById: string;
+  inviteToken: string;
+  seededAt: Date;
+};
+
+export const createShowcaseInvite = async (
+  transaction: TransactionClient,
+  input: ShowcaseInviteWriteInput
+) => {
   await transaction.clubInvite.create({
     data: {
-      clubId: clubId(context, "lordOfTheRings"),
-      createdById: userId(context, "liam"),
-      tokenHash: hashInviteToken(showcaseInviteToken),
-      expiresAt: daysFrom(context.seededAt, 30),
+      clubId: input.clubId,
+      createdById: input.createdById,
+      tokenHash: hashInviteToken(input.inviteToken),
+      expiresAt: daysFrom(input.seededAt, 30),
       maxUses: 100,
-      createdAt: daysAgo(context.seededAt, 2)
+      createdAt: daysAgo(input.seededAt, 2)
     }
   });
 };

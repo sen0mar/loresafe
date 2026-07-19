@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { parseShowcaseSeedEnv } from "./showcase-seed-env.js";
@@ -10,6 +12,7 @@ const approvedEnv = {
   SHOWCASE_SEED_CONFIRM:
     "I_UNDERSTAND_THIS_WRITES_SHOWCASE_DATA_TO_AN_EMPTY_DATABASE",
   SHOWCASE_SEED_NEON_ENDPOINT_ID: endpointId,
+  SHOWCASE_INVITE_TOKEN: randomBytes(32).toString("base64url"),
   SHOWCASE_RECRUITER_EMAIL: "recruiter@example.com",
   SHOWCASE_USER_PASSWORD: "correct horse battery"
 } satisfies NodeJS.ProcessEnv;
@@ -38,6 +41,33 @@ describe("showcase seed environment", () => {
     expect(() =>
       parseShowcaseSeedEnv({ ...approvedEnv, SHOWCASE_SEED_CONFIRM: "yes" })
     ).toThrow();
+  });
+
+  it("requires a showcase invite token", () => {
+    const { SHOWCASE_INVITE_TOKEN: _inviteToken, ...missingTokenEnv } =
+      approvedEnv;
+
+    expect(() => parseShowcaseSeedEnv(missingTokenEnv)).toThrow();
+  });
+
+  it("rejects weak showcase invite tokens", () => {
+    expect(() =>
+      parseShowcaseSeedEnv({
+        ...approvedEnv,
+        SHOWCASE_INVITE_TOKEN: "A".repeat(43)
+      })
+    ).toThrow("strongly random token");
+  });
+
+  it("accepts a freshly generated showcase invite token", () => {
+    const inviteToken = randomBytes(32).toString("base64url");
+
+    expect(
+      parseShowcaseSeedEnv({
+        ...approvedEnv,
+        SHOWCASE_INVITE_TOKEN: inviteToken
+      }).SHOWCASE_INVITE_TOKEN
+    ).toBe(inviteToken);
   });
 
   it("rejects a different approved endpoint", () => {

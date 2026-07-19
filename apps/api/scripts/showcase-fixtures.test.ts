@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  showcaseClubs,
-  showcaseInviteToken
-} from "../prisma/showcase/showcase.clubs.js";
+import { showcaseClubs } from "../prisma/showcase/showcase.clubs.js";
 import { showcaseUsers } from "../prisma/showcase/showcase.users.js";
 import { validateShowcaseFixtures } from "../prisma/showcase/showcase.validation.js";
 
@@ -31,7 +28,6 @@ describe("showcase fixtures", () => {
         visibility: "INVITE_ONLY"
       }
     ]);
-    expect(showcaseInviteToken).toHaveLength(43);
   });
 
   it("keeps natural usernames free of scenario labels", () => {

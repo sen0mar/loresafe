@@ -221,14 +221,19 @@ that already contains application data, and writes the complete dataset in one
 serializable transaction.
 
 Configure the matching endpoint ID, recruiter login, shared showcase password,
-and exact confirmation:
+a freshly generated invite token, and exact confirmation:
 
 ```dotenv
 SHOWCASE_SEED_NEON_ENDPOINT_ID=ep-example-showcase-123456
 SHOWCASE_SEED_CONFIRM=I_UNDERSTAND_THIS_WRITES_SHOWCASE_DATA_TO_AN_EMPTY_DATABASE
+SHOWCASE_INVITE_TOKEN=<output-of-node-crypto-randomBytes-32-as-base64url>
 SHOWCASE_RECRUITER_EMAIL=recruiter.demo@loresafe.org
 SHOWCASE_USER_PASSWORD=replace-with-a-password-of-at-least-12-characters
 ```
+
+Generate `SHOWCASE_INVITE_TOKEN` immediately before the guarded run with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
+The seed stores only its hash and prints the plaintext once for the operator.
 
 Run the command once from the repository root:
 
