@@ -66,6 +66,9 @@ jobs:
     name: Static quality
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      DIRECT_URL: postgresql://unused:unused@localhost:5432/unused
     steps:
       - name: Check out repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -200,6 +203,9 @@ jobs:
     name: Production build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      DIRECT_URL: postgresql://unused:unused@localhost:5432/unused
     steps:
       - name: Check out repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6

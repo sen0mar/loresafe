@@ -215,6 +215,38 @@ describe("production configuration files", () => {
     );
   });
 
+  it("defines Prisma configuration explicitly in every job that needs it", async () => {
+    const workflow = await readFile(
+      repositoryFile(".github/workflows/release-gate.yml"),
+      "utf8"
+    );
+    const prismaJobs = [
+      "static-quality",
+      "unit-and-coverage",
+      "database-integration",
+      "build",
+      "browser-accessibility"
+    ];
+
+    for (const jobId of prismaJobs) {
+      const job = workflowJob(workflow, jobId);
+
+      expect(job).toContain("DATABASE_URL:");
+      expect(job).toContain("DIRECT_URL:");
+    }
+
+    for (const jobId of ["static-quality", "build"]) {
+      const job = workflowJob(workflow, jobId);
+
+      expect(job).toContain(
+        "DATABASE_URL: postgresql://unused:unused@localhost:5432/unused"
+      );
+      expect(job).toContain(
+        "DIRECT_URL: postgresql://unused:unused@localhost:5432/unused"
+      );
+    }
+  });
+
   it("retains failure diagnostics with pinned, attempt-specific artifacts", async () => {
     const workflow = await readFile(
       repositoryFile(".github/workflows/release-gate.yml"),
