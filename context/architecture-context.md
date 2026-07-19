@@ -292,6 +292,15 @@ Release gate:
 - CodeQL analyzes JavaScript and TypeScript independently on main/PR events and
   each Wednesday at 04:43 UTC. It is intentionally outside the release-gate
   aggregate so branch protection can require its result separately.
+- Release gate and CodeQL accept `merge_group` check requests so a future main
+  merge queue evaluates the same required checks as pull requests.
+- The desired `main` repository ruleset must require pull requests, require the
+  current head to be up to date, disable force pushes and branch deletion, and
+  grant no routine-development bypass. After successful workflow runs establish
+  their contexts, require exactly `Release gate` and
+  `Analyze JavaScript and TypeScript`; GitHub may display the latter under its
+  workflow as `CodeQL / Analyze JavaScript and TypeScript`. These are versioned
+  governance requirements, not evidence that the remote settings are active.
 - Every GitHub Action reference must use a reviewed full commit SHA. Keep the
   reviewed release tag in an adjacent comment, including when Dependabot
   proposes an Actions update; floating major-version tags are not accepted.

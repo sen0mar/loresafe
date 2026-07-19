@@ -206,6 +206,7 @@ describe("production configuration files", () => {
 
     expect(codeql).toContain('cron: "43 4 * * 3"');
     expect(codeql).toContain("pull_request:");
+    expect(codeql).toContain("merge_group:\n    types: [checks_requested]");
     expect(codeql).toContain("push:");
     expect(codeql).toContain("workflow_dispatch:");
     expect(codeql).toContain("branches: [main]");
@@ -232,6 +233,43 @@ describe("production configuration files", () => {
       for (const reference of actionReferences(workflow)) {
         expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/);
       }
+    }
+  });
+
+  it("versions the exact main pull-request governance contract", async () => {
+    const [releaseGate, codeql, architecture, readme] = await Promise.all([
+      readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
+      readFile(repositoryFile(".github/workflows/codeql.yml"), "utf8"),
+      readFile(repositoryFile("context/architecture-context.md"), "utf8"),
+      readFile(repositoryFile("README.md"), "utf8")
+    ]);
+    const requiredChecks = [
+      "Release gate",
+      "Analyze JavaScript and TypeScript"
+    ];
+
+    for (const workflow of [releaseGate, codeql]) {
+      expect(workflow).toContain("merge_group:\n    types: [checks_requested]");
+    }
+
+    for (const documentation of [architecture, readme]) {
+      expect(documentation).toContain("require pull requests");
+      expect(documentation).toMatch(/up(?:-| )to(?:-| )date/);
+      expect(documentation).toContain("force pushes");
+      expect(documentation).toContain("branch deletion");
+      expect(documentation).toContain("routine-development bypass");
+      expect(documentation).toContain("merge_group");
+      expect(documentation).toContain(
+        "not evidence that the remote settings are active"
+      );
+
+      for (const requiredCheck of requiredChecks) {
+        expect(documentation).toContain(requiredCheck);
+      }
+
+      expect(documentation).toContain(
+        "CodeQL / Analyze JavaScript and TypeScript"
+      );
     }
   });
 

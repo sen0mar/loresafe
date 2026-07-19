@@ -340,6 +340,8 @@ The project uses focused Vitest tests beside the code they verify, real PostgreS
 
 The release gate in `.github/workflows/release-gate.yml` exposes separate static-quality, unit-and-coverage, database-integration, production-build, browser/accessibility, and full-history secret-scan jobs. The stable `Release gate` aggregate succeeds only when every safety-critical job succeeds. Coverage diagnostics are uploaded after pass or failure, while Playwright reports and results are retained after browser failure or cancellation.
 
+The desired `main` ruleset is intentionally explicit: require pull requests and an up-to-date current head; require the exact check contexts `Release gate` and `Analyze JavaScript and TypeScript` after their first successful runs establish them; disable force pushes and branch deletion; and allow no routine-development bypass. GitHub may display the second check under its workflow as `CodeQL / Analyze JavaScript and TypeScript`. Both workflows accept `merge_group` check requests for future merge-queue use. This documents the repository governance contract, not evidence that the remote settings are active.
+
 The usual local verification baseline is:
 
 ```bash
