@@ -143,6 +143,28 @@ describe("AppShell layout", () => {
     );
   });
 
+  it("truncates long desktop sidebar club titles and exposes the full title", () => {
+    const longTitle = "The Fellowship Reading Room With A Very Long Name";
+
+    renderWithProviders(
+      <AppShell
+        currentUser={currentUser}
+        joinedClubs={[{ ...joinedClubs[0], title: longTitle }]}
+        joinedClubsTotal={1}
+      >
+        <div data-testid="page-content">Page content</div>
+      </AppShell>
+    );
+
+    const joinedClubsNav = screen.getByRole("navigation", {
+      name: "Joined clubs"
+    });
+    const title = within(joinedClubsNav).getByTitle(longTitle);
+
+    expect(title).toHaveClass("min-w-0", "flex-1", "truncate");
+    expect(title.closest("a")).toHaveClass("min-w-0", "overflow-hidden");
+  });
+
   it("hides, restores, and remembers the desktop sidebar", async () => {
     const user = userEvent.setup();
     const firstRender = renderWithProviders(

@@ -365,7 +365,7 @@ const JoinedClubsNav = ({
   return (
     <nav
       ref={liquidSelection.groupRef}
-      className="relative isolate grid gap-1"
+      className="relative isolate grid min-w-0 gap-1"
       aria-label="Joined clubs"
     >
       <LiquidSelectionIndicator
@@ -392,7 +392,7 @@ const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
       to={getClubFeedPath(club.linkName)}
       className={({ isActive }) =>
         cn(
-          "relative z-10 block min-h-14 rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+          "relative z-10 block min-h-14 min-w-0 overflow-hidden rounded-lg border border-transparent px-3 py-2 text-sm text-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
           isActive
             ? "text-brand hover:text-brand"
             : "hover:bg-active hover:text-primary"
@@ -401,7 +401,12 @@ const JoinedClubLink = ({ club }: { club: AppShellJoinedClub }) => {
     >
       <span className="flex min-w-0 items-center gap-2">
         <VisibilityIcon className="size-4 shrink-0" />
-        <span className="truncate font-medium">{club.title}</span>
+        <span
+          className="min-w-0 flex-1 truncate font-medium"
+          title={club.title}
+        >
+          {club.title}
+        </span>
       </span>
       <span className="mt-1 flex items-center gap-2 text-xs text-faint">
         <span>{roleLabels[club.role]}</span>
