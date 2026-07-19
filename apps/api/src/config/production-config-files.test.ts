@@ -24,6 +24,9 @@ const workflowJob = (workflow: string, jobId: string) => {
   );
 };
 
+const actionReferences = (workflow: string) =>
+  [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)/gm)].map((match) => match[1]);
+
 describe("production configuration files", () => {
   it("allows R2 browser uploads only from the canonical production origin", async () => {
     const config = JSON.parse(
@@ -157,6 +160,79 @@ describe("production configuration files", () => {
 
     expect(workflow).toContain("pnpm audit --prod --audit-level low");
     expect(workflow).toContain("pnpm api:contract:check");
+  });
+
+  it("schedules the complete release gate for weekly security maintenance", async () => {
+    const workflow = await readFile(
+      repositoryFile(".github/workflows/release-gate.yml"),
+      "utf8"
+    );
+
+    expect(workflow).toContain('cron: "17 3 * * 1"');
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("push:");
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflowJob(workflow, "secret-scan")).toContain(
+      "--log-opts='--all'"
+    );
+    expect(workflowJob(workflow, "static-quality")).toContain(
+      "pnpm audit --prod --audit-level low"
+    );
+  });
+
+  it("configures bounded weekly workspace and Actions dependency updates", async () => {
+    const dependabot = await readFile(
+      repositoryFile(".github/dependabot.yml"),
+      "utf8"
+    );
+
+    expect(dependabot).toMatch(
+      /package-ecosystem: npm\n\s+directory: "\/"[\s\S]*?interval: weekly\n\s+day: saturday\n\s+time: "03:37"\n\s+timezone: Etc\/UTC/
+    );
+    expect(dependabot).toMatch(
+      /package-ecosystem: github-actions\n\s+directory: "\/"[\s\S]*?interval: weekly\n\s+day: saturday\n\s+time: "04:37"\n\s+timezone: Etc\/UTC/
+    );
+    expect(dependabot.match(/open-pull-requests-limit: 5/g)).toHaveLength(2);
+    expect(dependabot).not.toMatch(/auto-?merge/i);
+  });
+
+  it("runs independently pinned CodeQL analysis with minimal permissions", async () => {
+    const [codeql, releaseGate, architecture] = await Promise.all([
+      readFile(repositoryFile(".github/workflows/codeql.yml"), "utf8"),
+      readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
+      readFile(repositoryFile("context/architecture-context.md"), "utf8")
+    ]);
+    const codeqlSha = "7188fc363630916deb702c7fdcf4e481b751f97a";
+
+    expect(codeql).toContain('cron: "43 4 * * 3"');
+    expect(codeql).toContain("pull_request:");
+    expect(codeql).toContain("push:");
+    expect(codeql).toContain("workflow_dispatch:");
+    expect(codeql).toContain("branches: [main]");
+    expect(codeql).toContain("runs-on: ubuntu-24.04");
+    expect(codeql).toContain("timeout-minutes: 20");
+    expect(codeql).toContain("languages: javascript-typescript");
+    expect(codeql).toContain("build-mode: none");
+    expect(codeql).toContain("contents: read");
+    expect(codeql).toContain("security-events: write");
+    expect(codeql).not.toContain("packages: read");
+    expect(codeql).toContain(
+      `github/codeql-action/init@${codeqlSha} # v4.37.1`
+    );
+    expect(codeql).toContain(
+      `github/codeql-action/analyze@${codeqlSha} # v4.37.1`
+    );
+    expect(workflowJob(releaseGate, "release-gate")).not.toContain("codeql");
+    expect(architecture).toContain(
+      "Every GitHub Action reference must use a reviewed full commit SHA"
+    );
+
+    for (const workflow of [releaseGate, codeql]) {
+      expect(actionReferences(workflow).length).toBeGreaterThan(0);
+      for (const reference of actionReferences(workflow)) {
+        expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/);
+      }
+    }
   });
 
   it("runs lint, formatting, coverage, browser, and accessibility gates", async () => {
