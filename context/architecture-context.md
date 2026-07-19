@@ -280,11 +280,15 @@ Render API deployment:
 
 Release gate:
 
-- `.github/workflows/release-gate.yml` is the versioned main/PR gate. It runs a
-  frozen install, production dependency audit at every reported severity,
-  committed migrations and drift
-  checks, typechecking, unit/route tests, real PostgreSQL integration tests,
-  production builds, and a full-history secret scan.
+- `.github/workflows/release-gate.yml` is the versioned main/PR gate. Static
+  quality, risk-based unit coverage, real PostgreSQL integration, production
+  builds, browser/accessibility checks, and the full-history secret scan are
+  independently visible jobs. A stable `Release gate` aggregate fails unless
+  every safety-critical job succeeds.
+- Coverage diagnostics are retained after pass or failure. Browser reports and
+  test results are retained after browser failure or cancellation. The browser
+  job uses its own migrated and seeded PostgreSQL service plus production build
+  artifacts produced by the build job.
 - The PostgreSQL integration suite runs separately through
   `pnpm test:integration:database` and must use a direct/session database URL.
 - Operational liveness/readiness, metrics, alert/synthetic expectations, backup
