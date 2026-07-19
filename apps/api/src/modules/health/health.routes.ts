@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { createGetReadiness, getHealth } from "./health.controller.js";
+import { createGetHealth, createGetReadiness } from "./health.controller.js";
 import type { ReadinessDependencies } from "./readiness.service.js";
 import type { AppEnv } from "../../config/env.js";
 import { env } from "../../config/env.js";
@@ -12,7 +12,7 @@ export const createHealthRouter = (
 ) => {
   const healthRouter = Router();
 
-  healthRouter.get("/", getHealth);
+  healthRouter.get("/", createGetHealth(appEnv));
   healthRouter.get("/ready", createGetReadiness(dependencies));
   healthRouter.get("/metrics", createGetOperationsMetrics(appEnv));
 

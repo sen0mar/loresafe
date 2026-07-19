@@ -7,13 +7,20 @@ import { isPrismaClientInitialized } from "../../core/prisma/client.js";
 import type { ReadinessDependencies } from "./readiness.service.js";
 
 describe("health routes", () => {
-  const app = createApp();
+  const testAppName = "LoreSafe Health Test";
+  const app = createApp(
+    parseEnv({
+      APP_NAME: testAppName,
+      DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
+      JWT_SECRET: "a".repeat(32)
+    })
+  );
 
   it("returns live API health metadata", async () => {
     const response = await request(app).get("/api/health").expect(200);
 
     expect(response.body).toMatchObject({
-      appName: "LoreSafe",
+      appName: testAppName,
       status: "ok"
     });
     expect(new Date(response.body.timestamp).toISOString()).toBe(

@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 
-import { env } from "../../config/env.js";
+import type { AppEnv } from "../../config/env.js";
 import {
   checkReadiness,
   type ReadinessDependencies
@@ -12,15 +12,17 @@ export type HealthResponse = {
   timestamp: string;
 };
 
-export const getHealth: RequestHandler = (_req, res) => {
-  const response: HealthResponse = {
-    appName: env.APP_NAME,
-    status: "ok",
-    timestamp: new Date().toISOString()
-  };
+export const createGetHealth =
+  (appEnv: AppEnv): RequestHandler =>
+  (_req, res) => {
+    const response: HealthResponse = {
+      appName: appEnv.APP_NAME,
+      status: "ok",
+      timestamp: new Date().toISOString()
+    };
 
-  res.json(response);
-};
+    res.json(response);
+  };
 
 export const createGetReadiness =
   (dependencies?: ReadinessDependencies): RequestHandler =>
