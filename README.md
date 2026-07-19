@@ -338,7 +338,7 @@ When changing visibility behavior, test both allowed and denied paths. The highe
 
 The project uses focused Vitest tests beside the code they verify, real PostgreSQL integration tests for database and concurrency invariants, and Playwright for deployed-browser security and accessibility behavior.
 
-The release gate in `.github/workflows/release-gate.yml` performs a frozen install, production dependency audit, migration and drift checks, linting, formatting, type-checking, unit and route tests, real-database tests, production builds, browser checks, and a full-history secret scan.
+The release gate in `.github/workflows/release-gate.yml` exposes separate static-quality, unit-and-coverage, database-integration, production-build, browser/accessibility, and full-history secret-scan jobs. The stable `Release gate` aggregate succeeds only when every safety-critical job succeeds. Coverage diagnostics are uploaded after pass or failure, while Playwright reports and results are retained after browser failure or cancellation.
 
 The usual local verification baseline is:
 

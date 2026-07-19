@@ -62,43 +62,13 @@ jobs:
           if-no-files-found: error
           retention-days: 10
 
-  verify:
-    name: Quality, browser, and database verification
+  static-quality:
+    name: Static quality
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:16.9-alpine
-        env:
-          POSTGRES_DB: loresafe_ci
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d loresafe_ci"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      APP_NAME: LoreSafe CI
-      CLIENT_ORIGIN: http://127.0.0.1:4173
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
-      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
-      NODE_ENV: test
-      SESSION_COOKIE_SECURE: "false"
-      TRUST_PROXY_CIDRS: loopback
-      DEMO_SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_ci
-      DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_WRITES_DEMO_DATA
-      DEMO_USER_EMAIL: browser-demo@example.com
-      DEMO_USER_DISPLAY_NAME: Browser Demo Reader
-      DEMO_USER_PASSWORD: browser-demo-password
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-        with:
-          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
@@ -124,12 +94,6 @@ jobs:
       - name: Check repository formatting
         run: pnpm format:check
 
-      - name: Apply committed migrations
-        run: pnpm --filter @loresafe/api prisma:migrate:deploy
-
-      - name: Validate migration state and generated client
-        run: pnpm db:check
-
       - name: Typecheck
         run: pnpm typecheck
 
@@ -139,28 +103,198 @@ jobs:
       - name: Validate production readiness controls
         run: pnpm production:readiness:check
 
-      - name: Run unit and route tests
-        run: pnpm test
+  unit-and-coverage:
+    name: Unit and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused
+      DIRECT_URL: postgresql://unused:unused@127.0.0.1:5432/unused
+      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
+      NODE_ENV: test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Run PostgreSQL security and concurrency tests
-        run: pnpm test:integration:database
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.5.3
+          run_install: false
 
-      - name: Enforce and publish risk-based coverage
-        run: pnpm test:coverage
-        env:
-          RUN_DATABASE_INTEGRATION_TESTS: "1"
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.17.1
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce risk-based API and web coverage
+        run: pnpm test:coverage:ci
 
       - name: Upload coverage reports
+        if: ${{ always() && hashFiles('apps/api/coverage/**', 'apps/web/coverage/**') != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: coverage-reports
+          name: coverage-reports-${{ github.run_id }}-${{ github.job }}-attempt-${{ github.run_attempt }}
           path: |
             apps/api/coverage
             apps/web/coverage
           if-no-files-found: error
+          retention-days: 10
 
-      - name: Build production artifacts
+  database-integration:
+    name: Database integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16.9-alpine
+        env:
+          POSTGRES_DB: loresafe_database_ci
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d loresafe_database_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_database_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/loresafe_database_ci
+      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
+      NODE_ENV: test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.5.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.17.1
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply committed migrations
+        run: pnpm --filter @loresafe/api prisma:migrate:deploy
+
+      - name: Validate migration state and generated client
+        run: pnpm db:check
+
+      - name: Run PostgreSQL security and concurrency tests
+        run: pnpm test:integration:database:ci
+
+  build:
+    name: Production build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.5.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.17.1
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build production API and web artifacts
         run: pnpm build
+
+      - name: Upload browser runtime artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-runtime-${{ github.run_id }}-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            apps/api/dist
+            apps/web/dist
+          if-no-files-found: error
+          retention-days: 10
+
+  browser-accessibility:
+    name: Browser and accessibility
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16.9-alpine
+        env:
+          POSTGRES_DB: loresafe_browser_ci
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d loresafe_browser_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_NAME: LoreSafe CI
+      CLIENT_ORIGIN: http://127.0.0.1:4173
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_browser_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/loresafe_browser_ci
+      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret
+      NODE_ENV: test
+      SESSION_COOKIE_SECURE: "false"
+      TRUST_PROXY_CIDRS: loopback
+      DEMO_SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loresafe_browser_ci
+      DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_WRITES_DEMO_DATA
+      DEMO_USER_EMAIL: browser-demo@example.com
+      DEMO_USER_DISPLAY_NAME: Browser Demo Reader
+      DEMO_USER_PASSWORD: browser-demo-password
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.5.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.17.1
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download production runtime artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: browser-runtime-${{ github.run_id }}-build-attempt-${{ github.run_attempt }}
+          path: .
+
+      - name: Generate Prisma client for browser data setup
+        run: pnpm --filter @loresafe/api prisma:generate
+
+      - name: Apply committed migrations
+        run: pnpm --filter @loresafe/api prisma:migrate:deploy
 
       - name: Seed isolated browser-test data
         run: pnpm --filter @loresafe/api prisma:seed
@@ -170,3 +304,42 @@ jobs:
 
       - name: Run production browser and accessibility gates
         run: pnpm test:browser
+
+      - name: Upload Playwright HTML report
+        if: ${{ (failure() || cancelled()) && hashFiles('playwright-report/**') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report-${{ github.run_id }}-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: playwright-report
+          if-no-files-found: error
+          retention-days: 10
+
+      - name: Upload Playwright test results
+        if: ${{ (failure() || cancelled()) && hashFiles('test-results/**') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ github.run_id }}-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: test-results
+          if-no-files-found: error
+          retention-days: 10
+
+  release-gate:
+    name: Release gate
+    if: ${{ always() }}
+    needs:
+      - secret-scan
+      - static-quality
+      - unit-and-coverage
+      - database-integration
+      - build
+      - browser-accessibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Confirm every safety-critical job succeeded
+        if: ${{ needs.secret-scan.result == 'success' && needs.static-quality.result == 'success' && needs.unit-and-coverage.result == 'success' && needs.database-integration.result == 'success' && needs.build.result == 'success' && needs.browser-accessibility.result == 'success' }}
+        run: echo "Every safety-critical release job succeeded."
+
+      - name: Fail closed when any safety-critical job did not succeed
+        if: ${{ needs.secret-scan.result != 'success' || needs.static-quality.result != 'success' || needs.unit-and-coverage.result != 'success' || needs.database-integration.result != 'success' || needs.build.result != 'success' || needs.browser-accessibility.result != 'success' }}
+        run: exit 1

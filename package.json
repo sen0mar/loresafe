@@ -21,8 +21,10 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:coverage": "pnpm --filter @loresafe/api test:coverage && pnpm --filter @loresafe/web test:coverage",
+    "test:coverage:ci": "pnpm --recursive --no-bail --workspace-concurrency=1 --filter @loresafe/api --filter @loresafe/web run test:coverage",
     "test:browser": "playwright test",
     "test:integration:database": "pnpm --filter @loresafe/api test:integration:database",
+    "test:integration:database:ci": "pnpm --filter @loresafe/api test:integration:database:ci",
     "api:contract:generate": "pnpm --filter @loresafe/api api:contract:generate",
     "api:contract:check": "pnpm --filter @loresafe/api api:contract:check",
     "production:readiness:check": "node scripts/verify-production-readiness.mjs"

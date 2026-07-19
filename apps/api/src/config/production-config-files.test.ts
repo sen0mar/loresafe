@@ -6,6 +6,24 @@ import { describe, expect, it } from "vitest";
 const repositoryFile = (path: string) =>
   fileURLToPath(new URL(`../../../../${path}`, import.meta.url));
 
+const workflowJob = (workflow: string, jobId: string) => {
+  const jobStart = workflow.indexOf(`\n  ${jobId}:`);
+
+  expect(jobStart).toBeGreaterThan(-1);
+
+  const remainingWorkflow = workflow.slice(jobStart + jobId.length + 4);
+  const nextJob = remainingWorkflow.match(/\n {2}[a-z0-9-]+:\n/);
+  const nextJobStart =
+    nextJob?.index === undefined
+      ? -1
+      : jobStart + jobId.length + 4 + nextJob.index;
+
+  return workflow.slice(
+    jobStart,
+    nextJobStart === -1 ? workflow.length : nextJobStart
+  );
+};
+
 describe("production configuration files", () => {
   it("allows R2 browser uploads only from the canonical production origin", async () => {
     const config = JSON.parse(
@@ -131,10 +149,110 @@ describe("production configuration files", () => {
     expect(workflow).toContain("pnpm lint");
     expect(workflow).toContain("name: Check repository formatting");
     expect(workflow).toContain("pnpm format:check");
-    expect(workflow).toContain("pnpm test:coverage");
+    expect(workflow).toContain("pnpm test:coverage:ci");
     expect(workflow).toContain("pnpm test:browser");
     expect(workflow).toContain("playwright install --with-deps chromium");
     expect(workflow).toContain("name: coverage-reports");
+  });
+
+  it("keeps release concerns independently visible and aggregates them fail closed", async () => {
+    const workflow = await readFile(
+      repositoryFile(".github/workflows/release-gate.yml"),
+      "utf8"
+    );
+    const safetyJobs = [
+      "secret-scan",
+      "static-quality",
+      "unit-and-coverage",
+      "database-integration",
+      "build",
+      "browser-accessibility"
+    ];
+    const aggregate = workflowJob(workflow, "release-gate");
+
+    for (const jobId of safetyJobs) {
+      expect(workflow).toContain(`\n  ${jobId}:`);
+      expect(aggregate).toContain(`- ${jobId}`);
+      expect(aggregate).toContain(`needs.${jobId}.result != 'success'`);
+    }
+
+    expect(workflow).not.toContain("\n  verify:");
+    expect(workflowJob(workflow, "browser-accessibility")).toContain(
+      "needs: [build]"
+    );
+    expect(aggregate).toContain("if: ${{ always() }}");
+    expect(aggregate).not.toContain("toJSON(needs)");
+    expect(aggregate).not.toMatch(/run:.*\$\{\{.*needs/);
+  });
+
+  it("runs each test tier once and generates Prisma at most once per CI job", async () => {
+    const [rootPackage, apiPackage, workflow] = await Promise.all([
+      readFile(repositoryFile("package.json"), "utf8"),
+      readFile(repositoryFile("apps/api/package.json"), "utf8"),
+      readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8")
+    ]);
+    const rootScripts = JSON.parse(rootPackage).scripts as Record<
+      string,
+      string
+    >;
+    const apiScripts = JSON.parse(apiPackage).scripts as Record<string, string>;
+    const unitJob = workflowJob(workflow, "unit-and-coverage");
+    const databaseJob = workflowJob(workflow, "database-integration");
+    const browserJob = workflowJob(workflow, "browser-accessibility");
+
+    expect(rootScripts["test:coverage:ci"]).toContain("--no-bail");
+    expect(apiScripts["test:integration:database:ci"]).not.toContain(
+      "prisma:generate"
+    );
+    expect(unitJob).toContain("pnpm test:coverage:ci");
+    expect(unitJob).not.toMatch(/run: pnpm test\s*$/m);
+    expect(unitJob).not.toContain("RUN_DATABASE_INTEGRATION_TESTS");
+    expect(databaseJob).toContain("pnpm db:check");
+    expect(databaseJob).toContain("pnpm test:integration:database:ci");
+    expect(browserJob.match(/prisma:generate/g)).toHaveLength(1);
+    expect(workflow.match(/pnpm test:integration:database:ci/g)).toHaveLength(
+      1
+    );
+  });
+
+  it("retains failure diagnostics with pinned, attempt-specific artifacts", async () => {
+    const workflow = await readFile(
+      repositoryFile(".github/workflows/release-gate.yml"),
+      "utf8"
+    );
+    const uploadArtifact =
+      "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02";
+    const buildJob = workflowJob(workflow, "build");
+    const unitJob = workflowJob(workflow, "unit-and-coverage");
+    const browserJob = workflowJob(workflow, "browser-accessibility");
+
+    expect(unitJob).toContain(
+      "always() && hashFiles('apps/api/coverage/**', 'apps/web/coverage/**') != ''"
+    );
+    expect(unitJob).toContain(uploadArtifact);
+    expect(unitJob).toContain("${{ github.job }}");
+    expect(unitJob).toContain("${{ github.run_attempt }}");
+    expect(unitJob).toContain("retention-days: 10");
+
+    for (const reportDirectory of ["playwright-report", "test-results"]) {
+      expect(browserJob).toContain(
+        `(failure() || cancelled()) && hashFiles('${reportDirectory}/**') != ''`
+      );
+      expect(browserJob).toContain(`path: ${reportDirectory}`);
+    }
+
+    expect(browserJob.match(new RegExp(uploadArtifact, "g"))).toHaveLength(2);
+    expect(browserJob.match(/retention-days: 10/g)).toHaveLength(2);
+    expect(browserJob).toContain("${{ github.job }}");
+    expect(browserJob).toContain("${{ github.run_attempt }}");
+    expect(buildJob).toContain("apps/api/dist");
+    expect(buildJob).toContain("apps/web/dist");
+    expect(buildJob).toContain(
+      "browser-runtime-${{ github.run_id }}-${{ github.job }}-attempt-${{ github.run_attempt }}"
+    );
+    expect(browserJob).toContain(
+      "browser-runtime-${{ github.run_id }}-build-attempt-${{ github.run_attempt }}"
+    );
   });
 
   it("enforces security headers and production readiness verification", async () => {
