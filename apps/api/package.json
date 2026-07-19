@@ -42,7 +42,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "jose": "^6.2.3",
-    "pg": "^8.21.0",
+    "pg": "^8.22.0",
     "rate-limit-redis": "^5.0.0",
     "zod": "^4.4.3"
   },
