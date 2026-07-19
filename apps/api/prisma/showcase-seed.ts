@@ -3,7 +3,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "../src/core/security/password.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { loadShowcaseSeedEnv } from "../scripts/showcase-seed-env.js";
-import { showcaseInviteToken } from "./showcase/showcase.clubs.js";
 import { validateShowcaseFixtures } from "./showcase/showcase.validation.js";
 import { writeShowcaseData } from "./showcase/showcase.writer.js";
 
@@ -19,6 +18,7 @@ const runShowcaseSeed = async () => {
     await prisma.$transaction(
       (transaction) =>
         writeShowcaseData(transaction, {
+          inviteToken: env.SHOWCASE_INVITE_TOKEN,
           passwordHash,
           recruiterEmail: env.SHOWCASE_RECRUITER_EMAIL,
           seededAt: new Date()
@@ -37,7 +37,7 @@ const runShowcaseSeed = async () => {
     `Showcase seed completed with ${summary.users} users, ${summary.clubs} clubs, ${summary.milestones} milestones, ${summary.posts} posts, and ${summary.comments} comments.`
   );
   console.log(`Recruiter login email: ${env.SHOWCASE_RECRUITER_EMAIL}`);
-  console.log(`Lord of the Rings invite token: ${showcaseInviteToken}`);
+  console.log(`Lord of the Rings invite token: ${env.SHOWCASE_INVITE_TOKEN}`);
 };
 
 runShowcaseSeed().catch((error: unknown) => {

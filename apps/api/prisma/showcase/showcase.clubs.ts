@@ -318,6 +318,3 @@ export const showcaseClubs: ShowcaseClubFixture[] = [
     ]
   }
 ];
-
-export const showcaseInviteToken =
-  "bG9yZXNhZmUtc2hvd2Nhc2UtbG90ci1pbnZpdGUtdjE";
