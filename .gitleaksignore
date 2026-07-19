@@ -1,0 +1,3 @@
+# Retired public showcase fixture token, removed in d337916. Current seeds require a
+# fresh SHOWCASE_INVITE_TOKEN and reject reuse by comparing its SHA-256 digest.
+9f313da84540d8dd5d98a29d91afb44fd2946f2e:apps/api/prisma/showcase/showcase.clubs.ts:generic-api-key:322

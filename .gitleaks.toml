@@ -1,0 +1,9 @@
+title = "LoreSafe Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SHA-256 digest retained only to reject reuse of the retired showcase invite token"
+regexTarget = "secret"
+regexes = ['''^e938275967201eb7ba4e42fb761922b5e73e829f807fd0d7cf9bcf80af8db642$''']
