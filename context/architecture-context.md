@@ -285,6 +285,16 @@ Release gate:
   builds, browser/accessibility checks, and the full-history secret scan are
   independently visible jobs. A stable `Release gate` aggregate fails unless
   every safety-critical job succeeds.
+- The complete release gate also runs each Monday at 03:17 UTC so the production
+  dependency audit and full-history Gitleaks scan are repeated during a quiet
+  period. Dependabot opens bounded weekly npm workspace and GitHub Actions
+  update pull requests; it never merges them automatically.
+- CodeQL analyzes JavaScript and TypeScript independently on main/PR events and
+  each Wednesday at 04:43 UTC. It is intentionally outside the release-gate
+  aggregate so branch protection can require its result separately.
+- Every GitHub Action reference must use a reviewed full commit SHA. Keep the
+  reviewed release tag in an adjacent comment, including when Dependabot
+  proposes an Actions update; floating major-version tags are not accepted.
 - Coverage diagnostics are retained after pass or failure. Browser reports and
   test results are retained after browser failure or cancellation. The browser
   job uses its own migrated and seeded PostgreSQL service plus production build
