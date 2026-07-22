@@ -164,6 +164,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 157: Desktop sidebar focus restoration — Moved focus from the sidebar close control to its reopen control before applying hidden and inert state, preventing assistive-technology focus conflicts with focused frontend regression coverage.
 - Feature 158: Local PostgreSQL Compose service — Added an optional loopback-only PostgreSQL 16.9 Compose service with persistent named storage, health checks, and graceful local shutdown behavior.
 - Feature 159: Local PostgreSQL lifecycle scripts — Added explicit root commands to start and health-wait for, stop without erasing, inspect, and follow logs for the optional Compose database.
+- Feature 160: Local PostgreSQL environment guidance — Documented the optional Docker Compose URL for runtime and Prisma CLI connections while keeping both example variables blank and Neon wipe guards unchanged.
 
 ## Entry Format
 
