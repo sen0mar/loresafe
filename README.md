@@ -114,7 +114,9 @@ Backend modules follow `routes → controllers → services → repositories →
 
 - Node.js `22.17.1` (the exact version is recorded in `.node-version`)
 - pnpm `11.5.3` through Corepack
-- PostgreSQL with a database you can migrate
+- One of these PostgreSQL options:
+  - Docker Desktop or another Docker Engine with Compose support, recommended for the simplest local setup
+  - An independently installed or managed PostgreSQL instance with a database you can migrate
 - Optional for full local integration: Upstash Redis, Cloudflare R2, and Sentry credentials
 
 ### 1. Install dependencies
@@ -124,46 +126,88 @@ corepack enable
 pnpm install --frozen-lockfile
 ```
 
-### 2. Configure the environment
+### 2. Choose and configure PostgreSQL
 
-Copy the development template from the repository root:
+Docker Compose is the recommended simple local option. It runs only PostgreSQL;
+the web app and API continue to run directly on the host through pnpm. Developers
+who already use an installed PostgreSQL server, Neon, or another managed provider
+can keep using that database instead.
+
+#### Option A: Docker Compose PostgreSQL (recommended)
+
+Run this sequence from the repository root. After copying the template, fill the
+remaining required `.env` values described below before continuing to the
+migration and app startup commands:
 
 ```bash
 cp .env.example .env
+pnpm db:up
+pnpm --filter @loresafe/api prisma:migrate:deploy
+pnpm dev
 ```
 
-At minimum, configure a PostgreSQL connection, a direct Prisma connection, and a JWT secret:
+The Compose database listens only on `127.0.0.1:5432`. Set both local database
+variables to its direct connection URL and provide the remaining required API
+values, including a development JWT secret:
 
 ```dotenv
 NODE_ENV=development
 PORT=3000
 CLIENT_ORIGIN=http://localhost:5173
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/loresafe
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/loresafe
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/loresafe
+DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:5432/loresafe
 
 JWT_SECRET=replace-with-at-least-32-random-characters
 SESSION_COOKIE_NAME=loresafe_session
 SESSION_COOKIE_SECURE=false
 ```
 
-`DATABASE_URL` may use a pooler at runtime. `DIRECT_URL` must use a direct/session PostgreSQL endpoint because Prisma migrations cannot run through a transaction pooler.
+Generate a suitable development secret with, for example,
+`openssl rand -hex 32`. Review `.env.example` and fill any other values required
+for the integrations you plan to use. Do not commit `.env` files.
 
-Generate a suitable local secret with, for example, `openssl rand -hex 32`. Do not commit `.env` files.
-
-### 3. Apply the database migrations
+The named Docker volume preserves the local database when PostgreSQL is stopped
+or its container is recreated. Use these lifecycle commands from the repository
+root:
 
 ```bash
-pnpm --filter @loresafe/api prisma:migrate:deploy
+pnpm db:status
+pnpm db:logs
+pnpm db:down
 ```
 
-LoreSafe uses committed migrations. Do not use `prisma db push`.
+`pnpm db:down` stops PostgreSQL and preserves the volume. `docker compose down`
+removes the Compose containers and network but also preserves the named volume
+unless `--volumes` is supplied. `docker compose down --volumes` deletes all local
+Docker PostgreSQL data for this Compose project; run it only when that destructive
+outcome is intended.
+
+#### Option B: independently installed or managed PostgreSQL
+
+Copy the template, set `DATABASE_URL` to the runtime connection and `DIRECT_URL`
+to a direct/session PostgreSQL endpoint, fill the other required development
+values shown above, then apply migrations and start the host-based app:
+
+```bash
+cp .env.example .env
+pnpm --filter @loresafe/api prisma:migrate:deploy
+pnpm dev
+```
+
+`DATABASE_URL` may use a pooler at runtime. `DIRECT_URL` must use a direct/session
+PostgreSQL endpoint because Prisma migrations cannot run through a transaction
+pooler. Docker is not required for this path.
+
+### 3. Database migration rule
+
+Both database choices use the committed Prisma migrations through
+`pnpm --filter @loresafe/api prisma:migrate:deploy`. Never use `prisma db push`,
+and do not reset, drop, or delete migrations as part of local setup.
 
 ### 4. Start the app
 
-```bash
-pnpm dev
-```
+The setup sequence for either database choice ends with `pnpm dev`.
 
 The web app runs at [http://localhost:5173](http://localhost:5173), and the API runs at [http://localhost:3000](http://localhost:3000). Vite forwards `/api` and `/sitemap.xml` requests to the API.
 
@@ -301,6 +345,10 @@ Run commands from the repository root.
 | `pnpm test:coverage`              | Run configured API and web coverage gates               |
 | `pnpm test:browser`               | Run Playwright browser security/accessibility tests     |
 | `pnpm test:integration:database`  | Run the real-PostgreSQL integration suite               |
+| `pnpm db:up`                      | Start Compose PostgreSQL and wait until it is healthy   |
+| `pnpm db:down`                    | Stop Compose PostgreSQL without erasing its volume      |
+| `pnpm db:status`                  | Show the Compose PostgreSQL container and health state  |
+| `pnpm db:logs`                    | Follow Compose PostgreSQL logs until interrupted        |
 | `pnpm db:check`                   | Check migration status and regenerate Prisma Client     |
 | `pnpm db:seed:showcase`           | Seed an approved empty Neon database with showcase data |
 | `pnpm db:wipe:development`        | Empty the explicitly approved Neon development database |

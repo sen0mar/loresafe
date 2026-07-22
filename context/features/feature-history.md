@@ -165,6 +165,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 158: Local PostgreSQL Compose service — Added an optional loopback-only PostgreSQL 16.9 Compose service with persistent named storage, health checks, and graceful local shutdown behavior.
 - Feature 159: Local PostgreSQL lifecycle scripts — Added explicit root commands to start and health-wait for, stop without erasing, inspect, and follow logs for the optional Compose database.
 - Feature 160: Local PostgreSQL environment guidance — Documented the optional Docker Compose URL for runtime and Prisma CLI connections while keeping both example variables blank and Neon wipe guards unchanged.
+- Feature 161: Local PostgreSQL README workflow — Documented Docker Compose PostgreSQL as the recommended simple local option, preserved independently managed PostgreSQL setup, and added exact lifecycle, environment, migration, persistence, and destructive-volume guidance.
 
 ## Entry Format
 
