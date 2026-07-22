@@ -163,6 +163,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 156: GitHub Actions status badges — Added main-branch Release gate and CodeQL workflow badges to the README for visible CI health and pull-request smoke coverage.
 - Feature 157: Desktop sidebar focus restoration — Moved focus from the sidebar close control to its reopen control before applying hidden and inert state, preventing assistive-technology focus conflicts with focused frontend regression coverage.
 - Feature 158: Local PostgreSQL Compose service — Added an optional loopback-only PostgreSQL 16.9 Compose service with persistent named storage, health checks, and graceful local shutdown behavior.
+- Feature 159: Local PostgreSQL lifecycle scripts — Added explicit root commands to start and health-wait for, stop without erasing, inspect, and follow logs for the optional Compose database.
 
 ## Entry Format
 
