@@ -256,6 +256,11 @@ Important query paths/indexes:
 - Backend hosting: Render long-running Node/Express service at `https://api.loresafe.org`, not an edge-only function.
 - Browser API calls use same-origin `/api` paths through the Vercel rewrite to the Render API domain.
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
+- Local development may optionally use Docker Compose for PostgreSQL 16.9; the
+  web and API processes remain host-run through pnpm. Docker is not part of the
+  Vercel/Render production topology, and developers may instead configure
+  another direct PostgreSQL endpoint through their local environment variables.
+  The README owns the operational setup instructions.
 - Verify cookie domain, SameSite, Secure, CORS, proxy, and HTTPS behavior before production.
 - R2 buckets that receive browser presigned uploads must allow the deployed frontend
   origin, `PUT`, `GET`, `HEAD`, the `Content-Type` request header, and `ETag`

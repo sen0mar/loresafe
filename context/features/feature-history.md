@@ -162,6 +162,14 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 155: Hosted upload CORS browser probe — Replaced a same-origin synthetic OPTIONS check intercepted by Vite preview with a credentialed cross-origin browser upload probe against the API, preserving strict origin and credential enforcement.
 - Feature 156: GitHub Actions status badges — Added main-branch Release gate and CodeQL workflow badges to the README for visible CI health and pull-request smoke coverage.
 - Feature 157: Desktop sidebar focus restoration — Moved focus from the sidebar close control to its reopen control before applying hidden and inert state, preventing assistive-technology focus conflicts with focused frontend regression coverage.
+- Feature 158: Local PostgreSQL Compose service — Added an optional loopback-only PostgreSQL 16.9 Compose service with persistent named storage, health checks, and graceful local shutdown behavior.
+- Feature 159: Local PostgreSQL lifecycle scripts — Added explicit root commands to start and health-wait for, stop without erasing, inspect, and follow logs for the optional Compose database.
+- Feature 160: Local PostgreSQL environment guidance — Documented the optional Docker Compose URL for runtime and Prisma CLI connections while keeping both example variables blank and Neon wipe guards unchanged.
+- Feature 161: Local PostgreSQL README workflow — Documented Docker Compose PostgreSQL as the recommended simple local option, preserved independently managed PostgreSQL setup, and added exact lifecycle, environment, migration, persistence, and destructive-volume guidance.
+- Feature 162: Local PostgreSQL architecture decision — Recorded optional Docker Compose PostgreSQL 16.9 for local development while keeping web/API processes host-run, production on Vercel/Render unchanged, and alternative direct PostgreSQL endpoints supported.
+- Feature 163: Local PostgreSQL Docker workflow verification — Verified Compose semantics, lifecycle scripts, environment and README guidance, architecture boundaries, and repository quality checks; Docker-backed health, migration, integration, and persistence checks were unavailable because the Docker CLI was not installed.
+- Feature 164: Docker-backed PostgreSQL runtime validation — Installed and started Docker Desktop on Apple Silicon, verified the loopback-only PostgreSQL 16.9 Compose lifecycle, deployed all committed migrations, passed real database security and concurrency tests, confirmed named-volume persistence across stop/start, and preserved the volume after shutdown.
+- Feature 165: Production dependency audit remediation — Upgraded the aligned Prisma packages to 7.9, refreshed patched Express and Prisma transitive dependencies, cleared the production vulnerability audit, and preserved API, migration, build, and real PostgreSQL behavior.
 
 ## Entry Format
 
