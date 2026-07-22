@@ -169,6 +169,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 162: Local PostgreSQL architecture decision — Recorded optional Docker Compose PostgreSQL 16.9 for local development while keeping web/API processes host-run, production on Vercel/Render unchanged, and alternative direct PostgreSQL endpoints supported.
 - Feature 163: Local PostgreSQL Docker workflow verification — Verified Compose semantics, lifecycle scripts, environment and README guidance, architecture boundaries, and repository quality checks; Docker-backed health, migration, integration, and persistence checks were unavailable because the Docker CLI was not installed.
 - Feature 164: Docker-backed PostgreSQL runtime validation — Installed and started Docker Desktop on Apple Silicon, verified the loopback-only PostgreSQL 16.9 Compose lifecycle, deployed all committed migrations, passed real database security and concurrency tests, confirmed named-volume persistence across stop/start, and preserved the volume after shutdown.
+- Feature 165: Production dependency audit remediation — Upgraded the aligned Prisma packages to 7.9, refreshed patched Express and Prisma transitive dependencies, cleared the production vulnerability audit, and preserved API, migration, build, and real PostgreSQL behavior.
 
 ## Entry Format
 
