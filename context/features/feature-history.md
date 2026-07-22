@@ -162,6 +162,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 155: Hosted upload CORS browser probe — Replaced a same-origin synthetic OPTIONS check intercepted by Vite preview with a credentialed cross-origin browser upload probe against the API, preserving strict origin and credential enforcement.
 - Feature 156: GitHub Actions status badges — Added main-branch Release gate and CodeQL workflow badges to the README for visible CI health and pull-request smoke coverage.
 - Feature 157: Desktop sidebar focus restoration — Moved focus from the sidebar close control to its reopen control before applying hidden and inert state, preventing assistive-technology focus conflicts with focused frontend regression coverage.
+- Feature 158: Local PostgreSQL Compose service — Added an optional loopback-only PostgreSQL 16.9 Compose service with persistent named storage, health checks, and graceful local shutdown behavior.
 
 ## Entry Format
 
