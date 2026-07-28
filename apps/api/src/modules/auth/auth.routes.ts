@@ -1,11 +1,11 @@
 import { Router } from "express";
-import type { RequestHandler } from "express";
+import rateLimit from "express-rate-limit";
 
+import { HttpError } from "../../core/errors/http-error.js";
 import { authController, type AuthController } from "./auth.controller.js";
 import { authMiddleware, type AuthMiddleware } from "./auth.middleware.js";
 
 export const createAuthRouter = (
-  verificationConfirmRateLimiter: RequestHandler,
   controller: AuthController = authController,
   middleware: AuthMiddleware = authMiddleware
 ) => {
@@ -30,7 +30,21 @@ export const createAuthRouter = (
   router.post("/verification/resend", controller.resendVerification);
   router.post(
     "/verification/confirm",
-    verificationConfirmRateLimiter,
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 20,
+      standardHeaders: "draft-8",
+      legacyHeaders: false,
+      handler: (_req, _res, next) => {
+        next(
+          new HttpError(
+            429,
+            "TOO_MANY_REQUESTS",
+            "Too many attempts. Try again later."
+          )
+        );
+      }
+    }),
     controller.verifyEmail
   );
   router.post("/password/forgot", controller.forgotPassword);
@@ -38,3 +52,5 @@ export const createAuthRouter = (
 
   return router;
 };
+
+export const authRouter = createAuthRouter();

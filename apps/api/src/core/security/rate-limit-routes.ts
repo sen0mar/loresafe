@@ -44,6 +44,7 @@ export const registerRateLimiters = (
     reportCreateRateLimiter,
     searchRateLimiter,
     signupRateLimiter,
+    verificationConfirmRateLimiter,
     verificationResendRateLimiter
   } = rateLimiters;
 
@@ -53,6 +54,7 @@ export const registerRateLimiters = (
   app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
   app.use("/api/auth/verification/resend", verificationResendRateLimiter);
+  app.use("/api/auth/verification/confirm", verificationConfirmRateLimiter);
   app.use("/api/auth/password/forgot", forgotPasswordRateLimiter);
   app.use("/api/auth/password/reset", resetPasswordRateLimiter);
   app.get("/api/health/ready", deepReadinessRateLimiter);

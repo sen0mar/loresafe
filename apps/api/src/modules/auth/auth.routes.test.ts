@@ -904,6 +904,10 @@ const createAuthTestApp = (
     app.use("/api/auth/login", options.rateLimiters.loginRateLimiter);
     app.use("/api/auth/logout", options.rateLimiters.logoutRateLimiter);
     app.use("/api/auth/signup", options.rateLimiters.signupRateLimiter);
+    app.use(
+      "/api/auth/verification/confirm",
+      options.rateLimiters.verificationConfirmRateLimiter
+    );
   }
 
   app.use(express.json());
@@ -917,15 +921,7 @@ const createAuthTestApp = (
   }
 
   app.use(cookieParser());
-  app.use(
-    "/api/auth",
-    createAuthRouter(
-      options.rateLimiters?.verificationConfirmRateLimiter ??
-        ((_req, _res, next) => next()),
-      controller,
-      middleware
-    )
-  );
+  app.use("/api/auth", createAuthRouter(controller, middleware));
   app.use(errorHandler);
 
   return app;
