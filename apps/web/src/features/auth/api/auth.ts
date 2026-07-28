@@ -120,12 +120,20 @@ export const replaceAuthenticatedQueryState = async (
   user: AuthUser | null
 ) => {
   await queryClient.cancelQueries();
-  queryClient.clear();
+  queryClient.removeQueries({
+    predicate: ({ queryKey }) => !isAuthStateQuery(queryKey)
+  });
+  queryClient.getMutationCache().clear();
   queryClient.setQueryData(authQueryKeys.cacheOwner, {
     userId: user?.id ?? null
   });
   queryClient.setQueryData(authQueryKeys.me, user);
 };
+
+const isAuthStateQuery = (queryKey: readonly unknown[]) =>
+  queryKey.length === 2 &&
+  queryKey[0] === "auth" &&
+  (queryKey[1] === "me" || queryKey[1] === "cache-owner");
 
 const reconcileAuthenticatedQueryState = async (
   queryClient: QueryClient,

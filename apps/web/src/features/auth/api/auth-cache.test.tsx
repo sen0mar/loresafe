@@ -76,6 +76,33 @@ describe("authenticated query state", () => {
     });
   });
 
+  it("keeps active auth observers connected when signing out", async () => {
+    const queryClient = createQueryClient();
+    queryClient.setQueryDefaults(authQueryKeys.me, {
+      staleTime: Number.POSITIVE_INFINITY
+    });
+    queryClient.setQueryData(authQueryKeys.cacheOwner, {
+      userId: firstUser.id
+    });
+    queryClient.setQueryData(authQueryKeys.me, firstUser);
+    queryClient.setQueryData(["clubs", "private"], {
+      title: "First user's private club"
+    });
+
+    const { result } = renderHook(() => useMe(), {
+      wrapper: createWrapper(queryClient)
+    });
+
+    await waitFor(() => expect(result.current.data).toEqual(firstUser));
+    await replaceAuthenticatedQueryState(queryClient, null);
+
+    await waitFor(() => expect(result.current.data).toBeNull());
+    expect(queryClient.getQueryData(["clubs", "private"])).toBeUndefined();
+    expect(queryClient.getQueryData(authQueryKeys.cacheOwner)).toEqual({
+      userId: null
+    });
+  });
+
   it("clears private cached data when the API reports session loss", async () => {
     const queryClient = createQueryClient();
 
