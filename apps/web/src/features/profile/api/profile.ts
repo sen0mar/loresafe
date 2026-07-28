@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { authQueryKeys, type AuthResponse } from "@/features/auth/api/auth";
+import {
+  authQueryKeys,
+  replaceAuthenticatedQueryState,
+  type AuthResponse
+} from "@/features/auth/api/auth";
 import { clearAuthSessionHint } from "@/features/auth/api/auth-session-hint";
 import { apiDelete, apiPatch } from "@/shared/api/api-client";
 
@@ -34,10 +38,9 @@ export const useDeleteCurrentUserAccount = () => {
 
   return useMutation({
     mutationFn: deleteCurrentUserAccount,
-    onSuccess: () => {
+    onSuccess: async () => {
       clearAuthSessionHint();
-      queryClient.clear();
-      queryClient.setQueryData(authQueryKeys.me, null);
+      await replaceAuthenticatedQueryState(queryClient, null);
     }
   });
 };

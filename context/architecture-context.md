@@ -87,6 +87,9 @@ File/object storage:
 Cache, rate-limit, and deferred work:
 
 - TanStack Query handles client-side API caching.
+- Auth transitions cancel active client queries and clear the complete query and
+  mutation cache before installing the next authenticated identity. A detected
+  session loss or authenticated-user change applies the same reset.
 - Upstash Redis is for rate-limit counters.
 - Comment and progress-unlock notifications are persisted atomically in their owning transactions with deterministic unique event keys.
 - R2 deletion records remain durable; committed deletions are attempted after the transaction and retried in a bounded batch during later real upload traffic.
@@ -230,6 +233,8 @@ Frontend:
 Backend/database:
 
 - Growing discovery, joined-club, feed, comment, notification, report, and unlock lists use bounded keyset cursors. Smaller member, ban, and milestone administrative lists may retain page/limit pagination only with the shared maximum-page guard.
+- HTTP metrics use matched Express route templates, collapse unmatched requests
+  into one label, and enforce a hard process-level series cap.
 - Use Prisma `select` for DTO-shaped responses.
 - Avoid loading nested relations unless needed by the route.
 - Add indexes for common filters, joins, and ordering paths.
