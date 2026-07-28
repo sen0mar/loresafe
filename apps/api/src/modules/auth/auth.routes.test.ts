@@ -676,6 +676,22 @@ describe("auth routes", () => {
     });
   });
 
+  it("rate limits verification confirmation at the route boundary", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({ verificationConfirm: 1 })
+    });
+
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: "a".repeat(32) })
+      .expect(400);
+
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: "b".repeat(32) })
+      .expect(429);
+  });
+
   it("rate limits logout with the shared 429 response shape", async () => {
     app = createAuthTestApp(repository, {
       rateLimiters: createAuthTestRateLimiters({ logout: 1 })
@@ -901,7 +917,15 @@ const createAuthTestApp = (
   }
 
   app.use(cookieParser());
-  app.use("/api/auth", createAuthRouter(controller, middleware));
+  app.use(
+    "/api/auth",
+    createAuthRouter(
+      options.rateLimiters?.verificationConfirmRateLimiter ??
+        ((_req, _res, next) => next()),
+      controller,
+      middleware
+    )
+  );
   app.use(errorHandler);
 
   return app;

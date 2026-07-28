@@ -923,7 +923,14 @@ const createUsersTestApp = (repository: InMemoryUsersRepository) => {
   app.use(requestIdMiddleware);
   app.use(express.json());
   app.use(cookieParser());
-  app.use("/api/auth", createAuthRouter(authController, authMiddleware));
+  app.use(
+    "/api/auth",
+    createAuthRouter(
+      (_req, _res, next) => next(),
+      authController,
+      authMiddleware
+    )
+  );
   app.use("/api/users", createUsersRouter(usersController, authMiddleware));
   app.use(errorHandler);
 

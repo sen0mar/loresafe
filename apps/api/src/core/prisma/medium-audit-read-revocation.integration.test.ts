@@ -29,23 +29,25 @@ describeDatabase("medium audit sensitive read revocation", () => {
           });
         }
       );
-      const postsRead = postsService.listClubPostsByLinkName(
-        fixture.club.linkName,
-        fixture.viewer.id,
-        { tab: "all", limit: 20 }
-      );
-      const commentsRead = commentsService.listPostComments(
-        fixture.post.id,
-        fixture.viewer.id,
-        { limit: 20 }
-      );
+      const postsRead = expect(
+        postsService.listClubPostsByLinkName(
+          fixture.club.linkName,
+          fixture.viewer.id,
+          { tab: "all", limit: 20 }
+        )
+      ).rejects.toMatchObject({ statusCode: 404 });
+      const commentsRead = expect(
+        commentsService.listPostComments(fixture.post.id, fixture.viewer.id, {
+          limit: 20
+        })
+      ).rejects.toMatchObject({ statusCode: 404 });
 
       await allowReadsToReachFinalAuthorization();
       revocation.release();
       await revocation.completion;
 
-      await expect(postsRead).rejects.toMatchObject({ statusCode: 404 });
-      await expect(commentsRead).rejects.toMatchObject({ statusCode: 404 });
+      await postsRead;
+      await commentsRead;
     } finally {
       await cleanupReadFixture(fixture);
     }
@@ -115,17 +117,19 @@ describeDatabase("medium audit sensitive read revocation", () => {
           });
         }
       );
-      const reveal = reportsService.revealModerationReportForClub(
-        fixture.club.linkName,
-        fixture.report.id,
-        fixture.moderator.id
-      );
+      const reveal = expect(
+        reportsService.revealModerationReportForClub(
+          fixture.club.linkName,
+          fixture.report.id,
+          fixture.moderator.id
+        )
+      ).rejects.toMatchObject({ statusCode: 404 });
 
       await allowReadsToReachFinalAuthorization();
       demotion.release();
       await demotion.completion;
 
-      await expect(reveal).rejects.toMatchObject({ statusCode: 404 });
+      await reveal;
     } finally {
       await cleanupReadFixture(fixture);
     }

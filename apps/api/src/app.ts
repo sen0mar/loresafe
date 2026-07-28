@@ -16,7 +16,7 @@ import type { RateLimiters } from "./core/security/rate-limit.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
 import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
 import { securityHeadersMiddleware } from "./core/security/security-headers.js";
-import { authRouter } from "./modules/auth/auth.routes.js";
+import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import {
   clubsRouter,
   publicClubsRouter
@@ -83,7 +83,10 @@ export const createApp = (
   app.use("/api/health", createHealthRouter(dependencies.readiness, appEnv));
   app.use("/api/debug", debugRouter);
   app.use("/api/public/clubs", publicClubsRouter);
-  app.use("/api/auth", authRouter);
+  app.use(
+    "/api/auth",
+    createAuthRouter(dependencies.rateLimiters.verificationConfirmRateLimiter)
+  );
   app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
