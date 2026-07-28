@@ -270,20 +270,23 @@ describeDatabase("security-sensitive database commands", () => {
       const results = await Promise.all([
         uploadsRepository.markAssetReadyAndAttach(
           asset,
+          owner.id,
           completedAt,
           validation
         ),
         uploadsRepository.markAssetReadyAndAttach(
           asset,
+          owner.id,
           completedAt,
           validation
         )
       ]);
 
-      expect(results.map((result) => result?.asset.status)).toEqual([
-        "READY",
-        "READY"
-      ]);
+      expect(
+        results.map((result) =>
+          result.status === "SUCCESS" ? result.asset.status : result.status
+        )
+      ).toEqual(["READY", "READY"]);
       expect(
         await prisma.fileAsset.count({
           where: { id: asset.id, status: "READY" }

@@ -38,11 +38,16 @@ describeDatabase("upload deletion lifecycle", () => {
         sizeBytes: 128
       });
 
-      await uploadsRepository.markAssetReadyAndAttach(firstAsset, new Date(), {
-        widthPx: 64,
-        heightPx: 64,
-        isAnimated: false
-      });
+      await uploadsRepository.markAssetReadyAndAttach(
+        firstAsset,
+        user.id,
+        new Date(),
+        {
+          widthPx: 64,
+          heightPx: 64,
+          isAnimated: false
+        }
+      );
 
       const secondAsset = await uploadsRepository.createPendingFileAsset({
         ownerId: user.id,
@@ -53,11 +58,16 @@ describeDatabase("upload deletion lifecycle", () => {
         sizeBytes: 128
       });
 
-      await uploadsRepository.markAssetReadyAndAttach(secondAsset, new Date(), {
-        widthPx: 64,
-        heightPx: 64,
-        isAnimated: false
-      });
+      await uploadsRepository.markAssetReadyAndAttach(
+        secondAsset,
+        user.id,
+        new Date(),
+        {
+          widthPx: 64,
+          heightPx: 64,
+          isAnimated: false
+        }
+      );
 
       expect(
         await prisma.storageObjectDeletion.findUnique({

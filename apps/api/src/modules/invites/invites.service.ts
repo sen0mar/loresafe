@@ -88,7 +88,7 @@ export const createInvitesService = (
       const token = generateInviteToken();
 
       try {
-        const invite = await repository.createClubInvite({
+        const result = await repository.createClubInvite({
           clubId: club.id,
           createdById: userId,
           tokenHash: hashInviteToken(token),
@@ -96,9 +96,22 @@ export const createInvitesService = (
           maxUses: input.maxUses
         });
 
-        return {
-          invite: toClubInviteDto(invite, token)
-        };
+        switch (result.status) {
+          case "CREATED":
+            return {
+              invite: toClubInviteDto(result.invite, token)
+            };
+          case "NOT_FOUND":
+            throw new HttpError(404, "NOT_FOUND", "Club not found");
+          case "BANNED":
+            throw bannedFromClubError();
+          case "FORBIDDEN":
+            throw new HttpError(
+              403,
+              "FORBIDDEN",
+              "Only club owners and moderators can create invites."
+            );
+        }
       } catch (error) {
         if (!isUniqueConstraintError(error)) {
           throw error;

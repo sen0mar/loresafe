@@ -1,6 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { activeBanWhere, activeUserBanWhere } from "../clubs/club-bans.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import type { ClubDetailRecord } from "../clubs/clubs.repository.types.js";
 import { toClubDetailRecord } from "../clubs/club-detail-record.js";
 
@@ -35,6 +36,15 @@ export type ClubInviteRecord = {
   };
 };
 
+export type CreateClubInviteResult =
+  | {
+      status: "CREATED";
+      invite: ClubInviteRecord;
+    }
+  | {
+      status: "BANNED" | "FORBIDDEN" | "NOT_FOUND";
+    };
+
 export type AcceptInviteFailureStatus =
   "banned" | "expired" | "maxed" | "not_found" | "revoked";
 
@@ -55,7 +65,9 @@ export type InvitesRepository = {
     userId: string,
     now: Date
   ) => Promise<AcceptInviteRecord>;
-  createClubInvite: (input: CreateClubInviteInput) => Promise<ClubInviteRecord>;
+  createClubInvite: (
+    input: CreateClubInviteInput
+  ) => Promise<CreateClubInviteResult>;
   findClubForInviteCreation: (
     linkName: string,
     userId: string
@@ -266,15 +278,78 @@ export const invitesRepository: InvitesRepository = {
     expiresAt,
     maxUses
   }) =>
-    prisma.clubInvite.create({
-      data: {
-        clubId,
-        createdById,
-        tokenHash,
-        expiresAt,
-        maxUses
-      },
-      select: inviteSelect
+    prisma.$transaction(async (transaction) => {
+      const clubExists = await lockClubAuthorizationChanges(
+        transaction,
+        clubId
+      );
+
+      if (!clubExists) {
+        return {
+          status: "NOT_FOUND"
+        };
+      }
+
+      const now = new Date();
+      const authority = await transaction.club.findUnique({
+        where: {
+          id: clubId
+        },
+        select: {
+          memberships: {
+            where: {
+              userId: createdById
+            },
+            select: {
+              role: true
+            },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(createdById, now),
+            select: {
+              id: true
+            },
+            take: 1
+          }
+        }
+      });
+
+      const role = authority?.memberships[0]?.role;
+
+      if (!authority || !role) {
+        return {
+          status: "NOT_FOUND"
+        };
+      }
+
+      if (authority.bans.length > 0) {
+        return {
+          status: "BANNED"
+        };
+      }
+
+      if (role !== "OWNER" && role !== "MODERATOR") {
+        return {
+          status: "FORBIDDEN"
+        };
+      }
+
+      const invite = await transaction.clubInvite.create({
+        data: {
+          clubId,
+          createdById,
+          tokenHash,
+          expiresAt,
+          maxUses
+        },
+        select: inviteSelect
+      });
+
+      return {
+        status: "CREATED",
+        invite
+      };
     }),
 
   findClubForInviteCreation: async (linkName, userId) => {

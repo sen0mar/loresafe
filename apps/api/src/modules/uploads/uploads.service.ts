@@ -226,12 +226,24 @@ export const createUploadsService = (
 
     const readyResult = await repository.markAssetReadyAndAttach(
       asset,
+      userId,
       new Date(),
       validation
     );
 
-    if (!readyResult) {
-      throw uploadStateConflict();
+    switch (readyResult.status) {
+      case "NOT_FOUND":
+        throw uploadStateConflict();
+      case "BANNED":
+        throw bannedFromClubError();
+      case "FORBIDDEN":
+        throw new HttpError(
+          403,
+          "FORBIDDEN",
+          "You cannot update this club cover."
+        );
+      case "SUCCESS":
+        break;
     }
 
     if (readyResult.asset.status === "FAILED") {

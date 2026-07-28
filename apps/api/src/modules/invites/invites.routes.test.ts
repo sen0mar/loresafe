@@ -23,6 +23,7 @@ import {
   type ClubInviteCreationClubRecord,
   type ClubInviteRecord,
   type CreateClubInviteInput,
+  type CreateClubInviteResult,
   type InvitesRepository
 } from "./invites.repository.js";
 import {
@@ -734,7 +735,7 @@ class InMemoryInvitesRepository
     tokenHash,
     expiresAt,
     maxUses
-  }: CreateClubInviteInput): Promise<ClubInviteRecord> => {
+  }: CreateClubInviteInput): Promise<CreateClubInviteResult> => {
     if (this.invites.some((invite) => invite.tokenHash === tokenHash)) {
       throw {
         code: "P2002"
@@ -749,7 +750,10 @@ class InMemoryInvitesRepository
       maxUses
     });
 
-    return this.toClubInviteRecord(invite);
+    return {
+      status: "CREATED",
+      invite: this.toClubInviteRecord(invite)
+    };
   };
 
   findClubForInviteCreation = async (

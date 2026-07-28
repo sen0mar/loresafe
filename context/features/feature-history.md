@@ -171,6 +171,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 164: Docker-backed PostgreSQL runtime validation — Installed and started Docker Desktop on Apple Silicon, verified the loopback-only PostgreSQL 16.9 Compose lifecycle, deployed all committed migrations, passed real database security and concurrency tests, confirmed named-volume persistence across stop/start, and preserved the volume after shutdown.
 - Feature 165: Production dependency audit remediation — Upgraded the aligned Prisma packages to 7.9, refreshed patched Express and Prisma transitive dependencies, cleared the production vulnerability audit, and preserved API, migration, build, and real PostgreSQL behavior.
 - Feature 166: High-priority audit remediation — Bounded HTTP metric cardinality with route-template labels, cleared private query and mutation state across authentication transitions while preserving live auth observers, and refreshed vulnerable React Router and Prisma dependencies, closing LS-01 and LS-02 with focused regression coverage.
+- Feature 167: Medium-priority audit remediation 3–5 — Redacted live invite tokens from Sentry telemetry, serialized join/invite/unban authority checks, revalidated and serialized club-cover completion, reconciled unattached public assets, and added focused real PostgreSQL concurrency coverage.
 
 ## Entry Format
 
