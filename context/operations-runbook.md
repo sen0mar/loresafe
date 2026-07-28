@@ -6,8 +6,9 @@
   backup/recovery, and security-header controls in CI. Before production
   promotion, run it with `PRODUCTION_READINESS_LIVE=1`, `PRODUCTION_ORIGIN`,
   `OPERATIONS_BEARER_TOKEN`, and `LAST_RESTORE_DRILL_DATE=YYYY-MM-DD`; the live
-  gate fails when liveness, manually invoked deep readiness, protected metrics, response headers, or restore
-  evidence are missing or stale.
+  gate fails when root/login/protected document headers, API success/error
+  headers, static-asset policy scope, liveness, manually invoked deep readiness,
+  protected metrics, or restore evidence are missing, incorrect, or stale.
 
 - `GET /api/health` is the cheap process liveness probe. It performs no dependency I/O.
 - Render and fixed-interval synthetics must probe only `GET /api/health`; continuous probes must never call a database-backed endpoint.
