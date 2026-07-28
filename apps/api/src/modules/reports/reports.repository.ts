@@ -11,7 +11,10 @@ import {
   canActorBanTarget
 } from "../clubs/club-bans.js";
 import { softDeleteAuthoredPostsForBan } from "../clubs/club-ban-cleanup.js";
-import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
+import {
+  lockClubAuthorization,
+  lockClubAuthorizationChanges
+} from "../clubs/club-authorization-lock.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type {
   ModerationActionRepositoryResult,
@@ -341,68 +344,104 @@ export const reportsRepository: ReportsRepository = {
     };
   },
 
-  listModerationReports: async (clubId, { cursor, limit, status }) => {
-    const cursorWhere: Prisma.ReportWhereInput = cursor
-      ? {
-          OR: [
-            {
-              createdAt: {
-                lt: cursor.createdAt
+  listModerationReports: (clubId, userId, { cursor, limit, status }) =>
+    prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return {
+          reports: [],
+          nextCursor: null,
+          hasMore: false
+        };
+      }
+      const now = new Date();
+      const cursorWhere: Prisma.ReportWhereInput = cursor
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursor.createdAt
+                }
+              },
+              {
+                createdAt: cursor.createdAt,
+                id: {
+                  gt: cursor.id
+                }
+              }
+            ]
+          }
+        : {};
+      const reports = await transaction.report.findMany({
+        where: {
+          clubId,
+          status,
+          club: {
+            memberships: {
+              some: {
+                userId,
+                role: { in: ["OWNER", "MODERATOR"] }
               }
             },
-            {
-              createdAt: cursor.createdAt,
-              id: {
-                gt: cursor.id
-              }
+            bans: {
+              none: activeUserBanWhere(userId, now)
             }
-          ]
-        }
-      : {};
-    const reports = await prisma.report.findMany({
-      where: {
-        clubId,
-        status,
-        ...cursorWhere
-      },
-      orderBy: [
-        {
-          createdAt: "desc"
+          },
+          ...cursorWhere
         },
-        {
-          id: "asc"
-        }
-      ],
-      take: limit + 1,
-      select: moderationReportSelect
-    });
-    const pageReports = reports.slice(0, limit);
-    const lastReport = pageReports[pageReports.length - 1];
+        orderBy: [
+          {
+            createdAt: "desc"
+          },
+          {
+            id: "asc"
+          }
+        ],
+        take: limit + 1,
+        select: moderationReportSelect
+      });
+      const pageReports = reports.slice(0, limit);
+      const lastReport = pageReports[pageReports.length - 1];
 
-    return {
-      reports: pageReports.map(toModerationReportRecord),
-      nextCursor:
-        reports.length > limit && lastReport
-          ? {
-              createdAt: lastReport.createdAt,
-              id: lastReport.id
+      return {
+        reports: pageReports.map(toModerationReportRecord),
+        nextCursor:
+          reports.length > limit && lastReport
+            ? {
+                createdAt: lastReport.createdAt,
+                id: lastReport.id
+              }
+            : null,
+        hasMore: reports.length > limit
+      };
+    }),
+
+  findModerationReportById: (clubId, reportId, userId) =>
+    prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return null;
+      }
+      const now = new Date();
+      const report = await transaction.report.findFirst({
+        where: {
+          id: reportId,
+          clubId,
+          club: {
+            memberships: {
+              some: {
+                userId,
+                role: { in: ["OWNER", "MODERATOR"] }
+              }
+            },
+            bans: {
+              none: activeUserBanWhere(userId, now)
             }
-          : null,
-      hasMore: reports.length > limit
-    };
-  },
+          }
+        },
+        select: moderationReportSelect
+      });
 
-  findModerationReportById: async (clubId, reportId) => {
-    const report = await prisma.report.findFirst({
-      where: {
-        id: reportId,
-        clubId
-      },
-      select: moderationReportSelect
-    });
-
-    return report ? toModerationReportRecord(report) : null;
-  },
+      return report ? toModerationReportRecord(report) : null;
+    }),
 
   updateReportRequiredMilestone: (clubId, reportId, actorId, input) =>
     runContentActionTransaction(

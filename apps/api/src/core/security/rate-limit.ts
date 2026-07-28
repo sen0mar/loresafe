@@ -12,7 +12,19 @@ import { createUpstashRateLimitStore } from "./upstash-rate-limit-store.js";
 const rateLimitMessage = "Too many attempts. Try again later.";
 
 type AuthRateLimiterName =
-  "login" | "loginAccountBurst" | "loginAccountSustained" | "logout" | "signup";
+  | "forgotPassword"
+  | "forgotPasswordAccount"
+  | "login"
+  | "loginAccountBurst"
+  | "loginAccountSustained"
+  | "logout"
+  | "resetPassword"
+  | "resetPasswordToken"
+  | "signup"
+  | "signupAccount"
+  | "verificationConfirm"
+  | "verificationResend"
+  | "verificationResendAccount";
 
 type AuthRateLimitConfig = {
   limit: number;
@@ -24,11 +36,19 @@ type AuthRateLimitConfig = {
 export type AuthRateLimitStoreFactory = (prefix: string) => Store;
 
 export type AuthRateLimiters = {
+  forgotPasswordAccountRateLimiter: ReturnType<typeof rateLimit>;
+  forgotPasswordRateLimiter: ReturnType<typeof rateLimit>;
   loginAccountBurstRateLimiter: ReturnType<typeof rateLimit>;
   loginAccountSustainedRateLimiter: ReturnType<typeof rateLimit>;
   loginRateLimiter: ReturnType<typeof rateLimit>;
   logoutRateLimiter: ReturnType<typeof rateLimit>;
+  resetPasswordRateLimiter: ReturnType<typeof rateLimit>;
+  resetPasswordTokenRateLimiter: ReturnType<typeof rateLimit>;
+  signupAccountRateLimiter: ReturnType<typeof rateLimit>;
   signupRateLimiter: ReturnType<typeof rateLimit>;
+  verificationConfirmRateLimiter: ReturnType<typeof rateLimit>;
+  verificationResendAccountRateLimiter: ReturnType<typeof rateLimit>;
+  verificationResendRateLimiter: ReturnType<typeof rateLimit>;
 };
 
 export type AuthRateLimiterOptions = {
@@ -37,6 +57,16 @@ export type AuthRateLimiterOptions = {
 };
 
 const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
+  forgotPassword: {
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    prefix: "loresafe:rl:auth:password-forgot:v1:"
+  },
+  forgotPasswordAccount: {
+    windowMs: 15 * 60 * 1000,
+    limit: 3,
+    prefix: "loresafe:rl:auth:password-forgot-account:v1:"
+  },
   login: {
     windowMs: 15 * 60 * 1000,
     limit: 30,
@@ -65,6 +95,36 @@ const authRateLimitConfigs: Record<AuthRateLimiterName, AuthRateLimitConfig> = {
     windowMs: 60 * 60 * 1000,
     limit: 60,
     prefix: "loresafe:rl:auth:signup:"
+  },
+  signupAccount: {
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    prefix: "loresafe:rl:auth:signup-account:v1:"
+  },
+  verificationResend: {
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    prefix: "loresafe:rl:auth:verification-resend:v1:"
+  },
+  verificationResendAccount: {
+    windowMs: 15 * 60 * 1000,
+    limit: 3,
+    prefix: "loresafe:rl:auth:verification-resend-account:v1:"
+  },
+  verificationConfirm: {
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    prefix: "loresafe:rl:auth:verification-confirm:v1:"
+  },
+  resetPassword: {
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    prefix: "loresafe:rl:auth:password-reset:v1:"
+  },
+  resetPasswordToken: {
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    prefix: "loresafe:rl:auth:password-reset-token:v1:"
   }
 };
 
@@ -72,6 +132,19 @@ export const createAuthRateLimiters = ({
   limitOverrides = {},
   storeFactory = createUpstashRateLimitStore
 }: AuthRateLimiterOptions = {}): AuthRateLimiters => ({
+  forgotPasswordAccountRateLimiter: createIdentityKeyRateLimiter(
+    "forgotPasswordAccount",
+    authRateLimitConfigs.forgotPasswordAccount,
+    storeFactory,
+    "email",
+    limitOverrides.forgotPasswordAccount
+  ),
+  forgotPasswordRateLimiter: createAuthRateLimiter(
+    "forgotPassword",
+    authRateLimitConfigs.forgotPassword,
+    storeFactory,
+    limitOverrides.forgotPassword
+  ),
   loginAccountBurstRateLimiter: createLoginAccountRateLimiter(
     "loginAccountBurst",
     authRateLimitConfigs.loginAccountBurst,
@@ -96,11 +169,50 @@ export const createAuthRateLimiters = ({
     storeFactory,
     limitOverrides.logout
   ),
+  resetPasswordRateLimiter: createAuthRateLimiter(
+    "resetPassword",
+    authRateLimitConfigs.resetPassword,
+    storeFactory,
+    limitOverrides.resetPassword
+  ),
+  resetPasswordTokenRateLimiter: createIdentityKeyRateLimiter(
+    "resetPasswordToken",
+    authRateLimitConfigs.resetPasswordToken,
+    storeFactory,
+    "token",
+    limitOverrides.resetPasswordToken
+  ),
+  signupAccountRateLimiter: createIdentityKeyRateLimiter(
+    "signupAccount",
+    authRateLimitConfigs.signupAccount,
+    storeFactory,
+    "email",
+    limitOverrides.signupAccount
+  ),
   signupRateLimiter: createAuthRateLimiter(
     "signup",
     authRateLimitConfigs.signup,
     storeFactory,
     limitOverrides.signup
+  ),
+  verificationConfirmRateLimiter: createAuthRateLimiter(
+    "verificationConfirm",
+    authRateLimitConfigs.verificationConfirm,
+    storeFactory,
+    limitOverrides.verificationConfirm
+  ),
+  verificationResendAccountRateLimiter: createIdentityKeyRateLimiter(
+    "verificationResendAccount",
+    authRateLimitConfigs.verificationResendAccount,
+    storeFactory,
+    "email",
+    limitOverrides.verificationResendAccount
+  ),
+  verificationResendRateLimiter: createAuthRateLimiter(
+    "verificationResend",
+    authRateLimitConfigs.verificationResend,
+    storeFactory,
+    limitOverrides.verificationResend
   )
 });
 
@@ -152,15 +264,51 @@ const createLoginAccountRateLimiter = (
   });
 
 export const createLoginAccountBucket = (req: Pick<Request, "body">) => {
-  const rawEmail =
-    req.body && typeof req.body === "object" && "email" in req.body
-      ? req.body.email
+  return createIdentityBucket(req, "email");
+};
+
+const createIdentityKeyRateLimiter = (
+  name:
+    | "forgotPasswordAccount"
+    | "resetPasswordToken"
+    | "signupAccount"
+    | "verificationResendAccount",
+  config: AuthRateLimitConfig,
+  storeFactory: AuthRateLimitStoreFactory,
+  field: "email" | "token",
+  limitOverride?: number
+) =>
+  rateLimit({
+    windowMs: config.windowMs,
+    limit: limitOverride ?? config.limit,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    store: storeFactory(config.prefix),
+    identifier: `auth-${name}`,
+    validate: { singleCount: false },
+    keyGenerator: (req) => createIdentityBucket(req, field),
+    handler: (_req, _res, next) => {
+      next(new HttpError(429, "TOO_MANY_REQUESTS", rateLimitMessage));
+    }
+  });
+
+const createIdentityBucket = (
+  req: Pick<Request, "body">,
+  field: "email" | "token"
+) => {
+  const rawValue =
+    req.body && typeof req.body === "object" && field in req.body
+      ? req.body[field]
       : "";
-  const normalizedEmail =
-    typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+  const normalizedValue =
+    typeof rawValue === "string"
+      ? field === "email"
+        ? rawValue.trim().toLowerCase()
+        : rawValue
+      : "";
 
   return createHmac("sha256", env.JWT_SECRET)
-    .update(normalizedEmail || "invalid-login-identifier")
+    .update(normalizedValue || `invalid-${field}-identifier`)
     .digest("hex");
 };
 
@@ -185,6 +333,12 @@ const createStandardRateLimitConfig = (
 });
 
 const standardRateLimitConfigs = {
+  deepReadinessRateLimiter: createStandardRateLimitConfig(
+    1,
+    12,
+    "health-deep-readiness",
+    "loresafe:rl:health:deep-readiness:v1:"
+  ),
   profileUpdateRateLimiter: createStandardRateLimitConfig(
     10,
     60,

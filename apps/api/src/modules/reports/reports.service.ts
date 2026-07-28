@@ -117,11 +117,15 @@ export const createReportsService = (
     const club = await repository.findClubAccessByLinkName(linkName, userId);
     const moderationClub = getAccessibleModerationClub(club);
 
-    const result = await repository.listModerationReports(moderationClub.id, {
-      status: query.status,
-      cursor: decodeTimestampUuidCursor(query.cursor),
-      limit: query.limit
-    });
+    const result = await repository.listModerationReports(
+      moderationClub.id,
+      userId,
+      {
+        status: query.status,
+        cursor: decodeTimestampUuidCursor(query.cursor),
+        limit: query.limit
+      }
+    );
 
     return {
       reports: result.reports.map(toModerationReportDto),
@@ -141,7 +145,8 @@ export const createReportsService = (
 
     const report = await repository.findModerationReportById(
       moderationClub.id,
-      reportId
+      reportId,
+      userId
     );
 
     if (!report) {

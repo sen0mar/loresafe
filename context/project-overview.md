@@ -55,7 +55,8 @@ Normal discussion spaces rely on manual spoiler tags. LoreSafe makes spoiler saf
 
 ### Accounts and Profiles
 
-- Sign up, login, logout, authenticated profile.
+- Account-neutral signup with email verification, login/logout, password
+  recovery, and authenticated profile.
 - Locked username at signup, plus avatar/display name basics.
 - Joined clubs and per-club progress.
 

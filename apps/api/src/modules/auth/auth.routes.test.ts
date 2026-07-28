@@ -31,6 +31,11 @@ import {
 import { createAuthRouter } from "./auth.routes.js";
 import { createAuthService } from "./auth.service.js";
 import type { EventsService } from "../events/events.service.js";
+import {
+  createMemoryEmailIdentityRepository,
+  type EmailIdentityRepository
+} from "./email-identity.repository.js";
+import type { EmailDelivery } from "./email-delivery.js";
 
 describe("auth routes", () => {
   let repository: InMemoryAuthUsersRepository;
@@ -41,7 +46,7 @@ describe("auth routes", () => {
     app = createAuthTestApp(repository);
   });
 
-  it("creates a user and sends an HttpOnly session cookie", async () => {
+  it("creates an unverified user with an account-neutral response and no session", async () => {
     const response = await request(app)
       .post("/api/auth/signup")
       .set("x-request-id", "signup-success")
@@ -50,36 +55,16 @@ describe("auth routes", () => {
         username: "New_Reader",
         password: "correct horse battery staple"
       })
-      .expect(201);
+      .expect(202);
 
     expect(response.body).toEqual({
-      user: {
-        id: expect.any(String),
-        email: "reader@example.com",
-        displayName: "new_reader",
-        username: "new_reader",
-        bio: null,
-        avatarUrl: null,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String)
-      }
+      message: "If the account is eligible, an email has been sent."
     });
-    expect(response.body.user).not.toHaveProperty("passwordHash");
-    expect(response.body.user).not.toHaveProperty("sessionVersion");
 
     const storedUser = repository.usersByEmail.get("reader@example.com");
     expect(storedUser?.passwordHash).toMatch(/^\$argon2id\$/);
-
-    const cookie = response.headers["set-cookie"]?.[0] ?? "";
-    expect(cookie).toContain(`${env.SESSION_COOKIE_NAME}=`);
-    expect(cookie).toContain("HttpOnly");
-    expect(cookie).toContain("SameSite=Lax");
-
-    if (env.SESSION_COOKIE_SECURE) {
-      expect(cookie).toContain("Secure");
-    } else {
-      expect(cookie).not.toContain("Secure");
-    }
+    expect(storedUser?.emailVerifiedAt).toBeNull();
+    expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
   it("rejects invalid signup payloads", async () => {
@@ -102,7 +87,7 @@ describe("auth routes", () => {
     });
   });
 
-  it("rejects duplicate active emails", async () => {
+  it("returns the same accepted response for duplicate active emails", async () => {
     await repository.createUser({
       email: "duplicate@example.com",
       displayName: "Existing Reader",
@@ -117,15 +102,138 @@ describe("auth routes", () => {
         username: "new_reader",
         password: "correct horse battery staple"
       })
-      .expect(409);
+      .expect(202);
 
     expect(response.body).toEqual({
-      error: {
-        code: "CONFLICT",
-        message: "An account with that email already exists.",
-        requestId: "signup-duplicate"
+      message: "If the account is eligible, an email has been sent."
+    });
+  });
+
+  it("keeps unverified accounts unauthenticated until email confirmation", async () => {
+    const credentials = {
+      email: "unverified@example.com",
+      username: "unverified_reader",
+      password: "correct horse battery staple"
+    };
+
+    await request(app).post("/api/auth/signup").send(credentials).expect(202);
+    await request(app)
+      .post("/api/auth/login")
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(401);
+  });
+
+  it("treats a second verification click as an idempotent success", async () => {
+    const identityRepository = createMemoryEmailIdentityRepository();
+    let deliveredToken = "";
+    app = createAuthTestApp(repository, {
+      identityRepository,
+      delivery: {
+        sendEmailVerification: async ({ token }) => {
+          deliveredToken = token;
+        },
+        sendPasswordReset: async () => undefined
       }
     });
+
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "verify@example.com",
+        username: "verify_reader",
+        password: "correct horse battery staple"
+      })
+      .expect(202);
+
+    expect(deliveredToken).toHaveLength(43);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: deliveredToken })
+      .expect(200)
+      .expect({ message: "Request completed." });
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: deliveredToken })
+      .expect(200)
+      .expect({ message: "Request completed." });
+  });
+
+  it("keeps verification resend responses neutral for known and unknown emails", async () => {
+    const deliveries: string[] = [];
+    await repository.createUser({
+      email: "resend@example.com",
+      displayName: "Resend Reader",
+      passwordHash: await hashPassword("correct horse battery staple"),
+      emailVerifiedAt: null
+    });
+    app = createAuthTestApp(repository, {
+      delivery: {
+        sendEmailVerification: async ({ email }) => {
+          deliveries.push(email);
+        },
+        sendPasswordReset: async () => undefined
+      }
+    });
+
+    const missing = await request(app)
+      .post("/api/auth/verification/resend")
+      .send({ email: "missing@example.com" })
+      .expect(202);
+    const known = await request(app)
+      .post("/api/auth/verification/resend")
+      .send({ email: "resend@example.com" })
+      .expect(202);
+
+    expect(missing.body).toEqual(known.body);
+    expect(deliveries).toEqual(["resend@example.com"]);
+  });
+
+  it("keeps password-reset requests account neutral and reset replay idempotent", async () => {
+    const identityRepository = createMemoryEmailIdentityRepository();
+    const resetTokens: string[] = [];
+    const disconnectUser = vi.fn(async () => undefined);
+    await repository.createUser({
+      email: "recovery@example.com",
+      displayName: "Recovery Reader",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+    app = createAuthTestApp(repository, {
+      identityRepository,
+      eventPublisher: { disconnectUser },
+      delivery: {
+        sendEmailVerification: async () => undefined,
+        sendPasswordReset: async ({ token }) => {
+          resetTokens.push(token);
+        }
+      }
+    });
+
+    const missing = await request(app)
+      .post("/api/auth/password/forgot")
+      .send({ email: "missing@example.com" })
+      .expect(202);
+    const known = await request(app)
+      .post("/api/auth/password/forgot")
+      .send({ email: "recovery@example.com" })
+      .expect(202);
+
+    expect(missing.body).toEqual(known.body);
+    expect(resetTokens).toHaveLength(1);
+    const [token] = resetTokens;
+
+    if (!token) {
+      throw new Error("Password reset token was not delivered.");
+    }
+
+    await request(app)
+      .post("/api/auth/password/reset")
+      .send({ token, password: "a new correct horse battery staple" })
+      .expect(200);
+    await request(app)
+      .post("/api/auth/password/reset")
+      .send({ token, password: "a new correct horse battery staple" })
+      .expect(200);
+    expect(disconnectUser).toHaveBeenCalledTimes(2);
   });
 
   it("rejects usernames reserved by active display names", async () => {
@@ -375,6 +483,43 @@ describe("auth routes", () => {
     expect(repository.credentialLookupCount).toBe(2);
   });
 
+  it("allows five one-minute account failures and blocks attempt six before lookup", async () => {
+    app = createAuthTestApp(repository, {
+      rateLimiters: createAuthTestRateLimiters({
+        login: 100,
+        loginAccountBurst: 5,
+        loginAccountSustained: 100
+      })
+    });
+    await repository.createUser({
+      email: "five-failures@example.com",
+      displayName: "Five Failures",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      await request(app)
+        .post("/api/auth/login")
+        .send({
+          email: "five-failures@example.com",
+          password: "wrong password"
+        })
+        .expect(401)
+        .expect((response) => {
+          expect(response.body.error.message).toBe("Invalid credentials");
+        });
+    }
+
+    await request(app)
+      .post("/api/auth/login")
+      .send({
+        email: "five-failures@example.com",
+        password: "wrong password"
+      })
+      .expect(429);
+    expect(repository.credentialLookupCount).toBe(5);
+  });
+
   it("clears the session cookie on logout", async () => {
     const response = await request(app)
       .post("/api/auth/logout")
@@ -390,15 +535,12 @@ describe("auth routes", () => {
   });
 
   it("revokes a copied access token on logout", async () => {
-    const signupResponse = await request(app)
-      .post("/api/auth/signup")
-      .send({
-        email: "logout-copy@example.com",
-        username: "logout_copy",
-        password: "correct horse battery staple"
-      })
-      .expect(201);
-    const cookies = extractResponseCookies(signupResponse);
+    const loginResponse = await createLoggedInTestUser(app, repository, {
+      email: "logout-copy@example.com",
+      username: "logout_copy",
+      password: "correct horse battery staple"
+    });
+    const cookies = extractResponseCookies(loginResponse);
     const copiedAccessCookie = cookies.find((cookie) =>
       cookie.startsWith(`${env.SESSION_COOKIE_NAME}=`)
     );
@@ -417,15 +559,12 @@ describe("auth routes", () => {
   });
 
   it("rotates refresh tokens and rejects a copied previous refresh token", async () => {
-    const signupResponse = await request(app)
-      .post("/api/auth/signup")
-      .send({
-        email: "refresh-reader@example.com",
-        username: "refresh_reader",
-        password: "correct horse battery staple"
-      })
-      .expect(201);
-    const originalCookies = extractResponseCookies(signupResponse);
+    const loginResponse = await createLoggedInTestUser(app, repository, {
+      email: "refresh-reader@example.com",
+      username: "refresh_reader",
+      password: "correct horse battery staple"
+    });
+    const originalCookies = extractResponseCookies(loginResponse);
 
     const refreshResponse = await request(app)
       .post("/api/auth/refresh")
@@ -447,10 +586,11 @@ describe("auth routes", () => {
       username: "device_reader",
       password: "correct horse battery staple"
     };
-    const firstDevice = await request(app)
-      .post("/api/auth/signup")
-      .send(credentials)
-      .expect(201);
+    const firstDevice = await createLoggedInTestUser(
+      app,
+      repository,
+      credentials
+    );
     const secondDevice = await request(app)
       .post("/api/auth/login")
       .send({ email: credentials.email, password: credentials.password })
@@ -515,7 +655,7 @@ describe("auth routes", () => {
         username: "new_reader",
         password: "correct horse battery staple"
       })
-      .expect(201);
+      .expect(202);
 
     const limitedResponse = await request(app)
       .post("/api/auth/signup")
@@ -561,23 +701,20 @@ describe("auth routes", () => {
   });
 
   it("returns the current safe user profile for a valid session", async () => {
-    const signupResponse = await request(app)
-      .post("/api/auth/signup")
-      .send({
-        email: "reader@example.com",
-        username: "new_reader",
-        password: "correct horse battery staple"
-      })
-      .expect(201);
+    const loginResponse = await createLoggedInTestUser(app, repository, {
+      email: "reader@example.com",
+      username: "new_reader",
+      password: "correct horse battery staple"
+    });
 
     const response = await request(app)
       .get("/api/auth/me")
-      .set("Cookie", extractSessionCookie(signupResponse))
+      .set("Cookie", extractSessionCookie(loginResponse))
       .expect(200);
 
     expect(response.body).toEqual({
       user: {
-        id: signupResponse.body.user.id,
+        id: loginResponse.body.user.id,
         email: "reader@example.com",
         displayName: "new_reader",
         username: "new_reader",
@@ -725,11 +862,19 @@ const createAuthTestApp = (
   options: {
     rateLimiters?: AuthRateLimiters;
     eventPublisher?: Pick<EventsService, "disconnectUser">;
+    identityRepository?: EmailIdentityRepository;
+    delivery?: EmailDelivery;
     trustLoopbackProxy?: boolean;
   } = {}
 ) => {
   const app = express();
-  const service = createAuthService(repository);
+  const service = createAuthService(
+    repository,
+    undefined,
+    undefined,
+    options.identityRepository,
+    options.delivery
+  );
   const controller = createAuthController(service, options.eventPublisher);
   const middleware = createAuthMiddleware(service);
 
@@ -760,6 +905,28 @@ const createAuthTestApp = (
   app.use(errorHandler);
 
   return app;
+};
+
+const createLoggedInTestUser = async (
+  app: express.Express,
+  repository: InMemoryAuthUsersRepository,
+  credentials: {
+    email: string;
+    username: string;
+    password: string;
+  }
+) => {
+  await repository.createUser({
+    email: credentials.email,
+    displayName: credentials.username,
+    username: credentials.username,
+    passwordHash: await hashPassword(credentials.password)
+  });
+
+  return request(app)
+    .post("/api/auth/login")
+    .send({ email: credentials.email, password: credentials.password })
+    .expect(200);
 };
 
 class InMemoryAuthUsersRepository implements AuthUsersRepository {
@@ -811,7 +978,8 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
     email,
     displayName,
     username,
-    passwordHash
+    passwordHash,
+    emailVerifiedAt
   }: CreateAuthUserInput) => {
     const now = new Date();
     const lockedUsername = username ?? toTestUsername(displayName);
@@ -822,6 +990,7 @@ class InMemoryAuthUsersRepository implements AuthUsersRepository {
       username: lockedUsername,
       bio: null,
       passwordHash,
+      emailVerifiedAt: emailVerifiedAt === undefined ? now : emailVerifiedAt,
       sessionVersion: 1,
       createdAt: now,
       updatedAt: now

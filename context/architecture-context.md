@@ -91,6 +91,10 @@ Cache, rate-limit, and deferred work:
   mutation cache before installing the next authenticated identity. A detected
   session loss or authenticated-user change applies the same reset.
 - Upstash Redis is for rate-limit counters.
+- Deep dependency readiness is operations-token protected, strictly
+  rate-limited, single-flighted, cached for five seconds, and aborts dependency
+  calls at its deadline where the client supports cancellation. Public
+  liveness remains dependency-free.
 - Comment and progress-unlock notifications are persisted atomically in their owning transactions with deterministic unique event keys.
 - R2 deletion records remain durable; committed deletions are attempted after the transaction and retried in a bounded batch during later real upload traffic.
 - No timer, cron, startup initializer, or reconnect loop may query PostgreSQL in the Free-plan deployment.
@@ -106,6 +110,19 @@ Storage invariants:
 
 Authentication:
 
+- Signup creates an unverified account without a session and always returns the
+  same accepted response for new and existing email addresses after comparable
+  Argon2id work. Login rejects unverified accounts with the generic credential
+  response.
+- Email verification and password recovery use SHA-256 hashes of
+  cryptographically random, expiring, single-use tokens. Verification and reset
+  replay are idempotent successes; invalid or expired links use one generic link
+  error.
+- Successful password reset changes the Argon2id hash, increments the session
+  version, and revokes every persisted session in the same transaction.
+- Email delivery is owned by the narrow `EmailDelivery` integration boundary.
+  Until a provider is approved and configured, the default adapter performs no
+  external delivery and never logs or returns raw tokens.
 - Password hashing: Argon2id.
 - Login result: a short-lived signed access JWT plus a rotating opaque refresh token, both stored in scoped HttpOnly, Secure, SameSite cookies.
 - Access JWTs include a minimal user/session version payload plus validated issuer, audience, subject, timestamps, and a unique session identifier.
@@ -334,7 +351,8 @@ Required groups:
 - R2 account, bucket, endpoint, access key, and secret.
 - Upstash Redis connection details.
 - Sentry DSNs.
-- Optional email provider once password reset/email verification is implemented.
+- Optional approved email-delivery provider adapter for the existing
+  verification/recovery boundary.
 
 Prisma drift checks:
 

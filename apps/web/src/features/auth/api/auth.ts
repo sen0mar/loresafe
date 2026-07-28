@@ -30,6 +30,10 @@ export type AuthResponse = {
   user: AuthUser;
 };
 
+export type NeutralEmailResponse = {
+  message: string;
+};
+
 export const authQueryKeys = {
   me: ["auth", "me"] as const,
   cacheOwner: ["auth", "cache-owner"] as const
@@ -60,7 +64,25 @@ export const login = (input: LoginFormValues) =>
 export const logout = () => apiPost<null>("/api/auth/logout");
 
 export const signup = (input: SignupRequestValues) =>
-  apiPost<AuthResponse, SignupRequestValues>("/api/auth/signup", input);
+  apiPost<NeutralEmailResponse, SignupRequestValues>("/api/auth/signup", input);
+
+export const requestPasswordReset = (email: string) =>
+  apiPost<NeutralEmailResponse, { email: string }>(
+    "/api/auth/password/forgot",
+    { email }
+  );
+
+export const resetPassword = (input: { token: string; password: string }) =>
+  apiPost<NeutralEmailResponse, typeof input>(
+    "/api/auth/password/reset",
+    input
+  );
+
+export const verifyEmail = (token: string) =>
+  apiPost<NeutralEmailResponse, { token: string }>(
+    "/api/auth/verification/confirm",
+    { token }
+  );
 
 export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) => {
   const queryClient = useQueryClient();
@@ -104,16 +126,18 @@ export const useLogout = () => {
 };
 
 export const useSignup = () => {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: signup,
-    onSuccess: async (response) => {
-      rememberAuthSessionHint();
-      await replaceAuthenticatedQueryState(queryClient, response.user);
-    }
+    mutationFn: signup
   });
 };
+
+export const useRequestPasswordReset = () =>
+  useMutation({ mutationFn: requestPasswordReset });
+
+export const useResetPassword = () =>
+  useMutation({ mutationFn: resetPassword });
+
+export const useVerifyEmail = () => useMutation({ mutationFn: verifyEmail });
 
 export const replaceAuthenticatedQueryState = async (
   queryClient: QueryClient,

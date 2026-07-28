@@ -25,6 +25,10 @@ export const createAuthRouter = (
   );
   router.post("/refresh", controller.refresh);
   router.post("/signup", controller.signup);
+  router.post("/verification/resend", controller.resendVerification);
+  router.post("/verification/confirm", controller.verifyEmail);
+  router.post("/password/forgot", controller.forgotPassword);
+  router.post("/password/reset", controller.resetPassword);
 
   return router;
 };

@@ -59,6 +59,18 @@ describe("rate limit defaults", () => {
     );
 
     expect(byIdentifier).toEqual({
+      "auth-forgotPassword": {
+        limit: 10,
+        skipSuccessfulRequests: false,
+        storePrefix: "loresafe:rl:auth:password-forgot:v1:",
+        windowMs: 15 * 60 * 1000
+      },
+      "auth-forgotPasswordAccount": {
+        limit: 3,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:auth:password-forgot-account:v1:",
+        windowMs: 15 * 60 * 1000
+      },
       "auth-login": {
         limit: 30,
         skipSuccessfulRequests: true,
@@ -83,11 +95,47 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:auth:logout:",
         windowMs: 60 * 1000
       },
+      "auth-resetPassword": {
+        limit: 10,
+        skipSuccessfulRequests: false,
+        storePrefix: "loresafe:rl:auth:password-reset:v1:",
+        windowMs: 15 * 60 * 1000
+      },
+      "auth-resetPasswordToken": {
+        limit: 5,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:auth:password-reset-token:v1:",
+        windowMs: 15 * 60 * 1000
+      },
       "auth-signup": {
         limit: 60,
         skipSuccessfulRequests: false,
         storePrefix: "loresafe:rl:auth:signup:",
         windowMs: 60 * 60 * 1000
+      },
+      "auth-signupAccount": {
+        limit: 10,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:auth:signup-account:v1:",
+        windowMs: 60 * 60 * 1000
+      },
+      "auth-verificationConfirm": {
+        limit: 20,
+        skipSuccessfulRequests: false,
+        storePrefix: "loresafe:rl:auth:verification-confirm:v1:",
+        windowMs: 15 * 60 * 1000
+      },
+      "auth-verificationResend": {
+        limit: 10,
+        skipSuccessfulRequests: false,
+        storePrefix: "loresafe:rl:auth:verification-resend:v1:",
+        windowMs: 15 * 60 * 1000
+      },
+      "auth-verificationResendAccount": {
+        limit: 3,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:auth:verification-resend-account:v1:",
+        windowMs: 15 * 60 * 1000
       },
       "users-profile-update": {
         limit: 60,
@@ -118,6 +166,12 @@ describe("rate limit defaults", () => {
         skipSuccessfulRequests: true,
         storePrefix: "loresafe:rl:events:connections:v2:",
         windowMs: 10 * 60 * 1000
+      },
+      "health-deep-readiness": {
+        limit: 12,
+        skipSuccessfulRequests: undefined,
+        storePrefix: "loresafe:rl:health:deep-readiness:v1:",
+        windowMs: 60 * 1000
       },
       "clubs-create": {
         limit: 45,
@@ -251,7 +305,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(31);
+    expect(options).toHaveLength(40);
     expect(options).toEqual(
       options.map(() =>
         expect.objectContaining({
@@ -294,6 +348,6 @@ describe("rate limit defaults", () => {
     createRateLimiters({ storeFactory: testStoreFactory });
 
     expect(createStoreMock).not.toHaveBeenCalled();
-    expect(testStoreFactory).toHaveBeenCalledTimes(31);
+    expect(testStoreFactory).toHaveBeenCalledTimes(40);
   });
 });

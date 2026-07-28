@@ -19,6 +19,7 @@ export type AuthUserRecord = {
     | null
     | undefined;
   sessionVersion: number;
+  emailVerifiedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -28,6 +29,7 @@ export type CreateAuthUserInput = {
   displayName: string;
   username?: string;
   passwordHash: string;
+  emailVerifiedAt?: Date | null;
 };
 
 export type AuthUserCredentialsRecord = AuthUserRecord & {
@@ -84,7 +86,13 @@ export const authUsersRepository: AuthUsersRepository = {
     }),
 
   // The repository accepts the hash for writes but never selects it back into auth DTOs.
-  createUser: ({ email, displayName, username, passwordHash }) =>
+  createUser: ({
+    email,
+    displayName,
+    username,
+    passwordHash,
+    emailVerifiedAt
+  }) =>
     prisma.$transaction(async (transaction) => {
       const lockedUsername = username ?? toFallbackUsername(displayName);
       const user = await transaction.user.create({
@@ -92,7 +100,8 @@ export const authUsersRepository: AuthUsersRepository = {
           email,
           displayName,
           username: lockedUsername,
-          passwordHash
+          passwordHash,
+          emailVerifiedAt: emailVerifiedAt ?? null
         },
         select: activeUserSelect
       });

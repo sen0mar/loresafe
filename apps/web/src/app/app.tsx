@@ -81,6 +81,18 @@ const LoginPage = lazyRoute(
   () => import("../features/auth/pages/login-page.js"),
   "LoginPage"
 );
+const ForgotPasswordPage = lazyRoute(
+  () => import("../features/auth/pages/account-recovery-pages.js"),
+  "ForgotPasswordPage"
+);
+const ResetPasswordPage = lazyRoute(
+  () => import("../features/auth/pages/account-recovery-pages.js"),
+  "ResetPasswordPage"
+);
+const VerifyEmailPage = lazyRoute(
+  () => import("../features/auth/pages/account-recovery-pages.js"),
+  "VerifyEmailPage"
+);
 const NotificationsPage = lazyRoute(
   () => import("../features/notifications/pages/notifications-page.js"),
   "NotificationsPage"
@@ -308,6 +320,9 @@ export const App = () => (
                 </PublicOnlyRoute>
               }
             />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
           </SentryRoutes>
         </Suspense>
       </RouteErrorBoundary>

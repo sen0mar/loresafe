@@ -1,4 +1,5 @@
 import type { RequestHandler } from "express";
+import type { ZodType } from "zod";
 
 import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
@@ -10,7 +11,14 @@ import {
   sessionCookieOptions
 } from "../../core/security/session-token.js";
 import { authService, type AuthService } from "./auth.service.js";
-import { loginRequestSchema, signupRequestSchema } from "./auth.schema.js";
+import {
+  forgotPasswordRequestSchema,
+  loginRequestSchema,
+  resendVerificationRequestSchema,
+  resetPasswordRequestSchema,
+  signupRequestSchema,
+  verifyEmailRequestSchema
+} from "./auth.schema.js";
 import "./auth.request.js";
 import { eventsService, type EventsService } from "../events/events.service.js";
 
@@ -21,6 +29,10 @@ export type AuthController = {
   me: RequestHandler;
   refresh: RequestHandler;
   signup: RequestHandler;
+  resendVerification: RequestHandler;
+  verifyEmail: RequestHandler;
+  forgotPassword: RequestHandler;
+  resetPassword: RequestHandler;
 };
 
 export const createAuthController = (
@@ -39,22 +51,8 @@ export const createAuthController = (
         );
       }
 
-      const result = await service.signup(parseResult.data);
-
-      // Keep the JWT out of the JSON response so browser JavaScript cannot read it.
-      res.cookie(
-        env.SESSION_COOKIE_NAME,
-        result.sessionToken,
-        sessionCookieOptions
-      );
-      res.cookie(
-        refreshSessionCookieName,
-        result.refreshToken,
-        refreshSessionCookieOptions
-      );
-      res.status(201).json({
-        user: result.user
-      });
+      await service.signup(parseResult.data);
+      res.status(202).json(neutralEmailResponse);
     } catch (error) {
       next(error);
     }
@@ -174,6 +172,59 @@ export const createAuthController = (
     } catch (error) {
       next(error);
     }
+  },
+
+  resendVerification: async (req, res, next) => {
+    try {
+      const input = parseIdentityRequest(
+        resendVerificationRequestSchema,
+        req.body
+      );
+      await service.resendVerification(input);
+      res.status(202).json(neutralEmailResponse);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  verifyEmail: async (req, res, next) => {
+    try {
+      const input = parseIdentityRequest(verifyEmailRequestSchema, req.body);
+      await service.verifyEmail(input);
+      res.status(200).json(completedResponse);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  forgotPassword: async (req, res, next) => {
+    try {
+      const input = parseIdentityRequest(forgotPasswordRequestSchema, req.body);
+      await service.forgotPassword(input);
+      res.status(202).json(neutralEmailResponse);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  resetPassword: async (req, res, next) => {
+    try {
+      const input = parseIdentityRequest(resetPasswordRequestSchema, req.body);
+      const userId = await service.resetPassword(input);
+
+      if (userId) {
+        await eventPublisher.disconnectUser(userId);
+      }
+
+      res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
+      res.clearCookie(
+        refreshSessionCookieName,
+        clearedRefreshSessionCookieOptions
+      );
+      res.status(200).json(completedResponse);
+    } catch (error) {
+      next(error);
+    }
   }
 });
 
@@ -187,4 +238,25 @@ const getCookie = (cookies: unknown, name: string) => {
   const value = (cookies as Record<string, unknown>)[name];
 
   return typeof value === "string" ? value : undefined;
+};
+
+const neutralEmailResponse = {
+  message: "If the account is eligible, an email has been sent."
+} as const;
+
+const completedResponse = {
+  message: "Request completed."
+} as const;
+
+const parseIdentityRequest = <Output>(
+  schema: ZodType<Output>,
+  body: unknown
+) => {
+  const result = schema.safeParse(body);
+
+  if (!result.success) {
+    throw new HttpError(400, "BAD_REQUEST", "Check the fields and try again.");
+  }
+
+  return result.data;
 };

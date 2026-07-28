@@ -77,6 +77,7 @@ if (process.env.PRODUCTION_READINESS_LIVE === "1") {
   const deepReadinessResponse = await fetch(
     new URL(manifest.deepReadinessPath, origin),
     {
+      headers: { authorization: `Bearer ${operationsToken}` },
       signal: AbortSignal.timeout(5_000)
     }
   );

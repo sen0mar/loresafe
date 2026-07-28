@@ -5,6 +5,7 @@ import { createCommentNotificationInTransaction } from "../notifications/notific
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
+import { lockUserClubProgress } from "../progress/progress-authorization-lock.js";
 import {
   canCreatePostComment,
   canDeleteComment,
@@ -88,6 +89,7 @@ export type ListVisibleCommentsInput = {
 };
 
 export type ListVisibleCommentsResult = {
+  post?: CommentPostRecord | null;
   comments: CommentRecord[];
   nextCursor: CommentsCursor | null;
   hasMore: boolean;
@@ -361,64 +363,91 @@ export const commentsRepository: CommentsRepository = {
       }
     }),
 
-  listVisibleCommentsForPost: async (postId, userId, { cursor, limit }) => {
-    const cursorWhere = cursor
-      ? {
-          OR: [
-            {
-              createdAt: {
-                gt: cursor.createdAt
-              }
-            },
-            {
-              createdAt: cursor.createdAt,
-              id: {
-                gt: cursor.id
-              }
-            }
-          ]
-        }
-      : {};
-    const comments = await prisma.comment.findMany({
-      where: {
-        postId,
-        status: "VISIBLE",
-        deletedAt: null,
-        ...cursorWhere
-      },
-      orderBy: [
-        {
-          createdAt: "asc"
+  listVisibleCommentsForPost: async (postId, userId, { cursor, limit }) =>
+    prisma.$transaction(async (transaction) => {
+      const target = await transaction.post.findFirst({
+        where: {
+          id: postId,
+          status: "VISIBLE",
+          deletedAt: null
         },
-        {
-          id: "asc"
-        }
-      ],
-      take: limit + 1,
-      select: commentSelect
-    });
-    const pageComments = comments.slice(0, limit);
-    const lastComment = pageComments[pageComments.length - 1];
+        select: { clubId: true }
+      });
 
-    const reactionMap = await userReactionMapForCommentIds(
-      pageComments.map((comment) => comment.id),
-      userId
-    );
+      if (
+        !target ||
+        !(await lockClubAuthorization(transaction, target.clubId))
+      ) {
+        return {
+          post: null,
+          comments: [],
+          nextCursor: null,
+          hasMore: false
+        };
+      }
+      await lockUserClubProgress(transaction, userId, target.clubId);
+      const cursorWhere = cursor
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  gt: cursor.createdAt
+                }
+              },
+              {
+                createdAt: cursor.createdAt,
+                id: {
+                  gt: cursor.id
+                }
+              }
+            ]
+          }
+        : {};
+      const comments = await transaction.comment.findMany({
+        where: {
+          postId,
+          status: "VISIBLE",
+          deletedAt: null,
+          ...cursorWhere
+        },
+        orderBy: [
+          {
+            createdAt: "asc"
+          },
+          {
+            id: "asc"
+          }
+        ],
+        take: limit + 1,
+        select: commentSelect
+      });
+      const pageComments = comments.slice(0, limit);
+      const lastComment = pageComments[pageComments.length - 1];
 
-    return {
-      comments: pageComments.map((comment) =>
-        toCommentRecord(comment, reactionMap)
-      ),
-      nextCursor:
-        comments.length > limit && lastComment
-          ? {
-              createdAt: lastComment.createdAt,
-              id: lastComment.id
-            }
-          : null,
-      hasMore: comments.length > limit
-    };
-  },
+      const reactionMap = await userReactionMapForCommentIds(
+        pageComments.map((comment) => comment.id),
+        userId
+      );
+      const currentPost = await commentsRepository.findPostForComments(
+        postId,
+        userId
+      );
+
+      return {
+        post: currentPost,
+        comments: pageComments.map((comment) =>
+          toCommentRecord(comment, reactionMap)
+        ),
+        nextCursor:
+          comments.length > limit && lastComment
+            ? {
+                createdAt: lastComment.createdAt,
+                id: lastComment.id
+              }
+            : null,
+        hasMore: comments.length > limit
+      };
+    }),
 
   findVisibleCommentForReaction: async (commentId, userId) => {
     const now = new Date();

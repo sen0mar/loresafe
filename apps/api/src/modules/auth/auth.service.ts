@@ -14,7 +14,14 @@ import {
 import { env } from "../../config/env.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import { type AuthUserDto, toAuthUserDto } from "./auth.dto.js";
-import type { LoginRequest, SignupRequest } from "./auth.schema.js";
+import type {
+  ForgotPasswordRequest,
+  LoginRequest,
+  ResendVerificationRequest,
+  ResetPasswordRequest,
+  SignupRequest,
+  VerifyEmailRequest
+} from "./auth.schema.js";
 import {
   authUsersRepository,
   type AuthUserRecord,
@@ -26,14 +33,26 @@ import {
   createMemoryAuthSessionsRepository,
   type AuthSessionsRepository
 } from "./auth-session.repository.js";
+import {
+  createMemoryEmailIdentityRepository,
+  emailIdentityRepository,
+  type EmailIdentityRepository
+} from "./email-identity.repository.js";
+import {
+  createEmailIdentityToken,
+  hashEmailIdentityToken
+} from "./email-identity-token.js";
+import { emailDelivery, type EmailDelivery } from "./email-delivery.js";
 
 export type SignupResult = {
+  accepted: true;
+};
+
+export type LoginResult = {
   user: AuthUserDto;
   sessionToken: string;
   refreshToken: string;
 };
-
-export type LoginResult = SignupResult;
 
 export type AuthService = {
   signup: (input: SignupRequest) => Promise<SignupResult>;
@@ -48,9 +67,15 @@ export type AuthService = {
     refreshToken?: string;
   }) => Promise<string | null>;
   revokeAllSessions: (userId: string) => Promise<number>;
+  resendVerification: (input: ResendVerificationRequest) => Promise<void>;
+  verifyEmail: (input: VerifyEmailRequest) => Promise<void>;
+  forgotPassword: (input: ForgotPasswordRequest) => Promise<void>;
+  resetPassword: (input: ResetPasswordRequest) => Promise<string | null>;
 };
 
 type PasswordVerifier = typeof verifyPassword;
+const verificationTtlMs = 24 * 60 * 60 * 1000;
+const passwordResetTtlMs = 60 * 60 * 1000;
 
 export const createAuthService = (
   usersRepository: AuthUsersRepository = authUsersRepository,
@@ -58,7 +83,12 @@ export const createAuthService = (
   authUsersRepository
     ? authSessionsRepository
     : createMemoryAuthSessionsRepository(),
-  passwordVerifier: PasswordVerifier = verifyPassword
+  passwordVerifier: PasswordVerifier = verifyPassword,
+  identityRepository: EmailIdentityRepository = usersRepository ===
+  authUsersRepository
+    ? emailIdentityRepository
+    : createMemoryEmailIdentityRepository(),
+  delivery: EmailDelivery = emailDelivery
 ): AuthService => {
   const allowLegacyUnpersistedTestTokens =
     env.NODE_ENV === "test" && usersRepository !== authUsersRepository;
@@ -103,42 +133,58 @@ export const createAuthService = (
 
   return {
     signup: async ({ email, username, password }) => {
-      const existingUser = await usersRepository.findActiveUserByEmail(email);
+      // Account existence never skips the signup Argon2id cost.
+      const passwordHash = await hashPassword(password);
+      const [existingUser, existingReservedName] = await Promise.all([
+        usersRepository.findActiveUserByEmail(email),
+        usersRepository.findActiveUserByReservedName
+          ? usersRepository.findActiveUserByReservedName(
+              normalizeNameReservationKey(username)
+            )
+          : Promise.resolve(null)
+      ]);
 
       if (existingUser) {
-        throw duplicateEmailError();
-      }
+        await issueIdentityToken({
+          user: existingUser,
+          purpose: "VERIFY_EMAIL",
+          ttlMs: verificationTtlMs,
+          identityRepository,
+          delivery
+        });
 
-      const existingReservedName = usersRepository.findActiveUserByReservedName
-        ? await usersRepository.findActiveUserByReservedName(
-            normalizeNameReservationKey(username)
-          )
-        : null;
+        return { accepted: true };
+      }
 
       if (existingReservedName) {
         throw duplicateUsernameError();
       }
-
-      // Plaintext passwords should not cross into repositories or Prisma calls.
-      const passwordHash = await hashPassword(password);
 
       try {
         const user = await usersRepository.createUser({
           email,
           displayName: username,
           username,
-          passwordHash
+          passwordHash,
+          emailVerifiedAt: null
         });
-        const tokens = await createPersistedSession(user, sessionsRepository);
+        await issueIdentityToken({
+          user,
+          purpose: "VERIFY_EMAIL",
+          ttlMs: verificationTtlMs,
+          identityRepository,
+          delivery
+        });
 
-        return {
-          user: toAuthUserDto(user),
-          ...tokens
-        };
+        return { accepted: true };
       } catch (error) {
         // The database constraint closes the race where two signups pass the pre-check together.
         if (isUniqueConstraintError(error)) {
-          throw duplicateSignupError(error);
+          if (uniqueConstraintTargets(error).includes("email")) {
+            return { accepted: true };
+          }
+
+          throw duplicateUsernameError();
         }
 
         throw error;
@@ -156,7 +202,7 @@ export const createAuthService = (
 
       // Keep both the work performed and the client response independent of
       // whether an active account exists for this email address.
-      if (!user || !isPasswordValid) {
+      if (!user || user.emailVerifiedAt === null || !isPasswordValid) {
         throw invalidCredentialsError();
       }
 
@@ -246,7 +292,64 @@ export const createAuthService = (
     },
 
     revokeAllSessions: (userId) =>
-      sessionsRepository.revokeAllSessions(userId, new Date())
+      sessionsRepository.revokeAllSessions(userId, new Date()),
+
+    resendVerification: async ({ email }) => {
+      await performNeutralIdentityWork();
+      const user = await usersRepository.findActiveUserByEmail(email);
+
+      if (user && user.emailVerifiedAt === null) {
+        await issueIdentityToken({
+          user,
+          purpose: "VERIFY_EMAIL",
+          ttlMs: verificationTtlMs,
+          identityRepository,
+          delivery
+        });
+      }
+    },
+
+    verifyEmail: async ({ token }) => {
+      const result = await identityRepository.consumeVerificationToken(
+        hashEmailIdentityToken(token),
+        new Date()
+      );
+
+      if (result.status === "INVALID") {
+        throw invalidIdentityTokenError();
+      }
+    },
+
+    forgotPassword: async ({ email }) => {
+      await performNeutralIdentityWork();
+      const user = await usersRepository.findActiveUserByEmail(email);
+
+      if (user && user.emailVerifiedAt !== null) {
+        await issueIdentityToken({
+          user,
+          purpose: "RESET_PASSWORD",
+          ttlMs: passwordResetTtlMs,
+          identityRepository,
+          delivery
+        });
+      }
+    },
+
+    resetPassword: async ({ token, password }) => {
+      // Invalid, expired, consumed, and valid tokens all pay the Argon2id cost.
+      const passwordHash = await hashPassword(password);
+      const result = await identityRepository.consumePasswordResetToken({
+        tokenHash: hashEmailIdentityToken(token),
+        passwordHash,
+        now: new Date()
+      });
+
+      if (result.status === "INVALID") {
+        throw invalidIdentityTokenError();
+      }
+
+      return result.userId;
+    }
   };
 };
 
@@ -283,21 +386,15 @@ const invalidCredentialsError = () =>
 const authenticationRequiredError = () =>
   new HttpError(401, "UNAUTHORIZED", "Authentication required");
 
-const duplicateEmailError = () =>
-  new HttpError(409, "CONFLICT", "An account with that email already exists.");
-
 const duplicateUsernameError = () =>
   new HttpError(409, "CONFLICT", "That username is already taken.");
 
-const duplicateSignupError = (error: unknown) => {
-  const targets = uniqueConstraintTargets(error);
-
-  if (targets.includes("email")) {
-    return duplicateEmailError();
-  }
-
-  return duplicateUsernameError();
-};
+const invalidIdentityTokenError = () =>
+  new HttpError(
+    400,
+    "BAD_REQUEST",
+    "This link is invalid or has expired. Request a new one."
+  );
 
 const uniqueConstraintTargets = (error: unknown) => {
   if (!error || typeof error !== "object" || !("meta" in error)) {
@@ -313,4 +410,46 @@ const uniqueConstraintTargets = (error: unknown) => {
   }
 
   return typeof meta?.target === "string" ? [meta.target] : [];
+};
+
+const performNeutralIdentityWork = () =>
+  hashPassword(createEmailIdentityToken()).then(() => undefined);
+
+const issueIdentityToken = async ({
+  user,
+  purpose,
+  ttlMs,
+  identityRepository,
+  delivery
+}: {
+  user: Pick<AuthUserRecord, "id" | "email">;
+  purpose: "VERIFY_EMAIL" | "RESET_PASSWORD";
+  ttlMs: number;
+  identityRepository: EmailIdentityRepository;
+  delivery: EmailDelivery;
+}) => {
+  const token = createEmailIdentityToken();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + ttlMs);
+
+  await identityRepository.issueToken({
+    userId: user.id,
+    purpose,
+    tokenHash: hashEmailIdentityToken(token),
+    expiresAt
+  });
+
+  if (purpose === "VERIFY_EMAIL") {
+    await delivery
+      .sendEmailVerification({
+        email: user.email,
+        token,
+        expiresAt
+      })
+      .catch(() => undefined);
+  } else {
+    await delivery
+      .sendPasswordReset({ email: user.email, token, expiresAt })
+      .catch(() => undefined);
+  }
 };

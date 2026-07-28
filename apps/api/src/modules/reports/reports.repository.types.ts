@@ -137,6 +137,7 @@ export type ReportsRepository = {
   ) => Promise<ModerationClubAccessRecord | null>;
   listModerationReports: (
     clubId: string,
+    userId: string,
     input: {
       status: ModerationReportStatus;
       cursor: ModerationReportsCursor | null;
@@ -145,7 +146,8 @@ export type ReportsRepository = {
   ) => Promise<ListModerationReportsResult>;
   findModerationReportById: (
     clubId: string,
-    reportId: string
+    reportId: string,
+    userId: string
   ) => Promise<ModerationReportRecord | null>;
   updateReportRequiredMilestone: (
     clubId: string,

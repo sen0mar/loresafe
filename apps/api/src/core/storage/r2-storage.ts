@@ -27,7 +27,7 @@ export type StoredObjectMetadata = {
 };
 
 export type ObjectStorage = {
-  checkReady?: () => Promise<void>;
+  checkReady?: (signal?: AbortSignal) => Promise<void>;
   createPresignedRead: (objectKey: string) => Promise<PresignedRead>;
   createPresignedUpload: (input: {
     contentLength: number;
@@ -57,8 +57,11 @@ const r2Client = new S3Client({
 });
 
 export const r2Storage: ObjectStorage = {
-  checkReady: async () => {
-    await r2Client.send(new HeadBucketCommand({ Bucket: env.R2_BUCKET_NAME }));
+  checkReady: async (signal) => {
+    await r2Client.send(
+      new HeadBucketCommand({ Bucket: env.R2_BUCKET_NAME }),
+      signal ? { abortSignal: signal } : undefined
+    );
   },
 
   createPresignedRead: async (objectKey) => {
