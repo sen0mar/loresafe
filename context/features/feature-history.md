@@ -176,6 +176,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 169: Medium-priority audit remediation 9–11 — Added refresh-family replay containment and security notifications, public versioned privacy/terms disclosures, and 365-day request-driven audit retention with deleted-user anonymization, committed migrations, and real PostgreSQL concurrency coverage.
 - Feature 170: Low-priority audit remediation 12–14 — Added private no-store API caching with explicit public policies, completed sensitive-route rate-limit coverage, and cleared both session cookies plus live events after account deletion with focused regression coverage.
 - Feature 171: Low-priority audit remediation 15–17 — Added bounded image decode/re-encode with metadata stripping and safe R2 replacement, repaired and parameterized the performance seed/check with script typechecking and scheduled PostgreSQL coverage, and restored the production audit gate with a bounded exception.
+- Feature 172: Low-priority audit remediation 18 — Applied the complete frontend document security policy to the live root and SPA routes, excluded API and static-asset responses from the document matcher, and added focused configuration plus live production-header verification.
 
 ## Entry Format
 

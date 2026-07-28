@@ -128,7 +128,7 @@ describe("static SEO configuration", () => {
     });
   });
 
-  it("limits SPA rewrites and adds noindex headers to protected routes", () => {
+  it("limits SPA rewrites and scopes document security and noindex headers", () => {
     const vercelJson = readWebFile("vercel.json");
     const vercelConfig = JSON.parse(vercelJson) as {
       headers: Array<{
@@ -155,6 +155,29 @@ describe("static SEO configuration", () => {
         )
       )
       .map((headerConfig) => headerConfig.source);
+    const requiredDocumentHeaders = new Set([
+      "Content-Security-Policy",
+      "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "Permissions-Policy",
+      "Referrer-Policy",
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "X-Frame-Options"
+    ]);
+    const documentHeaderRules = vercelConfig.headers.filter((headerConfig) => {
+      const headerNames = new Set(
+        headerConfig.headers.map((header) => header.key)
+      );
+
+      return [...requiredDocumentHeaders].every((header) =>
+        headerNames.has(header)
+      );
+    });
+    const documentHeaderRule = documentHeaderRules[0];
+    const documentHeaderMatcher = new RegExp(
+      `^${documentHeaderRule?.source ?? ""}$`
+    );
 
     expect(vercelJson.indexOf('"redirects"')).toBeLessThan(
       vercelJson.indexOf('"rewrites"')
@@ -209,6 +232,22 @@ describe("static SEO configuration", () => {
     ]);
     expect(rewriteSources).not.toContain("/(.*)");
     expect(rewriteSources).not.toContain("/:path*");
+    expect(documentHeaderRules).toHaveLength(1);
+    expect(documentHeaderRule?.source).toBe(
+      "/((?!api$|api/|sitemap\\.xml$|.*\\.[^/]+$).*)"
+    );
+    for (const documentPath of ["/", "/login", "/app/clubs"]) {
+      expect(documentHeaderMatcher.test(documentPath)).toBe(true);
+    }
+    for (const nonDocumentPath of [
+      "/api/health",
+      "/api/not-found",
+      "/sitemap.xml",
+      "/icon.svg",
+      "/assets/index.js"
+    ]) {
+      expect(documentHeaderMatcher.test(nonDocumentPath)).toBe(false);
+    }
     expect(new Set(noindexSources)).toEqual(
       new Set([
         "/api/:path*",
