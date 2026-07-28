@@ -3,8 +3,11 @@ type HttpMetric = {
   durationMs: number;
 };
 
+export const MAX_HTTP_METRIC_SERIES = 512;
+
 const httpMetrics = new Map<string, HttpMetric>();
 const readinessDurations = new Map<string, number>();
+let droppedHttpMetricSeries = 0;
 let storageCleanupCompleted = 0;
 let storageCleanupFailed = 0;
 
@@ -16,10 +19,16 @@ export const operationsMetrics = {
     durationMs: number
   ) => {
     const key = JSON.stringify([method, path, statusCode]);
-    const current = httpMetrics.get(key) ?? { count: 0, durationMs: 0 };
+    const current = httpMetrics.get(key);
+
+    if (!current && httpMetrics.size >= MAX_HTTP_METRIC_SERIES) {
+      droppedHttpMetricSeries += 1;
+      return;
+    }
+
     httpMetrics.set(key, {
-      count: current.count + 1,
-      durationMs: current.durationMs + durationMs
+      count: (current?.count ?? 0) + 1,
+      durationMs: (current?.durationMs ?? 0) + durationMs
     });
   },
   recordReadinessDuration: (dependency: string, durationMs: number) => {
@@ -56,6 +65,7 @@ export const renderOperationsMetrics = ({
       ([dependency, durationMs]) =>
         `loresafe_readiness_dependency_duration_ms{dependency="${escapeLabel(dependency)}"} ${durationMs}`
     ),
+    `loresafe_http_metric_series_dropped_total ${droppedHttpMetricSeries}`,
     `loresafe_sse_connections ${eventConnections}`,
     `loresafe_storage_cleanup_completed_total ${storageCleanupCompleted}`,
     `loresafe_storage_cleanup_failed_total ${storageCleanupFailed}`
@@ -66,3 +76,11 @@ export const renderOperationsMetrics = ({
 
 const escapeLabel = (value: string) =>
   value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+
+export const resetOperationsMetricsForTests = () => {
+  httpMetrics.clear();
+  readinessDurations.clear();
+  droppedHttpMetricSeries = 0;
+  storageCleanupCompleted = 0;
+  storageCleanupFailed = 0;
+};

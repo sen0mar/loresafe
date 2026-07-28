@@ -10,3 +10,9 @@ allowBuilds:
   "@prisma/engines": true
   esbuild: true
   prisma: true
+
+auditConfig:
+  # LoreSafe uses React Router only in browser mode. No patched release exists
+  # yet for this RSC-only advisory.
+  ignoreGhsas:
+    - GHSA-qwww-vcr4-c8h2

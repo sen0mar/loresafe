@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient
+} from "@tanstack/react-query";
 
 import { ApiError, apiGet, apiPost } from "@/shared/api/api-client";
 
@@ -25,7 +31,8 @@ export type AuthResponse = {
 };
 
 export const authQueryKeys = {
-  me: ["auth", "me"] as const
+  me: ["auth", "me"] as const,
+  cacheOwner: ["auth", "cache-owner"] as const
 };
 
 export const getMe = async (signal?: AbortSignal) => {
@@ -55,21 +62,31 @@ export const logout = () => apiPost<null>("/api/auth/logout");
 export const signup = (input: SignupRequestValues) =>
   apiPost<AuthResponse, SignupRequestValues>("/api/auth/signup", input);
 
-export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) =>
-  useQuery({
+export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) => {
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: authQueryKeys.me,
     queryFn: ({ signal }) => getMe(signal),
     enabled
   });
+
+  useEffect(() => {
+    if (query.isSuccess) {
+      void reconcileAuthenticatedQueryState(queryClient, query.data);
+    }
+  }, [query.isSuccess, query.data, queryClient]);
+
+  return query;
+};
 
 export const useLogin = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: login,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       rememberAuthSessionHint();
-      queryClient.setQueryData(authQueryKeys.me, response.user);
+      await replaceAuthenticatedQueryState(queryClient, response.user);
     }
   });
 };
@@ -79,9 +96,9 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: logout,
-    onSuccess: () => {
+    onSuccess: async () => {
       clearAuthSessionHint();
-      queryClient.setQueryData(authQueryKeys.me, null);
+      await replaceAuthenticatedQueryState(queryClient, null);
     }
   });
 };
@@ -91,9 +108,48 @@ export const useSignup = () => {
 
   return useMutation({
     mutationFn: signup,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       rememberAuthSessionHint();
-      queryClient.setQueryData(authQueryKeys.me, response.user);
+      await replaceAuthenticatedQueryState(queryClient, response.user);
     }
   });
+};
+
+export const replaceAuthenticatedQueryState = async (
+  queryClient: QueryClient,
+  user: AuthUser | null
+) => {
+  await queryClient.cancelQueries();
+  queryClient.removeQueries({
+    predicate: ({ queryKey }) => !isAuthStateQuery(queryKey)
+  });
+  queryClient.getMutationCache().clear();
+  queryClient.setQueryData(authQueryKeys.cacheOwner, {
+    userId: user?.id ?? null
+  });
+  queryClient.setQueryData(authQueryKeys.me, user);
+};
+
+const isAuthStateQuery = (queryKey: readonly unknown[]) =>
+  queryKey.length === 2 &&
+  queryKey[0] === "auth" &&
+  (queryKey[1] === "me" || queryKey[1] === "cache-owner");
+
+const reconcileAuthenticatedQueryState = async (
+  queryClient: QueryClient,
+  user: AuthUser | null
+) => {
+  const cacheOwner = queryClient.getQueryData<{ userId: string | null }>(
+    authQueryKeys.cacheOwner
+  );
+  const userId = user?.id ?? null;
+
+  if (!cacheOwner) {
+    queryClient.setQueryData(authQueryKeys.cacheOwner, { userId });
+    return;
+  }
+
+  if (cacheOwner.userId !== userId) {
+    await replaceAuthenticatedQueryState(queryClient, user);
+  }
 };
