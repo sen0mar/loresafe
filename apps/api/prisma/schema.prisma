@@ -80,6 +80,11 @@ enum NotificationType {
   COMMENT_REPLY
   PROGRESS_UNLOCK
   MODERATION_WARNING
+  SECURITY_ALERT
+}
+
+enum SecurityEventType {
+  REFRESH_TOKEN_REUSE
 }
 
 enum AuditLogAction {
@@ -166,10 +171,10 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  avatarAsset         FileAsset?            @relation("UserAvatarAsset", fields: [avatarAssetId], references: [id], onDelete: SetNull)
+  avatarAsset         FileAsset?                  @relation("UserAvatarAsset", fields: [avatarAssetId], references: [id], onDelete: SetNull)
   clubMemberships     ClubMembership[]
   clubBans            ClubBan[]
-  createdClubInvites  ClubInvite[]          @relation("ClubInviteCreator")
+  createdClubInvites  ClubInvite[]                @relation("ClubInviteCreator")
   clubProgresses      ClubProgress[]
   progressHistory     ProgressHistory[]
   progressCommands    ProgressCommand[]
@@ -179,11 +184,13 @@ model User {
   commentReactions    CommentReaction[]
   notifications       Notification[]
   reports             Report[]
-  fileAssets          FileAsset[]           @relation("FileAssetOwner")
-  auditLogsAuthored   AuditLog[]            @relation("AuditLogActor")
-  auditLogsTargeting  AuditLog[]            @relation("AuditLogTargetUser")
+  fileAssets          FileAsset[]                 @relation("FileAssetOwner")
+  auditLogsAuthored   AuditLog[]                  @relation("AuditLogActor")
+  auditLogsTargeting  AuditLog[]                  @relation("AuditLogTargetUser")
   nameReservations    UserNameReservation[]
   authSessions        AuthSession[]
+  refreshTombstones   AuthRefreshTokenTombstone[]
+  securityEvents      SecurityEvent[]
   emailIdentityTokens EmailIdentityToken[]
 
   @@unique([email], map: "users_email_active_unique", where: raw("\"deleted_at\" IS NULL"))
@@ -211,6 +218,8 @@ model EmailIdentityToken {
 model AuthSession {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String    @map("user_id") @db.Uuid
+  tokenFamilyId    String    @default(dbgenerated("gen_random_uuid()")) @map("token_family_id") @db.Uuid
+  generation       Int       @default(1)
   sessionIdHash    String    @unique(map: "auth_sessions_identifier_hash_unique") @map("session_identifier_hash") @db.Char(64)
   refreshTokenHash String    @unique(map: "auth_sessions_refresh_hash_unique") @map("refresh_token_hash") @db.Char(64)
   sessionVersion   Int       @map("session_version")
@@ -223,8 +232,40 @@ model AuthSession {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt], map: "auth_sessions_user_active_idx")
+  @@index([tokenFamilyId, revokedAt], map: "auth_sessions_family_active_idx")
   @@index([expiresAt], map: "auth_sessions_expires_at_idx")
   @@map("auth_sessions")
+}
+
+model AuthRefreshTokenTombstone {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  familyId   String   @map("family_id") @db.Uuid
+  generation Int
+  tokenHash  String   @unique(map: "auth_refresh_tombstones_token_hash_unique") @map("token_hash") @db.Char(64)
+  spentAt    DateTime @map("spent_at") @db.Timestamptz(6)
+  graceUntil DateTime @map("grace_until") @db.Timestamptz(6)
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, generation], map: "auth_refresh_tombstones_family_generation_idx")
+  @@index([expiresAt], map: "auth_refresh_tombstones_expires_at_idx")
+  @@map("auth_refresh_token_tombstones")
+}
+
+model SecurityEvent {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  familyId  String            @map("family_id") @db.Uuid
+  type      SecurityEventType
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, type], map: "security_events_family_type_unique")
+  @@index([userId, createdAt], map: "security_events_user_created_at_idx")
+  @@map("security_events")
 }
 
 model UserNameReservation {
@@ -543,18 +584,18 @@ model Notification {
   type                NotificationType
   eventKey            String           @map("event_key") @db.VarChar(160)
   safeText            String           @map("safe_text") @db.VarChar(240)
-  clubId              String           @map("club_id") @db.Uuid
+  clubId              String?          @map("club_id") @db.Uuid
   postId              String?          @map("post_id") @db.Uuid
   commentId           String?          @map("comment_id") @db.Uuid
-  requiredMilestoneId String           @map("required_milestone_id") @db.Uuid
+  requiredMilestoneId String?          @map("required_milestone_id") @db.Uuid
   readAt              DateTime?        @map("read_at") @db.Timestamptz(6)
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  club              Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  post              Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment           Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  requiredMilestone Milestone @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club              Club?      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  post              Post?      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment           Comment?   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  requiredMilestone Milestone? @relation(fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
 
   @@unique([eventKey], map: "notifications_event_key_unique")
   @@index([userId, readAt, createdAt], map: "notifications_user_id_read_at_created_at_idx")
@@ -597,21 +638,22 @@ model Report {
 }
 
 model AuditLog {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  action           AuditLogAction
-  actorId          String?        @map("actor_id") @db.Uuid
-  actorDisplayName String         @map("actor_display_name") @db.VarChar(80)
-  actorUsername    String         @map("actor_username") @db.VarChar(30)
-  clubId           String?        @map("club_id") @db.Uuid
-  clubTitle        String         @map("club_title") @db.VarChar(120)
-  clubLinkName     String         @map("club_link_name") @db.VarChar(80)
-  reportId         String?        @map("report_id") @db.Uuid
-  postId           String?        @map("post_id") @db.Uuid
-  commentId        String?        @map("comment_id") @db.Uuid
-  targetUserId     String?        @map("target_user_id") @db.Uuid
-  moderatorNote    String?        @map("moderator_note") @db.VarChar(1000)
-  metadata         Json?
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action            AuditLogAction
+  actorId           String?        @map("actor_id") @db.Uuid
+  actorDisplayName  String         @map("actor_display_name") @db.VarChar(80)
+  actorUsername     String         @map("actor_username") @db.VarChar(30)
+  clubId            String?        @map("club_id") @db.Uuid
+  clubTitle         String         @map("club_title") @db.VarChar(120)
+  clubLinkName      String         @map("club_link_name") @db.VarChar(80)
+  reportId          String?        @map("report_id") @db.Uuid
+  postId            String?        @map("post_id") @db.Uuid
+  commentId         String?        @map("comment_id") @db.Uuid
+  targetUserId      String?        @map("target_user_id") @db.Uuid
+  moderatorNote     String?        @map("moderator_note") @db.VarChar(1000)
+  metadata          Json?
+  actorAnonymizedAt DateTime?      @map("actor_anonymized_at") @db.Timestamptz(6)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
   actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
   club       Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
@@ -623,6 +665,7 @@ model AuditLog {
   @@index([clubId, createdAt], map: "audit_logs_club_id_created_at_idx")
   @@index([clubId, action, createdAt], map: "audit_logs_club_id_action_created_at_idx")
   @@index([actorId, createdAt], map: "audit_logs_actor_id_created_at_idx")
+  @@index([actorAnonymizedAt, createdAt], map: "audit_logs_anonymized_created_at_idx")
   @@index([targetUserId, createdAt], map: "audit_logs_target_user_id_created_at_idx")
   @@index([reportId], map: "audit_logs_report_id_idx")
   @@index([postId], map: "audit_logs_post_id_idx")

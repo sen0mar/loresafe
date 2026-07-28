@@ -12,6 +12,10 @@ import {
   activeUserSelect,
   findActiveUserByReservedName
 } from "../../core/identity/active-user.js";
+import {
+  anonymizeDeletedUserAuditLogsInTransaction,
+  purgeExpiredAuditLogsInTransaction
+} from "../audit/audit-log.repository.js";
 
 export type UpdateCurrentUserProfileInput = {
   displayName?: string;
@@ -193,6 +197,9 @@ export const usersRepository: UsersRepository = {
           parentId: null
         }
       });
+
+      await anonymizeDeletedUserAuditLogsInTransaction(transaction, userId);
+      await purgeExpiredAuditLogsInTransaction(transaction);
 
       await transaction.user.delete({
         where: {

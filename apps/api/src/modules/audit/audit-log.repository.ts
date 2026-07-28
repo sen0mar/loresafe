@@ -2,6 +2,11 @@ import type { AuditLogAction, Prisma } from "../../generated/prisma/client.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
+export const auditLogRetentionDays = 365;
+export const auditLogCleanupBatchSize = 100;
+export const deletedActorDisplayName = "Deleted user";
+export const deletedActorUsername = "deleted-account";
+
 type AuditLogRecordInput = {
   action: AuditLogAction;
   reportId?: string | null;
@@ -55,6 +60,7 @@ export const createAuditLogInTransaction = async (
   transaction: TransactionClient,
   input: AuditLogInput
 ) => {
+  await purgeExpiredAuditLogsInTransaction(transaction);
   const snapshots = await findAuditSubjectSnapshots(
     transaction,
     input.actorId,
@@ -94,6 +100,7 @@ export const createAuditLogsInTransaction = async (
     };
   }
 
+  await purgeExpiredAuditLogsInTransaction(transaction);
   const snapshots = await findAuditSubjectSnapshots(
     transaction,
     input.actorId,
@@ -114,4 +121,41 @@ export const createAuditLogsInTransaction = async (
       metadata: record.metadata
     }))
   });
+};
+
+export const anonymizeDeletedUserAuditLogsInTransaction = (
+  transaction: TransactionClient,
+  userId: string,
+  now = new Date()
+) =>
+  transaction.auditLog.updateMany({
+    where: {
+      actorId: userId,
+      actorAnonymizedAt: null
+    },
+    data: {
+      actorDisplayName: deletedActorDisplayName,
+      actorUsername: deletedActorUsername,
+      actorAnonymizedAt: now
+    }
+  });
+
+export const purgeExpiredAuditLogsInTransaction = (
+  transaction: TransactionClient,
+  now = new Date()
+) => {
+  const retentionCutoff = new Date(
+    now.getTime() - auditLogRetentionDays * 24 * 60 * 60 * 1000
+  );
+
+  return transaction.$executeRaw`
+    DELETE FROM "audit_logs"
+    WHERE "id" IN (
+      SELECT "id"
+      FROM "audit_logs"
+      WHERE "created_at" < ${retentionCutoff}
+      ORDER BY "created_at" ASC
+      LIMIT ${auditLogCleanupBatchSize}
+    )
+  `;
 };

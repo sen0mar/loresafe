@@ -96,6 +96,9 @@ Cache, rate-limit, and deferred work:
   calls at its deadline where the client supports cancellation. Public
   liveness remains dependency-free.
 - Comment and progress-unlock notifications are persisted atomically in their owning transactions with deterministic unique event keys.
+- Moderation audit records are retained for 365 days. Real moderation and
+  account-deletion requests remove at most 100 expired rows per transaction;
+  deleted-user actor snapshots are anonymized before the user row is removed.
 - R2 deletion records remain durable; committed deletions are attempted after the transaction and retried in a bounded batch during later real upload traffic.
 - No timer, cron, startup initializer, or reconnect loop may query PostgreSQL in the Free-plan deployment.
 
@@ -129,11 +132,18 @@ Authentication:
 - PostgreSQL stores only SHA-256 hashes of access-session and refresh-token identifiers, with expiry and revocation timestamps for per-device and all-session revocation.
 - Logout revokes the current persisted session before clearing both cookies; logout-all revokes every current user session.
 - Access-token verification accepts the current signing key and one explicitly configured previous key during a bounded rotation window. Refresh rotation invalidates the previous refresh token and access-session identifier.
+- Each device session has a refresh-token family ID and monotonic generation.
+  Rotation retains a hashed spent-token tombstone for 24 hours. A repeated
+  request within five seconds is denied without revoking the family to tolerate
+  a legitimate parallel retry; later reuse revokes the complete family,
+  disconnects local live events, and persists a security event and account
+  notification.
 - Do not trust roles, progress, or membership from the JWT; load fresh authorization data from PostgreSQL.
 - Password change should invalidate existing access and refresh sessions through the user/session version and persisted session revocation.
 - Permanent account deletion requires current-password reauthentication and
   rejects stale session versions; the deletion transaction increments the
-  session version before destructive writes.
+  session version before destructive writes and anonymizes audit actor
+  snapshots before removing the user.
 
 Authorization:
 

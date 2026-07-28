@@ -177,6 +177,14 @@ const landingFooterLinks = [
   {
     label: "Log in",
     to: "/login"
+  },
+  {
+    label: "Privacy",
+    to: "/privacy"
+  },
+  {
+    label: "Terms",
+    to: "/terms"
   }
 ];
 

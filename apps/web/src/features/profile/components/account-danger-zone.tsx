@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -99,7 +99,13 @@ export const AccountDangerZone = () => {
           <div className="min-w-0">
             <p className="text-sm font-medium text-primary">Delete account</p>
             <p className="mt-1 text-sm leading-6 text-muted">
-              This permanently deletes your account and cannot be undone.
+              This permanently deletes your active account. Anonymized audit
+              history is kept for up to 365 days, and protected recovery copies
+              remain for their backup window.{" "}
+              <Link className="text-brand hover:underline" to="/privacy">
+                Privacy details
+              </Link>
+              .
             </p>
           </div>
           <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -118,7 +124,9 @@ export const AccountDangerZone = () => {
                 <DialogTitle>Delete your account?</DialogTitle>
                 <DialogDescription>
                   Deleting your account permanently deletes your profile and all
-                  posts and comments associated with it. This cannot be undone.
+                  posts and comments associated with it. Anonymized audit
+                  history and time-limited recovery copies remain as described
+                  in the Privacy Policy. This cannot be undone.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-3">

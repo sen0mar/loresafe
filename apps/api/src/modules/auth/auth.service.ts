@@ -76,6 +76,18 @@ export type AuthService = {
 type PasswordVerifier = typeof verifyPassword;
 const verificationTtlMs = 24 * 60 * 60 * 1000;
 const passwordResetTtlMs = 60 * 60 * 1000;
+export const refreshReuseGraceMs = 5_000;
+export const refreshTombstoneTtlMs = 24 * 60 * 60 * 1000;
+
+export class RefreshTokenReuseError extends HttpError {
+  readonly userId: string;
+
+  constructor(userId: string) {
+    super(401, "UNAUTHORIZED", "Authentication required");
+    this.name = "RefreshTokenReuseError";
+    this.userId = userId;
+  }
+}
 
 export const createAuthService = (
   usersRepository: AuthUsersRepository = authUsersRepository,
@@ -220,29 +232,37 @@ export const createAuthService = (
       }
 
       const currentRefreshTokenHash = hashSessionIdentifier(refreshToken);
-      const session = await sessionsRepository.findActiveByRefreshTokenHash(
+      const nextRefreshToken = createRefreshToken();
+      const nextSessionId = createSessionIdentifier();
+      const now = new Date();
+      const rotation = await sessionsRepository.rotateOrDetectRefreshReuse({
         currentRefreshTokenHash,
-        new Date()
-      );
-      const user = session
-        ? await usersRepository.findActiveUserById(session.userId)
-        : null;
+        nextSessionIdHash: hashSessionIdentifier(nextSessionId),
+        nextRefreshTokenHash: hashSessionIdentifier(nextRefreshToken),
+        now,
+        graceUntil: new Date(now.getTime() + refreshReuseGraceMs),
+        tombstoneExpiresAt: new Date(now.getTime() + refreshTombstoneTtlMs)
+      });
 
-      if (!session || !user || session.sessionVersion !== user.sessionVersion) {
+      if (rotation.status === "COMPROMISED") {
+        throw new RefreshTokenReuseError(rotation.userId);
+      }
+
+      if (rotation.status !== "ROTATED") {
         throw authenticationRequiredError();
       }
 
-      const nextRefreshToken = createRefreshToken();
-      const nextSessionId = createSessionIdentifier();
-      const rotated = await sessionsRepository.rotateRefreshToken(
-        session.sessionIdHash,
-        currentRefreshTokenHash,
-        hashSessionIdentifier(nextSessionId),
-        hashSessionIdentifier(nextRefreshToken),
-        new Date()
+      const user = await usersRepository.findActiveUserById(
+        rotation.session.userId
       );
 
-      if (!rotated) {
+      if (!user || rotation.session.sessionVersion !== user.sessionVersion) {
+        await sessionsRepository.revokeSession(
+          {
+            sessionIdHash: rotation.session.sessionIdHash
+          },
+          new Date()
+        );
         throw authenticationRequiredError();
       }
 

@@ -67,6 +67,13 @@ describe("frontend regression smoke", () => {
     });
     const user = userEvent.setup();
 
+    expect(screen.getByRole("link", { name: "Terms of Use" })).toHaveAttribute(
+      "href",
+      "/terms"
+    );
+    expect(
+      screen.getByRole("link", { name: "Privacy Policy" })
+    ).toHaveAttribute("href", "/privacy");
     await user.type(screen.getByLabelText("Email"), "new@example.com");
     await user.type(screen.getByLabelText("Username"), "New_Reader");
     const signupPasswordInput = screen.getByLabelText("Password");
@@ -203,6 +210,10 @@ describe("frontend regression smoke", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("Danger zone")).toBeVisible();
+    expect(screen.getByText(/Anonymized audit history/)).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Privacy details" })
+    ).toHaveAttribute("href", "/privacy");
 
     await user.click(screen.getByRole("button", { name: /^delete account$/i }));
 

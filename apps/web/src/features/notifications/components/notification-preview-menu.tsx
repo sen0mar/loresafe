@@ -120,7 +120,7 @@ const NotificationPreviewItem = ({
             {notification.safeText}
           </span>
           <span className="mt-1 block truncate text-xs text-faint">
-            {notification.club.title} -{" "}
+            {notification.club?.title ?? "Account security"} -{" "}
             {formatNotificationPreviewTime(notification.createdAt)}
           </span>
         </span>
@@ -153,9 +153,11 @@ const getNotificationTargetPath = (notification: NotificationItem) => {
     return `/app/posts/${notification.postId}`;
   }
 
-  if (notification.type === "PROGRESS_UNLOCK") {
+  if (notification.type === "PROGRESS_UNLOCK" && notification.club) {
     return `/app/clubs/${notification.club.linkName}/recently-unlocked`;
   }
 
-  return getClubFeedPath(notification.club.linkName);
+  return notification.club
+    ? getClubFeedPath(notification.club.linkName)
+    : "/app/notifications";
 };

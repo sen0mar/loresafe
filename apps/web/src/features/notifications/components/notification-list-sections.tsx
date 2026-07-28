@@ -24,7 +24,8 @@ const notificationTypeLabels: Record<NotificationItem["type"], string> = {
   POST_COMMENT: "Comment",
   COMMENT_REPLY: "Reply",
   PROGRESS_UNLOCK: "Unlocked",
-  MODERATION_WARNING: "Warning"
+  MODERATION_WARNING: "Warning",
+  SECURITY_ALERT: "Security"
 };
 
 type ExitingNotification = {
@@ -69,9 +70,11 @@ export const NotificationRow = ({
   const isLocked = notification.visibility === "LOCKED";
   const targetPath = notification.postId
     ? `/app/posts/${notification.postId}`
-    : notification.type === "PROGRESS_UNLOCK"
+    : notification.type === "PROGRESS_UNLOCK" && notification.club
       ? `/app/clubs/${notification.club.linkName}/recently-unlocked`
-      : getClubFeedPath(notification.club.linkName);
+      : notification.club
+        ? getClubFeedPath(notification.club.linkName)
+        : "/app/notifications";
 
   return (
     <div ref={rowRef} className={cn("notification-row-shell")}>
@@ -113,10 +116,16 @@ export const NotificationRow = ({
                   <p className="text-sm font-medium leading-5 text-primary">
                     {notification.safeText}
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-faint">
-                    Milestone {notification.requiredMilestone.position}:{" "}
-                    {notification.requiredMilestone.label}
-                  </p>
+                  {notification.requiredMilestone ? (
+                    <p className="mt-1 text-xs leading-5 text-faint">
+                      Milestone {notification.requiredMilestone.position}:{" "}
+                      {notification.requiredMilestone.label}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs leading-5 text-faint">
+                      Account security
+                    </p>
+                  )}
                 </div>
               </Link>
               <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:self-end">

@@ -11,7 +11,11 @@ import { apiDelete, apiGet, apiPost } from "@/shared/api/api-client";
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
 export type NotificationType =
-  "POST_COMMENT" | "COMMENT_REPLY" | "PROGRESS_UNLOCK" | "MODERATION_WARNING";
+  | "POST_COMMENT"
+  | "COMMENT_REPLY"
+  | "PROGRESS_UNLOCK"
+  | "MODERATION_WARNING"
+  | "SECURITY_ALERT";
 
 export type NotificationItem = {
   id: string;
@@ -22,14 +26,14 @@ export type NotificationItem = {
     id: string;
     title: string;
     linkName: string;
-  };
+  } | null;
   postId: string | null;
   commentId: string | null;
   requiredMilestone: {
     id: string;
     position: number;
     label: string;
-  };
+  } | null;
   readAt: string | null;
   createdAt: string;
 };
