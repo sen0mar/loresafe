@@ -10,7 +10,8 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "pnpm prisma:generate && tsc -p tsconfig.build.json",
-    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
+    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit && pnpm typecheck:scripts",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "test": "pnpm prisma:generate && vitest run",
     "test:coverage": "pnpm prisma:generate && vitest run --coverage",
     "test:integration:database": "pnpm prisma:generate && RUN_DATABASE_INTEGRATION_TESTS=1 vitest run --config vitest.integration.config.ts",
@@ -44,6 +45,7 @@
     "jose": "^6.2.3",
     "pg": "^8.22.0",
     "rate-limit-redis": "^6.0.0",
+    "sharp": "0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

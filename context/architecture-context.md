@@ -224,7 +224,9 @@ File upload flow:
 2. Backend validates ownership, club membership, file type, size, and spoiler requirement.
 3. Backend creates pending file metadata and returns a presigned upload URL.
 4. Client uploads directly to R2.
-5. Client confirms upload; backend verifies/marks it complete.
+5. Client confirms upload; backend applies bounded image decode/re-encode,
+   strips metadata, replaces the object with the sanitized bytes, and marks it
+   complete only after the replacement succeeds.
 6. Real upload traffic opportunistically reconciles a bounded batch of stale, unconfirmed, or unattached assets.
 
 Notification refresh flow:
@@ -327,9 +329,10 @@ Release gate:
   independently visible jobs. A stable `Release gate` aggregate fails unless
   every safety-critical job succeeds.
 - The complete release gate also runs each Monday at 03:17 UTC so the production
-  dependency audit and full-history Gitleaks scan are repeated during a quiet
-  period. Dependabot opens bounded weekly npm workspace and GitHub Actions
-  update pull requests; it never merges them automatically.
+  dependency audit, full-history Gitleaks scan, and disposable-PostgreSQL
+  performance seed/plan check are repeated during a quiet period. Dependabot
+  opens bounded weekly npm workspace and GitHub Actions update pull requests;
+  it never merges them automatically.
 - CodeQL analyzes JavaScript and TypeScript independently on main/PR events and
   each Wednesday at 04:43 UTC. It is intentionally outside the release-gate
   aggregate so branch protection can require its result separately.

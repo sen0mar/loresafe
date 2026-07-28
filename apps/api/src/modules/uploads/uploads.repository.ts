@@ -334,6 +334,7 @@ export const uploadsRepository: UploadsRepository = {
           widthPx: validation.widthPx,
           heightPx: validation.heightPx,
           isAnimated: validation.isAnimated,
+          sizeBytes: validation.sizeBytes ?? currentAsset.sizeBytes,
           validatedAt: readyAt
         },
         select: fileAssetSelect

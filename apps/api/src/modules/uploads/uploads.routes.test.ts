@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { env } from "../../config/env.js";
@@ -477,6 +478,11 @@ describe("uploads routes", () => {
     });
     expect(repository.users.get(owner.id)?.avatarAssetId).toBe(avatar?.id);
     expect(repository.clubs.get(club.id)?.coverAssetId).toBe(cover?.id);
+    expect(storage.writtenObjects.get(avatar?.objectKey ?? "")).toBeDefined();
+    expect(storage.writtenObjects.get(cover?.objectKey ?? "")).toBeDefined();
+    expect(completedAvatar.body.asset.sizeBytes).toBe(
+      storage.writtenObjects.get(avatar?.objectKey ?? "")?.byteLength
+    );
   });
 
   it("marks matching post image uploads ready without returning a public URL", async () => {
@@ -511,6 +517,9 @@ describe("uploads routes", () => {
       url: null
     });
     expect(repository.clubs.get(club.id)?.coverAssetId).toBeNull();
+    expect(
+      storage.writtenObjects.get(postImage?.objectKey ?? "")
+    ).toBeDefined();
   });
 
   it("maps a concurrent upload-row disappearance to a stable conflict", async () => {
@@ -843,6 +852,7 @@ class InMemoryUploadsRepository
       widthPx: validation.widthPx,
       heightPx: validation.heightPx,
       isAnimated: validation.isAnimated,
+      sizeBytes: validation.sizeBytes ?? asset.sizeBytes,
       validatedAt: readyAt,
       readyAt,
       updatedAt: readyAt
@@ -888,6 +898,7 @@ class FakeObjectStorage implements ObjectStorage {
     }
   >();
   readonly objectBytes = new Map<string, Uint8Array>();
+  readonly writtenObjects = new Map<string, Uint8Array>();
   readonly deletedObjectKeys: string[] = [];
   readonly presignedUploads: Array<{
     contentLength: number;
@@ -936,7 +947,7 @@ class FakeObjectStorage implements ObjectStorage {
       throw new Error("Object bytes are unavailable.");
     }
 
-    return createValidImageBytes(
+    return await createValidImageBytes(
       metadata.contentType,
       Math.min(metadata.contentLength, maxBytes)
     );
@@ -947,24 +958,46 @@ class FakeObjectStorage implements ObjectStorage {
   };
 
   getPublicUrl = (objectKey: string) => `https://assets.example/${objectKey}`;
+
+  putObject = async ({
+    bytes,
+    contentType,
+    objectKey
+  }: {
+    bytes: Uint8Array;
+    contentType: string;
+    objectKey: string;
+  }) => {
+    this.writtenObjects.set(objectKey, bytes);
+    this.metadata.set(objectKey, {
+      contentLength: bytes.byteLength,
+      contentType
+    });
+  };
 }
 
-const createValidImageBytes = (contentType: string, size: number) => {
+const createValidImageBytes = async (contentType: string, size: number) => {
+  const image = sharp({
+    create: {
+      width: 8,
+      height: 8,
+      channels: 3,
+      background: "#123456"
+    }
+  });
+  const encoded =
+    contentType === "image/png"
+      ? await image.png().toBuffer()
+      : contentType === "image/webp"
+        ? await image.webp().toBuffer()
+        : await image.jpeg().toBuffer();
+
+  if (encoded.byteLength > size) {
+    throw new Error("Test image does not fit the declared object size.");
+  }
+
   const bytes = new Uint8Array(size);
-
-  if (contentType === "image/png") {
-    return createPngBytes(size, 64, 64);
-  }
-
-  if (contentType === "image/webp") {
-    bytes.set([82, 73, 70, 70], 0);
-    bytes.set([87, 69, 66, 80], 8);
-    bytes.set([86, 80, 56, 88], 12);
-    bytes.set([63, 0, 0, 63, 0, 0], 24);
-    return bytes;
-  }
-
-  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 64, 0, 64], 0);
+  bytes.set(encoded);
   return bytes;
 };
 
