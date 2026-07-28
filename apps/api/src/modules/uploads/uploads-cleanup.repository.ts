@@ -9,7 +9,7 @@ export type UploadsCleanupRepository = {
 };
 
 const pendingUploadLifetimeMs = 20 * 60 * 1000;
-const unattachedPostImageLifetimeMs = 24 * 60 * 60 * 1000;
+const unattachedReadyAssetLifetimeMs = 24 * 60 * 60 * 1000;
 const retryDeletionAfterMs = 5 * 60 * 1000;
 
 export const uploadsCleanupRepository: UploadsCleanupRepository = {
@@ -17,7 +17,7 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
     prisma.$transaction(async (transaction) => {
       const pendingCutoff = new Date(now.getTime() - pendingUploadLifetimeMs);
       const unattachedCutoff = new Date(
-        now.getTime() - unattachedPostImageLifetimeMs
+        now.getTime() - unattachedReadyAssetLifetimeMs
       );
       const retryCutoff = new Date(now.getTime() - retryDeletionAfterMs);
       const assets = await transaction.fileAsset.findMany({
@@ -34,11 +34,23 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
             },
             {
               status: "READY",
-              purpose: "POST_IMAGE",
-              postId: null,
               readyAt: {
                 lt: unattachedCutoff
-              }
+              },
+              OR: [
+                {
+                  purpose: "POST_IMAGE",
+                  postId: null
+                },
+                {
+                  purpose: "AVATAR",
+                  avatarForUser: null
+                },
+                {
+                  purpose: "CLUB_COVER",
+                  coverForClub: null
+                }
+              ]
             }
           ]
         },
@@ -117,6 +129,10 @@ const cleanupReason = (asset: {
 }): StorageDeletionReason => {
   if (asset.status === "READY" && asset.purpose === "POST_IMAGE") {
     return "UNATTACHED_POST_IMAGE";
+  }
+
+  if (asset.status === "READY") {
+    return "REPLACED_ASSET";
   }
 
   if (asset.status === "PENDING") {

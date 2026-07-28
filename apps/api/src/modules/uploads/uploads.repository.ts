@@ -1,5 +1,7 @@
 import { prisma } from "../../core/prisma/client.js";
 import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
+import { activeUserBanWhere } from "../clubs/club-bans.js";
+import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import type { ValidatedImage } from "./image-validation.js";
 
 export type FileAssetPurpose = "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
@@ -47,6 +49,16 @@ export type CreateFileAssetInput = {
   sizeBytes: number;
 };
 
+export type MarkAssetReadyAndAttachResult =
+  | {
+      status: "SUCCESS";
+      asset: FileAssetRecord;
+      deletionIds: string[];
+    }
+  | {
+      status: "BANNED" | "FORBIDDEN" | "NOT_FOUND";
+    };
+
 export type UploadsRepository = {
   createPendingFileAsset: (
     input: CreateFileAssetInput
@@ -61,12 +73,10 @@ export type UploadsRepository = {
   ) => Promise<{ asset: FileAssetRecord; deletionId: string } | null>;
   markAssetReadyAndAttach: (
     asset: FileAssetRecord,
+    actorId: string,
     readyAt: Date,
     validation: ValidatedImage
-  ) => Promise<{
-    asset: FileAssetRecord;
-    deletionIds: string[];
-  } | null>;
+  ) => Promise<MarkAssetReadyAndAttachResult>;
 };
 
 const fileAssetSelect = {
@@ -222,8 +232,19 @@ export const uploadsRepository: UploadsRepository = {
       };
     }),
 
-  markAssetReadyAndAttach: (asset, readyAt, validation) =>
+  markAssetReadyAndAttach: (asset, actorId, readyAt, validation) =>
     prisma.$transaction(async (transaction) => {
+      if (asset.purpose === "CLUB_COVER") {
+        if (
+          !asset.clubId ||
+          !(await lockClubAuthorizationChanges(transaction, asset.clubId))
+        ) {
+          return {
+            status: "NOT_FOUND"
+          };
+        }
+      }
+
       const lockedRows = await transaction.$queryRaw<Array<{ id: string }>>`
         SELECT "id"
         FROM "file_assets"
@@ -232,7 +253,9 @@ export const uploadsRepository: UploadsRepository = {
       `;
 
       if (lockedRows.length === 0) {
-        return null;
+        return {
+          status: "NOT_FOUND"
+        };
       }
 
       const currentAsset = await transaction.fileAsset.findUniqueOrThrow({
@@ -240,8 +263,61 @@ export const uploadsRepository: UploadsRepository = {
         select: fileAssetSelect
       });
 
+      if (currentAsset.ownerId !== actorId) {
+        return {
+          status: "NOT_FOUND"
+        };
+      }
+
+      if (currentAsset.purpose === "CLUB_COVER" && currentAsset.clubId) {
+        const now = new Date();
+        const clubAuthority = await transaction.club.findUnique({
+          where: {
+            id: currentAsset.clubId
+          },
+          select: {
+            memberships: {
+              where: {
+                userId: actorId
+              },
+              select: {
+                role: true
+              },
+              take: 1
+            },
+            bans: {
+              where: activeUserBanWhere(actorId, now),
+              select: {
+                id: true
+              },
+              take: 1
+            }
+          }
+        });
+        const role = clubAuthority?.memberships[0]?.role;
+
+        if (!clubAuthority || !role) {
+          return {
+            status: "NOT_FOUND"
+          };
+        }
+
+        if (clubAuthority.bans.length > 0) {
+          return {
+            status: "BANNED"
+          };
+        }
+
+        if (role !== "OWNER" && role !== "MODERATOR") {
+          return {
+            status: "FORBIDDEN"
+          };
+        }
+      }
+
       if (currentAsset.status !== "PENDING") {
         return {
+          status: "SUCCESS",
           asset: currentAsset,
           deletionIds: []
         };
@@ -265,10 +341,10 @@ export const uploadsRepository: UploadsRepository = {
 
       const deletionIds: string[] = [];
 
-      if (asset.purpose === "AVATAR") {
+      if (currentAsset.purpose === "AVATAR") {
         const previousAsset = await transaction.user.findUnique({
           where: {
-            id: asset.ownerId
+            id: currentAsset.ownerId
           },
           select: {
             avatarAsset: {
@@ -282,7 +358,7 @@ export const uploadsRepository: UploadsRepository = {
 
         await transaction.user.update({
           where: {
-            id: asset.ownerId
+            id: currentAsset.ownerId
           },
           data: {
             avatarAssetId: asset.id
@@ -306,10 +382,10 @@ export const uploadsRepository: UploadsRepository = {
             deletionIds.push(deletion.id);
           }
         }
-      } else if (asset.purpose === "CLUB_COVER" && asset.clubId) {
+      } else if (currentAsset.purpose === "CLUB_COVER" && currentAsset.clubId) {
         const previousAsset = await transaction.club.findUnique({
           where: {
-            id: asset.clubId
+            id: currentAsset.clubId
           },
           select: {
             coverAsset: {
@@ -323,7 +399,7 @@ export const uploadsRepository: UploadsRepository = {
 
         await transaction.club.update({
           where: {
-            id: asset.clubId
+            id: currentAsset.clubId
           },
           data: {
             coverAssetId: asset.id
@@ -350,6 +426,7 @@ export const uploadsRepository: UploadsRepository = {
       }
 
       return {
+        status: "SUCCESS",
         asset: updatedAsset,
         deletionIds
       };

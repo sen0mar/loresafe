@@ -180,6 +180,75 @@ describe("uploads routes", () => {
     );
   });
 
+  it.each([
+    {
+      transition: "demotion",
+      expectedStatus: 403,
+      expectedCode: "FORBIDDEN",
+      apply: (
+        targetRepository: InMemoryUploadsRepository,
+        userId: string,
+        clubId: string
+      ) => targetRepository.updateMembershipRole(userId, clubId, "MEMBER")
+    },
+    {
+      transition: "membership removal",
+      expectedStatus: 409,
+      expectedCode: "CONFLICT",
+      apply: (
+        targetRepository: InMemoryUploadsRepository,
+        userId: string,
+        clubId: string
+      ) => targetRepository.removeMembership(userId, clubId)
+    },
+    {
+      transition: "ban",
+      expectedStatus: 403,
+      expectedCode: "BANNED",
+      apply: (
+        targetRepository: InMemoryUploadsRepository,
+        userId: string,
+        clubId: string
+      ) => targetRepository.banUser(userId, clubId)
+    }
+  ])(
+    "revalidates club-cover authority after $transition",
+    async ({ apply, expectedCode, expectedStatus }) => {
+      const moderator = await repository.createUser({
+        email: "cover-moderator@example.com",
+        displayName: "Cover moderator",
+        passwordHash: "$argon2id$v=19$hash"
+      });
+      const club = repository.createClub("authority-change-room");
+      repository.createMembership(moderator.id, club.id, "MODERATOR");
+      const createResponse = await request(app)
+        .post("/api/uploads/public-assets")
+        .set("Cookie", await createSessionCookie(moderator))
+        .send(validClubCoverIntent(club.linkName))
+        .expect(201);
+      const asset = repository.fileAssets.get(createResponse.body.asset.id);
+
+      if (!asset) {
+        throw new Error("Expected club-cover upload fixture.");
+      }
+
+      storage.metadata.set(asset.objectKey, {
+        contentLength: asset.sizeBytes,
+        contentType: asset.contentType
+      });
+      apply(repository, moderator.id, club.id);
+
+      const response = await request(app)
+        .post(`/api/uploads/${asset.id}/complete`)
+        .set("Cookie", await createSessionCookie(moderator))
+        .expect(expectedStatus);
+
+      expect(response.body.error.code).toBe(expectedCode);
+      expect(repository.fileAssets.get(asset.id)?.status).toBe("PENDING");
+      expect(repository.clubs.get(club.id)?.coverAssetId).toBeNull();
+    }
+  );
+
   it("allows club members to create private post image uploads", async () => {
     const member = await repository.createUser({
       email: "member@example.com",
@@ -465,8 +534,9 @@ describe("uploads routes", () => {
       contentLength: asset.sizeBytes,
       contentType: asset.contentType
     });
-    (repository as UploadsRepository).markAssetReadyAndAttach = async () =>
-      null;
+    (repository as UploadsRepository).markAssetReadyAndAttach = async () => ({
+      status: "NOT_FOUND"
+    });
 
     const response = await request(app)
       .post(`/api/uploads/${asset.id}/complete`)
@@ -559,6 +629,7 @@ class InMemoryUploadsRepository
   readonly clubs = new Map<string, StoredClub>();
   readonly deletionObjectKeys = new Map<string, string>();
   readonly fileAssets = new Map<string, FileAssetRecord>();
+  readonly bannedClubUsers = new Set<string>();
   readonly memberships: Array<{
     clubId: string;
     role: ClubMembershipRole;
@@ -622,6 +693,35 @@ class InMemoryUploadsRepository
     });
   };
 
+  banUser = (userId: string, clubId: string) => {
+    this.bannedClubUsers.add(`${clubId}:${userId}`);
+  };
+
+  removeMembership = (userId: string, clubId: string) => {
+    const membershipIndex = this.memberships.findIndex(
+      (membership) =>
+        membership.userId === userId && membership.clubId === clubId
+    );
+
+    if (membershipIndex >= 0) {
+      this.memberships.splice(membershipIndex, 1);
+    }
+  };
+
+  updateMembershipRole = (
+    userId: string,
+    clubId: string,
+    role: ClubMembershipRole
+  ) => {
+    const membership = this.memberships.find(
+      (candidate) => candidate.userId === userId && candidate.clubId === clubId
+    );
+
+    if (membership) {
+      membership.role = role;
+    }
+  };
+
   createPendingFileAsset = async (input: CreateFileAssetInput) => {
     const now = new Date();
     const asset: FileAssetRecord = {
@@ -674,7 +774,7 @@ class InMemoryUploadsRepository
           (membership) =>
             membership.clubId === club.id && membership.userId === userId
         )?.role ?? null,
-      isCurrentUserBanned: false
+      isCurrentUserBanned: this.bannedClubUsers.has(`${club.id}:${userId}`)
     };
   };
 
@@ -702,9 +802,41 @@ class InMemoryUploadsRepository
 
   markAssetReadyAndAttach = async (
     asset: FileAssetRecord,
+    actorId: string,
     readyAt: Date,
     validation: ValidatedImage
   ) => {
+    if (asset.ownerId !== actorId) {
+      return {
+        status: "NOT_FOUND" as const
+      };
+    }
+
+    if (asset.purpose === "CLUB_COVER" && asset.clubId) {
+      if (this.bannedClubUsers.has(`${asset.clubId}:${actorId}`)) {
+        return {
+          status: "BANNED" as const
+        };
+      }
+
+      const role = this.memberships.find(
+        (membership) =>
+          membership.userId === actorId && membership.clubId === asset.clubId
+      )?.role;
+
+      if (!role) {
+        return {
+          status: "NOT_FOUND" as const
+        };
+      }
+
+      if (role !== "OWNER" && role !== "MODERATOR") {
+        return {
+          status: "FORBIDDEN" as const
+        };
+      }
+    }
+
     const readyAsset = {
       ...asset,
       status: "READY" as const,
@@ -733,6 +865,7 @@ class InMemoryUploadsRepository
     }
 
     return {
+      status: "SUCCESS" as const,
       asset: readyAsset,
       deletionIds: []
     };

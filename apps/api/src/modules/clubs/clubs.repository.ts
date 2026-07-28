@@ -233,6 +233,7 @@ export const clubsRepository: ClubsRepository = {
 
   joinPublicClubByLinkName: async (linkName, userId) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const now = new Date();
       const club = await transaction.club.findUnique({
         where: {
@@ -882,6 +883,7 @@ export const clubsRepository: ClubsRepository = {
 
   unbanClubBan: (linkName, banId, actorId) =>
     prisma.$transaction(async (transaction) => {
+      await lockClubAuthorizationChangesByLinkName(transaction, linkName);
       const context = await findBanManagementContext(
         transaction,
         linkName,
@@ -922,8 +924,8 @@ export const clubsRepository: ClubsRepository = {
       const now = new Date();
       const updateResult = await transaction.clubBan.updateMany({
         where: {
+          id: banId,
           clubId: context.club.id,
-          userId: context.ban.user.id,
           ...activeBanWhere(now)
         },
         data: {
