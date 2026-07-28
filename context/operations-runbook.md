@@ -11,7 +11,7 @@
 
 - `GET /api/health` is the cheap process liveness probe. It performs no dependency I/O.
 - Render and fixed-interval synthetics must probe only `GET /api/health`; continuous probes must never call a database-backed endpoint.
-- `GET /api/health/ready` is an explicitly invoked deployment/incident check for PostgreSQL, Upstash Redis, and R2. It wakes suspended dependencies, runs parallel two-second checks, and returns `503` with safe status only when degraded. Do not schedule it on a fixed interval.
+- `GET /api/health/ready` is an explicitly invoked deployment/incident check for PostgreSQL, Upstash Redis, and R2. It requires `OPERATIONS_BEARER_TOKEN`, is strictly rate-limited, single-flights concurrent calls, caches the result for five seconds, aborts supported dependency clients at the two-second deadline, and returns `503` with safe status only when degraded. Do not schedule it on a fixed interval.
 - `GET /api/health/metrics` publishes Prometheus text only when the configured `OPERATIONS_BEARER_TOKEN` is supplied as a bearer token. It includes request count/error/duration series, deep-readiness dependency latency, local SSE connection count, and storage-cleanup outcomes.
 - Configure the probes and alerts represented by `infra/monitoring/synthetic-checks.yaml` and `infra/monitoring/alerts.yaml` in the selected monitoring platform before production promotion.
 - Vercel compresses proxied/static responses at its edge. Do not add application JSON compression unless production header verification shows an uncovered direct-API path and CPU impact is measured.

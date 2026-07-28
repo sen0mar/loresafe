@@ -87,9 +87,8 @@ export const SignupForm = () => {
     setFieldErrors({});
     signupMutation.mutate(toSignupRequest(parseResult.data), {
       onSuccess: () => {
-        // By this point the browser has processed Set-Cookie from the signup response.
-        toast.success("Account created");
-        navigate(redirectTo, { replace: true });
+        toast.success("Check your email to verify your account");
+        navigate(loginPath, { replace: true });
       }
     });
   };

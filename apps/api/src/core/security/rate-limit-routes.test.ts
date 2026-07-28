@@ -26,7 +26,23 @@ describe("registerParsedBodyRateLimiters", () => {
       "/api/auth/login",
       expect.any(Function)
     );
-    expect(app.use).toHaveBeenCalledTimes(2);
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/auth/signup",
+      expect.any(Function)
+    );
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/auth/verification/resend",
+      expect.any(Function)
+    );
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/auth/password/forgot",
+      expect.any(Function)
+    );
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/auth/password/reset",
+      expect.any(Function)
+    );
+    expect(app.use).toHaveBeenCalledTimes(6);
   });
 });
 
@@ -47,6 +63,10 @@ describe("registerRateLimiters", () => {
     );
     expect(app.get).toHaveBeenCalledWith("/api/search", expect.any(Function));
     expect(app.get).toHaveBeenCalledWith("/api/events", expect.any(Function));
+    expect(app.get).toHaveBeenCalledWith(
+      "/api/health/ready",
+      expect.any(Function)
+    );
     expect(app.get).toHaveBeenCalledWith(
       "/api/clubs/:linkName/posts",
       expect.any(Function)

@@ -13,6 +13,7 @@ export const activeUserSelect = {
     }
   },
   sessionVersion: true,
+  emailVerifiedAt: true,
   createdAt: true,
   updatedAt: true
 } as const;

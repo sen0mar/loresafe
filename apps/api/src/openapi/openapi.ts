@@ -1,8 +1,12 @@
 import { z, type ZodType } from "zod";
 
 import {
+  forgotPasswordRequestSchema,
   loginRequestSchema,
-  signupRequestSchema
+  resendVerificationRequestSchema,
+  resetPasswordRequestSchema,
+  signupRequestSchema,
+  verifyEmailRequestSchema
 } from "../modules/auth/auth.schema.js";
 import {
   banClubMemberRequestSchema,
@@ -74,7 +78,7 @@ type RouteContract = {
   query?: keyof typeof contractSchemas;
   responseDto: string;
   responseMediaType?: "application/json" | "text/event-stream" | "text/plain";
-  successStatus?: 200 | 201 | 204;
+  successStatus?: 200 | 201 | 202 | 204;
   summary: string;
   tag: string;
 };
@@ -92,6 +96,7 @@ const contractSchemas = {
   CreateReportRequest: createReportRequestSchema,
   DeleteCurrentUserAccountRequest: deleteCurrentUserAccountRequestSchema,
   DeleteSelectedNotificationsRequest: deleteSelectedNotificationsBodySchema,
+  ForgotPasswordRequest: forgotPasswordRequestSchema,
   ListClubBansQuery: listClubBansQuerySchema,
   ListClubMembersQuery: listClubMembersQuerySchema,
   ListClubPostsQuery: listClubPostsQuerySchema,
@@ -103,6 +108,8 @@ const contractSchemas = {
   ListPostCommentsQuery: listPostCommentsQuerySchema,
   ListPublicClubsQuery: listPublicSeoClubsQuerySchema,
   LoginRequest: loginRequestSchema,
+  ResendVerificationRequest: resendVerificationRequestSchema,
+  ResetPasswordRequest: resetPasswordRequestSchema,
   ModerationBanRequest: moderationReportBanRequestSchema,
   ModerationNoteRequest: moderationReportNoteRequestSchema,
   ModerationRequiredMilestoneRequest:
@@ -114,6 +121,7 @@ const contractSchemas = {
   RecentlyUnlockedSummaryQuery: recentlyUnlockedSummaryQuerySchema,
   SearchQuery: searchQuerySchema,
   SignupRequest: signupRequestSchema,
+  VerifyEmailRequest: verifyEmailRequestSchema,
   UpdateClubMemberRoleRequest: updateClubMemberRoleRequestSchema,
   UpdateClubSettingsRequest: updateClubSettingsRequestSchema,
   UpdateCurrentUserProfileRequest: updateCurrentUserProfileRequestSchema,
@@ -177,7 +185,8 @@ const apiRouteContracts: RouteContract[] = [
     "/api/health/ready",
     "Operations",
     "getReadiness",
-    "ReadinessDto"
+    "ReadinessDto",
+    { operationsAuth: true }
   ),
   publicRoute(
     "get",
@@ -207,8 +216,40 @@ const apiRouteContracts: RouteContract[] = [
     "/api/auth/signup",
     "Authentication",
     "signup",
-    "AuthUserDto",
-    { body: "SignupRequest", successStatus: 201 }
+    "NeutralEmailResponseDto",
+    { body: "SignupRequest", successStatus: 202 }
+  ),
+  publicRoute(
+    "post",
+    "/api/auth/verification/resend",
+    "Authentication",
+    "resendEmailVerification",
+    "NeutralEmailResponseDto",
+    { body: "ResendVerificationRequest", successStatus: 202 }
+  ),
+  publicRoute(
+    "post",
+    "/api/auth/verification/confirm",
+    "Authentication",
+    "confirmEmailVerification",
+    "CompletedResponseDto",
+    { body: "VerifyEmailRequest", idempotent: true }
+  ),
+  publicRoute(
+    "post",
+    "/api/auth/password/forgot",
+    "Authentication",
+    "requestPasswordReset",
+    "NeutralEmailResponseDto",
+    { body: "ForgotPasswordRequest", successStatus: 202 }
+  ),
+  publicRoute(
+    "post",
+    "/api/auth/password/reset",
+    "Authentication",
+    "resetPassword",
+    "CompletedResponseDto",
+    { body: "ResetPasswordRequest", idempotent: true }
   ),
   publicRoute(
     "post",

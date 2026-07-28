@@ -56,7 +56,7 @@ describe("frontend regression smoke", () => {
         method: "POST",
         path: "/api/auth/signup",
         response: {
-          user: authUser
+          message: "If the account is eligible, an email has been sent."
         }
       }
     ]);
@@ -82,7 +82,11 @@ describe("frontend regression smoke", () => {
     await user.type(screen.getByLabelText("Confirm password"), "supersecret12");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
-    await waitFor(() => expect(signupPathChanges.at(-1)).toBe("/app/explore"));
+    await waitFor(() =>
+      expect(signupPathChanges.at(-1)).toBe(
+        "/login?redirectTo=%2Fapp%2Fexplore"
+      )
+    );
     expect(signupFetch).toHaveBeenCalledWith(
       "/api/auth/signup",
       expect.objectContaining({

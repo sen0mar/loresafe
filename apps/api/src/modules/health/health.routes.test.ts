@@ -6,7 +6,12 @@ import { createApp as createApiApp } from "../../app.js";
 import { parseEnv } from "../../config/env.js";
 import { isPrismaClientInitialized } from "../../core/prisma/client.js";
 import { createRateLimiters } from "../../core/security/rate-limit.js";
-import type { ReadinessDependencies } from "./readiness.service.js";
+import {
+  checkReadiness,
+  type ReadinessDependencies
+} from "./readiness.service.js";
+
+const readinessOperationsToken = "r".repeat(32);
 
 const createReadinessDependencies = (
   overrides: Partial<ReadinessDependencies> = {}
@@ -21,12 +26,20 @@ const createTestApp = (
   appEnv: Parameters<typeof createApiApp>[0],
   readiness = createReadinessDependencies()
 ) =>
-  createApiApp(appEnv, {
-    rateLimiters: createRateLimiters({
-      storeFactory: () => new MemoryStore()
-    }),
-    readiness
-  });
+  createApiApp(
+    appEnv ??
+      parseEnv({
+        DATABASE_URL: "postgresql://test:test@localhost:5432/loresafe_test",
+        JWT_SECRET: "a".repeat(32),
+        OPERATIONS_BEARER_TOKEN: readinessOperationsToken
+      }),
+    {
+      rateLimiters: createRateLimiters({
+        storeFactory: () => new MemoryStore()
+      }),
+      readiness
+    }
+  );
 
 describe("health routes", () => {
   const testAppName = "LoreSafe Health Test";
@@ -81,6 +94,7 @@ describe("health routes", () => {
     );
     const response = await request(readinessApp)
       .get("/api/health/ready")
+      .set("Authorization", `Bearer ${readinessOperationsToken}`)
       .expect(200);
 
     expect(response.body.status).toBe("ready");
@@ -89,6 +103,70 @@ describe("health routes", () => {
       redis: expect.objectContaining({ status: "ready" }),
       storage: expect.objectContaining({ status: "ready" })
     });
+  });
+
+  it("hides deep readiness without the operations token and does no dependency work", async () => {
+    const dependencies = {
+      database: vi.fn(async () => undefined),
+      redis: vi.fn(async () => undefined),
+      storage: vi.fn(async () => undefined)
+    } satisfies ReadinessDependencies;
+    const readinessApp = createTestApp(undefined, dependencies);
+
+    await request(readinessApp).get("/api/health/ready").expect(404);
+    expect(dependencies.database).not.toHaveBeenCalled();
+    expect(dependencies.redis).not.toHaveBeenCalled();
+    expect(dependencies.storage).not.toHaveBeenCalled();
+  });
+
+  it("single-flights concurrent deep readiness and reuses the short cache", async () => {
+    const dependencies = {
+      database: vi.fn(async () => undefined),
+      redis: vi.fn(async () => undefined),
+      storage: vi.fn(async () => undefined)
+    } satisfies ReadinessDependencies;
+    const readinessApp = createTestApp(undefined, dependencies);
+    const authorizedReadiness = () =>
+      request(readinessApp)
+        .get("/api/health/ready")
+        .set("Authorization", `Bearer ${readinessOperationsToken}`);
+
+    await Promise.all([
+      authorizedReadiness().expect(200),
+      authorizedReadiness().expect(200),
+      authorizedReadiness().expect(200)
+    ]);
+    await authorizedReadiness().expect(200);
+
+    expect(dependencies.database).toHaveBeenCalledTimes(1);
+    expect(dependencies.redis).toHaveBeenCalledTimes(1);
+    expect(dependencies.storage).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts deadline-bound dependency work where the client supports it", async () => {
+    vi.useFakeTimers();
+    let wasAborted = false;
+    const readiness = checkReadiness(
+      createReadinessDependencies({
+        storage: (signal) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              wasAborted = true;
+              reject(new Error("aborted"));
+            });
+          })
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await expect(readiness).resolves.toMatchObject({
+      status: "degraded",
+      checks: {
+        storage: expect.objectContaining({ status: "unavailable" })
+      }
+    });
+    expect(wasAborted).toBe(true);
+    vi.useRealTimers();
   });
 
   it("keeps operations metrics hidden unless the bearer token matches", async () => {
@@ -122,6 +200,7 @@ describe("health routes", () => {
     );
     const response = await request(readinessApp)
       .get("/api/health/ready")
+      .set("Authorization", `Bearer ${readinessOperationsToken}`)
       .expect(503);
 
     expect(response.body.status).toBe("degraded");

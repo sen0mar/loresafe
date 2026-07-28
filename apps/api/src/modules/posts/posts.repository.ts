@@ -14,6 +14,7 @@ import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
 import { canDeletePost, canViewClubFeed } from "./posts.policy.js";
 import { lockClubAuthorization } from "../clubs/club-authorization-lock.js";
 import { lockPostForWriteAuthorization } from "../spoilers/content-authorization-lock.js";
+import { lockUserClubProgress } from "../progress/progress-authorization-lock.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -87,6 +88,7 @@ export type ClubPostRecord = {
 };
 
 export type ListClubPostsResult = {
+  club?: ClubFeedRecord;
   posts: ClubPostRecord[];
   nextCursor: ClubPostsCursor | null;
   hasMore: boolean;
@@ -142,7 +144,7 @@ export type PostsRepository = {
   listClubPosts: (
     clubId: string,
     input: ListClubPostsInput
-  ) => Promise<ListClubPostsResult>;
+  ) => Promise<ListClubPostsResult | null>;
   findPostForDetail: (
     postId: string,
     userId: string
@@ -495,103 +497,150 @@ export const postsRepository: PostsRepository = {
   listClubPosts: async (
     clubId,
     { authorId, cursor, currentMilestonePosition, limit, mode, tab }
-  ) => {
-    const cursorWhere: Prisma.PostWhereInput = cursor
-      ? {
-          OR: [
-            {
-              createdAt: {
-                lt: cursor.createdAt
-              }
-            },
-            {
-              createdAt: cursor.createdAt,
-              id: {
-                gt: cursor.id
-              }
-            }
-          ]
-        }
-      : {};
-    const progressPosition = currentMilestonePosition ?? 0;
-    const tabWhere: Prisma.PostWhereInput =
-      tab === "safe"
-        ? mode === "FINISHED"
-          ? {}
-          : {
-              requiredMilestone: {
-                position: {
-                  lte: progressPosition
+  ) =>
+    prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, clubId))) {
+        return null;
+      }
+      await lockUserClubProgress(transaction, authorId, clubId);
+      const cursorWhere: Prisma.PostWhereInput = cursor
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursor.createdAt
                 }
-              }
-            }
-        : tab === "locked"
-          ? mode === "FINISHED"
-            ? {
+              },
+              {
+                createdAt: cursor.createdAt,
                 id: {
-                  equals: "00000000-0000-0000-0000-000000000000"
+                  gt: cursor.id
                 }
               }
+            ]
+          }
+        : {};
+      const progressPosition = currentMilestonePosition ?? 0;
+      const tabWhere: Prisma.PostWhereInput =
+        tab === "safe"
+          ? mode === "FINISHED"
+            ? {}
             : {
                 requiredMilestone: {
                   position: {
-                    gt: progressPosition
+                    lte: progressPosition
                   }
                 }
               }
-          : tab === "unanswered"
-            ? {
-                comments: {
-                  none: {
-                    status: "VISIBLE",
-                    deletedAt: null
-                  }
-                }
-              }
-            : tab === "my-posts"
+          : tab === "locked"
+            ? mode === "FINISHED"
               ? {
-                  authorId
+                  id: {
+                    equals: "00000000-0000-0000-0000-000000000000"
+                  }
                 }
-              : {};
-    const posts = await prisma.post.findMany({
-      where: {
-        clubId,
-        status: "VISIBLE",
-        deletedAt: null,
-        ...tabWhere,
-        ...cursorWhere
-      },
-      orderBy: [
-        {
-          createdAt: "desc"
+              : {
+                  requiredMilestone: {
+                    position: {
+                      gt: progressPosition
+                    }
+                  }
+                }
+            : tab === "unanswered"
+              ? {
+                  comments: {
+                    none: {
+                      status: "VISIBLE",
+                      deletedAt: null
+                    }
+                  }
+                }
+              : tab === "my-posts"
+                ? {
+                    authorId
+                  }
+                : {};
+      const posts = await transaction.post.findMany({
+        where: {
+          clubId,
+          status: "VISIBLE",
+          deletedAt: null,
+          ...tabWhere,
+          ...cursorWhere
         },
-        {
-          id: "asc"
+        orderBy: [
+          {
+            createdAt: "desc"
+          },
+          {
+            id: "asc"
+          }
+        ],
+        take: limit + 1,
+        select: postSelect
+      });
+      const pagePosts = posts.slice(0, limit);
+      const lastPost = pagePosts[pagePosts.length - 1];
+
+      const now = new Date();
+      const club = await transaction.club.findUnique({
+        where: { id: clubId },
+        select: {
+          id: true,
+          visibility: true,
+          memberships: {
+            where: { userId: authorId },
+            select: { role: true },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(authorId, now),
+            select: { id: true },
+            take: 1
+          },
+          progress: {
+            where: { userId: authorId },
+            select: {
+              mode: true,
+              currentMilestone: { select: { position: true } }
+            },
+            take: 1
+          }
         }
-      ],
-      take: limit + 1,
-      select: postSelect
-    });
-    const pagePosts = posts.slice(0, limit);
-    const lastPost = pagePosts[pagePosts.length - 1];
+      });
 
-    const reactionMap = await userReactionMapForPostIds(
-      pagePosts.map((post) => post.id),
-      authorId
-    );
+      if (!club) {
+        return null;
+      }
+      const currentProgress = club.progress[0];
+      const reactionMap = await userReactionMapForPostIds(
+        pagePosts.map((post) => post.id),
+        authorId
+      );
 
-    return {
-      posts: pagePosts.map((post) => toClubPostRecord(post, reactionMap)),
-      nextCursor:
-        posts.length > limit && lastPost
-          ? {
-              createdAt: lastPost.createdAt,
-              id: lastPost.id
-            }
-          : null,
-      hasMore: posts.length > limit
-    };
-  },
+      return {
+        club: {
+          id: club.id,
+          visibility: club.visibility,
+          currentUserRole: club.memberships[0]?.role ?? null,
+          isCurrentUserBanned: club.bans.length > 0,
+          progress: {
+            mode: (currentProgress?.mode ?? "STRICT") as ProgressMode,
+            currentMilestonePosition:
+              currentProgress?.currentMilestone?.position ?? null
+          }
+        },
+        posts: pagePosts.map((post) => toClubPostRecord(post, reactionMap)),
+        nextCursor:
+          posts.length > limit && lastPost
+            ? {
+                createdAt: lastPost.createdAt,
+                id: lastPost.id
+              }
+            : null,
+        hasMore: posts.length > limit
+      };
+    }),
 
   findPostForDetail: async (postId, userId) => {
     const now = new Date();

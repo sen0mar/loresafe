@@ -1601,6 +1601,7 @@ class InMemoryReportsRepository
 
   listModerationReports = async (
     clubId: string,
+    _userId: string,
     input: {
       status: ModerationReportStatus;
       cursor: ModerationReportsCursor | null;

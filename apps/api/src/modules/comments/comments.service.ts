@@ -89,10 +89,23 @@ export const createCommentsService = (
         limit: query.limit
       }
     );
+    const currentPost = "post" in result ? result.post : post;
+
+    if (!currentPost) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
+
+    if (currentPost.club.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
+    if (!canViewPostComments(currentPost)) {
+      throw new HttpError(404, "NOT_FOUND", "Post not found");
+    }
 
     return {
       comments: result.comments.map((comment) =>
-        toCommentDto(comment, toCommentVisibilityContext(userId, post))
+        toCommentDto(comment, toCommentVisibilityContext(userId, currentPost))
       ),
       pagination: {
         limit: query.limit,

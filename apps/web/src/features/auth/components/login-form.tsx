@@ -151,6 +151,12 @@ export const LoginForm = () => {
           </Button>
         </form>
 
+        <p className="mt-4 text-center text-sm">
+          <Link className="text-brand hover:underline" to="/forgot-password">
+            Forgot your password?
+          </Link>
+        </p>
+
         <p className="mt-4 text-center text-sm text-faint">
           New to LoreSafe?{" "}
           <Link className="text-brand hover:underline" to={signupPath}>

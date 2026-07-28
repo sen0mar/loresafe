@@ -133,12 +133,22 @@ export const createPostsService = (
       currentMilestonePosition: club.progress.currentMilestonePosition
     });
 
+    const currentClub = result ? ("club" in result ? result.club : club) : null;
+
+    if (!result || !currentClub || !canViewClubFeed(currentClub)) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    }
+
+    if (currentClub.isCurrentUserBanned) {
+      throw bannedFromClubError();
+    }
+
     return {
       posts: await Promise.all(
         result.posts.map((post) =>
           toClubPostCardDto(
             post,
-            toPostVisibilityContext(userId, club),
+            toPostVisibilityContext(userId, currentClub),
             storage
           )
         )

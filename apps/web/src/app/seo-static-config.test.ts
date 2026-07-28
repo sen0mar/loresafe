@@ -202,7 +202,10 @@ describe("static SEO configuration", () => {
       "/app/:path*",
       "/invite/:path*",
       "/login",
-      "/signup"
+      "/signup",
+      "/forgot-password",
+      "/reset-password",
+      "/verify-email"
     ]);
     expect(rewriteSources).not.toContain("/(.*)");
     expect(rewriteSources).not.toContain("/:path*");
@@ -213,7 +216,10 @@ describe("static SEO configuration", () => {
         "/app/:path*",
         "/invite/:path*",
         "/login",
-        "/signup"
+        "/signup",
+        "/forgot-password",
+        "/reset-password",
+        "/verify-email"
       ])
     );
   });

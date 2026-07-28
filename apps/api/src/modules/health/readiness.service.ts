@@ -7,7 +7,7 @@ export type ReadinessDependencyName = "database" | "redis" | "storage";
 
 export type ReadinessDependencies = Record<
   ReadinessDependencyName,
-  () => Promise<void>
+  (signal?: AbortSignal) => Promise<void>
 >;
 
 export type ReadinessCheck = {
@@ -21,23 +21,65 @@ export type ReadinessResult = {
 };
 
 const readinessTimeoutMs = 2_000;
+const readinessCacheMs = 5_000;
+type ReadinessCacheEntry = {
+  expiresAt: number;
+  inFlight: Promise<ReadinessResult> | null;
+  result: ReadinessResult | null;
+};
+const readinessCaches = new WeakMap<
+  ReadinessDependencies,
+  ReadinessCacheEntry
+>();
 
 const defaultReadinessDependencies: ReadinessDependencies = {
   database: async () => {
     await prisma.$queryRaw`SELECT 1`;
   },
   redis: checkUpstashRedisReady,
-  storage: async () => {
+  storage: async (signal) => {
     if (!r2Storage.checkReady) {
       throw new Error("Storage readiness is not configured.");
     }
 
-    await r2Storage.checkReady();
+    await r2Storage.checkReady(signal);
   }
 };
 
 export const checkReadiness = async (
   dependencies: ReadinessDependencies = defaultReadinessDependencies
+): Promise<ReadinessResult> => {
+  const now = Date.now();
+  const cache = readinessCaches.get(dependencies) ?? {
+    expiresAt: 0,
+    inFlight: null,
+    result: null
+  };
+  readinessCaches.set(dependencies, cache);
+
+  if (cache.result && cache.expiresAt > now) {
+    return cache.result;
+  }
+
+  if (cache.inFlight) {
+    return cache.inFlight;
+  }
+
+  cache.inFlight = runReadinessChecks(dependencies);
+
+  try {
+    const result = await cache.inFlight;
+    cache.result = result;
+    cache.expiresAt = Date.now() + readinessCacheMs;
+
+    return result;
+  } finally {
+    cache.inFlight = null;
+  }
+};
+
+const runReadinessChecks = async (
+  dependencies: ReadinessDependencies
 ): Promise<ReadinessResult> => {
   const entries = await Promise.all(
     Object.entries(dependencies).map(async ([name, check]) => {
@@ -45,7 +87,7 @@ export const checkReadiness = async (
       let status: ReadinessCheck["status"] = "ready";
 
       try {
-        await withDeadline(check(), readinessTimeoutMs);
+        await withDeadline(check, readinessTimeoutMs);
       } catch {
         status = "unavailable";
       }
@@ -66,12 +108,18 @@ export const checkReadiness = async (
   };
 };
 
-const withDeadline = <T>(promise: Promise<T>, timeoutMs: number) =>
+const withDeadline = <T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number
+) =>
   new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("Readiness check timed out.")),
-      timeoutMs
-    );
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Readiness check timed out."));
+    }, timeoutMs);
 
-    promise.then(resolve, reject).finally(() => clearTimeout(timeout));
+    operation(controller.signal)
+      .then(resolve, reject)
+      .finally(() => clearTimeout(timeout));
   });

@@ -363,7 +363,9 @@ The API is REST JSON under `/api`, with SSE at `/api/events`. Major route groups
 
 - The versioned OpenAPI 3.1 artifact is in [`apps/api/openapi/openapi.json`](apps/api/openapi/openapi.json).
 - Liveness is available at `GET /api/health`.
-- Dependency readiness is available at `GET /api/health/ready`.
+- Dependency readiness is available at `GET /api/health/ready` only with the
+  configured operations bearer token; public `GET /api/health` remains cheap
+  and dependency-free.
 - Operational metrics are available at `GET /api/health/metrics` only with the dedicated bearer token.
 
 The normalized Prisma model includes users and revocable sessions; clubs, memberships, bans, and invites; milestones and progress history; posts, comments, reactions, and predictions; notifications, reports, and immutable audit attribution; plus file assets and durable storage-deletion records.

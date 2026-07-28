@@ -25,8 +25,10 @@ export const registerRateLimiters = (
     clubSettingsUpdateRateLimiter,
     commentReactionToggleRateLimiter,
     contentRevealRateLimiter,
+    deepReadinessRateLimiter,
     eventConnectionRateLimiter,
     expensiveReadRateLimiter,
+    forgotPasswordRateLimiter,
     inviteAcceptRateLimiter,
     loginRateLimiter,
     logoutRateLimiter,
@@ -38,9 +40,12 @@ export const registerRateLimiters = (
     postImageUploadRateLimiter,
     publicAssetUploadRateLimiter,
     publicSeoReadRateLimiter,
+    resetPasswordRateLimiter,
     reportCreateRateLimiter,
     searchRateLimiter,
-    signupRateLimiter
+    signupRateLimiter,
+    verificationConfirmRateLimiter,
+    verificationResendRateLimiter
   } = rateLimiters;
 
   // Keep these before JSON parsing so blocked requests avoid expensive work.
@@ -48,6 +53,11 @@ export const registerRateLimiters = (
   app.use("/api/auth/refresh", loginRateLimiter);
   app.use("/api/auth/logout", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
+  app.use("/api/auth/verification/resend", verificationResendRateLimiter);
+  app.use("/api/auth/verification/confirm", verificationConfirmRateLimiter);
+  app.use("/api/auth/password/forgot", forgotPasswordRateLimiter);
+  app.use("/api/auth/password/reset", resetPasswordRateLimiter);
+  app.get("/api/health/ready", deepReadinessRateLimiter);
   app.get("/sitemap.xml", publicSeoReadRateLimiter);
   app.get("/api/public/clubs", publicSeoReadRateLimiter);
   app.get("/api/public/clubs/:linkName", publicSeoReadRateLimiter);
@@ -146,12 +156,23 @@ export const registerRateLimiters = (
 export const registerParsedBodyRateLimiters = (
   app: RateLimiterApp,
   {
+    forgotPasswordAccountRateLimiter,
     loginAccountBurstRateLimiter,
-    loginAccountSustainedRateLimiter
+    loginAccountSustainedRateLimiter,
+    resetPasswordTokenRateLimiter,
+    signupAccountRateLimiter,
+    verificationResendAccountRateLimiter
   }: RateLimiters
 ) => {
   // These account-keyed buckets require the validated-shape JSON body and must
   // still run before database lookup or Argon2 verification.
   app.use("/api/auth/login", loginAccountBurstRateLimiter);
   app.use("/api/auth/login", loginAccountSustainedRateLimiter);
+  app.use("/api/auth/signup", signupAccountRateLimiter);
+  app.use(
+    "/api/auth/verification/resend",
+    verificationResendAccountRateLimiter
+  );
+  app.use("/api/auth/password/forgot", forgotPasswordAccountRateLimiter);
+  app.use("/api/auth/password/reset", resetPasswordTokenRateLimiter);
 };

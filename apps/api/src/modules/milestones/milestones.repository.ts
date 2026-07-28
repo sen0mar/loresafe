@@ -10,7 +10,11 @@ import type {
 } from "./milestones.schema.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
-import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
+import {
+  lockClubAuthorization,
+  lockClubAuthorizationChanges
+} from "../clubs/club-authorization-lock.js";
+import { lockUserClubProgress } from "../progress/progress-authorization-lock.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
@@ -456,55 +460,80 @@ export const milestonesRepository: MilestonesRepository = {
 
     const skip = getBoundedPageOffset(page, limit);
 
-    const [milestones, total, progress] = await prisma.$transaction([
-      prisma.milestone.findMany({
-        where: {
-          clubId: club.id
-        },
-        orderBy: [
-          {
-            position: "asc"
+    return prisma.$transaction(async (transaction) => {
+      if (!(await lockClubAuthorization(transaction, club.id))) {
+        return null;
+      }
+      await lockUserClubProgress(transaction, userId, club.id);
+
+      const [milestones, total] = await Promise.all([
+        transaction.milestone.findMany({
+          where: {
+            clubId: club.id
           },
-          {
-            id: "asc"
-          }
-        ],
-        skip,
-        take: limit,
-        select: milestoneSelect
-      }),
-      prisma.milestone.count({
-        where: {
-          clubId: club.id
-        }
-      }),
-      prisma.clubProgress.findUnique({
-        where: {
-          userId_clubId: {
-            userId,
+          orderBy: [
+            {
+              position: "asc"
+            },
+            {
+              id: "asc"
+            }
+          ],
+          skip,
+          take: limit,
+          select: milestoneSelect
+        }),
+        transaction.milestone.count({
+          where: {
             clubId: club.id
           }
-        },
+        })
+      ]);
+      const finalNow = new Date();
+      const currentClub = await transaction.club.findUnique({
+        where: { id: club.id },
         select: {
-          mode: true,
-          currentMilestone: {
+          visibility: true,
+          memberships: {
+            where: { userId },
+            select: { id: true },
+            take: 1
+          },
+          bans: {
+            where: activeUserBanWhere(userId, finalNow),
+            select: { id: true },
+            take: 1
+          },
+          progress: {
+            where: { userId },
             select: {
-              position: true
-            }
+              mode: true,
+              currentMilestone: { select: { position: true } }
+            },
+            take: 1
           }
         }
-      })
-    ]);
+      });
 
-    return {
-      status: "SUCCESS",
-      milestones,
-      total,
-      viewerProgress: {
-        mode: (progress?.mode ?? "STRICT") as ProgressMode,
-        currentMilestonePosition: progress?.currentMilestone?.position ?? null
+      if (currentClub?.bans.length) {
+        return { status: "BANNED" };
       }
-    };
+
+      if (!currentClub || !canViewClubMilestones(currentClub)) {
+        return null;
+      }
+      const progress = currentClub.progress[0];
+
+      return {
+        status: "SUCCESS",
+        milestones,
+        total,
+        viewerProgress: {
+          mode: (progress?.mode ?? "STRICT") as ProgressMode,
+          currentMilestonePosition: progress?.currentMilestone?.position ?? null
+        }
+      };
+    });
   }
 };
 
