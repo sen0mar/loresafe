@@ -15,7 +15,10 @@ import {
 import type { RateLimiters } from "./core/security/rate-limit.js";
 import { createTrustedOriginMiddleware } from "./core/security/trusted-origin.js";
 import { configureTrustedProxy } from "./core/security/trusted-proxy.js";
-import { securityHeadersMiddleware } from "./core/security/security-headers.js";
+import {
+  apiCacheControlMiddleware,
+  securityHeadersMiddleware
+} from "./core/security/security-headers.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import {
   clubsRouter,
@@ -73,6 +76,7 @@ export const createApp = (
   );
 
   app.use("/api", noindexApiResponses);
+  app.use("/api", apiCacheControlMiddleware);
   registerRateLimiters(app, dependencies.rateLimiters);
   app.use(createTrustedOriginMiddleware(appEnv));
   app.use(express.json({ limit: "64kb" }));

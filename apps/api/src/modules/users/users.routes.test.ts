@@ -228,9 +228,24 @@ describe("users routes", () => {
       })
       .expect(204);
 
-    expect(response.headers["set-cookie"]?.[0]).toContain(
-      `${env.SESSION_COOKIE_NAME}=;`
+    const setCookieHeader = response.headers["set-cookie"];
+    const clearedCookies = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : setCookieHeader
+        ? [setCookieHeader]
+        : [];
+    const accessCookie = clearedCookies.find((value) =>
+      value.startsWith(`${env.SESSION_COOKIE_NAME}=`)
     );
+    const refreshCookie = clearedCookies.find((value) =>
+      value.startsWith(`${env.SESSION_COOKIE_NAME}_refresh=`)
+    );
+
+    expect(accessCookie).toContain("Expires=Thu, 01 Jan 1970");
+    expect(accessCookie).toContain("Path=/");
+    expect(refreshCookie).toContain("Expires=Thu, 01 Jan 1970");
+    expect(refreshCookie).toContain("Path=/api/auth");
+    expect(repository.disconnectedUserIds).toEqual([user.id]);
     expect(user.sessionVersion).toBe(2);
     expect(await repository.findActiveUserById(user.id)).toBeNull();
     expect(repository.nameReservations.has("story_fan")).toBe(false);
@@ -918,7 +933,11 @@ const createUsersTestApp = (repository: InMemoryUsersRepository) => {
       repository.processedStorageDeletionIds.push(...deletionIds);
     }
   });
-  const usersController = createUsersController(usersService);
+  const usersController = createUsersController(usersService, {
+    disconnectUser: async (userId) => {
+      repository.disconnectedUserIds.push(userId);
+    }
+  });
 
   app.use(requestIdMiddleware);
   app.use(express.json());
@@ -948,6 +967,7 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   readonly progressRows: StoredProgress[] = [];
   readonly fileAssets: StoredFileAsset[] = [];
   readonly processedStorageDeletionIds: string[] = [];
+  readonly disconnectedUserIds: string[] = [];
   readonly storageDeletionObjectKeys = new Map<string, string>();
 
   findActiveUserByEmail = async (email: string) =>
