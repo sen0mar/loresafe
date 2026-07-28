@@ -21,11 +21,20 @@ const seedDemoUser = async () => {
       deletedAt: null
     },
     select: {
-      id: true
+      id: true,
+      emailVerifiedAt: true
     }
   });
 
   if (existingUser) {
+    if (!existingUser.emailVerifiedAt) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { emailVerifiedAt: new Date() },
+        select: { id: true }
+      });
+    }
+
     console.log("Demo user seed skipped; active demo user already exists.");
     return existingUser;
   }
@@ -45,6 +54,7 @@ const seedDemoUser = async () => {
       displayName: seedEnv.DEMO_USER_DISPLAY_NAME,
       username,
       passwordHash,
+      emailVerifiedAt: new Date(),
       nameReservations: {
         create: reservationKeys.map((normalizedName) => ({
           normalizedName

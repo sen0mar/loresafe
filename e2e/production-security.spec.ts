@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
@@ -8,6 +10,7 @@ const demoDisplayName =
 const clubLinkName = "the-first-law-book-club";
 const browserOrigin = "http://127.0.0.1:4173";
 const apiOrigin = "http://127.0.0.1:3000";
+const execFileAsync = promisify(execFile);
 
 test.describe.configure({ mode: "serial" });
 
@@ -100,7 +103,16 @@ test("denies a banned member and verifies upload CORS at the browser boundary", 
         headers: { Origin: browserOrigin }
       }
     );
-    expect(signupResponse.status()).toBe(201);
+    expect(signupResponse.status()).toBe(202);
+    await verifyBrowserAccount(`${memberUsername}@example.com`);
+    const loginResponse = await memberContext.request.post("/api/auth/login", {
+      data: {
+        email: `${memberUsername}@example.com`,
+        password: "browser-member-password"
+      },
+      headers: { Origin: browserOrigin }
+    });
+    expect(loginResponse.ok()).toBe(true);
 
     const joinResponse = await memberContext.request.post(
       `/api/clubs/${clubLinkName}/join`,
@@ -168,9 +180,16 @@ test("avoids automatic event streams and rejects protected API reads after logou
     headers: { Origin: browserOrigin }
   });
 
-  expect(signupResponse.status()).toBe(201);
+  expect(signupResponse.status()).toBe(202);
+  await verifyBrowserAccount(email);
 
   try {
+    const loginResponse = await page.context().request.post("/api/auth/login", {
+      data: { email, password },
+      headers: { Origin: browserOrigin }
+    });
+    expect(loginResponse.ok()).toBe(true);
+
     const eventRequests: string[] = [];
 
     page.on("request", (request) => {
@@ -205,6 +224,24 @@ test("avoids automatic event streams and rejects protected API reads after logou
     }
   }
 });
+
+const verifyBrowserAccount = async (email: string) => {
+  await execFileAsync(
+    "pnpm",
+    [
+      "--filter",
+      "@loresafe/api",
+      "exec",
+      "tsx",
+      "scripts/verify-browser-test-account.ts",
+      email
+    ],
+    {
+      cwd: process.cwd(),
+      env: process.env
+    }
+  );
+};
 
 const loginAsDemo = async (page: Page) => {
   await page.goto("/login");

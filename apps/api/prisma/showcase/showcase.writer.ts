@@ -95,6 +95,7 @@ const createUsers = async (
       username: normalizeUsername(user.username),
       bio: user.bio,
       passwordHash,
+      emailVerifiedAt: seededAt,
       createdAt: daysAgo(seededAt, 100 - index)
     }))
   });
