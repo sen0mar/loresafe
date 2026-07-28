@@ -199,6 +199,17 @@ export const SignupForm = () => {
               : "Create account"}
             <ArrowRight />
           </Button>
+          <p className="text-center text-xs leading-5 text-faint">
+            Review LoreSafe's{" "}
+            <Link className="text-brand hover:underline" to="/terms">
+              Terms of Use
+            </Link>{" "}
+            and{" "}
+            <Link className="text-brand hover:underline" to="/privacy">
+              Privacy Policy
+            </Link>
+            before creating an account.
+          </p>
         </form>
 
         <p className="mt-4 text-center text-sm text-faint">

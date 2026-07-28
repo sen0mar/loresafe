@@ -10,7 +10,11 @@ import {
   refreshSessionCookieOptions,
   sessionCookieOptions
 } from "../../core/security/session-token.js";
-import { authService, type AuthService } from "./auth.service.js";
+import {
+  authService,
+  RefreshTokenReuseError,
+  type AuthService
+} from "./auth.service.js";
 import {
   forgotPasswordRequestSchema,
   loginRequestSchema,
@@ -151,6 +155,10 @@ export const createAuthController = (
       );
       res.status(200).json({ user: result.user });
     } catch (error) {
+      if (error instanceof RefreshTokenReuseError) {
+        await eventPublisher.disconnectUser(error.userId);
+      }
+
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(
         refreshSessionCookieName,

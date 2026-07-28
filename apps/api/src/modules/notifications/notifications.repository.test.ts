@@ -12,49 +12,63 @@ describe("notification repository access filters", () => {
 
     expect(buildAccessibleNotificationWhere(userId, now)).toMatchObject({
       userId,
-      club: {
-        bans: {
-          none: {
-            userId,
-            revokedAt: null,
-            OR: [
-              { expiresAt: null },
-              {
-                expiresAt: {
-                  gt: now
-                }
-              }
-            ]
-          }
+      OR: [
+        {
+          type: "SECURITY_ALERT",
+          clubId: null,
+          requiredMilestoneId: null
         },
-        OR: [
-          { visibility: "PUBLIC" },
-          {
-            memberships: {
-              some: {
-                userId
-              }
+        {
+          type: {
+            not: "SECURITY_ALERT"
+          },
+          club: {
+            is: {
+              bans: {
+                none: {
+                  userId,
+                  revokedAt: null,
+                  OR: [
+                    { expiresAt: null },
+                    {
+                      expiresAt: {
+                        gt: now
+                      }
+                    }
+                  ]
+                }
+              },
+              OR: [
+                { visibility: "PUBLIC" },
+                {
+                  memberships: {
+                    some: {
+                      userId
+                    }
+                  }
+                }
+              ]
             }
-          }
-        ]
-      },
-      OR: expect.arrayContaining([
-        expect.objectContaining({
-          commentId: { not: null },
-          comment: expect.objectContaining({
-            status: "VISIBLE",
-            deletedAt: null
-          })
-        }),
-        expect.objectContaining({
-          commentId: null,
-          postId: { not: null },
-          post: expect.objectContaining({
-            status: "VISIBLE",
-            deletedAt: null
-          })
-        })
-      ])
+          },
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              commentId: { not: null },
+              comment: expect.objectContaining({
+                status: "VISIBLE",
+                deletedAt: null
+              })
+            }),
+            expect.objectContaining({
+              commentId: null,
+              postId: { not: null },
+              post: expect.objectContaining({
+                status: "VISIBLE",
+                deletedAt: null
+              })
+            })
+          ])
+        }
+      ]
     });
   });
 

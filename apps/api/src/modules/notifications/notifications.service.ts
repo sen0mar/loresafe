@@ -77,16 +77,18 @@ export const createNotificationsService = (
       throw new HttpError(404, "NOT_FOUND", "Notification not found");
     }
 
-    await eventPublisher.publishNotificationRead(userId, {
-      notificationId: result.notification.id,
-      club: {
-        id: result.notification.club.id,
-        linkName: result.notification.club.linkName
-      },
-      postId: result.notification.postId,
-      commentId: result.notification.commentId,
-      occurredAt: (result.notification.readAt ?? new Date()).toISOString()
-    });
+    if (result.notification.club) {
+      await eventPublisher.publishNotificationRead(userId, {
+        notificationId: result.notification.id,
+        club: {
+          id: result.notification.club.id,
+          linkName: result.notification.club.linkName
+        },
+        postId: result.notification.postId,
+        commentId: result.notification.commentId,
+        occurredAt: (result.notification.readAt ?? new Date()).toISOString()
+      });
+    }
 
     return {
       notification: toNotificationDto(result.notification),

@@ -23,6 +23,27 @@
 - Recovery objectives: RPO at most 15 minutes for PostgreSQL and 24 hours for binary objects; RTO at most 4 hours for a regional database restore and API cutover.
 - Run a restore drill quarterly into an isolated non-production project. Apply committed migrations, validate row counts and auth/spoiler invariants, verify a sample of public and private objects, record elapsed time, and destroy the drill environment.
 
+## Privacy and Audit Retention
+
+- Audit logs are internal operational records. They are not exposed through a
+  public or general-user API; only backend moderation/security transactions and
+  authorized club moderation flows may create or rely on them.
+- Retain audit rows for 365 days. Each real moderation write and account
+  deletion may purge at most 100 expired rows in its existing transaction.
+  Never add a timer, cron, startup task, reconnect loop, or database poller for
+  this cleanup on the Free-plan deployment.
+- Account deletion anonymizes actor display-name and username snapshots before
+  deleting the user. Club snapshots remain because they identify the moderated
+  scope rather than the deleted account. Do not put secrets or unnecessary
+  personal data in moderator notes or audit metadata.
+- Spent refresh-token hashes expire after 24 hours. Security-event and audit
+  records older than 365 days are removed opportunistically during real
+  security/moderation/account-deletion traffic.
+- The public Privacy Policy and the account-deletion confirmation must disclose
+  anonymized audit retention and the provider-managed PostgreSQL/R2 recovery
+  windows. Review `context/privacy-data-inventory.md` whenever a provider or
+  data category changes.
+
 ## Incident Response
 
 1. Acknowledge the alert, assign an incident lead, and record start time and affected surfaces.

@@ -90,6 +90,14 @@ describe("LandingPage", () => {
     expect(
       screen.getByRole("link", { name: /explore clubs/i })
     ).toHaveAttribute("href", "/clubs");
+    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(
+      "href",
+      "/privacy"
+    );
+    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
+      "href",
+      "/terms"
+    );
     expect(
       screen.getAllByRole("link", { name: /create account/i })
     ).toHaveLength(2);

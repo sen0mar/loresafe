@@ -4,7 +4,8 @@ export const notificationTypeSchema = z.enum([
   "POST_COMMENT",
   "COMMENT_REPLY",
   "PROGRESS_UNLOCK",
-  "MODERATION_WARNING"
+  "MODERATION_WARNING",
+  "SECURITY_ALERT"
 ]);
 
 export const listNotificationsQuerySchema = z

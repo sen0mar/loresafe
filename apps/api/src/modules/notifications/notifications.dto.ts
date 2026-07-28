@@ -17,10 +17,10 @@ export type NotificationDto = {
     id: string;
     title: string;
     linkName: string;
-  };
+  } | null;
   postId: string | null;
   commentId: string | null;
-  requiredMilestone: RequiredMilestoneDto;
+  requiredMilestone: RequiredMilestoneDto | null;
   readAt: string | null;
   createdAt: string;
 };
@@ -53,16 +53,21 @@ export type DeleteNotificationResponse = {
 export const toNotificationDto = (
   notification: NotificationRecord
 ): NotificationDto => {
-  const requiredMilestone = {
-    id: notification.requiredMilestone.id,
-    position: notification.requiredMilestone.position,
-    label: notification.requiredMilestone.safeTitle
-  };
-  const isVisible = canViewRequiredMilestone({
-    mode: notification.progress.mode,
-    currentMilestonePosition: notification.progress.currentMilestonePosition,
-    requiredMilestonePosition: notification.requiredMilestone.position
-  });
+  const requiredMilestone = notification.requiredMilestone
+    ? {
+        id: notification.requiredMilestone.id,
+        position: notification.requiredMilestone.position,
+        label: notification.requiredMilestone.safeTitle
+      }
+    : null;
+  const isVisible =
+    !notification.requiredMilestone ||
+    !notification.progress ||
+    canViewRequiredMilestone({
+      mode: notification.progress.mode,
+      currentMilestonePosition: notification.progress.currentMilestonePosition,
+      requiredMilestonePosition: notification.requiredMilestone.position
+    });
 
   return {
     id: notification.id,
@@ -72,7 +77,7 @@ export const toNotificationDto = (
     club: notification.club,
     postId:
       notification.postId ??
-      (notification.type === "PROGRESS_UNLOCK"
+      (notification.type === "PROGRESS_UNLOCK" && notification.requiredMilestone
         ? notification.requiredMilestone.targetPostId
         : null),
     commentId: notification.commentId,

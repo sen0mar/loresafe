@@ -101,6 +101,10 @@ const PostDetailPage = lazyRoute(
   () => import("../features/clubs/pages/post-detail-page.js"),
   "PostDetailPage"
 );
+const PrivacyPolicyPage = lazyRoute(
+  () => import("../features/legal/pages/privacy-policy-page.js"),
+  "PrivacyPolicyPage"
+);
 const ProfileSettingsPage = lazyRoute(
   () => import("../features/profile/pages/profile-settings-page.js"),
   "ProfileSettingsPage"
@@ -113,6 +117,10 @@ const SignupPage = lazyRoute(
   () => import("../features/auth/pages/signup-page.js"),
   "SignupPage"
 );
+const TermsPage = lazyRoute(
+  () => import("../features/legal/pages/terms-page.js"),
+  "TermsPage"
+);
 
 export const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -122,6 +130,8 @@ export const App = () => (
           <SentryRoutes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/clubs" element={<PublicClubsPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route
               path="/clubs/:linkName"
               element={<PublicClubProfilePage />}

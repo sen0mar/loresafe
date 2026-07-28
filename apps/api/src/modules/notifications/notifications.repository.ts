@@ -13,7 +13,7 @@ export type NotificationRecord = {
     id: string;
     title: string;
     linkName: string;
-  };
+  } | null;
   postId: string | null;
   commentId: string | null;
   requiredMilestone: {
@@ -21,11 +21,11 @@ export type NotificationRecord = {
     position: number;
     safeTitle: string;
     targetPostId: string | null;
-  };
+  } | null;
   progress: {
     mode: ProgressMode;
     currentMilestonePosition: number | null;
-  };
+  } | null;
   readAt: Date | null;
   createdAt: Date;
 };
@@ -169,50 +169,64 @@ export const buildAccessibleNotificationWhere = (
   now = new Date()
 ): Prisma.NotificationWhereInput => ({
   userId,
-  club: {
-    bans: {
-      none: activeUserBanWhere(userId, now)
-    },
-    OR: [
-      {
-        visibility: "PUBLIC"
-      },
-      {
-        memberships: {
-          some: {
-            userId
-          }
-        }
-      }
-    ]
-  },
   OR: [
     {
-      commentId: {
-        not: null
+      type: "SECURITY_ALERT",
+      clubId: null,
+      requiredMilestoneId: null
+    },
+    {
+      type: {
+        not: "SECURITY_ALERT"
       },
-      comment: {
-        status: "VISIBLE",
-        deletedAt: null,
-        post: {
-          status: "VISIBLE",
-          deletedAt: null
+      club: {
+        is: {
+          bans: {
+            none: activeUserBanWhere(userId, now)
+          },
+          OR: [
+            {
+              visibility: "PUBLIC"
+            },
+            {
+              memberships: {
+                some: {
+                  userId
+                }
+              }
+            }
+          ]
         }
-      }
-    },
-    {
-      commentId: null,
-      postId: {
-        not: null
       },
-      post: {
-        status: "VISIBLE",
-        deletedAt: null
-      }
-    },
-    {
-      commentId: null,
-      postId: null
+      OR: [
+        {
+          commentId: {
+            not: null
+          },
+          comment: {
+            status: "VISIBLE",
+            deletedAt: null,
+            post: {
+              status: "VISIBLE",
+              deletedAt: null
+            }
+          }
+        },
+        {
+          commentId: null,
+          postId: {
+            not: null
+          },
+          post: {
+            status: "VISIBLE",
+            deletedAt: null
+          }
+        },
+        {
+          commentId: null,
+          postId: null
+        }
+      ]
     }
   ]
 });
@@ -300,7 +314,11 @@ export const notificationsRepository: NotificationsRepository = {
 
       if (
         !existingNotification ||
-        !(await lockClubAuthorization(transaction, existingNotification.clubId))
+        (existingNotification.clubId &&
+          !(await lockClubAuthorization(
+            transaction,
+            existingNotification.clubId
+          )))
       ) {
         return null;
       }
@@ -458,9 +476,10 @@ const createNotificationIfMissingInTransaction = async (
     select: notificationEventSelect
   });
 
-  if (existingNotification) {
+  if (existingNotification?.club) {
     return {
       ...existingNotification,
+      club: existingNotification.club,
       wasCreated: false
     };
   }
@@ -479,8 +498,13 @@ const createNotificationIfMissingInTransaction = async (
     select: notificationEventSelect
   });
 
+  if (!notification.club) {
+    return null;
+  }
+
   return {
     ...notification,
+    club: notification.club,
     wasCreated: true
   };
 };
@@ -579,29 +603,35 @@ type SelectedNotification = Prisma.NotificationGetPayload<{
 const toNotificationRecord = (
   notification: SelectedNotification
 ): NotificationRecord => {
-  const progress = notification.club.progress[0];
+  const progress = notification.club?.progress[0];
 
   return {
     id: notification.id,
     type: notification.type as NotificationType,
     safeText: notification.safeText,
-    club: {
-      id: notification.club.id,
-      title: notification.club.title,
-      linkName: notification.club.linkName
-    },
+    club: notification.club
+      ? {
+          id: notification.club.id,
+          title: notification.club.title,
+          linkName: notification.club.linkName
+        }
+      : null,
     postId: notification.postId,
     commentId: notification.commentId,
-    requiredMilestone: {
-      id: notification.requiredMilestone.id,
-      position: notification.requiredMilestone.position,
-      safeTitle: notification.requiredMilestone.safeTitle,
-      targetPostId: notification.requiredMilestone.posts[0]?.id ?? null
-    },
-    progress: {
-      mode: (progress?.mode ?? "STRICT") as ProgressMode,
-      currentMilestonePosition: progress?.currentMilestone?.position ?? null
-    },
+    requiredMilestone: notification.requiredMilestone
+      ? {
+          id: notification.requiredMilestone.id,
+          position: notification.requiredMilestone.position,
+          safeTitle: notification.requiredMilestone.safeTitle,
+          targetPostId: notification.requiredMilestone.posts[0]?.id ?? null
+        }
+      : null,
+    progress: notification.club
+      ? {
+          mode: (progress?.mode ?? "STRICT") as ProgressMode,
+          currentMilestonePosition: progress?.currentMilestone?.position ?? null
+        }
+      : null,
     readAt: notification.readAt,
     createdAt: notification.createdAt
   };

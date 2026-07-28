@@ -845,6 +845,10 @@ class InMemoryNotificationsRepository
   private withCurrentProgress = (
     notification: StoredNotification
   ): NotificationRecord => {
+    if (!notification.club) {
+      return notification;
+    }
+
     const progress = this.findProgress(
       notification.userId,
       notification.club.id
