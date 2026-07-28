@@ -40,6 +40,11 @@ export type ObjectStorage = {
   ) => Promise<StoredObjectMetadata | null>;
   getObjectBytes: (objectKey: string, maxBytes: number) => Promise<Uint8Array>;
   getPublicUrl: (objectKey: string) => string;
+  putObject: (input: {
+    bytes: Uint8Array;
+    contentType: string;
+    objectKey: string;
+  }) => Promise<void>;
 };
 
 const r2Client = new S3Client({
@@ -164,7 +169,19 @@ export const r2Storage: ObjectStorage = {
   },
 
   getPublicUrl: (objectKey) =>
-    `${(env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "")}/${objectKey}`
+    `${(env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "")}/${objectKey}`,
+
+  putObject: async ({ bytes, contentType, objectKey }) => {
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: objectKey,
+        Body: bytes,
+        ContentType: contentType,
+        ContentLength: bytes.byteLength
+      })
+    );
+  }
 };
 
 const isNotFoundStorageError = (error: unknown) => {

@@ -22,7 +22,7 @@ import {
   type CreatePublicAssetUploadResponse,
   toFileAssetDto
 } from "./uploads.dto.js";
-import { validateUploadedImage } from "./image-validation.js";
+import { processUploadedImage } from "./image-validation.js";
 import {
   uploadsCleanupService,
   type UploadsCleanupService
@@ -201,7 +201,7 @@ export const createUploadsService = (
       asset.objectKey,
       asset.sizeBytes
     );
-    let validation;
+    let processedImage;
 
     try {
       if (bytes.byteLength !== asset.sizeBytes) {
@@ -210,7 +210,7 @@ export const createUploadsService = (
         );
       }
 
-      validation = validateUploadedImage(
+      processedImage = await processUploadedImage(
         bytes,
         asset.contentType,
         asset.purpose
@@ -224,11 +224,17 @@ export const createUploadsService = (
       );
     }
 
+    await storage.putObject({
+      bytes: processedImage.bytes,
+      contentType: asset.contentType,
+      objectKey: asset.objectKey
+    });
+
     const readyResult = await repository.markAssetReadyAndAttach(
       asset,
       userId,
       new Date(),
-      validation
+      processedImage.validation
     );
 
     switch (readyResult.status) {

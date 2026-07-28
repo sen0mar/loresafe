@@ -13,6 +13,7 @@ allowBuilds:
 
 auditConfig:
   # LoreSafe uses React Router only in browser mode. No patched release exists
-  # yet for this RSC-only advisory.
+  # yet for this RSC-only advisory. This narrow exception expires 2026-08-31
+  # and must be removed earlier if React Router publishes a patched release.
   ignoreGhsas:
     - GHSA-qwww-vcr4-c8h2

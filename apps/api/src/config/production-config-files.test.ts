@@ -129,6 +129,7 @@ describe("production configuration files", () => {
       "static-quality",
       "unit-and-coverage",
       "database-integration",
+      "scheduled-performance",
       "build",
       "browser-accessibility"
     ];
@@ -177,6 +178,9 @@ describe("production configuration files", () => {
     );
     expect(workflowJob(workflow, "static-quality")).toContain(
       "pnpm audit --prod --audit-level low"
+    );
+    expect(workflowJob(workflow, "scheduled-performance")).toContain(
+      "pnpm --filter @loresafe/api perf:seed-check"
     );
   });
 

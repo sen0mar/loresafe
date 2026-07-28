@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { normalizeNameReservationKey } from "../src/core/identity/user-names.js";
 import { prisma } from "../src/core/prisma/client.js";
+import { Prisma } from "../src/generated/prisma/client.js";
 
 const PERF_PREFIX = "loresafe-perf";
 const PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$perf$perf";
@@ -65,7 +66,7 @@ const seedPerfData = async () => {
     title: `LoreSafe Perf Club ${index}`,
     linkName: `${PERF_PREFIX}-club-${index}`,
     description: `Volume club ${index} for feed search moderation checks.`,
-    category: index % 2 === 0 ? "BOOKS" : "GAMES",
+    category: index % 2 === 0 ? ("BOOKS" as const) : ("GAMES" as const),
     visibility: index < 6 ? ("PUBLIC" as const) : ("PRIVATE" as const),
     createdAt: new Date(now.getTime() - index * 60_000),
     updatedAt: now
@@ -161,6 +162,7 @@ const seedPerfData = async () => {
           : userIndex % 11 === 0
             ? ("BRAVE" as const)
             : ("STRICT" as const),
+      version: 1,
       createdAt: now,
       updatedAt: now
     }))
@@ -173,6 +175,7 @@ const seedPerfData = async () => {
     toMilestoneId: progress.currentMilestoneId,
     fromMode: "STRICT" as const,
     toMode: progress.mode,
+    version: progress.version,
     createdAt: new Date(now.getTime() - index * 60_000)
   }));
 
@@ -270,22 +273,37 @@ const seedPerfData = async () => {
     prisma.commentReaction.createMany({ data, skipDuplicates: true })
   );
 
-  const notifications = visiblePosts.slice(0, 1200).map((post, index) => ({
-    id: uuidFor(`${PERF_PREFIX}:notification:${index}`),
-    userId: users[index % users.length].id,
-    type:
+  const firstCommentIdByPost = new Map<string, string>();
+
+  for (const comment of comments) {
+    if (!firstCommentIdByPost.has(comment.postId)) {
+      firstCommentIdByPost.set(comment.postId, comment.id);
+    }
+  }
+
+  const notifications = visiblePosts.slice(0, 1200).map((post, index) => {
+    const type =
       index % 5 === 0
         ? ("PROGRESS_UNLOCK" as const)
-        : ("POST_COMMENT" as const),
-    eventKey: `${PERF_PREFIX}:notification:${index}`,
-    safeText: `Safe notification ${index}`,
-    clubId: post.clubId,
-    postId: post.id,
-    commentId: comments[index % comments.length]?.id ?? null,
-    requiredMilestoneId: post.requiredMilestoneId,
-    readAt: index % 3 === 0 ? now : null,
-    createdAt: new Date(now.getTime() - index * 1000)
-  }));
+        : ("POST_COMMENT" as const);
+
+    return {
+      id: uuidFor(`${PERF_PREFIX}:notification:${index}`),
+      userId: users[index % users.length].id,
+      type,
+      eventKey: `${PERF_PREFIX}:notification:${index}`,
+      safeText: `Safe notification ${index}`,
+      clubId: post.clubId,
+      postId: post.id,
+      commentId:
+        type === "POST_COMMENT"
+          ? (firstCommentIdByPost.get(post.id) ?? null)
+          : null,
+      requiredMilestoneId: post.requiredMilestoneId,
+      readAt: index % 3 === 0 ? now : null,
+      createdAt: new Date(now.getTime() - index * 1000)
+    };
+  });
   const reports = visiblePosts.slice(0, 700).map((post, index) => ({
     id: uuidFor(`${PERF_PREFIX}:report:${index}`),
     targetType: "POST" as const,
@@ -313,6 +331,7 @@ const seedPerfData = async () => {
   );
 
   const auditLogs = reports.slice(0, 500).map((report, index) => ({
+    ...auditLogSnapshots(index, report.clubId, users, clubs),
     id: uuidFor(`${PERF_PREFIX}:audit:${index}`),
     action:
       index % 2 === 0
@@ -365,8 +384,29 @@ const toUserNameReservations = (
   return [...reservations.values()];
 };
 
-const explain = async (label: string, sql: string) => {
-  const rows = await prisma.$queryRawUnsafe<Array<Record<string, string>>>(sql);
+const auditLogSnapshots = (
+  index: number,
+  clubId: string,
+  users: Array<{ id: string; displayName: string; username: string }>,
+  clubs: Array<{ id: string; title: string; linkName: string }>
+) => {
+  const actor = users[index % 4];
+  const club = clubs.find((candidate) => candidate.id === clubId);
+
+  if (!actor || !club) {
+    throw new Error("Performance audit-log snapshot fixture is incomplete.");
+  }
+
+  return {
+    actorDisplayName: actor.displayName,
+    actorUsername: actor.username,
+    clubTitle: club.title,
+    clubLinkName: club.linkName
+  };
+};
+
+const explain = async (label: string, sql: Prisma.Sql) => {
+  const rows = await prisma.$queryRaw<Array<Record<string, string>>>(sql);
   const plan = rows.map((row) => Object.values(row)[0]).join("\n");
   const usesIndex =
     /Index Scan|Index Only Scan|Bitmap Index Scan|Bitmap Heap Scan/i.test(plan);
@@ -380,10 +420,10 @@ const explain = async (label: string, sql: string) => {
 
 const verifyBoundedRows = async (
   label: string,
-  sql: string,
+  sql: Prisma.Sql,
   maxRows: number
 ) => {
-  const rows = await prisma.$queryRawUnsafe<unknown[]>(sql);
+  const rows = await prisma.$queryRaw<unknown[]>(sql);
 
   if (rows.length > maxRows) {
     throw new Error(
@@ -405,10 +445,10 @@ const runChecks = async ({
 
   await verifyBoundedRows(
     "feed",
-    `
+    Prisma.sql`
       SELECT p."id"
       FROM "posts" p
-      WHERE p."club_id" = '${publicClubId}'::uuid
+      WHERE p."club_id" = ${publicClubId}::uuid
       AND p."status" = 'VISIBLE'
       AND p."deleted_at" IS NULL
       ORDER BY p."created_at" DESC, p."id" ASC
@@ -418,10 +458,10 @@ const runChecks = async ({
   );
   await verifyBoundedRows(
     "notifications",
-    `
+    Prisma.sql`
       SELECT n."id"
       FROM "notifications" n
-      WHERE n."user_id" = '${userId}'::uuid
+      WHERE n."user_id" = ${userId}::uuid
       ORDER BY n."created_at" DESC, n."id" ASC
       LIMIT 21
     `,
@@ -429,10 +469,10 @@ const runChecks = async ({
   );
   await verifyBoundedRows(
     "reports",
-    `
+    Prisma.sql`
       SELECT r."id"
       FROM "reports" r
-      WHERE r."club_id" = '${publicClubId}'::uuid
+      WHERE r."club_id" = ${publicClubId}::uuid
       AND r."status" = 'OPEN'
       ORDER BY r."created_at" DESC, r."id" ASC
       LIMIT 21
@@ -441,11 +481,11 @@ const runChecks = async ({
   );
   await verifyBoundedRows(
     "comments",
-    `
+    Prisma.sql`
       SELECT c."id"
       FROM "comments" c
       INNER JOIN "posts" p ON p."id" = c."post_id"
-      WHERE p."club_id" = '${publicClubId}'::uuid
+      WHERE p."club_id" = ${publicClubId}::uuid
       AND c."status" = 'VISIBLE'
       AND c."deleted_at" IS NULL
       ORDER BY c."created_at" ASC, c."id" ASC
@@ -456,10 +496,10 @@ const runChecks = async ({
 
   await explain(
     "feed index plan",
-    `
+    Prisma.sql`
       EXPLAIN SELECT p."id"
       FROM "posts" p
-      WHERE p."club_id" = '${publicClubId}'::uuid
+      WHERE p."club_id" = ${publicClubId}::uuid
       AND p."status" = 'VISIBLE'
       AND p."deleted_at" IS NULL
       ORDER BY p."created_at" DESC, p."id" ASC
@@ -468,20 +508,20 @@ const runChecks = async ({
   );
   await explain(
     "notifications index plan",
-    `
+    Prisma.sql`
       EXPLAIN SELECT n."id"
       FROM "notifications" n
-      WHERE n."user_id" = '${userId}'::uuid
+      WHERE n."user_id" = ${userId}::uuid
       ORDER BY n."created_at" DESC, n."id" ASC
       LIMIT 21
     `
   );
   await explain(
     "reports index plan",
-    `
+    Prisma.sql`
       EXPLAIN SELECT r."id"
       FROM "reports" r
-      WHERE r."club_id" = '${publicClubId}'::uuid
+      WHERE r."club_id" = ${publicClubId}::uuid
       AND r."status" = 'OPEN'
       ORDER BY r."created_at" DESC, r."id" ASC
       LIMIT 21
@@ -489,7 +529,7 @@ const runChecks = async ({
   );
   await explain(
     "search GIN plan",
-    `
+    Prisma.sql`
       EXPLAIN SELECT p."id"
       FROM "posts" p
       WHERE p."status" = 'VISIBLE'
@@ -500,15 +540,15 @@ const runChecks = async ({
     `
   );
 
-  const privateSearchRows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
-    `
+  const privateSearchRows = await prisma.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`
       SELECT p."id"
       FROM "posts" p
       INNER JOIN "clubs" c ON c."id" = p."club_id"
       LEFT JOIN "club_memberships" current_member
         ON current_member."club_id" = c."id"
-        AND current_member."user_id" = '${outsider.id}'::uuid
-      WHERE p."club_id" = '${privateClub.id}'::uuid
+        AND current_member."user_id" = ${outsider.id}::uuid
+      WHERE p."club_id" = ${privateClub.id}::uuid
       AND p."status" = 'VISIBLE'
       AND p."deleted_at" IS NULL
       AND (
