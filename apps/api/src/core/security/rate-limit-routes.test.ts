@@ -103,12 +103,32 @@ describe("registerRateLimiters", () => {
       "/api/notifications/read-all",
       expect.any(Function)
     );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/notifications/:id/read",
+      expect.any(Function)
+    );
     expect(app.delete).toHaveBeenCalledWith(
       "/api/notifications",
       expect.any(Function)
     );
     expect(app.delete).toHaveBeenCalledWith(
       "/api/notifications/selected",
+      expect.any(Function)
+    );
+    expect(app.delete).toHaveBeenCalledWith(
+      "/api/notifications/:id",
+      expect.any(Function)
+    );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/auth/logout-all",
+      expect.any(Function)
+    );
+    expect(app.get).toHaveBeenCalledWith(
+      "/api/clubs/:linkName/moderation/reports",
+      expect.any(Function)
+    );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/clubs/:linkName/moderation/reports/:reportId/reveal",
       expect.any(Function)
     );
     expect(app.post).toHaveBeenCalledWith(

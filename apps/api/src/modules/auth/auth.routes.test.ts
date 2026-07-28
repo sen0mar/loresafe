@@ -15,6 +15,7 @@ import {
   type AuthRateLimiterOptions,
   type AuthRateLimiters
 } from "../../core/security/rate-limit.js";
+import { apiCacheControlMiddleware } from "../../core/security/security-headers.js";
 import {
   dummyPasswordHash,
   hashPassword
@@ -602,10 +603,15 @@ describe("auth routes", () => {
       .post("/api/auth/logout")
       .set("Cookie", firstCookies.join("; "))
       .expect(204);
-    await request(app)
+    const currentUserResponse = await request(app)
       .get("/api/auth/me")
       .set("Cookie", secondCookies.join("; "))
       .expect(200);
+
+    expect(currentUserResponse.headers["cache-control"]).toBe(
+      "private, no-store"
+    );
+    expect(currentUserResponse.headers.vary).toContain("Cookie");
 
     await request(app)
       .post("/api/auth/logout-all")
@@ -899,6 +905,7 @@ const createAuthTestApp = (
   }
 
   app.use(requestIdMiddleware);
+  app.use("/api", apiCacheControlMiddleware);
 
   if (options.rateLimiters) {
     app.use("/api/auth/login", options.rateLimiters.loginRateLimiter);

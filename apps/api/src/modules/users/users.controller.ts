@@ -2,7 +2,12 @@ import type { RequestHandler } from "express";
 
 import { env } from "../../config/env.js";
 import { HttpError } from "../../core/errors/http-error.js";
-import { clearedSessionCookieOptions } from "../../core/security/session-token.js";
+import {
+  clearedRefreshSessionCookieOptions,
+  clearedSessionCookieOptions,
+  refreshSessionCookieName
+} from "../../core/security/session-token.js";
+import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   deleteCurrentUserAccountRequestSchema,
   listCurrentUserClubsQuerySchema,
@@ -18,7 +23,8 @@ export type UsersController = {
 };
 
 export const createUsersController = (
-  service: UsersService = usersService
+  service: UsersService = usersService,
+  eventPublisher: Pick<EventsService, "disconnectUser"> = eventsService
 ): UsersController => ({
   deleteMe: async (req, res, next) => {
     try {
@@ -43,7 +49,12 @@ export const createUsersController = (
         parseResult.data
       );
 
+      await eventPublisher.disconnectUser(req.currentUser.id);
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
+      res.clearCookie(
+        refreshSessionCookieName,
+        clearedRefreshSessionCookieOptions
+      );
       res.status(204).send();
     } catch (error) {
       next(error);

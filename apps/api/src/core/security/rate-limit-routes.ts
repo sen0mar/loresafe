@@ -52,6 +52,7 @@ export const registerRateLimiters = (
   app.use("/api/auth/login", loginRateLimiter);
   app.use("/api/auth/refresh", loginRateLimiter);
   app.use("/api/auth/logout", logoutRateLimiter);
+  app.post("/api/auth/logout-all", logoutRateLimiter);
   app.use("/api/auth/signup", signupRateLimiter);
   app.use("/api/auth/verification/resend", verificationResendRateLimiter);
   app.use("/api/auth/verification/confirm", verificationConfirmRateLimiter);
@@ -112,6 +113,11 @@ export const registerRateLimiters = (
   app.get("/api/clubs/:linkName/stats", expensiveReadRateLimiter);
   app.get("/api/clubs/:linkName/popular-discussions", expensiveReadRateLimiter);
   app.get("/api/clubs/:linkName/progress/summary", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/moderation/reports", expensiveReadRateLimiter);
+  app.post(
+    "/api/clubs/:linkName/moderation/reports/:reportId/reveal",
+    contentRevealRateLimiter
+  );
   app.get(
     "/api/clubs/:linkName/recently-unlocked/summary",
     expensiveReadRateLimiter
@@ -149,8 +155,10 @@ export const registerRateLimiters = (
   app.post("/api/uploads/post-images", postImageUploadRateLimiter);
   app.post("/api/uploads/:assetId/complete", publicAssetUploadRateLimiter);
   app.post("/api/notifications/read-all", notificationMutationRateLimiter);
+  app.post("/api/notifications/:id/read", notificationMutationRateLimiter);
   app.delete("/api/notifications", notificationMutationRateLimiter);
   app.delete("/api/notifications/selected", notificationMutationRateLimiter);
+  app.delete("/api/notifications/:id", notificationMutationRateLimiter);
 };
 
 export const registerParsedBodyRateLimiters = (

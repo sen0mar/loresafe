@@ -57,6 +57,8 @@ Boundary rules:
 
 - The backend must decide which content is safe before sending a response.
 - React may hide or decorate locked content, but it must not receive unsafe spoiler content.
+- API responses default to `Cache-Control: private, no-store` with credential-aware
+  `Vary` headers; explicitly public API routes use a bounded shared-cache policy.
 - Cross-boundary input is treated as unknown until validated.
 - Client `x-request-id` values are correlation labels only. The API accepts
   1-64 character trace-compatible tokens made from letters, digits, `.`, `_`,
@@ -131,6 +133,8 @@ Authentication:
 - Access JWTs include a minimal user/session version payload plus validated issuer, audience, subject, timestamps, and a unique session identifier.
 - PostgreSQL stores only SHA-256 hashes of access-session and refresh-token identifiers, with expiry and revocation timestamps for per-device and all-session revocation.
 - Logout revokes the current persisted session before clearing both cookies; logout-all revokes every current user session.
+- Permanent account deletion also clears both scoped session cookies and disconnects
+  the user's local live-event connections after the deletion commits.
 - Access-token verification accepts the current signing key and one explicitly configured previous key during a bounded rotation window. Refresh rotation invalidates the previous refresh token and access-session identifier.
 - Each device session has a refresh-token family ID and monotonic generation.
   Rotation retains a hashed spent-token tombstone for 24 hours. A repeated

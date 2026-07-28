@@ -31,3 +31,16 @@ export const securityHeadersMiddleware: RequestHandler = (_req, res, next) => {
   res.setHeader("X-Frame-Options", "DENY");
   next();
 };
+
+export const apiCacheControlMiddleware: RequestHandler = (req, res, next) => {
+  if (req.path.startsWith("/public/")) {
+    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300");
+    next();
+    return;
+  }
+
+  res.setHeader("Cache-Control", "private, no-store");
+  res.vary("Authorization");
+  res.vary("Cookie");
+  next();
+};
