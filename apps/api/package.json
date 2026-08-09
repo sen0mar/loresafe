@@ -30,7 +30,7 @@
     "api:contract:check": "tsx scripts/openapi-contract.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1069.0",
+    "@aws-sdk/client-s3": "^3.1104.0",
     "@aws-sdk/s3-request-presigner": "^3.1069.0",
     "@node-rs/argon2": "^2.0.2",
     "@prisma/adapter-pg": "^7.9.1",
