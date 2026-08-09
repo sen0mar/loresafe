@@ -5,6 +5,9 @@ overrides:
   # Prisma 7.8.0 pins the vulnerable 1.19.11 patch through optional CLI tooling.
   # Keep the API-compatible security patch until Prisma bundles it upstream.
   "@hono/node-server": 1.19.13
+  # Keep transitive URL and IP parsing on their patched API-compatible releases.
+  fast-uri: 3.1.5
+  ip-address: 10.3.1
 
 allowBuilds:
   "@prisma/engines": true

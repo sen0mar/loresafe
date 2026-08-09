@@ -124,7 +124,7 @@ describe("production configuration files", () => {
       readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8")
     ]);
     const node24CompatiblePnpmAction =
-      "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9";
+      "pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10";
     const pnpmJobs = [
       "static-quality",
       "unit-and-coverage",
@@ -206,7 +206,7 @@ describe("production configuration files", () => {
       readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
       readFile(repositoryFile("context/architecture-context.md"), "utf8")
     ]);
-    const codeqlSha = "7188fc363630916deb702c7fdcf4e481b751f97a";
+    const codeqlSha = "5595ccaf912efad79be6eef63a5619ff05969be3";
 
     expect(codeql).toContain('cron: "43 4 * * 3"');
     expect(codeql).toContain("pull_request:");
@@ -222,10 +222,10 @@ describe("production configuration files", () => {
     expect(codeql).toContain("security-events: write");
     expect(codeql).not.toContain("packages: read");
     expect(codeql).toContain(
-      `github/codeql-action/init@${codeqlSha} # v4.37.1`
+      `github/codeql-action/init@${codeqlSha} # v4.37.6`
     );
     expect(codeql).toContain(
-      `github/codeql-action/analyze@${codeqlSha} # v4.37.1`
+      `github/codeql-action/analyze@${codeqlSha} # v4.37.6`
     );
     expect(workflowJob(releaseGate, "release-gate")).not.toContain("codeql");
     expect(architecture).toContain(
