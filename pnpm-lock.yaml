@@ -86,8 +86,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       rate-limit-redis:
-        specifier: ^6.0.0
-        version: 6.0.0(express-rate-limit@8.6.0(express@5.2.1))
+        specifier: ^6.0.1
+        version: 6.0.1(express-rate-limit@8.6.0(express@5.2.1))
       sharp:
         specifier: 0.35.3
         version: 0.35.3(@types/node@22.20.1)
@@ -3667,8 +3667,8 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
-  rate-limit-redis@6.0.0:
-    resolution: {integrity: sha512-cBRaXOD5CRprQPQjiVEkKbDY1O9vnOqClSlfm32iydZ2N82EpHM+9VbWTesUZV9TVbfaSH1R5m78BTd0zyesoQ==}
+  rate-limit-redis@6.0.1:
+    resolution: {integrity: sha512-qys7ulbh5X4Bohfjm6BXFWBiyzK6r5eGdFghPWZfJwggnDFTDwCIRq1u7tmN50vLTp4Kbe1h/ZAuBOn/hVpjtQ==}
     engines: {node: '>= 16'}
     peerDependencies:
       express-rate-limit: '>= 8.6.0'
@@ -7615,7 +7615,7 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  rate-limit-redis@6.0.0(express-rate-limit@8.6.0(express@5.2.1)):
+  rate-limit-redis@6.0.1(express-rate-limit@8.6.0(express@5.2.1)):
     dependencies:
       express-rate-limit: 8.6.0(express@5.2.1)
 
