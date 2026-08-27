@@ -206,7 +206,7 @@ describe("production configuration files", () => {
       readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
       readFile(repositoryFile("context/architecture-context.md"), "utf8")
     ]);
-    const codeqlSha = "5595ccaf912efad79be6eef63a5619ff05969be3";
+    const codeqlSha = "ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd";
 
     expect(codeql).toContain('cron: "43 4 * * 3"');
     expect(codeql).toContain("pull_request:");
@@ -222,10 +222,10 @@ describe("production configuration files", () => {
     expect(codeql).toContain("security-events: write");
     expect(codeql).not.toContain("packages: read");
     expect(codeql).toContain(
-      `github/codeql-action/init@${codeqlSha} # v4.37.6`
+      `github/codeql-action/init@${codeqlSha} # v4.37.7`
     );
     expect(codeql).toContain(
-      `github/codeql-action/analyze@${codeqlSha} # v4.37.6`
+      `github/codeql-action/analyze@${codeqlSha} # v4.37.7`
     );
     expect(workflowJob(releaseGate, "release-gate")).not.toContain("codeql");
     expect(architecture).toContain(
