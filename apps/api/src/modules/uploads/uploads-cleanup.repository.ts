@@ -63,8 +63,7 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
           objectKey: true,
           purpose: true,
           status: true,
-          uploadExpiresAt: true,
-          updatedAt: true
+          uploadExpiresAt: true
         }
       });
       const deletionIds: string[] = [];
@@ -75,8 +74,7 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
         const claimed = await transaction.fileAsset.updateMany({
           where: {
             id: asset.id,
-            status: asset.status,
-            updatedAt: asset.updatedAt
+            status: asset.status
           },
           data: { status: "FAILED" }
         });
