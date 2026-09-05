@@ -156,6 +156,10 @@ export const createAuthService = (
           : Promise.resolve(null)
       ]);
 
+      if (existingReservedName) {
+        throw duplicateUsernameError();
+      }
+
       if (existingUser) {
         await issueIdentityToken({
           user: existingUser,
@@ -166,10 +170,6 @@ export const createAuthService = (
         });
 
         return { accepted: true };
-      }
-
-      if (existingReservedName) {
-        throw duplicateUsernameError();
       }
 
       try {
@@ -190,13 +190,19 @@ export const createAuthService = (
 
         return { accepted: true };
       } catch (error) {
-        // The database constraint closes the race where two signups pass the pre-check together.
         if (isUniqueConstraintError(error)) {
-          if (uniqueConstraintTargets(error).includes("email")) {
-            return { accepted: true };
+          // Email and name constraints can both conflict. Their reporting order
+          // must not decide the public response or reveal email existence.
+          const reservedName =
+            await usersRepository.findActiveUserByReservedName?.(
+              normalizeNameReservationKey(username)
+            );
+
+          if (reservedName) {
+            throw duplicateUsernameError();
           }
 
-          throw duplicateUsernameError();
+          return { accepted: true };
         }
 
         throw error;
@@ -415,22 +421,6 @@ const invalidIdentityTokenError = () =>
     "BAD_REQUEST",
     "This link is invalid or has expired. Request a new one."
   );
-
-const uniqueConstraintTargets = (error: unknown) => {
-  if (!error || typeof error !== "object" || !("meta" in error)) {
-    return [];
-  }
-
-  const meta = (error as { meta?: { target?: unknown } }).meta;
-
-  if (Array.isArray(meta?.target)) {
-    return meta.target.filter(
-      (target): target is string => typeof target === "string"
-    );
-  }
-
-  return typeof meta?.target === "string" ? [meta.target] : [];
-};
 
 const performNeutralIdentityWork = () =>
   hashPassword(createEmailIdentityToken()).then(() => undefined);
