@@ -191,6 +191,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 179: Expensive-read admission limits — Applied the existing early read budget to post detail/comments, notifications, club discovery/detail/joined lists, members/bans, milestones, progress, and unlock lists; added HTTP regressions proving rejection before auth/database work and independent read/write budgets.
 
+- Feature 180: Email token purpose isolation — Enforced purpose in real token lookups before replay handling, rejected both cross-purpose directions for consumed and unconsumed tokens, and preserved same-purpose idempotence with PostgreSQL regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

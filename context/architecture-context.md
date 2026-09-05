@@ -151,8 +151,9 @@ Authentication:
   unverified accounts with the generic credential response.
 - Email verification and password recovery use SHA-256 hashes of
   cryptographically random, expiring, single-use tokens. Verification and reset
-  replay are idempotent successes; invalid or expired links use one generic link
-  error.
+  replay are idempotent successes only for the token's original purpose. Token
+  lookups enforce purpose before replay handling; wrong-purpose, invalid, or
+  expired links use one generic link error.
 - Successful browser verification and password reset replace the current
   history entry without token query parameters; unsuccessful attempts retain
   the link for retry. Other query parameters remain intact.
