@@ -62,6 +62,17 @@ export const registerRateLimiters = (
   app.get("/sitemap.xml", publicSeoReadRateLimiter);
   app.get("/api/public/clubs", publicSeoReadRateLimiter);
   app.get("/api/public/clubs/:linkName", publicSeoReadRateLimiter);
+  app.get("/api/clubs", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName", expensiveReadRateLimiter);
+  app.get("/api/users/me/clubs", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/members", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/bans", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/milestones", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/progress", expensiveReadRateLimiter);
+  app.get("/api/clubs/:linkName/recently-unlocked", expensiveReadRateLimiter);
+  app.get("/api/posts/:postId", expensiveReadRateLimiter);
+  app.get("/api/posts/:postId/comments", expensiveReadRateLimiter);
+  app.get("/api/notifications", expensiveReadRateLimiter);
   app.post("/api/clubs", clubCreateRateLimiter);
   app.post("/api/clubs/:linkName/invites", clubInviteCreateRateLimiter);
   app.post("/api/clubs/:linkName/join", clubJoinRateLimiter);

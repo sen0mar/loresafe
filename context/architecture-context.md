@@ -108,6 +108,12 @@ Cache, rate-limit, and deferred work:
   mutation cache before installing the next authenticated identity. A detected
   session loss or authenticated-user change applies the same reset.
 - Upstash Redis is for rate-limit counters.
+- Personalized club discovery/detail/joined lists, members/bans, milestones,
+  progress/unlocks, post detail/comments, notifications, feeds, dashboard
+  summaries, and moderation lists share the existing expensive-read IP budget
+  (240 requests per ten minutes). Explicit GET registrations also cover HEAD
+  and run before JSON parsing, session lookup, and repository work. Search and
+  public SEO keep their dedicated read budgets; mutation budgets are independent.
 - Deep dependency readiness is operations-token protected, strictly
   rate-limited, single-flighted, cached for five seconds, and aborts dependency
   calls at its deadline where the client supports cancellation. Public

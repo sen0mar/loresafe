@@ -189,6 +189,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 178: Public club cache isolation — Applied private no-store caching to anonymous and authenticated public club responses, preserved caller-independent sitemap caching, and added identical-URL shared-cache regressions using real PostgreSQL ban filtering.
 
+- Feature 179: Expensive-read admission limits — Applied the existing early read budget to post detail/comments, notifications, club discovery/detail/joined lists, members/bans, milestones, progress, and unlock lists; added HTTP regressions proving rejection before auth/database work and independent read/write budgets.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.
