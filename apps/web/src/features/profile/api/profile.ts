@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
+import { useOwnedMutation } from "@/shared/api/use-owned-mutation";
 import {
   authQueryKeys,
   replaceAuthenticatedQueryState,
@@ -25,7 +26,7 @@ export const deleteCurrentUserAccount = (
 export const useUpdateCurrentUserProfile = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: updateCurrentUserProfile,
     onSuccess: (response) => {
       queryClient.setQueryData(authQueryKeys.me, response.user);
@@ -36,7 +37,8 @@ export const useUpdateCurrentUserProfile = () => {
 export const useDeleteCurrentUserAccount = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
+    changesAuth: true,
     mutationFn: deleteCurrentUserAccount,
     onSuccess: async () => {
       clearAuthSessionHint();

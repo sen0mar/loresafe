@@ -193,6 +193,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 180: Email token purpose isolation — Enforced purpose in real token lookups before replay handling, rejected both cross-purpose directions for consumed and unconsumed tokens, and preserved same-purpose idempotence with PostgreSQL regressions.
 
+- Feature 181: Authentication-owned mutations — Fenced mutation requests, responses, rollback, settlement, and caller callbacks by authentication generation; preserved intentional auth transitions and stable hook functions; added installed TanStack Query account-switch, queue, optimistic, and auth-flow regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

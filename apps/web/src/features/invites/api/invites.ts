@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
+import { useOwnedMutation } from "@/shared/api/use-owned-mutation";
 import { type Club, clubsQueryKeys } from "@/features/clubs/api/clubs";
 import { apiPost } from "@/shared/api/api-client";
 
@@ -41,7 +42,7 @@ export const acceptInvite = (token: string) =>
   apiPost<AcceptInviteResponse>(`/api/invites/${token}/accept`);
 
 export const useCreateClubInviteMutation = (linkName: string) =>
-  useMutation({
+  useOwnedMutation({
     mutationFn: (input: CreateInvitePayload) =>
       createClubInvite(linkName, input)
   });
@@ -49,7 +50,7 @@ export const useCreateClubInviteMutation = (linkName: string) =>
 export const useAcceptInviteMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: acceptInvite,
     onSuccess: (response) => {
       queryClient.setQueryData(clubsQueryKeys.detail(response.club.linkName), {

@@ -106,7 +106,12 @@ Cache, rate-limit, and deferred work:
 - TanStack Query handles client-side API caching.
 - Auth transitions cancel active client queries and clear the complete query and
   mutation cache before installing the next authenticated identity. A detected
-  session loss or authenticated-user change applies the same reset.
+  session loss or authenticated-user change applies the same reset. A per-client
+  generation advances before cancellation starts. Mutation invocations capture
+  that generation and fence request starts, responses, rollback, settlement, and
+  caller callbacks, including same-user re-login. Optimistic callbacks remain
+  synchronous; auth-changing mutations may accept only their own single
+  generation advance. Superseded replacements cannot install an old identity.
 - Upstash Redis is for rate-limit counters.
 - Personalized club discovery/detail/joined lists, members/bans, milestones,
   progress/unlocks, post detail/comments, notifications, feeds, dashboard
