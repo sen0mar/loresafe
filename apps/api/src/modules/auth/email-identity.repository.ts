@@ -39,7 +39,7 @@ const findToken = (
   purpose: EmailIdentityTokenPurpose
 ) =>
   transaction.emailIdentityToken.findUnique({
-    where: { tokenHash },
+    where: { tokenHash, purpose },
     select: {
       userId: true,
       expiresAt: true,
