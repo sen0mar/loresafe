@@ -185,6 +185,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 176: Spoiler-safe search matching — Restricted locked search membership and ranking to safe club metadata, normalized missing-progress SQL semantics, discarded stale protected-text pages after final authorization, and added real PostgreSQL mode, ranking, pagination, and revocation regressions.
 
+- Feature 177: Email-neutral signup conflicts — Applied username conflicts independently of email existence, rechecked name reservations after uniqueness races, and added HTTP response-matrix plus real PostgreSQL concurrent-insert regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

@@ -134,9 +134,12 @@ Storage invariants:
 Authentication:
 
 - Signup creates an unverified account without a session and always returns the
-  same accepted response for new and existing email addresses after comparable
-  Argon2id work. Login rejects unverified accounts with the generic credential
-  response.
+  same accepted response for new and existing email addresses when the requested
+  username is available, after comparable Argon2id work. Taken usernames return
+  the same conflict for either email state, including the email owner’s own
+  username. Uniqueness races recheck the name reservation instead of trusting
+  which conflicting constraint PostgreSQL reports first. Login rejects
+  unverified accounts with the generic credential response.
 - Email verification and password recovery use SHA-256 hashes of
   cryptographically random, expiring, single-use tokens. Verification and reset
   replay are idempotent successes; invalid or expired links use one generic link

@@ -110,6 +110,45 @@ describe("auth routes", () => {
     });
   });
 
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true]
+  ])(
+    "keeps signup public responses independent of email existence (email=%s, name=%s)",
+    async (existingEmail, takenName) => {
+      await repository.createUser({
+        email: "existing@example.com",
+        displayName: "occupied_name",
+        username: "occupied_name",
+        passwordHash: "$argon2id$v=19$fixture"
+      });
+      const response = await request(app)
+        .post("/api/auth/signup")
+        .set("x-request-id", "signup-matrix")
+        .send({
+          email: existingEmail ? "existing@example.com" : "new@example.com",
+          username: takenName ? "OCCUPIED_NAME" : "available_name",
+          password: "correct horse battery staple"
+        })
+        .expect(takenName ? 409 : 202);
+
+      expect(response.body).toEqual(
+        takenName
+          ? {
+              error: {
+                code: "CONFLICT",
+                message: "That username is already taken.",
+                requestId: "signup-matrix"
+              }
+            }
+          : { message: "If the account is eligible, an email has been sent." }
+      );
+      expect(response.headers["set-cookie"]).toBeUndefined();
+    }
+  );
+
   it("keeps unverified accounts unauthenticated until email confirmation", async () => {
     const credentials = {
       email: "unverified@example.com",
