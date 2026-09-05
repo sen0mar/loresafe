@@ -183,6 +183,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 175: Auth-link telemetry privacy — Shared browser/API scrubbing for query tokens, invite paths, referrers, nested SDK payloads, raw request bodies, and signed URLs; removed consumed recovery tokens from browser history and added synthetic installed-SDK envelope plus auth-flow regressions.
 
+- Feature 176: Spoiler-safe search matching — Restricted locked search membership and ranking to safe club metadata, normalized missing-progress SQL semantics, discarded stale protected-text pages after final authorization, and added real PostgreSQL mode, ranking, pagination, and revocation regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.
