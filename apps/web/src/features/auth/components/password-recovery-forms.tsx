@@ -63,10 +63,11 @@ export const ForgotPasswordForm = () => {
 };
 
 export const ResetPasswordForm = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [password, setPassword] = useState("");
   const reset = useResetPassword();
+  useRemoveConsumedToken(reset.isSuccess, searchParams, setSearchParams);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -107,10 +108,11 @@ export const ResetPasswordForm = () => {
 };
 
 export const VerifyEmailCard = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const verification = useVerifyEmail();
   const { mutate } = verification;
+  useRemoveConsumedToken(verification.isSuccess, searchParams, setSearchParams);
 
   useEffect(() => {
     if (token.length >= 40) {
@@ -166,3 +168,16 @@ const BackToLogin = () => (
     Back to login
   </Link>
 );
+
+const useRemoveConsumedToken = (
+  consumed: boolean,
+  searchParams: URLSearchParams,
+  setSearchParams: ReturnType<typeof useSearchParams>[1]
+) => {
+  useEffect(() => {
+    if (!consumed || !searchParams.has("token")) return;
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete("token");
+    setSearchParams(cleanParams, { replace: true });
+  }, [consumed, searchParams, setSearchParams]);
+};
