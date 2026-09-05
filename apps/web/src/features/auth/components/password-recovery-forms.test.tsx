@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -162,4 +162,32 @@ it("keeps the verification URL after a failed confirmation", async () => {
   expect(routeObserver).toHaveBeenLastCalledWith(
     `/verify-email?token=${token}`
   );
+});
+
+it("sends verification once across pending rerenders and removes the consumed token", async () => {
+  let resolve!: (response: Response) => void;
+  const request = new Promise<Response>((done) => {
+    resolve = done;
+  });
+  const fetchMock = vi.fn(() => request);
+  vi.stubGlobal("fetch", fetchMock);
+  const routeObserver = vi.fn();
+  const { rerender } = renderWithProviders(<VerifyEmailCard />, {
+    initialEntries: [`/verify-email?token=${token}&source=email`],
+    routeObserver
+  });
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+  rerender(<VerifyEmailCard />);
+  expect(fetchMock).toHaveBeenCalledOnce();
+  await act(async () => {
+    resolve(
+      new Response(JSON.stringify({ message: "Request completed." }), {
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+  });
+  await screen.findByText("Your request is complete. You can now log in.");
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(routeObserver).toHaveBeenLastCalledWith("/verify-email?source=email");
+  vi.unstubAllGlobals();
 });

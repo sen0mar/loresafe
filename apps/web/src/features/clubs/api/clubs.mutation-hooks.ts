@@ -1,10 +1,10 @@
 import {
   type InfiniteData,
   useInfiniteQuery,
-  useMutation,
   useQueryClient
 } from "@tanstack/react-query";
 
+import { useOwnedMutation } from "@/shared/api/use-owned-mutation";
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 import { notificationsQueryKeys } from "@/features/notifications/api/notifications";
 
@@ -185,7 +185,7 @@ const reconcileModerationReportMutation = (
 export const useCreateClubMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: createClub,
     onSuccess: (response) => {
       queryClient.setQueryData(
@@ -205,7 +205,7 @@ export const useCreateClubMutation = () => {
 export const useCreateClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: CreateClubMilestoneInput) =>
       createClubMilestone(linkName, input),
     onSuccess: (response) => {
@@ -241,7 +241,7 @@ export const useCreateClubMilestoneMutation = (linkName: string) => {
 export const useCreateClubPostMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: CreateClubPostInput) => createClubPost(linkName, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
@@ -257,7 +257,7 @@ export const useCreateClubPostMutation = (linkName: string) => {
 export const useCreatePostCommentMutation = (postId: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: CreatePostCommentInput) =>
       createPostComment(postId, input),
     onSuccess: () => {
@@ -280,14 +280,14 @@ export const useCreatePostCommentMutation = (postId: string) => {
 };
 
 export const useCreateReportMutation = () =>
-  useMutation({
+  useOwnedMutation({
     mutationFn: createReport
   });
 
 export const useUpdateClubSettingsMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: UpdateClubSettingsInput) =>
       updateClubSettings(linkName, input),
     onSuccess: (response) => {
@@ -300,7 +300,7 @@ export const useUpdateClubSettingsMutation = (linkName: string) => {
 export const useUpdateClubMemberRoleMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       membershipId,
       input
@@ -317,7 +317,7 @@ export const useUpdateClubMemberRoleMutation = (linkName: string) => {
 export const useBanClubMemberMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       membershipId,
       input = {}
@@ -334,7 +334,7 @@ export const useBanClubMemberMutation = (linkName: string) => {
 export const useUnbanClubBanMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (banId: string) => unbanClubBan(linkName, banId),
     onSuccess: () => {
       refreshClubMemberManagementQueries(queryClient, linkName);
@@ -354,14 +354,14 @@ export const useModerationReportsQuery = (linkName: string, enabled = true) =>
   });
 
 export const useRevealModerationReportMutation = (linkName: string) =>
-  useMutation({
+  useOwnedMutation({
     mutationFn: (reportId: string) => revealModerationReport(linkName, reportId)
   });
 
 export const useUpdateReportRequiredMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -378,7 +378,7 @@ export const useUpdateReportRequiredMilestoneMutation = (linkName: string) => {
 export const useHideReportedContentMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -395,7 +395,7 @@ export const useHideReportedContentMutation = (linkName: string) => {
 export const useDeleteReportedContentMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -412,7 +412,7 @@ export const useDeleteReportedContentMutation = (linkName: string) => {
 export const useWarnReportedContentAuthorMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -432,7 +432,7 @@ export const useWarnReportedContentAuthorMutation = (linkName: string) => {
 export const useBanReportedContentAuthorMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -450,7 +450,7 @@ export const useBanReportedContentAuthorMutation = (linkName: string) => {
 export const useResolveModerationReportMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       reportId,
       input
@@ -465,14 +465,14 @@ export const useResolveModerationReportMutation = (linkName: string) => {
 };
 
 export const useRevealPostMutation = (postId: string) =>
-  useMutation({
+  useOwnedMutation({
     mutationFn: () => revealPost(postId)
   });
 
 export const useDeletePostMutation = (postId: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
       removePostFromPostListQueries(queryClient, postId);
@@ -500,7 +500,7 @@ export const useTogglePostReactionMutation = (
 ) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: TogglePostReactionInput) =>
       togglePostReaction(postId, input),
     onMutate: (input) => {
@@ -620,7 +620,7 @@ export const useToggleCommentReactionMutation = (
 ) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: ToggleCommentReactionInput) =>
       toggleCommentReaction(commentId, input),
     onMutate: (input) => {
@@ -683,7 +683,7 @@ export const useToggleCommentReactionMutation = (
 export const useDeleteCommentMutation = (postId: string, commentId: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: () => deleteComment(commentId),
     onSuccess: () => {
       queryClient.setQueryData<InfiniteData<PostCommentsResponse>>(
@@ -704,14 +704,14 @@ export const useDeleteCommentMutation = (postId: string, commentId: string) => {
 };
 
 export const useRevealPostCommentMutation = (postId: string) =>
-  useMutation({
+  useOwnedMutation({
     mutationFn: (commentId: string) => revealPostComment(postId, commentId)
   });
 
 export const useCreateClubMilestoneTemplateMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: CreateClubMilestoneTemplateInput) =>
       createClubMilestoneTemplate(linkName, input),
     onSuccess: (response) => {
@@ -750,7 +750,7 @@ export const useCreateClubMilestoneTemplateMutation = (linkName: string) => {
 export const useUpdateClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: ({
       milestoneId,
       input
@@ -772,7 +772,7 @@ export const useUpdateClubMilestoneMutation = (linkName: string) => {
 export const useMoveClubMilestoneMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: MoveClubMilestoneInput) =>
       moveClubMilestone(linkName, input),
     onSuccess: () => {
@@ -789,7 +789,7 @@ export const useMoveClubMilestoneMutation = (linkName: string) => {
 export const useUpdateClubProgressMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: (input: UpdateClubProgressInput) =>
       updateClubProgress(linkName, input),
     onSuccess: (response) => {
@@ -802,7 +802,7 @@ export const useUpdateClubProgressMutation = (linkName: string) => {
 export const useAdvanceClubProgressMutation = (linkName: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: () => advanceClubProgressToNextMilestone(linkName),
     onSuccess: (response) => {
       queryClient.setQueryData(clubsQueryKeys.progress(linkName), response);
@@ -847,7 +847,7 @@ export const invalidateClubProgressDependencies = (
 export const useJoinClubMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: joinClub,
     onSuccess: (response) => {
       queryClient.setQueryData(
@@ -870,7 +870,7 @@ export const useJoinClubMutation = () => {
 export const useLeaveClubMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: leaveClub,
     onSuccess: (response) => {
       queryClient.removeQueries({

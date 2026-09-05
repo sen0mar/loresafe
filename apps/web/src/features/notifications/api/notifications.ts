@@ -2,11 +2,11 @@ import {
   type InfiniteData,
   type QueryClient,
   useInfiniteQuery,
-  useMutation,
   useQuery,
   useQueryClient
 } from "@tanstack/react-query";
 
+import { useOwnedMutation } from "@/shared/api/use-owned-mutation";
 import { apiDelete, apiGet, apiPost } from "@/shared/api/api-client";
 import { RETAINED_INFINITE_QUERY_PAGES } from "@/shared/api/infinite-query";
 
@@ -128,7 +128,7 @@ export const useUnreadNotificationsQuery = (enabled = true) =>
 export const useMarkNotificationReadMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: markNotificationRead,
     onSuccess: (response) => {
       queryClient.setQueryData<NotificationsResponse>(
@@ -169,7 +169,7 @@ export const useMarkNotificationReadMutation = () => {
 export const useMarkAllNotificationsReadMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: markAllNotificationsRead,
     onSuccess: (response) => {
       const readAt = new Date().toISOString();
@@ -202,7 +202,7 @@ export const useMarkAllNotificationsReadMutation = () => {
 export const useDeleteNotificationMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: deleteNotification,
     onSuccess: (response, notificationId) => {
       updateUnreadQueryCount(queryClient, response.unreadCount);
@@ -232,7 +232,7 @@ export const useDeleteNotificationMutation = () => {
 export const useDeleteSelectedNotificationsMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: deleteSelectedNotifications,
     onSuccess: (response, notificationIds) => {
       const selectedNotificationIds = new Set(notificationIds);
@@ -265,7 +265,7 @@ export const useDeleteSelectedNotificationsMutation = () => {
 export const useDeleteAllNotificationsMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: deleteAllNotifications,
     onSuccess: (response) => {
       updateUnreadQueryCount(queryClient, response.unreadCount);

@@ -1,10 +1,15 @@
 import { useEffect } from "react";
 import {
   type QueryClient,
-  useMutation,
   useQuery,
   useQueryClient
 } from "@tanstack/react-query";
+
+import { useOwnedMutation } from "@/shared/api/use-owned-mutation";
+import {
+  advanceAuthGeneration,
+  getAuthGeneration
+} from "@/shared/api/auth-generation";
 
 import { ApiError, apiGet, apiPost } from "@/shared/api/api-client";
 
@@ -104,7 +109,8 @@ export const useMe = ({ enabled = true }: { enabled?: boolean } = {}) => {
 export const useLogin = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
+    changesAuth: true,
     mutationFn: login,
     onSuccess: async (response) => {
       rememberAuthSessionHint();
@@ -116,7 +122,8 @@ export const useLogin = () => {
 export const useLogout = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOwnedMutation({
+    changesAuth: true,
     mutationFn: logout,
     onSuccess: async () => {
       clearAuthSessionHint();
@@ -126,24 +133,27 @@ export const useLogout = () => {
 };
 
 export const useSignup = () => {
-  return useMutation({
+  return useOwnedMutation({
     mutationFn: signup
   });
 };
 
 export const useRequestPasswordReset = () =>
-  useMutation({ mutationFn: requestPasswordReset });
+  useOwnedMutation({ mutationFn: requestPasswordReset });
 
 export const useResetPassword = () =>
-  useMutation({ mutationFn: resetPassword });
+  useOwnedMutation({ mutationFn: resetPassword });
 
-export const useVerifyEmail = () => useMutation({ mutationFn: verifyEmail });
+export const useVerifyEmail = () =>
+  useOwnedMutation({ mutationFn: verifyEmail });
 
 export const replaceAuthenticatedQueryState = async (
   queryClient: QueryClient,
   user: AuthUser | null
 ) => {
+  const generation = advanceAuthGeneration(queryClient);
   await queryClient.cancelQueries();
+  if (getAuthGeneration(queryClient) !== generation) return;
   queryClient.removeQueries({
     predicate: ({ queryKey }) => !isAuthStateQuery(queryKey)
   });
