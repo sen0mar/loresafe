@@ -1,6 +1,6 @@
 import { prisma } from "../../core/prisma/client.js";
 import {
-  requestStorageObjectDeletion,
+  requestUploadObjectDeletions,
   type StorageDeletionReason
 } from "../../core/storage/storage-deletion.repository.js";
 
@@ -62,36 +62,32 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
           id: true,
           objectKey: true,
           purpose: true,
-          status: true
+          status: true,
+          uploadExpiresAt: true
         }
       });
       const deletionIds: string[] = [];
 
       for (const asset of assets) {
-        const reason = cleanupReason(asset);
-        const deletion = await requestStorageObjectDeletion(
+        // Claim the observed state before queuing either key. A completion that
+        // won the row lock must not be deleted using an earlier PENDING snapshot.
+        const claimed = await transaction.fileAsset.updateMany({
+          where: {
+            id: asset.id,
+            status: asset.status
+          },
+          data: { status: "FAILED" }
+        });
+        if (claimed.count === 0) continue;
+
+        const assetDeletionIds = await requestUploadObjectDeletions(
           transaction,
           asset.objectKey,
-          reason
+          cleanupReason(asset),
+          asset.uploadExpiresAt
         );
 
-        if (asset.status !== "FAILED") {
-          await transaction.fileAsset.update({
-            where: {
-              id: asset.id
-            },
-            data: {
-              status: "FAILED"
-            },
-            select: {
-              id: true
-            }
-          });
-        }
-
-        if (deletion.status === "PENDING") {
-          deletionIds.push(deletion.id);
-        }
+        deletionIds.push(...assetDeletionIds);
       }
 
       const remainingRetryCapacity = Math.max(limit - deletionIds.length, 0);
@@ -101,6 +97,7 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
           : await transaction.storageObjectDeletion.findMany({
               where: {
                 status: "PENDING",
+                notBefore: { lte: now },
                 updatedAt: {
                   lt: retryCutoff
                 }

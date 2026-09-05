@@ -2,7 +2,7 @@ import { prisma } from "../../core/prisma/client.js";
 import type { TimestampUuidCursor } from "../../core/http/cursor.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
-import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
+import { requestUploadObjectDeletions } from "../../core/storage/storage-deletion.repository.js";
 import type { AuthUserRecord } from "../auth/auth.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import type { ClubCategory } from "../clubs/clubs.schema.js";
@@ -165,21 +165,21 @@ export const usersRepository: UsersRepository = {
           ownerId: userId
         },
         select: {
-          objectKey: true
+          objectKey: true,
+          uploadExpiresAt: true
         }
       });
       const deletionIds: string[] = [];
 
       for (const asset of ownedFileAssets) {
-        const deletion = await requestStorageObjectDeletion(
+        const assetDeletionIds = await requestUploadObjectDeletions(
           transaction,
           asset.objectKey,
-          "ACCOUNT_DELETION"
+          "ACCOUNT_DELETION",
+          asset.uploadExpiresAt
         );
 
-        if (deletion.status === "PENDING") {
-          deletionIds.push(deletion.id);
-        }
+        deletionIds.push(...assetDeletionIds);
       }
 
       await transaction.comment.updateMany({

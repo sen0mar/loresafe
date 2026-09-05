@@ -674,25 +674,26 @@ model AuditLog {
 }
 
 model FileAsset {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId     String              @map("owner_id") @db.Uuid
-  clubId      String?             @map("club_id") @db.Uuid
-  postId      String?             @map("post_id") @db.Uuid
-  commentId   String?             @map("comment_id") @db.Uuid
-  purpose     FileAssetPurpose
-  visibility  FileAssetVisibility @default(PUBLIC)
-  safePreview Boolean             @default(false) @map("safe_preview")
-  objectKey   String              @unique(map: "file_assets_object_key_unique") @map("object_key") @db.VarChar(512)
-  contentType String              @map("content_type") @db.VarChar(120)
-  sizeBytes   Int                 @map("size_bytes")
-  status      FileAssetStatus     @default(PENDING)
-  widthPx     Int?                @map("width_px")
-  heightPx    Int?                @map("height_px")
-  isAnimated  Boolean?            @map("is_animated")
-  validatedAt DateTime?           @map("validated_at") @db.Timestamptz(6)
-  readyAt     DateTime?           @map("ready_at") @db.Timestamptz(6)
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String              @map("owner_id") @db.Uuid
+  clubId          String?             @map("club_id") @db.Uuid
+  postId          String?             @map("post_id") @db.Uuid
+  commentId       String?             @map("comment_id") @db.Uuid
+  purpose         FileAssetPurpose
+  visibility      FileAssetVisibility @default(PUBLIC)
+  safePreview     Boolean             @default(false) @map("safe_preview")
+  objectKey       String              @unique(map: "file_assets_object_key_unique") @map("object_key") @db.VarChar(512)
+  contentType     String              @map("content_type") @db.VarChar(120)
+  sizeBytes       Int                 @map("size_bytes")
+  status          FileAssetStatus     @default(PENDING)
+  widthPx         Int?                @map("width_px")
+  heightPx        Int?                @map("height_px")
+  isAnimated      Boolean?            @map("is_animated")
+  validatedAt     DateTime?           @map("validated_at") @db.Timestamptz(6)
+  uploadExpiresAt DateTime?           @map("upload_expires_at") @db.Timestamptz(6)
+  readyAt         DateTime?           @map("ready_at") @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   owner         User     @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   club          Club?    @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -716,6 +717,7 @@ model StorageObjectDeletion {
   status      StorageDeletionStatus @default(PENDING)
   attempts    Int                   @default(0)
   lastError   String?               @map("last_error") @db.VarChar(500)
+  notBefore   DateTime              @default(now()) @map("not_before") @db.Timestamptz(6)
   completedAt DateTime?             @map("completed_at") @db.Timestamptz(6)
   createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)

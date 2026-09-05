@@ -272,13 +272,15 @@ describeDatabase("security-sensitive database commands", () => {
           asset,
           owner.id,
           completedAt,
-          validation
+          validation,
+          async () => undefined
         ),
         uploadsRepository.markAssetReadyAndAttach(
           asset,
           owner.id,
           completedAt,
-          validation
+          validation,
+          async () => undefined
         )
       ]);
 

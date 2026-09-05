@@ -244,7 +244,8 @@ describeDatabase("medium audit authorization concurrency", () => {
         asset,
         moderator.id,
         new Date(),
-        imageValidation
+        imageValidation,
+        async () => undefined
       );
 
       await allowCommandToReachClubLock();
@@ -308,13 +309,15 @@ describeDatabase("medium audit authorization concurrency", () => {
           firstAsset,
           owner.id,
           completedAt,
-          imageValidation
+          imageValidation,
+          async () => undefined
         ),
         uploadsRepository.markAssetReadyAndAttach(
           secondAsset,
           owner.id,
           completedAt,
-          imageValidation
+          imageValidation,
+          async () => undefined
         )
       ]);
 

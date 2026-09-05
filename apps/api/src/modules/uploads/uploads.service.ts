@@ -1,4 +1,9 @@
+import { env } from "../../config/env.js";
 import { randomUUID } from "node:crypto";
+import {
+  getUploadStagingKey,
+  usesUploadStaging
+} from "../../core/storage/upload-object-keys.js";
 
 import { HttpError } from "../../core/errors/http-error.js";
 import {
@@ -81,7 +86,11 @@ export const createUploadsService = (
       clubId: club?.id ?? null,
       purpose: input.purpose
     });
+    const uploadExpiresAt = new Date(
+      Date.now() + env.R2_PRESIGNED_URL_TTL_SECONDS * 1000
+    );
     const asset = await repository.createPendingFileAsset({
+      uploadExpiresAt,
       ownerId: userId,
       clubId: club?.id ?? null,
       purpose: input.purpose,
@@ -90,7 +99,8 @@ export const createUploadsService = (
       sizeBytes: input.sizeBytes
     });
     const upload = await storage.createPresignedUpload({
-      objectKey,
+      objectKey: getUploadStagingKey(objectKey),
+      expiresAt: uploadExpiresAt,
       contentType: input.contentType,
       contentLength: input.sizeBytes
     });
@@ -136,7 +146,11 @@ export const createUploadsService = (
       contentType: input.contentType,
       clubId: club.id
     });
+    const uploadExpiresAt = new Date(
+      Date.now() + env.R2_PRESIGNED_URL_TTL_SECONDS * 1000
+    );
     const asset = await repository.createPendingFileAsset({
+      uploadExpiresAt,
       ownerId: userId,
       clubId: club.id,
       purpose: "POST_IMAGE",
@@ -147,7 +161,8 @@ export const createUploadsService = (
       sizeBytes: input.sizeBytes
     });
     const upload = await storage.createPresignedUpload({
-      objectKey,
+      objectKey: getUploadStagingKey(objectKey),
+      expiresAt: uploadExpiresAt,
       contentType: input.contentType,
       contentLength: input.sizeBytes
     });
@@ -182,7 +197,14 @@ export const createUploadsService = (
       throw failedUploadConflict();
     }
 
-    const metadata = await storage.getObjectMetadata(asset.objectKey);
+    // Intents issued before staging was deployed must be restarted: their PUT
+    // credentials grant the old final key and cannot be revoked by completion.
+    if (!usesUploadStaging(asset.objectKey)) {
+      await rejectInvalidUpload(repository, cleanupService, asset);
+      throw failedUploadConflict();
+    }
+    const stagingKey = getUploadStagingKey(asset.objectKey);
+    const metadata = await storage.getObjectMetadata(stagingKey);
 
     if (!metadata) {
       throw new HttpError(400, "BAD_REQUEST", "Uploaded object was not found.");
@@ -197,10 +219,7 @@ export const createUploadsService = (
       );
     }
 
-    const bytes = await storage.getObjectBytes(
-      asset.objectKey,
-      asset.sizeBytes
-    );
+    const bytes = await storage.getObjectBytes(stagingKey, asset.sizeBytes);
     let processedImage;
 
     try {
@@ -224,17 +243,17 @@ export const createUploadsService = (
       );
     }
 
-    await storage.putObject({
-      bytes: processedImage.bytes,
-      contentType: asset.contentType,
-      objectKey: asset.objectKey
-    });
-
     const readyResult = await repository.markAssetReadyAndAttach(
       asset,
       userId,
       new Date(),
-      processedImage.validation
+      processedImage.validation,
+      () =>
+        storage.putObject({
+          bytes: processedImage.bytes,
+          contentType: asset.contentType,
+          objectKey: asset.objectKey
+        })
     );
 
     switch (readyResult.status) {
@@ -287,10 +306,10 @@ const createPublicObjectKey = ({
   const assetKeyId = randomUUID();
 
   if (purpose === "AVATAR") {
-    return `public/avatars/${ownerId}/${assetKeyId}.${extension}`;
+    return `public/avatars/${ownerId}/final/${assetKeyId}.${extension}`;
   }
 
-  return `public/club-covers/${clubId ?? "unknown"}/${assetKeyId}.${extension}`;
+  return `public/club-covers/${clubId ?? "unknown"}/final/${assetKeyId}.${extension}`;
 };
 
 const createPostImageObjectKey = ({
@@ -303,7 +322,7 @@ const createPostImageObjectKey = ({
   const extension = extensionByContentType[contentType] ?? "bin";
   const assetKeyId = randomUUID();
 
-  return `private/post-images/${clubId}/${assetKeyId}.${extension}`;
+  return `private/post-images/${clubId}/final/${assetKeyId}.${extension}`;
 };
 
 const doesMetadataMatchAsset = (
@@ -328,7 +347,7 @@ const rejectInvalidUpload = async (
   }
 
   try {
-    await cleanupService.processCommittedDeletions([rejected.deletionId]);
+    await cleanupService.processCommittedDeletions(rejected.deletionIds);
   } catch {
     // The durable deletion ledger keeps failed R2 cleanup recoverable.
   }

@@ -1,3 +1,4 @@
+import { getUploadCleanupKeys } from "./upload-object-keys.js";
 import { prisma } from "../prisma/client.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 
@@ -16,7 +17,8 @@ export type PendingStorageDeletion = {
 export const requestStorageObjectDeletion = async (
   transaction: Prisma.TransactionClient,
   objectKey: string,
-  reason: StorageDeletionReason
+  reason: StorageDeletionReason,
+  notBefore?: Date
 ) =>
   transaction.storageObjectDeletion.upsert({
     where: {
@@ -24,7 +26,8 @@ export const requestStorageObjectDeletion = async (
     },
     create: {
       objectKey,
-      reason
+      reason,
+      notBefore
     },
     update: {},
     select: {
@@ -33,13 +36,36 @@ export const requestStorageObjectDeletion = async (
     }
   });
 
-export const listPendingStorageDeletions = (deletionIds: string[]) =>
+export const requestUploadObjectDeletions = async (
+  transaction: Prisma.TransactionClient,
+  objectKey: string,
+  reason: StorageDeletionReason,
+  uploadExpiresAt?: Date | null
+) => {
+  const deletionIds: string[] = [];
+  for (const key of getUploadCleanupKeys(objectKey)) {
+    const deletion = await requestStorageObjectDeletion(
+      transaction,
+      key,
+      reason,
+      key === objectKey ? undefined : (uploadExpiresAt ?? undefined)
+    );
+    if (deletion.status === "PENDING") deletionIds.push(deletion.id);
+  }
+  return deletionIds;
+};
+
+export const listPendingStorageDeletions = (
+  deletionIds: string[],
+  now = new Date()
+) =>
   prisma.storageObjectDeletion.findMany({
     where: {
       id: {
         in: deletionIds
       },
-      status: "PENDING"
+      status: "PENDING",
+      notBefore: { lte: now }
     },
     select: {
       id: true,
