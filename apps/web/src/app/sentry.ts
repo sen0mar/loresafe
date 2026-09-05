@@ -6,7 +6,7 @@ import {
   useLocation,
   useNavigationType
 } from "react-router-dom";
-import { scrubSentryBreadcrumb, scrubSentryEvent } from "./sentry-scrubbing";
+import { telemetryPrivacyOptions } from "./sentry-scrubbing";
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 const tracesSampleRate = Number(
@@ -29,9 +29,7 @@ if (sentryDsn) {
       })
     ],
     tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0,
-    beforeBreadcrumb: scrubSentryBreadcrumb,
-    beforeSend: scrubSentryEvent,
-    beforeSendTransaction: scrubSentryEvent
+    ...telemetryPrivacyOptions
   });
 }
 

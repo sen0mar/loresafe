@@ -64,6 +64,14 @@ Boundary rules:
   1-64 character trace-compatible tokens made from letters, digits, `.`, `_`,
   `:`, and `-`; it generates a server UUID for missing or invalid values.
 - Storage object keys and URLs must not become authorization shortcuts.
+- Browser and API Sentry hooks share a dependency-free scrubber owned by API
+  core monitoring; the browser adapter imports only that pure module. Errors,
+  breadcrumbs, transactions, and spans redact token query values, invite paths,
+  referrers, signed URLs, sensitive keys, and nested SDK fields before sending.
+  Raw request bodies are omitted, including SDK-normalized request metadata.
+  Structured API logs apply the same URL policy. SDK upgrades must preserve the
+  synthetic outbound-envelope regressions; `sendDefaultPii: false` alone does
+  not protect application bearer links.
 
 ## Storage Model
 
@@ -127,6 +135,9 @@ Authentication:
   cryptographically random, expiring, single-use tokens. Verification and reset
   replay are idempotent successes; invalid or expired links use one generic link
   error.
+- Successful browser verification and password reset replace the current
+  history entry without token query parameters; unsuccessful attempts retain
+  the link for retry. Other query parameters remain intact.
 - Successful password reset changes the Argon2id hash, increments the session
   version, and revokes every persisted session in the same transaction.
 - Email delivery is owned by the narrow `EmailDelivery` integration boundary.

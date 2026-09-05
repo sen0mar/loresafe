@@ -181,6 +181,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 174: Replay-safe upload staging — Separated client PUT staging from backend-only final keys, serialized publication, persisted upload expiration and delayed staging deletion with a committed migration, preserved rollback cleanup, added replay plus real PostgreSQL lifecycle/concurrency coverage, patched vulnerable dependencies within supported majors, and removed the expired audit exception.
 
+- Feature 175: Auth-link telemetry privacy — Shared browser/API scrubbing for query tokens, invite paths, referrers, nested SDK payloads, raw request bodies, and signed URLs; removed consumed recovery tokens from browser history and added synthetic installed-SDK envelope plus auth-flow regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

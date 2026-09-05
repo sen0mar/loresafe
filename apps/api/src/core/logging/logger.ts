@@ -1,3 +1,8 @@
+import {
+  redactTelemetryString,
+  scrubTelemetry
+} from "../monitoring/telemetry-scrubbing.js";
+
 type LogLevel = "debug" | "error" | "info" | "warn";
 
 type LogContext = Record<string, unknown>;
@@ -58,8 +63,8 @@ const writeLog = (
   const entry = {
     timestamp: new Date().toISOString(),
     level,
-    message,
-    ...sanitizeContext(context)
+    message: sanitizeString(message),
+    ...scrubTelemetry(sanitizeContext(context))
   };
 
   const serialized = JSON.stringify(entry);
@@ -106,7 +111,7 @@ const sanitizeValue = (key: string, value: unknown): unknown => {
 };
 
 const sanitizeString = (value: string) =>
-  value
+  redactTelemetryString(value)
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
     .replace(
       /https?:\/\/[^\s]+(?:X-Amz-Signature|X-Amz-Credential|token|signature)[^\s]*/gi,

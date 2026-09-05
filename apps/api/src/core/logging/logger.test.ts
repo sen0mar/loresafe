@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { sanitizeError, sanitizePath } from "./logger.js";
+import { logger, sanitizeError, sanitizePath } from "./logger.js";
 
 describe("logger sanitization", () => {
   it("redacts sensitive URL path segments", () => {
@@ -24,4 +24,19 @@ describe("logger sanitization", () => {
         "failed with Bearer [redacted] jwt [redacted-jwt] url [redacted-url]"
     });
   });
+});
+
+it("scrubs reset/verification URLs and nested referrers in actual log output", () => {
+  const output = vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const token = "LOG_SENTINEL_TOKEN_112233";
+  logger.info(`Failed /reset-password?token=${token}`, {
+    nested: {
+      headers: { Referer: `/verify-email?token=${token}` },
+      args: [`/invite/${token}`]
+    }
+  });
+  const serialized = String(output.mock.calls[0]?.[0]);
+  expect(serialized).not.toContain(token);
+  expect(JSON.parse(serialized).level).toBe("info");
+  output.mockRestore();
 });
