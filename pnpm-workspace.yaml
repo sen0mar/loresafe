@@ -9,17 +9,19 @@ overrides:
   # Keep the patched release until Prisma bundles deepmerge-ts 8 upstream.
   deepmerge-ts: 8.0.0
   # Keep transitive URL and IP parsing on their patched API-compatible releases.
-  fast-uri: 3.1.5
+  fast-uri: 3.1.6
   ip-address: 10.3.1
+  # Prisma CLI tooling pins mysql2; retain its supported major with security fixes.
+  mysql2: 3.23.1
+  # Express query/body parsing must use the patched 6.x release.
+  qs: 6.16.0
+  # Patch the existing test tooling's multipart and HTTP clients within their majors.
+  form-data: 4.0.6
+  undici: 7.29.0
+  # Patch the browser-target resolver used by the existing lint tooling.
+  browserslist: 4.28.7
 
 allowBuilds:
   "@prisma/engines": true
   esbuild: true
   prisma: true
-
-auditConfig:
-  # LoreSafe uses React Router only in browser mode. No patched release exists
-  # yet for this RSC-only advisory. This narrow exception expires 2026-08-31
-  # and must be removed earlier if React Router publishes a patched release.
-  ignoreGhsas:
-    - GHSA-qwww-vcr4-c8h2
