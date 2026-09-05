@@ -179,6 +179,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 172: Low-priority audit remediation 18 — Applied the complete frontend document security policy to the live root and SPA routes, excluded API and static-asset responses from the document matcher, and added focused configuration plus live production-header verification.
 - Feature 173: Coordinated dependency upgrades — Upgraded TypeScript ESLint, Vite, paired AWS SDK packages, Node typings, pnpm setup, and CodeQL pins; patched shared audit findings and verified the supported Node 22 release gates.
 
+- Feature 174: Replay-safe upload staging — Separated client PUT staging from backend-only final keys, serialized publication, persisted upload expiration and delayed staging deletion with a committed migration, preserved rollback cleanup, and added replay plus real PostgreSQL lifecycle/concurrency coverage.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

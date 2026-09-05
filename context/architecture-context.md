@@ -81,7 +81,11 @@ File/object storage:
 
 - Use R2 for binary objects.
 - Store metadata in PostgreSQL: owner, club, related post/comment, object key, mime type, size, visibility, spoiler requirement, upload status, and timestamps.
-- Use backend-issued presigned upload URLs.
+- Use backend-issued presigned upload URLs only for `staging/uploads/` keys.
+  Pending metadata records the distinct final key up front; its staging key is
+  derived from that key. Only the backend writes sanitized bytes to final keys.
+- Public serving must allow only `public/` and deny `staging/` and `private/`.
+  Application key separation does not verify the deployed R2 serving policy.
 - Avatars and club covers may be public-safe after validation.
 - Post/comment media that may contain spoilers must be private or served only after backend authorization.
 - Reconcile orphaned uploads in bounded batches during real upload traffic, at most once per API process every six hours.
@@ -222,12 +226,26 @@ File upload flow:
 
 1. Client requests an upload intent.
 2. Backend validates ownership, club membership, file type, size, and spoiler requirement.
-3. Backend creates pending file metadata and returns a presigned upload URL.
-4. Client uploads directly to R2.
-5. Client confirms upload; backend applies bounded image decode/re-encode,
-   strips metadata, replaces the object with the sanitized bytes, and marks it
-   complete only after the replacement succeeds.
-6. Real upload traffic opportunistically reconciles a bounded batch of stale, unconfirmed, or unattached assets.
+3. Backend persists the final destination in pending metadata and returns a
+   presigned PUT for its separate staging key, outside the public prefix.
+4. Client uploads directly to R2 staging.
+5. Client confirms upload; backend applies bounded image decode/re-encode and
+   strips metadata. Under the asset completion lock, it writes sanitized bytes
+   to the backend-only final key, marks the asset ready, attaches it, and queues
+   staging deletion. Concurrent/repeated completion never republishes a ready asset.
+6. Real upload traffic opportunistically reconciles a bounded batch of stale,
+   unconfirmed, or unattached assets. Both keys remain derivable from pending
+   metadata after a storage-success/database-rollback failure; invalid upload,
+   expiration, and account deletion queue both keys. Cleanup claims the observed
+   state before scheduling deletion so a stale pending snapshot cannot delete a
+   newly ready asset. Upload expiration is persisted before signing; the signed
+   PUT cannot outlive that deadline. Staging deletion stays pending until that
+   deadline via the ledger's `notBefore`, including invalid uploads and account
+   deletion, so replay before expiry cannot leave an untracked staging object.
+7. Pending intents issued before staging deployment must be restarted; existing
+   ready assets retain their URLs. Old presigned URLs remain valid until their
+   original expiry. Staging read-access configuration remains a separate
+   deployment concern; expiration cleanup is bounded and request-driven.
 
 Notification refresh flow:
 

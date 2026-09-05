@@ -30,6 +30,7 @@ export type ObjectStorage = {
   checkReady?: (signal?: AbortSignal) => Promise<void>;
   createPresignedRead: (objectKey: string) => Promise<PresignedRead>;
   createPresignedUpload: (input: {
+    expiresAt: Date;
     contentLength: number;
     contentType: string;
     objectKey: string;
@@ -83,22 +84,34 @@ export const r2Storage: ObjectStorage = {
     };
   },
 
-  createPresignedUpload: async ({ contentLength, contentType, objectKey }) => {
+  createPresignedUpload: async ({
+    contentLength,
+    contentType,
+    objectKey,
+    expiresAt
+  }) => {
     const command = new PutObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
       Key: objectKey,
       ContentType: contentType,
       ContentLength: contentLength
     });
-    const expiresIn = env.R2_PRESIGNED_URL_TTL_SECONDS;
-    const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
+    const signingDate = new Date();
+    const expiresIn = Math.floor(
+      (expiresAt.getTime() - signingDate.getTime()) / 1000
+    );
+    if (expiresIn < 1) throw new Error("Upload intent expired before signing.");
+    const uploadUrl = await getSignedUrl(r2Client, command, {
+      expiresIn,
+      signingDate
+    });
 
     return {
       uploadUrl,
       requiredHeaders: {
         "Content-Type": contentType
       },
-      expiresAt: new Date(Date.now() + expiresIn * 1000)
+      expiresAt
     };
   },
 

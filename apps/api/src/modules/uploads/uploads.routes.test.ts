@@ -5,6 +5,10 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import {
+  getUploadStagingKey,
+  getUploadCleanupKeys
+} from "../../core/storage/upload-object-keys.js";
 import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
 import { requestIdMiddleware } from "../../core/http/request-id.js";
@@ -129,7 +133,7 @@ describe("uploads routes", () => {
         updatedAt: createdAsset.updatedAt.toISOString()
       },
       upload: {
-        url: `https://uploads.example/${createdAsset.objectKey}`,
+        url: `https://uploads.example/${getUploadStagingKey(createdAsset.objectKey)}`,
         method: "PUT",
         requiredHeaders: {
           "Content-Type": "image/png"
@@ -137,8 +141,8 @@ describe("uploads routes", () => {
         expiresAt: expect.any(String)
       }
     });
-    expect(createdAsset.objectKey).toMatch(
-      new RegExp(`^public/avatars/${user.id}/[a-f0-9-]+\\.png$`)
+    expect(storage.presignedUploads[0]?.objectKey).toBe(
+      getUploadStagingKey(createdAsset.objectKey)
     );
     expect(response.body.asset).not.toHaveProperty("objectKey");
     expect(storage.presignedUploads[0]).toMatchObject({
@@ -176,8 +180,8 @@ describe("uploads routes", () => {
     const createdAsset = repository.getOnlyAsset();
 
     expect(response.body.asset.purpose).toBe("CLUB_COVER");
-    expect(createdAsset.objectKey).toMatch(
-      new RegExp(`^public/club-covers/${club.id}/[a-f0-9-]+\\.webp$`)
+    expect(storage.presignedUploads[0]?.objectKey).toBe(
+      getUploadStagingKey(createdAsset.objectKey)
     );
   });
 
@@ -233,7 +237,7 @@ describe("uploads routes", () => {
         throw new Error("Expected club-cover upload fixture.");
       }
 
-      storage.metadata.set(asset.objectKey, {
+      storage.metadata.set(getUploadStagingKey(asset.objectKey), {
         contentLength: asset.sizeBytes,
         contentType: asset.contentType
       });
@@ -307,8 +311,8 @@ describe("uploads routes", () => {
       createdAt: createdAsset.createdAt.toISOString(),
       updatedAt: createdAsset.updatedAt.toISOString()
     });
-    expect(createdAsset.objectKey).toMatch(
-      new RegExp(`^private/post-images/${club.id}/[a-f0-9-]+\\.jpg$`)
+    expect(storage.presignedUploads[0]?.objectKey).toBe(
+      getUploadStagingKey(createdAsset.objectKey)
     );
     expect(response.body.asset).not.toHaveProperty("objectKey");
   });
@@ -331,7 +335,7 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
 
-    storage.metadata.set(asset.objectKey, {
+    storage.metadata.set(getUploadStagingKey(asset.objectKey), {
       contentLength: 129,
       contentType: "image/png"
     });
@@ -341,7 +345,9 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(user))
       .expect(400);
     expect(repository.fileAssets.get(asset.id)?.status).toBe("FAILED");
-    expect(storage.deletedObjectKeys).toEqual([asset.objectKey]);
+    expect(storage.deletedObjectKeys).toEqual(
+      getUploadCleanupKeys(asset.objectKey)
+    );
 
     const retryResponse = await request(app)
       .post(`/api/uploads/${asset.id}/complete`)
@@ -372,12 +378,12 @@ describe("uploads routes", () => {
       throw new Error("Expected invalid-byte asset fixture.");
     }
 
-    storage.metadata.set(invalidBytesAsset.objectKey, {
+    storage.metadata.set(getUploadStagingKey(invalidBytesAsset.objectKey), {
       contentLength: invalidBytesAsset.sizeBytes,
       contentType: invalidBytesAsset.contentType
     });
     storage.objectBytes.set(
-      invalidBytesAsset.objectKey,
+      getUploadStagingKey(invalidBytesAsset.objectKey),
       new Uint8Array(invalidBytesAsset.sizeBytes)
     );
 
@@ -399,12 +405,12 @@ describe("uploads routes", () => {
       throw new Error("Expected oversized-image asset fixture.");
     }
 
-    storage.metadata.set(oversizedAsset.objectKey, {
+    storage.metadata.set(getUploadStagingKey(oversizedAsset.objectKey), {
       contentLength: oversizedAsset.sizeBytes,
       contentType: oversizedAsset.contentType
     });
     storage.objectBytes.set(
-      oversizedAsset.objectKey,
+      getUploadStagingKey(oversizedAsset.objectKey),
       createPngBytes(oversizedAsset.sizeBytes, 5_000, 5_000)
     );
 
@@ -414,8 +420,8 @@ describe("uploads routes", () => {
       .expect(400);
 
     expect(storage.deletedObjectKeys).toEqual([
-      invalidBytesAsset.objectKey,
-      oversizedAsset.objectKey
+      ...getUploadCleanupKeys(invalidBytesAsset.objectKey),
+      ...getUploadCleanupKeys(oversizedAsset.objectKey)
     ]);
   });
 
@@ -435,7 +441,7 @@ describe("uploads routes", () => {
       .expect(201);
     const avatar = repository.fileAssets.get(avatarResponse.body.asset.id);
 
-    storage.metadata.set(avatar?.objectKey ?? "", {
+    storage.metadata.set(getUploadStagingKey(avatar?.objectKey ?? ""), {
       contentLength: 128,
       contentType: "image/png"
     });
@@ -458,7 +464,7 @@ describe("uploads routes", () => {
       .expect(201);
     const cover = repository.fileAssets.get(coverResponse.body.asset.id);
 
-    storage.metadata.set(cover?.objectKey ?? "", {
+    storage.metadata.set(getUploadStagingKey(cover?.objectKey ?? ""), {
       contentLength: 256,
       contentType: "image/webp"
     });
@@ -468,20 +474,26 @@ describe("uploads routes", () => {
       .set("Cookie", await createSessionCookie(owner))
       .expect(200);
 
+    const readyAvatar = repository.fileAssets.get(avatarResponse.body.asset.id);
+    const readyCover = repository.fileAssets.get(coverResponse.body.asset.id);
     expect(completedAvatar.body.asset).toMatchObject({
       status: "READY",
-      url: `https://assets.example/${avatar?.objectKey}`
+      url: `https://assets.example/${readyAvatar?.objectKey}`
     });
     expect(completedCover.body.asset).toMatchObject({
       status: "READY",
-      url: `https://assets.example/${cover?.objectKey}`
+      url: `https://assets.example/${readyCover?.objectKey}`
     });
     expect(repository.users.get(owner.id)?.avatarAssetId).toBe(avatar?.id);
     expect(repository.clubs.get(club.id)?.coverAssetId).toBe(cover?.id);
-    expect(storage.writtenObjects.get(avatar?.objectKey ?? "")).toBeDefined();
-    expect(storage.writtenObjects.get(cover?.objectKey ?? "")).toBeDefined();
+    expect(
+      storage.writtenObjects.get(readyAvatar?.objectKey ?? "")
+    ).toBeDefined();
+    expect(
+      storage.writtenObjects.get(readyCover?.objectKey ?? "")
+    ).toBeDefined();
     expect(completedAvatar.body.asset.sizeBytes).toBe(
-      storage.writtenObjects.get(avatar?.objectKey ?? "")?.byteLength
+      storage.writtenObjects.get(readyAvatar?.objectKey ?? "")?.byteLength
     );
   });
 
@@ -500,7 +512,7 @@ describe("uploads routes", () => {
       .expect(201);
     const postImage = repository.fileAssets.get(createResponse.body.asset.id);
 
-    storage.metadata.set(postImage?.objectKey ?? "", {
+    storage.metadata.set(getUploadStagingKey(postImage?.objectKey ?? ""), {
       contentLength: 512,
       contentType: "image/jpeg"
     });
@@ -518,8 +530,141 @@ describe("uploads routes", () => {
     });
     expect(repository.clubs.get(club.id)?.coverAssetId).toBeNull();
     expect(
-      storage.writtenObjects.get(postImage?.objectKey ?? "")
+      storage.writtenObjects.get(
+        repository.fileAssets.get(createResponse.body.asset.id)?.objectKey ?? ""
+      )
     ).toBeDefined();
+  });
+
+  it.each(["AVATAR", "CLUB_COVER", "POST_IMAGE"] as const)(
+    "keeps published %s bytes unchanged when the original PUT is replayed",
+    async (purpose) => {
+      const owner = await repository.createUser({
+        email: "replay@example.com",
+        displayName: "Replay owner",
+        passwordHash: "$argon2id$v=19$hash"
+      });
+      const club = repository.createClub("replay-room");
+      repository.createMembership(owner.id, club.id, "OWNER");
+      const cookie = await createSessionCookie(owner);
+      const input =
+        purpose === "AVATAR"
+          ? validAvatarIntent()
+          : purpose === "CLUB_COVER"
+            ? validClubCoverIntent(club.linkName)
+            : validPostImageIntent(club.linkName);
+      const intent = await request(app)
+        .post(
+          purpose === "POST_IMAGE"
+            ? "/api/uploads/post-images"
+            : "/api/uploads/public-assets"
+        )
+        .set("Cookie", cookie)
+        .send(input)
+        .expect(201);
+      const staged = repository.getOnlyAsset();
+      const stagingKey = getUploadStagingKey(staged.objectKey);
+      expect(stagingKey).toMatch(/^staging\/uploads\//);
+      expect(intent.body.asset.url).toBeNull();
+      storage.metadata.set(getUploadStagingKey(staged.objectKey), {
+        contentLength: staged.sizeBytes,
+        contentType: staged.contentType
+      });
+      const completed = await request(app)
+        .post(`/api/uploads/${staged.id}/complete`)
+        .set("Cookie", cookie)
+        .expect(200);
+      const ready = repository.fileAssets.get(staged.id)!;
+      expect(ready.objectKey).not.toBe(stagingKey);
+      expect(ready.objectKey).toMatch(
+        purpose === "POST_IMAGE" ? /^private\/post-images\// : /^public\//
+      );
+      expect(
+        storage.presignedUploads.map((upload) => upload.objectKey)
+      ).toEqual([stagingKey]);
+      const publishedBytes = storage.writtenObjects
+        .get(ready.objectKey)!
+        .slice();
+      expect([...repository.deletionObjectKeys.values()]).toContain(stagingKey);
+      expect(storage.deletedObjectKeys).not.toContain(ready.objectKey);
+
+      // Replay retains the original signed length/type but replaces the staged body.
+      await storage.putObject({
+        objectKey: stagingKey,
+        contentType: staged.contentType,
+        bytes: new Uint8Array(staged.sizeBytes).fill(42)
+      });
+      const retried = await request(app)
+        .post(`/api/uploads/${staged.id}/complete`)
+        .set("Cookie", cookie)
+        .expect(200);
+      expect(retried.body).toEqual(completed.body);
+      expect(storage.writtenObjects.get(ready.objectKey)).toEqual(
+        publishedBytes
+      );
+    }
+  );
+
+  it("leaves the upload pending and unattached when final publication fails", async () => {
+    const owner = await repository.createUser({
+      email: "failed-publication@example.com",
+      displayName: "Publication owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const service = createUploadsService(repository, storage, {
+      runAfterUploadTraffic: () => undefined,
+      processCommittedDeletions: async () => undefined
+    });
+    const intent = await service.createPublicAssetUpload(owner.id, {
+      ...validAvatarIntent(),
+      purpose: "AVATAR",
+      contentType: "image/png"
+    });
+    const staged = repository.getOnlyAsset();
+    storage.metadata.set(getUploadStagingKey(staged.objectKey), {
+      contentLength: staged.sizeBytes,
+      contentType: staged.contentType
+    });
+    storage.putObject = async () => {
+      throw new Error("Storage unavailable");
+    };
+    await expect(
+      service.completePublicAssetUpload(owner.id, intent.asset.id)
+    ).rejects.toThrow("Storage unavailable");
+    expect(repository.getOnlyAsset().status).toBe("PENDING");
+    expect(repository.users.get(owner.id)?.avatarAssetId).toBeNull();
+    expect(repository.deletionObjectKeys.size).toBe(0);
+  });
+
+  it("requires a fresh intent for legacy pending uploads without changing legacy ready assets", async () => {
+    const owner = await repository.createUser({
+      email: "legacy@example.com",
+      displayName: "Legacy owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const legacy = await repository.createPendingFileAsset({
+      ownerId: owner.id,
+      clubId: null,
+      purpose: "AVATAR",
+      objectKey: `public/avatars/${owner.id}/legacy.png`,
+      contentType: "image/png",
+      sizeBytes: 128
+    });
+    const cookie = await createSessionCookie(owner);
+    await request(app)
+      .post(`/api/uploads/${legacy.id}/complete`)
+      .set("Cookie", cookie)
+      .expect(409);
+    expect(storage.writtenObjects.size).toBe(0);
+    expect(storage.deletedObjectKeys).toEqual([legacy.objectKey]);
+    repository.fileAssets.set(legacy.id, { ...legacy, status: "READY" });
+    const response = await request(app)
+      .post(`/api/uploads/${legacy.id}/complete`)
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(response.body.asset.url).toBe(
+      `https://assets.example/${legacy.objectKey}`
+    );
   });
 
   it("maps a concurrent upload-row disappearance to a stable conflict", async () => {
@@ -539,7 +684,7 @@ describe("uploads routes", () => {
       throw new Error("Expected upload fixture.");
     }
 
-    storage.metadata.set(asset.objectKey, {
+    storage.metadata.set(getUploadStagingKey(asset.objectKey), {
       contentLength: asset.sizeBytes,
       contentType: asset.contentType
     });
@@ -743,6 +888,7 @@ class InMemoryUploadsRepository
       visibility: input.visibility ?? "PUBLIC",
       safePreview: input.safePreview ?? false,
       objectKey: input.objectKey,
+      uploadExpiresAt: input.uploadExpiresAt ?? null,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
       status: "PENDING",
@@ -800,20 +946,20 @@ class InMemoryUploadsRepository
       updatedAt: new Date()
     };
     this.fileAssets.set(assetId, failedAsset);
-    const deletionId = randomUUID();
-    this.deletionObjectKeys.set(deletionId, asset.objectKey);
-
-    return {
-      asset: failedAsset,
-      deletionId
-    };
+    const deletionIds = getUploadCleanupKeys(asset.objectKey).map((key) => {
+      const id = randomUUID();
+      this.deletionObjectKeys.set(id, key);
+      return id;
+    });
+    return { asset: failedAsset, deletionIds };
   };
 
   markAssetReadyAndAttach = async (
     asset: FileAssetRecord,
     actorId: string,
     readyAt: Date,
-    validation: ValidatedImage
+    validation: ValidatedImage,
+    publish: () => Promise<void>
   ) => {
     if (asset.ownerId !== actorId) {
       return {
@@ -846,6 +992,12 @@ class InMemoryUploadsRepository
       }
     }
 
+    await publish();
+    const deletionId = randomUUID();
+    this.deletionObjectKeys.set(
+      deletionId,
+      getUploadStagingKey(asset.objectKey)
+    );
     const readyAsset = {
       ...asset,
       status: "READY" as const,
@@ -877,7 +1029,7 @@ class InMemoryUploadsRepository
     return {
       status: "SUCCESS" as const,
       asset: readyAsset,
-      deletionIds: []
+      deletionIds: [deletionId]
     };
   };
 

@@ -1,5 +1,9 @@
+import { getUploadStagingKey } from "../../core/storage/upload-object-keys.js";
 import { prisma } from "../../core/prisma/client.js";
-import { requestStorageObjectDeletion } from "../../core/storage/storage-deletion.repository.js";
+import {
+  requestStorageObjectDeletion,
+  requestUploadObjectDeletions
+} from "../../core/storage/storage-deletion.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
 import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
 import type { ValidatedImage } from "./image-validation.js";
@@ -27,6 +31,7 @@ export type FileAssetRecord = {
   isAnimated: boolean | null;
   validatedAt: Date | null;
   readyAt: Date | null;
+  uploadExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -39,6 +44,7 @@ export type UploadClubRecord = {
 };
 
 export type CreateFileAssetInput = {
+  uploadExpiresAt?: Date;
   ownerId: string;
   clubId: string | null;
   purpose: FileAssetPurpose;
@@ -70,12 +76,13 @@ export type UploadsRepository = {
   ) => Promise<UploadClubRecord | null>;
   markAssetFailedAndRequestDeletion: (
     assetId: string
-  ) => Promise<{ asset: FileAssetRecord; deletionId: string } | null>;
+  ) => Promise<{ asset: FileAssetRecord; deletionIds: string[] } | null>;
   markAssetReadyAndAttach: (
     asset: FileAssetRecord,
     actorId: string,
     readyAt: Date,
-    validation: ValidatedImage
+    validation: ValidatedImage,
+    publish: () => Promise<void>
   ) => Promise<MarkAssetReadyAndAttachResult>;
 };
 
@@ -97,6 +104,7 @@ const fileAssetSelect = {
   isAnimated: true,
   validatedAt: true,
   readyAt: true,
+  uploadExpiresAt: true,
   createdAt: true,
   updatedAt: true
 } as const;
@@ -153,6 +161,7 @@ export const uploadsRepository: UploadsRepository = {
         objectKey: input.objectKey,
         contentType: input.contentType,
         sizeBytes: input.sizeBytes,
+        uploadExpiresAt: input.uploadExpiresAt,
         status: "PENDING"
       },
       select: fileAssetSelect
@@ -220,19 +229,20 @@ export const uploadsRepository: UploadsRepository = {
         },
         select: fileAssetSelect
       });
-      const deletion = await requestStorageObjectDeletion(
+      const deletionIds = await requestUploadObjectDeletions(
         transaction,
         asset.objectKey,
-        "INVALID_UPLOAD"
+        "INVALID_UPLOAD",
+        asset.uploadExpiresAt
       );
 
       return {
         asset: failedAsset,
-        deletionId: deletion.id
+        deletionIds
       };
     }),
 
-  markAssetReadyAndAttach: (asset, actorId, readyAt, validation) =>
+  markAssetReadyAndAttach: (asset, actorId, readyAt, validation, publish) =>
     prisma.$transaction(async (transaction) => {
       if (asset.purpose === "CLUB_COVER") {
         if (
@@ -323,6 +333,10 @@ export const uploadsRepository: UploadsRepository = {
         };
       }
 
+      // The asset lock makes publication single-writer, including concurrent retries.
+      // Only sanitized bytes are written, and no client PUT grants this final key.
+      await publish();
+
       const updatedAsset = await transaction.fileAsset.update({
         where: {
           id: asset.id,
@@ -340,7 +354,14 @@ export const uploadsRepository: UploadsRepository = {
         select: fileAssetSelect
       });
 
-      const deletionIds: string[] = [];
+      const stagingDeletion = await requestStorageObjectDeletion(
+        transaction,
+        getUploadStagingKey(currentAsset.objectKey),
+        "REPLACED_ASSET",
+        currentAsset.uploadExpiresAt ?? undefined
+      );
+      const deletionIds =
+        stagingDeletion.status === "PENDING" ? [stagingDeletion.id] : [];
 
       if (currentAsset.purpose === "AVATAR") {
         const previousAsset = await transaction.user.findUnique({

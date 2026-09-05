@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { getUploadStagingKey } from "../../core/storage/upload-object-keys.js";
 import { prisma } from "../../core/prisma/client.js";
 import { usersRepository } from "../users/users.repository.js";
 import { uploadsRepository } from "./uploads.repository.js";
@@ -46,7 +47,8 @@ describeDatabase("upload deletion lifecycle", () => {
           widthPx: 64,
           heightPx: 64,
           isAnimated: false
-        }
+        },
+        async () => undefined
       );
 
       const secondAsset = await uploadsRepository.createPendingFileAsset({
@@ -66,7 +68,8 @@ describeDatabase("upload deletion lifecycle", () => {
           widthPx: 64,
           heightPx: 64,
           isAnimated: false
-        }
+        },
+        async () => undefined
       );
 
       expect(
@@ -147,7 +150,7 @@ describeDatabase("upload deletion lifecycle", () => {
       await prisma.storageObjectDeletion.deleteMany({
         where: {
           objectKey: {
-            in: objectKeys
+            in: [...objectKeys, ...objectKeys.map(getUploadStagingKey)]
           }
         }
       });
