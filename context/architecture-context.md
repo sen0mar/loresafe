@@ -58,7 +58,10 @@ Boundary rules:
 - The backend must decide which content is safe before sending a response.
 - React may hide or decorate locked content, but it must not receive unsafe spoiler content.
 - API responses default to `Cache-Control: private, no-store` with credential-aware
-  `Vary` headers; explicitly public API routes use a bounded shared-cache policy.
+  `Vary` headers, including anonymous public club directory/detail responses
+  because those endpoints apply caller-specific bans. A public URL prefix does
+  not imply shared-cache safety. The caller-independent `/sitemap.xml` alone
+  retains its explicit bounded shared-cache policy.
 - Cross-boundary input is treated as unknown until validated.
 - Client `x-request-id` values are correlation labels only. The API accepts
   1-64 character trace-compatible tokens made from letters, digits, `.`, `_`,
