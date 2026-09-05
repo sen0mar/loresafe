@@ -90,6 +90,7 @@ type SearchClubRow = {
 
 type SearchPostRow = {
   id: string;
+  isSafe: boolean;
 };
 
 type SelectedSearchPost = Prisma.PostGetPayload<{
@@ -243,11 +244,19 @@ export const searchRepository: SearchRepository = {
       includeSafe,
       includeSpoiler
     });
+    // Matching and ranking must use the same reader-safe document.
+    const searchableDocument = Prisma.sql`to_tsvector(
+      'english',
+      coalesce(c."title", '') || ' ' || coalesce(c."link_name", '') || ' ' ||
+      CASE WHEN ${searchPostSafeCondition} THEN
+        coalesce(p."title", '') || ' ' || coalesce(p."body", '')
+      ELSE '' END
+    )`;
     const rows = await prisma.$queryRaw<SearchPostRow[]>`
       WITH search AS (
         SELECT websearch_to_tsquery('english', ${query}) AS query
       )
-      SELECT p."id"
+      SELECT p."id", ${searchPostSafeCondition} AS "isSafe"
       FROM "posts" p
       CROSS JOIN search
       INNER JOIN "clubs" c ON c."id" = p."club_id"
@@ -277,33 +286,37 @@ export const searchRepository: SearchRepository = {
       )
       AND current_ban."id" IS NULL
       ${visibilityCondition}
-      AND to_tsvector(
-        'english',
-        coalesce(p."title", '') || ' ' || coalesce(p."body", '')
-      ) @@ search.query
-      ORDER BY ts_rank_cd(
-        to_tsvector(
-          'english',
-          coalesce(p."title", '') || ' ' || coalesce(p."body", '')
-        ),
-        search.query
-      ) DESC, p."created_at" DESC, p."id" ASC
+      AND ${searchableDocument} @@ search.query
+      ORDER BY ts_rank_cd(${searchableDocument}, search.query) DESC, p."created_at" DESC, p."id" ASC
       OFFSET ${offset}
       LIMIT ${limit + 1}
     `;
     const pageRows = rows.slice(0, limit);
     const postIds = pageRows.map((row) => row.id);
+    const candidateIds = rows.map((row) => row.id);
     const posts = await prisma.post.findMany({
       where: {
         id: {
-          in: postIds
+          in: candidateIds
         },
         ...visiblePostAccessWhere(userId)
       },
       select: searchPostSelect(userId)
     });
-    const authorizedPosts = posts.filter((post) =>
-      matchesSearchSafetyFilter(post, { includeSafe, includeSpoiler })
+    const currentPosts = new Map(posts.map((post) => [post.id, post]));
+    // Discard the whole ranked page, including its lookahead, if protected text
+    // influenced it before access was revoked. Redacting cards alone leaks matches.
+    if (
+      rows.some(
+        (row) => row.isSafe && !isSearchPostSafe(currentPosts.get(row.id))
+      )
+    ) {
+      return { records: [], hasMore: false };
+    }
+    const authorizedPosts = posts.filter(
+      (post) =>
+        postIds.includes(post.id) &&
+        matchesSearchSafetyFilter(post, { includeSafe, includeSpoiler })
     );
     const authorizedPostIds = authorizedPosts.map((post) => post.id);
     const postOrder = new Map(postIds.map((postId, index) => [postId, index]));
@@ -324,6 +337,12 @@ export const searchRepository: SearchRepository = {
   }
 };
 
+// IS TRUE makes a missing LEFT JOIN progress row explicitly unsafe.
+const searchPostSafeCondition = Prisma.sql`(
+  current_progress."mode" = 'FINISHED'
+  OR required_milestone."position" <= coalesce(current_milestone."position", 0)
+) IS TRUE`;
+
 const searchPostVisibilityCondition = ({
   includeSafe,
   includeSpoiler
@@ -335,16 +354,11 @@ const searchPostVisibilityCondition = ({
     return Prisma.empty;
   }
 
-  const safeCondition = Prisma.sql`(
-    current_progress."mode" = 'FINISHED'
-    OR required_milestone."position" <= coalesce(current_milestone."position", 0)
-  )`;
-
   if (includeSafe) {
-    return Prisma.sql`AND ${safeCondition}`;
+    return Prisma.sql`AND ${searchPostSafeCondition}`;
   }
 
-  return Prisma.sql`AND NOT ${safeCondition}`;
+  return Prisma.sql`AND NOT ${searchPostSafeCondition}`;
 };
 
 const matchesSearchSafetyFilter = (
@@ -361,13 +375,17 @@ const matchesSearchSafetyFilter = (
     return true;
   }
 
+  return includeSafe ? isSearchPostSafe(post) : !isSearchPostSafe(post);
+};
+
+const isSearchPostSafe = (post: SelectedSearchPost | undefined) => {
+  if (!post) return false;
   const progress = post.club.progress[0];
-  const isSafe =
+  return (
     progress?.mode === "FINISHED" ||
     post.requiredMilestone.position <=
-      (progress?.currentMilestone?.position ?? 0);
-
-  return includeSafe ? isSafe : !isSafe;
+      (progress?.currentMilestone?.position ?? 0)
+  );
 };
 
 const toSearchClubRecord = (row: SearchClubRow): SearchClubRecord => ({

@@ -122,6 +122,12 @@ Storage invariants:
 - Large binaries are not stored in PostgreSQL.
 - Required milestone/order must be queryable without loading full timelines into memory.
 - Every content response must be filtered or shaped against the authenticated user's club progress and mode.
+- Post search matches and ranks one reader-safe document: club title/link name,
+  plus post title/body only when progress permits normal reading. Missing progress
+  is unsafe; Brave mode requires the same progress as Strict for search. Locked
+  discovery uses only safe club metadata. The final authorization read includes
+  the pagination lookahead and discards a page if a protected-text candidate loses
+  access, preserving DTO redaction without exposing stale matches or ranking.
 
 ## Auth and Collaboration Model
 
