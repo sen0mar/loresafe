@@ -187,6 +187,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 177: Email-neutral signup conflicts — Applied username conflicts independently of email existence, rechecked name reservations after uniqueness races, and added HTTP response-matrix plus real PostgreSQL concurrent-insert regressions.
 
+- Feature 178: Public club cache isolation — Applied private no-store caching to anonymous and authenticated public club responses, preserved caller-independent sitemap caching, and added identical-URL shared-cache regressions using real PostgreSQL ban filtering.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

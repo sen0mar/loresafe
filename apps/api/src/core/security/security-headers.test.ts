@@ -49,16 +49,15 @@ describe("apiCacheControlMiddleware", () => {
     expect(response.headers.vary).toContain("Cookie");
   });
 
-  it("gives explicitly public API responses a bounded shared policy", async () => {
+  it("does not infer shared-cache safety from a public path", async () => {
     const app = express();
     app.use("/api", apiCacheControlMiddleware);
     app.get("/api/public/clubs", (_req, res) => res.json({ clubs: [] }));
 
     const response = await request(app).get("/api/public/clubs").expect(200);
 
-    expect(response.headers["cache-control"]).toBe(
-      "public, max-age=60, s-maxage=300"
-    );
-    expect(response.headers.vary).toBeUndefined();
+    expect(response.headers["cache-control"]).toBe("private, no-store");
+    expect(response.headers.vary).toContain("Cookie");
+    expect(response.headers.vary).toContain("Authorization");
   });
 });
