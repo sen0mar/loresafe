@@ -195,6 +195,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 181: Authentication-owned mutations — Fenced mutation requests, responses, rollback, settlement, and caller callbacks by authentication generation; preserved intentional auth transitions and stable hook functions; added installed TanStack Query account-switch, queue, optimistic, and auth-flow regressions.
 
+- Feature 182: README refresh — Updated the existing overview for account recovery, privacy pages, notification and responsive UI improvements, session/search/upload protections, and CI checks; clarified pending email delivery and verified local demo setup guidance.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.
