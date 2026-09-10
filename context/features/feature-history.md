@@ -199,6 +199,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 183: Sharp security patch — Upgraded Sharp to 0.35.4 and its bundled image libraries, cleared the production dependency audit, and verified image validation, upload routes, cleanup, and signing regressions.
 
+- Feature 184: Coordinated dependency PR maintenance — Updated aligned React and Tailwind packages, Radix tabs, ESLint, paired CodeQL pins, and the Vitest security patch; kept Node typings on the supported 22.x line, regenerated the shared lockfile, and stabilized asynchronous verification URL coverage.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

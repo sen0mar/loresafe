@@ -188,6 +188,8 @@ it("sends verification once across pending rerenders and removes the consumed to
   });
   await screen.findByText("Your request is complete. You can now log in.");
   expect(fetchMock).toHaveBeenCalledOnce();
-  expect(routeObserver).toHaveBeenLastCalledWith("/verify-email?source=email");
+  await waitFor(() =>
+    expect(routeObserver).toHaveBeenLastCalledWith("/verify-email?source=email")
+  );
   vi.unstubAllGlobals();
 });
