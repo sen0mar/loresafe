@@ -197,6 +197,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 182: README refresh — Updated the existing overview for account recovery, privacy pages, notification and responsive UI improvements, session/search/upload protections, and CI checks; clarified pending email delivery and verified local demo setup guidance.
 
+- Feature 183: Sharp security patch — Upgraded Sharp to 0.35.4 and its bundled image libraries, cleared the production dependency audit, and verified image validation, upload routes, cleanup, and signing regressions.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.
