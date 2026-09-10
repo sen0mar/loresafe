@@ -25,3 +25,7 @@ allowBuilds:
   "@prisma/engines": true
   esbuild: true
   prisma: true
+
+minimumReleaseAgeExclude:
+  # Reviewed types-only patch keeps declarations aligned with the Node 22 runtime.
+  - "@types/node@22.20.2"
