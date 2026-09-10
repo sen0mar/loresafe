@@ -34,6 +34,7 @@ LoreSafe gives each club an ordered milestone timeline. Content declares the mil
 
 ## Features
 
+- Accounts and profiles with email verification and password recovery flows (email delivery setup is still pending; see below).
 - Public, private, and invite-only clubs with owner, moderator, and member roles.
 - Custom milestone timelines and templates for books, shows, movies, games, podcasts, courses, and other media.
 - Per-club progress history, quick advancement, explicit rewinds, and first-visit progress setup.
@@ -41,11 +42,12 @@ LoreSafe gives each club an ordered milestone timeline. Content declares the mil
 - Personalized Safe, Locked, All, My Posts, and Unanswered feeds.
 - Discussions, questions, theories, predictions, polls, reactions, reviews, images, quotes, and milestone updates.
 - Nested comments, emoji reactions, spoiler-aware media, and recently unlocked discussions.
-- Spoiler-safe durable notifications with refresh-on-focus delivery.
+- Spoiler-safe durable notifications, a preview dropdown, selected-notification deletion, and refresh on focus or open.
 - Club and discussion search that preserves membership, ban, and progress rules.
 - Reporting, moderator queues, spoiler-level correction, hiding, deletion, warnings, bans, and audit history.
 - Public club pages, sitemap generation, crawler metadata, PWA assets, and route-level SEO controls.
-- Responsive dark UI with keyboard states, reduced-motion support, and accessibility regression coverage.
+- Public privacy policy and terms pages.
+- Responsive dark UI from mobile to 4K, a collapsible desktop sidebar, keyboard states, and reduced-motion support.
 
 ### Reading modes
 
@@ -69,7 +71,7 @@ flowchart LR
     Browser -->|"focus and notification-open refresh"| API
 ```
 
-The frontend owns presentation, optimistic interactions, and small UI state. The API owns validation, authentication, authorization, club policies, progress checks, response shaping, and storage access. PostgreSQL is the source of truth for membership, roles, bans, progress, visibility, audit records, file metadata, durable notifications, and storage-deletion records.
+The frontend owns presentation, optimistic interactions, and small UI state. Account changes clear cached data and prevent requests or updates from a previous session from affecting the next one. The API owns validation, authentication, authorization, club policies, progress checks, response shaping, and storage access. PostgreSQL is the source of truth for membership, roles, bans, progress, visibility, audit records, file metadata, durable notifications, and storage-deletion records.
 
 Browser requests use same-origin `/api` paths. Vite proxies them to the local API during development; Vercel rewrites them to the Render service in production.
 
@@ -92,7 +94,7 @@ Browser requests use same-origin `/api` paths. Vite proxies them to the local AP
 ```text
 loresafe/
 ├── apps/
-│   ├── api/                 # Express API, Prisma schema/migrations, jobs, tests
+│   ├── api/                 # Express API, Prisma schema/migrations, scripts, tests
 │   │   ├── openapi/         # Generated OpenAPI 3.1 contract
 │   │   ├── prisma/          # Schema, committed migrations, guarded demo seed
 │   │   └── src/             # Config, core infrastructure, and domain modules
@@ -220,10 +222,12 @@ pnpm dev:api
 
 ### Optional demo data
 
+New accounts must verify their email before login. Verification and password recovery flows are implemented, but the default email adapter does not send messages; a delivery provider still needs to be configured. For local exploration, the demo seed below creates a verified account you can log in with.
+
 The seed is deliberately guarded so it cannot silently write to the wrong database. Add these values to `.env`, making `DEMO_SEED_DATABASE_URL` exactly equal to `DATABASE_URL`:
 
 ```dotenv
-DEMO_SEED_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/loresafe
+DEMO_SEED_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/loresafe
 DEMO_SEED_CONFIRM=I_UNDERSTAND_THIS_WRITES_DEMO_DATA
 DEMO_USER_EMAIL=demo@example.com
 DEMO_USER_DISPLAY_NAME=Demo Reader
@@ -378,12 +382,17 @@ Spoiler safety and conventional application security share the same boundary: th
 
 - Authorization loads current membership, role, ban, and progress data from PostgreSQL; JWT claims are not trusted for club permissions.
 - Access JWTs and rotating refresh sessions live only in scoped HttpOnly cookies, with persisted hashed identifiers for revocation.
+- Refresh-token replay detection revokes compromised session families and creates an account security notification.
+- Verification and recovery use expiring, purpose-bound tokens; password resets revoke existing sessions, and account deletion requires the current password.
 - State-changing cookie-authenticated requests are protected by SameSite cookies and trusted-origin checks.
 - Locked posts and comments return safe metadata only. Spoiler text and protected media URLs are never included in unauthorized responses.
+- Locked search results match only safe club metadata, so hidden post text cannot affect matches or ranking.
 - Private media is accessed through backend-authorized, short-lived R2 flows; object keys are not authorization credentials.
+- Images upload to separate staging keys, then the backend validates and re-encodes them, strips metadata, and publishes the final files.
+- API responses use private, no-store caching, including public club pages whose results depend on the caller; the sitemap has a separate public cache policy.
 - Request bodies, params, query strings, environment values, and webhook-like boundaries are validated with Zod.
 - Sensitive and expensive endpoints are rate-limited before costly work.
-- Moderation and security-sensitive actions are transactional and audited.
+- Moderation and security-sensitive actions are transactional and audited, with 365-day moderation audit retention and deleted-user anonymization.
 - Logs and error responses exclude passwords, hashes, cookies, tokens, secrets, private URLs, and stack traces.
 - Security headers, noindex controls, request IDs, bounded timeouts, readiness checks, and release-gate tests are checked into the repository.
 
@@ -392,6 +401,8 @@ When changing visibility behavior, test both allowed and denied paths. The highe
 ## Testing and release quality
 
 The project uses focused Vitest tests beside the code they verify, real PostgreSQL integration tests for database and concurrency invariants, and Playwright for deployed-browser security and accessibility behavior.
+
+CI also audits production dependencies and runs scheduled PostgreSQL performance checks.
 
 The release gate in `.github/workflows/release-gate.yml` exposes separate static-quality, unit-and-coverage, database-integration, production-build, browser/accessibility, and full-history secret-scan jobs. The stable `Release gate` aggregate succeeds only when every safety-critical job succeeds. Coverage diagnostics are uploaded after pass or failure, while Playwright reports and results are retained after browser failure or cancellation.
 
@@ -434,6 +445,7 @@ See [`context/operations-runbook.md`](context/operations-runbook.md) for readine
 | [`context/code-standards.md`](context/code-standards.md)                     | TypeScript, frontend, backend, data-access, and testing conventions      |
 | [`context/api-governance.md`](context/api-governance.md)                     | API compatibility, errors, pagination, retries, and idempotency          |
 | [`context/operations-runbook.md`](context/operations-runbook.md)             | Production operations and recovery                                       |
+| [`context/privacy-data-inventory.md`](context/privacy-data-inventory.md)     | Stored data, retention, deletion, and privacy disclosures                |
 | [`context/features/feature-history.md`](context/features/feature-history.md) | Concise history of completed product increments                          |
 
 ## License
