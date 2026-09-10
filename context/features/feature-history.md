@@ -201,6 +201,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 184: Coordinated dependency PR maintenance — Updated aligned React and Tailwind packages, Radix tabs, ESLint, paired CodeQL pins, and the Vitest security patch; kept Node typings on the supported 22.x line, regenerated the shared lockfile, and stabilized asynchronous verification URL coverage.
 
+- Feature 185: Production dependency audit threshold — Kept all production advisories visible in a non-blocking report, limited the blocking audit to high and critical vulnerabilities, and aligned the operational policy while preserving weekly Dependabot checks.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

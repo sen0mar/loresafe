@@ -63,8 +63,12 @@
   start command against that build. Promote only commits that passed the release
   gate; Render does not currently promote one immutable artifact across separate
   environments, so compare the deployed commit SHA before smoke testing.
-- Production dependency audit policy is zero known advisories at any severity.
-  The release gate runs `pnpm audit --prod --audit-level low`. A temporary
+- Production dependency audits block promotion for high and critical advisories.
+  The release gate reports all severities through a non-blocking
+  `pnpm audit --prod --audit-level low` step, then enforces
+  `pnpm audit --prod --audit-level high`. Review low and moderate findings during
+  dependency maintenance, prioritizing those that affect sensitive runtime paths.
+  Weekly Dependabot update pull requests remain enabled. A temporary blocking-audit
   exception requires a tracked owner, runtime-reachability analysis, compensating
   controls, upstream issue, and expiry date; expired exceptions block promotion.
 - Keep the last known-good Render build available. Roll back the API artifact/config first when health regresses; do not reverse a committed migration destructively.
