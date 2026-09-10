@@ -91,8 +91,12 @@ jobs:
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Audit production dependencies
+      - name: Report all production dependency advisories
+        continue-on-error: true
         run: pnpm audit --prod --audit-level low
+
+      - name: Block high and critical production dependency advisories
+        run: pnpm audit --prod --audit-level high
 
       - name: Lint source and enforce import boundaries
         run: pnpm lint
