@@ -19,6 +19,7 @@ import {
 import { Input } from "@/shared/components/ui/input";
 
 import { useSignup } from "../api/auth.js";
+import { useLoginAction } from "../hooks/use-login-action.js";
 import {
   AuthFormError,
   AuthFormField,
@@ -29,6 +30,7 @@ import {
   toSignupRequest,
   type SignupFormValues
 } from "../schemas/signup.schema.js";
+import { DemoLoginButton } from "./demo-login-button.js";
 
 type SignupFieldErrors = Partial<Record<keyof SignupFormValues, string>>;
 
@@ -52,6 +54,8 @@ export const SignupForm = () => {
     redirectTo === AUTHENTICATED_HOME_PATH
       ? "/login"
       : `/login?${new URLSearchParams({ redirectTo }).toString()}`;
+  const { login, loginMutation } = useLoginAction(redirectTo);
+  const isPending = signupMutation.isPending || loginMutation.isPending;
 
   const updateField =
     (field: keyof SignupFormValues) =>
@@ -104,7 +108,12 @@ export const SignupForm = () => {
       <CardContent>
         {/* Native validation is disabled so Zod owns the visible field messages. */}
         <form className="grid gap-4" onSubmit={submitSignup} noValidate>
-          {signupMutation.error ? (
+          {loginMutation.error ? (
+            <AuthFormError
+              error={loginMutation.error}
+              fallbackMessage="Something went wrong while opening the demo."
+            />
+          ) : signupMutation.error ? (
             <AuthFormError
               error={signupMutation.error}
               fallbackMessage="Something went wrong while creating your account."
@@ -123,7 +132,7 @@ export const SignupForm = () => {
               autoComplete="email"
               value={values.email}
               onChange={updateField("email")}
-              disabled={signupMutation.isPending}
+              disabled={isPending}
               aria-invalid={!!fieldErrors.email}
               aria-describedby={fieldErrors.email ? "email-error" : undefined}
             />
@@ -141,7 +150,7 @@ export const SignupForm = () => {
               autoComplete="username"
               value={values.username}
               onChange={updateField("username")}
-              disabled={signupMutation.isPending}
+              disabled={isPending}
               aria-invalid={!!fieldErrors.username}
               aria-describedby={
                 fieldErrors.username ? "username-error" : undefined
@@ -160,7 +169,7 @@ export const SignupForm = () => {
               autoComplete="new-password"
               value={values.password}
               onChange={updateField("password")}
-              disabled={signupMutation.isPending}
+              disabled={isPending}
               aria-invalid={!!fieldErrors.password}
               aria-describedby={
                 fieldErrors.password ? "password-error" : undefined
@@ -179,7 +188,7 @@ export const SignupForm = () => {
               autoComplete="new-password"
               value={values.confirmPassword}
               onChange={updateField("confirmPassword")}
-              disabled={signupMutation.isPending}
+              disabled={isPending}
               aria-invalid={!!fieldErrors.confirmPassword}
               aria-describedby={
                 fieldErrors.confirmPassword
@@ -189,11 +198,7 @@ export const SignupForm = () => {
             />
           </AuthFormField>
 
-          <Button
-            type="submit"
-            className="mt-2"
-            disabled={signupMutation.isPending}
-          >
+          <Button type="submit" className="mt-2" disabled={isPending}>
             {signupMutation.isPending
               ? "Creating account..."
               : "Create account"}
@@ -210,6 +215,12 @@ export const SignupForm = () => {
             </Link>
             before creating an account.
           </p>
+
+          <DemoLoginButton
+            disabled={isPending}
+            isPending={loginMutation.isPending}
+            onLogin={login}
+          />
         </form>
 
         <p className="mt-4 text-center text-sm text-faint">
