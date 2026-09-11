@@ -9,12 +9,26 @@ export const publicClientEnvKeys = [
   "VITE_SENTRY_ENVIRONMENT",
   "VITE_SENTRY_TRACES_SAMPLE_RATE",
   "VITE_SENTRY_ENABLE_DEBUG_ROUTE",
-  "VITE_PUBLIC_SITE_ORIGIN"
+  "VITE_PUBLIC_SITE_ORIGIN",
+  "VITE_DEMO_USER_EMAIL",
+  "VITE_DEMO_USER_PASSWORD"
 ] as const;
+
+const demoSeedEnvKeys = ["DEMO_USER_EMAIL", "DEMO_USER_PASSWORD"] as const;
 
 export default defineConfig(({ mode }) => {
   const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
-  const envValues = readRootEnvValues(rootDirectory, mode, publicClientEnvKeys);
+  const publicEnvValues = readRootEnvValues(
+    rootDirectory,
+    mode,
+    publicClientEnvKeys
+  );
+  const demoSeedEnvValues = readRootEnvValues(
+    rootDirectory,
+    mode,
+    demoSeedEnvKeys
+  );
+  const envValues = addDemoSeedEnvFallbacks(publicEnvValues, demoSeedEnvValues);
   const defineValues = createClientEnvDefineValues(envValues);
 
   return {
@@ -72,6 +86,20 @@ export default defineConfig(({ mode }) => {
       }
     }
   };
+});
+
+export const addDemoSeedEnvFallbacks = (
+  publicEnvValues: Partial<
+    Record<(typeof publicClientEnvKeys)[number], string>
+  >,
+  demoSeedEnvValues: Partial<Record<(typeof demoSeedEnvKeys)[number], string>>
+) => ({
+  ...publicEnvValues,
+  VITE_DEMO_USER_EMAIL:
+    publicEnvValues.VITE_DEMO_USER_EMAIL ?? demoSeedEnvValues.DEMO_USER_EMAIL,
+  VITE_DEMO_USER_PASSWORD:
+    publicEnvValues.VITE_DEMO_USER_PASSWORD ??
+    demoSeedEnvValues.DEMO_USER_PASSWORD
 });
 
 export const createClientEnvDefineValues = (

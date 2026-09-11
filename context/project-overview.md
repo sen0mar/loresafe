@@ -57,6 +57,8 @@ Normal discussion spaces rely on manual spoiler tags. LoreSafe makes spoiler saf
 
 - Account-neutral signup with email verification, login/logout, password
   recovery, and authenticated profile.
+- Optional one-click access to an isolated seeded demo account when public demo
+  credentials are configured for the web build.
 - Locked username at signup, plus avatar/display name basics.
 - Joined clubs and per-club progress.
 

@@ -203,6 +203,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 185: Production dependency audit threshold — Kept all production advisories visible in a non-blocking report, limited the blocking audit to high and critical vulnerabilities, and aligned the operational policy while preserving weekly Dependabot checks.
 
+- Feature 186: One-click demo login — Added a configurable Continue as guest action to login and signup, reused the normal authenticated session transition and safe redirects, supported local demo-seed credential fallback, and added focused frontend coverage.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

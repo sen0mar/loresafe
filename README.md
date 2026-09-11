@@ -242,6 +242,23 @@ pnpm --filter @loresafe/api prisma:seed
 
 The seed creates a demo reader, a public book club, milestones, progress, and representative safe and locked discussions. It is forbidden when `NODE_ENV=production`.
 
+To show a one-click **Continue as guest** action on both authentication forms,
+configure the same isolated demo account as public web build variables:
+
+```dotenv
+VITE_DEMO_USER_EMAIL=demo@example.com
+VITE_DEMO_USER_PASSWORD=the-demo-account-password
+```
+
+For local development, the web build automatically falls back to the existing
+`DEMO_USER_EMAIL` and `DEMO_USER_PASSWORD` seed values when the `VITE_` overrides
+are unset.
+
+Both values are intentionally embedded in the browser bundle. Never use a real
+user account or a password shared with any non-demo system. The action stays
+hidden unless both values are configured and signs in through the normal login
+endpoint.
+
 ### Empty the Neon development database
 
 The wipe-only command truncates every public application table, preserves

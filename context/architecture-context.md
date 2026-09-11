@@ -147,6 +147,11 @@ Storage invariants:
 
 Authentication:
 
+- The optional one-click demo action uses the normal login endpoint and auth
+  state transition. Its build-time browser credentials are intentionally public,
+  must belong only to an isolated seeded demo account, and leave the action
+  hidden when either value is missing or invalid. Local web builds fall back to
+  the guarded demo-seed credentials when explicit public overrides are absent.
 - Signup creates an unverified account without a session and always returns the
   same accepted response for new and existing email addresses when the requested
   username is available, after comparable Argon2id work. Taken usernames return

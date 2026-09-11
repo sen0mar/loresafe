@@ -1,8 +1,7 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
-import { toast } from "sonner";
 
 import {
   AUTHENTICATED_HOME_PATH,
@@ -18,7 +17,7 @@ import {
 } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 
-import { useLogin } from "../api/auth.js";
+import { useLoginAction } from "../hooks/use-login-action.js";
 import {
   AuthFormError,
   AuthFormField,
@@ -28,6 +27,7 @@ import {
   loginFormSchema,
   type LoginFormValues
 } from "../schemas/login.schema.js";
+import { DemoLoginButton } from "./demo-login-button.js";
 
 type LoginFieldErrors = Partial<Record<keyof LoginFormValues, string>>;
 
@@ -37,9 +37,7 @@ const initialValues: LoginFormValues = {
 };
 
 export const LoginForm = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const loginMutation = useLogin();
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
   const redirectTo =
@@ -49,6 +47,7 @@ export const LoginForm = () => {
     redirectTo === AUTHENTICATED_HOME_PATH
       ? "/signup"
       : `/signup?${new URLSearchParams({ redirectTo }).toString()}`;
+  const { login, loginMutation } = useLoginAction(redirectTo);
 
   const updateField =
     (field: keyof LoginFormValues) =>
@@ -79,12 +78,7 @@ export const LoginForm = () => {
     }
 
     setFieldErrors({});
-    loginMutation.mutate(parseResult.data, {
-      onSuccess: () => {
-        toast.success("Logged in");
-        navigate(redirectTo, { replace: true });
-      }
-    });
+    login(parseResult.data);
   };
 
   return (
@@ -149,6 +143,12 @@ export const LoginForm = () => {
             {loginMutation.isPending ? "Logging in..." : "Log in"}
             <ArrowRight />
           </Button>
+
+          <DemoLoginButton
+            disabled={loginMutation.isPending}
+            isPending={loginMutation.isPending}
+            onLogin={login}
+          />
         </form>
 
         <p className="mt-4 text-center text-sm">
