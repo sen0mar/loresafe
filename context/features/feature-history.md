@@ -205,6 +205,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 186: One-click demo login — Added a configurable Continue as guest action to login and signup, reused the normal authenticated session transition and safe redirects, supported local demo-seed credential fallback, and added focused frontend coverage.
 
+- Feature 187: Redis script eviction recovery — Normalized Upstash `NOSCRIPT` errors so rate-limited requests reload evicted scripts and retry, with focused regression coverage.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

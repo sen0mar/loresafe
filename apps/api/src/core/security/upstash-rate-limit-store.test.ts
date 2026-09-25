@@ -74,4 +74,32 @@ describe("Upstash rate-limit store", () => {
     );
     expect(redisClient.del).toHaveBeenCalledWith("loresafe:rl:test:client-key");
   });
+
+  it("reloads an evicted Upstash script and retries the counter", async () => {
+    redisClient.scriptLoad.mockResolvedValueOnce("reloaded-increment-sha");
+    redisClient.evalsha
+      .mockRejectedValueOnce(
+        new Error(
+          "Command failed: NOSCRIPT No matching script. Please use EVAL."
+        )
+      )
+      .mockResolvedValueOnce([1, 60_000]);
+    const store = createUpstashRateLimitStore("loresafe:rl:test:");
+
+    await store.init({
+      windowMs: 60_000
+    } as Parameters<typeof store.init>[0]);
+
+    await expect(store.increment("client-key")).resolves.toEqual({
+      totalHits: 1,
+      resetTime: new Date("2026-07-19T12:01:00.000Z")
+    });
+    expect(redisClient.scriptLoad).toHaveBeenCalledTimes(3);
+    expect(redisClient.evalsha).toHaveBeenNthCalledWith(
+      2,
+      "reloaded-increment-sha",
+      ["loresafe:rl:test:client-key"],
+      ["60000"]
+    );
+  });
 });

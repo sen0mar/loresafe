@@ -38,7 +38,19 @@ const sendUpstashRateLimitCommand = async (
   }
 
   if (command === "EVALSHA") {
-    return toRedisReply(await evalSha(client, args));
+    try {
+      return toRedisReply(await evalSha(client, args));
+    } catch (error) {
+      // rate-limit-redis reloads evicted scripts only when NOSCRIPT starts the message.
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Command failed: NOSCRIPT ")
+      ) {
+        throw new Error("NOSCRIPT No matching script", { cause: error });
+      }
+
+      throw error;
+    }
   }
 
   if (command === "DECR") {
