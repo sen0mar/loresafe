@@ -1,5 +1,7 @@
 # API Governance
 
+[Context index](../README.md). Session and account behavior: [auth and access](../architecture/auth-and-access.md); client lifecycle: [client data flow](../architecture/client-data-flow.md).
+
 ## Contract ownership
 
 - `apps/api/openapi/openapi.json` is the versioned OpenAPI 3.1 contract for the
@@ -59,11 +61,7 @@ non-reversible account buckets; responses never reveal which bucket matched.
 - PATCH is idempotent only where `x-idempotent: true` says so. POST is not
   idempotent unless the contract explicitly marks it or accepts a stable command
   identifier. Upload completion and progress commands preserve retry results.
-- Email verification confirmation and password reset are explicitly idempotent:
-  replaying an already consumed valid token returns the same completed response
-  without repeating the account mutation. Invalid and expired tokens share one
-  generic link error, while signup, resend, and forgot-password requests use the
-  same accepted response for eligible and ineligible accounts.
+- Email verification and password reset are idempotent; token purpose, replay, expiry, and account-neutral response rules are owned by [auth and access](../architecture/auth-and-access.md#authentication).
 - New resource state changes prefer standard PUT/PATCH/DELETE. Existing command
   POST routes remain during compatibility migrations; add the standard route,
   migrate first-party clients, deprecate the command route, then remove it only
@@ -95,3 +93,23 @@ non-reversible account buckets; responses never reveal which bucket matched.
    cycle and monitor remaining use without logging private identifiers/content.
 4. Remove only in the announced major version after the sunset date. Security
    emergencies may accelerate removal with an incident record and user notice.
+
+## Response Caching and Request Correlation
+
+- API responses default to `Cache-Control: private, no-store` with credential-aware
+  `Vary` headers, including anonymous public club directory/detail responses
+  because those endpoints apply caller-specific bans. A public URL prefix does
+  not imply shared-cache safety. The caller-independent `/sitemap.xml` alone
+  retains its explicit bounded shared-cache policy.
+- Client `x-request-id` values are correlation labels only. The API accepts
+  1-64 character trace-compatible tokens made from letters, digits, `.`, `_`,
+  `:`, and `-`; it generates a server UUID for missing or invalid values.
+
+## Expensive Read Budget
+
+- Personalized club discovery/detail/joined lists, members/bans, milestones,
+  progress/unlocks, post detail/comments, notifications, feeds, dashboard
+  summaries, and moderation lists share the existing expensive-read IP budget
+  (240 requests per ten minutes). Explicit GET registrations also cover HEAD
+  and run before JSON parsing, session lookup, and repository work. Search and
+  public SEO keep their dedicated read budgets; mutation budgets are independent.

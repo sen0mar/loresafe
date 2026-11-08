@@ -11,7 +11,7 @@ Refactor user-directed LoreSafe code into smaller, clearer pieces without changi
 
 - The exact files, functions, modules, or feature area the user asks to clean up.
 - The surrounding call sites needed to preserve behavior.
-- `context/architecture-context.md` and `context/code-standards.md` for module boundaries and folder rules.
+- `context/architecture/overview.md` and `context/engineering/code-standards.md` for module boundaries and folder rules.
 - Existing tests, type checks, and package scripts for verification.
 
 ## Output

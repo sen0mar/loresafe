@@ -1,5 +1,7 @@
 # LoreSafe
 
+[Context index](../README.md). Detailed behavior: [access policies](../architecture/auth-and-access.md); visual requirements: [UI](ui.md).
+
 ## Overview
 
 LoreSafe is a progress-aware social discussion app for books, shows, anime, manga, films, games, podcasts, courses, and custom story timelines. Users join clubs, set their progress, and only see discussions, comments, notifications, and media that are safe for their current point in the story.
@@ -16,40 +18,11 @@ Normal discussion spaces rely on manual spoiler tags. LoreSafe makes spoiler saf
 - Club owners who create structured spaces around a title or custom timeline.
 - Moderators who correct spoiler levels, handle reports, and keep clubs safe.
 
-## Product Goals
-
-1. Let users create and join public, private, and invite-only clubs.
-2. Let each club define ordered milestones such as chapters, episodes, timestamps, missions, or custom checkpoints.
-3. Let each member maintain per-club progress and reading/watching mode.
-4. Show safe feeds and locked placeholders based on progress.
-5. Support spoiler-locked posts, comments, reactions, notifications, reports, and moderation actions.
-6. Keep spoiler authorization enforced on the backend, not only hidden in React.
-7. Keep the MVP simple enough to build well, while preserving clean paths for future live rooms, advanced predictions, analytics, and integrations.
-
 ## Core User Flows
 
-### Member Flow
-
-1. Sign up or log in.
-2. Discover or join a club.
-3. Set current progress for that club.
-4. Browse a personalized safe feed.
-5. Create posts/comments tied to a required milestone.
-6. Update progress and see newly unlocked discussions.
-
-### Club Owner Flow
-
-1. Create a club with title, category, visibility, cover, and rules.
-2. Build or import a milestone timeline.
-3. Invite members or publish the club.
-4. Manage members, moderators, reports, and settings.
-
-### Moderator Flow
-
-1. Review spoiler reports.
-2. Adjust required progress, hide/delete content, warn users, or ban users from a club.
-3. Resolve reports with notes.
-4. Leave audit history for sensitive actions.
+- **Member:** sign up/log in → discover/join club → set per-club progress/mode → browse safe discussions → post/comment at a milestone → advance progress and unlock content.
+- **Owner:** create a club with title, category, visibility, cover, and rules → build/import ordered milestones → invite members or publish → manage members, moderators, reports, and settings.
+- **Moderator:** review spoiler reports → correct progress requirements, hide/delete content, warn, or ban → resolve with notes and audit history.
 
 ## MVP Scope
 
@@ -122,4 +95,4 @@ Normal discussion spaces rely on manual spoiler tags. LoreSafe makes spoiler saf
 7. List endpoints are paginated and indexed for the expected feed, notification, report, and membership queries.
 8. Auth, uploads, posts, comments, reports, invites, and progress updates are rate-limited.
 9. Sensitive actions are logged in audit records where needed.
-10. The UI matches the dark, compact, cyan-accented reference direction.
+10. The UI matches the dark, compact, steel-blue-accented reference direction.

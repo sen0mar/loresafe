@@ -207,6 +207,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 187: Redis script eviction recovery — Normalized Upstash `NOSCRIPT` errors so rate-limited requests reload evicted scripts and retry, with focused regression coverage.
 
+- Feature 188: Context documentation organization — Split architecture by responsibility, grouped product/engineering/operations guidance, added selective agent reading paths, trimmed duplicates, updated linked tooling, and included logo image assets.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

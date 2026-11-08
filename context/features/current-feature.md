@@ -2,7 +2,7 @@
 
 Update this file only after the user and agent agree on the active feature scope.
 
-After implementation is complete and the user asks to commit/merge into `main`, reset this file and add a concise entry to `feature-history.md`.
+Feature lifecycle and completion rules: [workflow](../engineering/workflow.md#feature-branch-workflow). Documentation map: [context index](../README.md).
 
 ## Current Phase
 

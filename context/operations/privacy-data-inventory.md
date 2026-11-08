@@ -1,5 +1,7 @@
 # Privacy Data Inventory
 
+[Context index](../README.md). Retention cleanup and disclosure procedures: [runbook](runbook.md#privacy-and-audit-retention); session lifecycle: [auth and access](../architecture/auth-and-access.md).
+
 This operational inventory supports the public Privacy Policy. Update it when
 LoreSafe adds a provider, data category, or materially different retention rule.
 

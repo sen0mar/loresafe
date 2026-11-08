@@ -1,5 +1,7 @@
 # Operations and Recovery Runbook
 
+[Context index](../README.md). Deployment configuration and release gates: [deployment and delivery](../architecture/deployment-and-delivery.md); retained data: [privacy inventory](privacy-data-inventory.md).
+
 ## Health and Metrics
 
 - `pnpm production:readiness:check` validates the versioned alert, synthetic,
@@ -42,7 +44,7 @@
   security/moderation/account-deletion traffic.
 - The public Privacy Policy and the account-deletion confirmation must disclose
   anonymized audit retention and the provider-managed PostgreSQL/R2 recovery
-  windows. Review `context/privacy-data-inventory.md` whenever a provider or
+  windows. Review `context/operations/privacy-data-inventory.md` whenever a provider or
   data category changes.
 
 ## Incident Response
@@ -56,9 +58,7 @@
 
 ## Deployment Rollback
 
-- CI, local development, and Render use the repository-pinned Node runtime. A
-  runtime bump updates `.node-version`, all package engine ranges, Render, and
-  the release workflow in one change.
+- Runtime bumps must update `.node-version`, package engine ranges, Render, and CI together; see [deployment runtime requirements](../architecture/deployment-and-delivery.md).
 - Render builds once per deployment and runs the pre-deploy migration and web
   start command against that build. Promote only commits that passed the release
   gate; Render does not currently promote one immutable artifact across separate

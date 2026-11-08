@@ -9,7 +9,7 @@ const manifest = await readJson("infra/operations/production-readiness.json");
 const [alerts, synthetics, runbook, vercel] = await Promise.all([
   readText("infra/monitoring/alerts.yaml"),
   readText("infra/monitoring/synthetic-checks.yaml"),
-  readText("context/operations-runbook.md"),
+  readText("context/operations/runbook.md"),
   readJson("apps/web/vercel.json")
 ]);
 
