@@ -209,6 +209,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 188: Context documentation organization — Split architecture by responsibility, grouped product/engineering/operations guidance, added selective agent reading paths, trimmed duplicates, updated linked tooling, and included logo image assets.
 
+- Feature 189: Dependency security updates — Patched vulnerable runtime and development packages and refreshed transitive overrides, retaining the existing stack and CI audit requirements.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.
