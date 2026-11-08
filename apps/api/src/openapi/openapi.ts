@@ -757,7 +757,7 @@ export const generateOpenApiDocument = () => {
       title: "LoreSafe API",
       version: "1.0.0",
       description:
-        "Versioned contract for LoreSafe's spoiler-safe REST and SSE API. Governance and compatibility rules live in context/api-governance.md."
+        "Versioned contract for LoreSafe's spoiler-safe REST and SSE API. Governance and compatibility rules live in context/engineering/api-governance.md."
     },
     servers: [{ url: "https://api.loresafe.org" }],
     security: [{ cookieSession: [] }],

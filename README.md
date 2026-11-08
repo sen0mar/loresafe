@@ -17,7 +17,7 @@
   <a href="https://www.loresafe.org">Live app</a> ·
   <a href="https://www.loresafe.org/clubs">Public clubs</a> ·
   <a href="apps/api/openapi/openapi.json">OpenAPI contract</a> ·
-  <a href="context/project-overview.md">Product overview</a>
+  <a href="context/product/overview.md">Product overview</a>
 </p>
 
 LoreSafe is a progress-aware social discussion platform for books, shows, anime, manga, films, games, podcasts, courses, and custom story timelines. Members join clubs, record where they are in a story, and receive a feed shaped to what they can safely know.
@@ -450,20 +450,24 @@ The production topology is intentionally split:
 
 `render.yaml` is the source of truth for API deployment. Migrations run in Render's pre-deploy phase, never in the web start command, so the service can bind its port immediately. Vercel behavior lives in `apps/web/vercel.json`, and the production R2 CORS policy is in `infra/cloudflare/r2-cors-production.json`.
 
-See [`context/operations-runbook.md`](context/operations-runbook.md) for readiness, backup, restore, incident, rollback, and recovery procedures.
+See [`context/operations/runbook.md`](context/operations/runbook.md) for readiness, backup, restore, incident, rollback, and recovery procedures.
 
 ## Project documentation
 
-| Document                                                                     | Contents                                                                 |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [`context/project-overview.md`](context/project-overview.md)                 | Product problem, users, scope, flows, and success criteria               |
-| [`context/architecture-context.md`](context/architecture-context.md)         | System boundaries, data flow, auth, storage, performance, and invariants |
-| [`context/ui-context.md`](context/ui-context.md)                             | Visual language, semantic tokens, layout, motion, and accessibility      |
-| [`context/code-standards.md`](context/code-standards.md)                     | TypeScript, frontend, backend, data-access, and testing conventions      |
-| [`context/api-governance.md`](context/api-governance.md)                     | API compatibility, errors, pagination, retries, and idempotency          |
-| [`context/operations-runbook.md`](context/operations-runbook.md)             | Production operations and recovery                                       |
-| [`context/privacy-data-inventory.md`](context/privacy-data-inventory.md)     | Stored data, retention, deletion, and privacy disclosures                |
-| [`context/features/feature-history.md`](context/features/feature-history.md) | Concise history of completed product increments                          |
+Start with the [context index](context/README.md) for document ownership or [AGENTS.md](AGENTS.md) for task-specific reading.
+
+| Document                                                                                       | Contents                                                            |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`context/product/overview.md`](context/product/overview.md)                                   | Product problem, users, scope, flows, and success criteria          |
+| [`context/architecture/overview.md`](context/architecture/overview.md)                         | Architecture overview with focused subsystem references             |
+| [`context/product/ui.md`](context/product/ui.md)                                               | Visual language, semantic tokens, layout, motion, and accessibility |
+| [`context/engineering/code-standards.md`](context/engineering/code-standards.md)               | TypeScript, frontend, backend, data-access, and testing conventions |
+| [`context/engineering/api-governance.md`](context/engineering/api-governance.md)               | API compatibility, errors, pagination, retries, and idempotency     |
+| [`context/operations/runbook.md`](context/operations/runbook.md)                               | Production operations and recovery                                  |
+| [`context/operations/privacy-data-inventory.md`](context/operations/privacy-data-inventory.md) | Stored data, retention, deletion, and privacy disclosures           |
+| [Implementation workflow](context/engineering/workflow.md)                                     | Feature lifecycle, scope, documentation ownership, handoff          |
+| [Current feature](context/features/current-feature.md)                                         | Active scope, status, verification, next steps                      |
+| [`context/features/feature-history.md`](context/features/feature-history.md)                   | Concise history of completed product increments                     |
 
 ## License
 

@@ -204,7 +204,10 @@ describe("production configuration files", () => {
     const [codeql, releaseGate, architecture] = await Promise.all([
       readFile(repositoryFile(".github/workflows/codeql.yml"), "utf8"),
       readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
-      readFile(repositoryFile("context/architecture-context.md"), "utf8")
+      readFile(
+        repositoryFile("context/architecture/deployment-and-delivery.md"),
+        "utf8"
+      )
     ]);
     const codeqlSha = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
 
@@ -244,7 +247,10 @@ describe("production configuration files", () => {
     const [releaseGate, codeql, architecture, readme] = await Promise.all([
       readFile(repositoryFile(".github/workflows/release-gate.yml"), "utf8"),
       readFile(repositoryFile(".github/workflows/codeql.yml"), "utf8"),
-      readFile(repositoryFile("context/architecture-context.md"), "utf8"),
+      readFile(
+        repositoryFile("context/architecture/deployment-and-delivery.md"),
+        "utf8"
+      ),
       readFile(repositoryFile("README.md"), "utf8")
     ]);
     const requiredChecks = [

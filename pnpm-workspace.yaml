@@ -9,15 +9,25 @@ overrides:
   # Keep the patched release until Prisma bundles deepmerge-ts 8 upstream.
   deepmerge-ts: 8.0.0
   # Keep transitive URL and IP parsing on their patched API-compatible releases.
-  fast-uri: 3.1.6
-  ip-address: 10.3.1
+  fast-uri: 3.1.9
+  ip-address: 10.7.4
   # Prisma CLI tooling pins mysql2; retain its supported major with security fixes.
   mysql2: 3.23.1
   # Express query/body parsing must use the patched 6.x release.
-  qs: 6.16.0
+  qs: 6.16.1
   # Patch the existing test tooling's multipart and HTTP clients within their majors.
   form-data: 4.0.6
-  undici: 7.29.0
+  undici: 7.30.1
+  # Express transport and image/build source maps need patched transitive releases.
+  body-parser: 2.4.0
+  proxy-addr: 2.0.8
+  source-map-js: 1.2.2
+  # ESLint/TypeScript tooling pins vulnerable minimatch 10; 11 fixes the advisory
+  # and retains the named API consumed by those callers. Verify through lint.
+  minimatch: 11.0.1
+  brace-expansion: 5.0.12
+  # React Hooks lint tooling retains an older Zod through its validation helper.
+  zod: 4.6.7
   # Patch the browser-target resolver used by the existing lint tooling.
   browserslist: 4.28.7
 
