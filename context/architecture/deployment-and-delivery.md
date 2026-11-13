@@ -45,7 +45,10 @@ Release gate:
   dependency audit, full-history Gitleaks scan, and disposable-PostgreSQL
   performance seed/plan check are repeated during a quiet period. Dependabot
   opens bounded weekly npm workspace and GitHub Actions update pull requests;
-  it never merges them automatically.
+  it never merges them itself. Merges happen only through the on-demand
+  `deps-update` skill (`.claude/skills/deps-update/`), which applies its merge
+  policy, verifies each PR, and merges sequentially after one explicit user
+  confirmation per run.
 - CodeQL analyzes JavaScript and TypeScript independently on main/PR events and
   each Wednesday at 04:43 UTC. It is intentionally outside the release-gate
   aggregate so branch protection can require its result separately.

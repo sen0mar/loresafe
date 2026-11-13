@@ -1,0 +1,29 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/*.mjs",
+        "e2e/**/*.ts",
+        "playwright.config.ts",
+        "eslint.config.mjs"
+      ],
+      "project": ["scripts/**/*.mjs", "e2e/**/*.ts"]
+    },
+    "apps/api": {
+      "entry": [
+        "src/server.ts",
+        "scripts/*.{ts,mjs}",
+        "prisma/seed.ts",
+        "prisma/showcase-seed.ts",
+        "prisma.config.ts"
+      ],
+      "project": ["src/**/*.ts", "scripts/**/*.{ts,mjs}", "prisma/**/*.ts"],
+      "ignore": ["src/generated/**"]
+    },
+    "apps/web": {
+      "entry": ["src/main.tsx"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  }
+}
