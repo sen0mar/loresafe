@@ -21,6 +21,7 @@ import { Toaster } from "../shared/components/ui/sonner.js";
 import { RouteDocumentMetadata } from "../shared/hooks/use-document-metadata.js";
 import { toPublicUrl } from "../shared/lib/public-site-origin.js";
 import { AUTHENTICATED_HOME_PATH } from "./routes.js";
+import { WebAnalytics } from "./web-analytics.js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -337,6 +338,7 @@ export const App = () => (
         </Suspense>
       </RouteErrorBoundary>
       <Toaster position="top-right" />
+      <WebAnalytics />
     </BrowserRouter>
   </QueryClientProvider>
 );
