@@ -211,6 +211,8 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 189: Dependency security updates — Patched vulnerable runtime and development packages and refreshed transitive overrides, retaining the existing stack and CI audit requirements.
 
+- Feature 190: Vercel Web Analytics — Added cookieless, production-only visit statistics through same-origin Vercel Web Analytics with page-view URL scrubbing for query strings, fragments, and invite tokens, plus privacy policy and data inventory updates.
+
 ## Entry Format
 
 - Feature N: Feature name — short summary of what changed, including important migrations, security changes, storage changes, or integration changes.

@@ -42,6 +42,10 @@ const privacySections = [
             Operational diagnostics, including minimized application errors,
             performance traces, browser/device context, and deployment health.
           </li>
+          <li>
+            Aggregate visit statistics, including visited page paths without
+            query strings, referrer, country, browser, and device type.
+          </li>
         </ul>
       </>
     )
@@ -94,8 +98,9 @@ const privacySections = [
       <p>
         LoreSafe relies on Vercel for the public web app, Render for the API,
         Neon for managed PostgreSQL, Cloudflare R2 for uploaded media, Upstash
-        Redis for rate-limit counters, and Sentry for configured error and
-        performance monitoring. Each provider handles only the information
+        Redis for rate-limit counters, Sentry for configured error and
+        performance monitoring, and Vercel Web Analytics for cookieless,
+        aggregate visit statistics. Each provider handles only the information
         needed for its service and applies its own infrastructure and retention
         settings.
       </p>

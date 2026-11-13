@@ -7,6 +7,11 @@
 - Backend hosting: Render long-running Node/Express service at `https://api.loresafe.org`, not an edge-only function.
 - Browser API calls use same-origin `/api` paths through the Vercel rewrite to the Render API domain.
 - Use managed PostgreSQL, Cloudflare R2, Upstash Redis, and Sentry.
+- Visit statistics use Vercel Web Analytics (enabled per project in the Vercel
+  dashboard). Its script and beacon are same-origin under `/_vercel/insights/*`,
+  so the CSP needs no extra hosts. `apps/web/src/app/web-analytics.tsx` strips
+  query strings, fragments, and invite tokens from every page-view URL; any new
+  route that carries a secret in its path must be redacted there too.
 - Local development may optionally use Docker Compose for PostgreSQL 16.9; the
   web and API processes remain host-run through pnpm. Docker is not part of the
   Vercel/Render production topology, and developers may instead configure
