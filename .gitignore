@@ -13,3 +13,4 @@ apps/api/src/generated/prisma
 .DS_Store
 
 /extra/
+/reports/
