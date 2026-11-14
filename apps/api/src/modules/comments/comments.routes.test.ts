@@ -883,6 +883,166 @@ describe("comments routes", () => {
     );
   });
 
+  it("locks comments behind their post after a later spoiler correction", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const correctedMilestone = repository.createMilestone(post.clubId, 2);
+    const comment = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "CORRECTED_POST_COMMENT_BODY"
+      }
+    );
+    repository.createComment(post.id, user.id, post.requiredMilestone, {
+      body: "CORRECTED_POST_REPLY_BODY",
+      parentId: comment.id
+    });
+    // Moderator spoiler correction moves only the post to a later milestone.
+    post.requiredMilestone = correctedMilestone;
+
+    const cookie = await createSessionCookie(user);
+    const listResponse = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    expect(listResponse.body.comments).toHaveLength(2);
+    for (const lockedComment of listResponse.body.comments) {
+      expect(lockedComment).toMatchObject({
+        visibility: "LOCKED",
+        requiredMilestone: {
+          id: correctedMilestone.id,
+          position: 2
+        }
+      });
+      expect(lockedComment).not.toHaveProperty("body");
+      expect(lockedComment).not.toHaveProperty("author");
+    }
+    expect(JSON.stringify(listResponse.body)).not.toContain("CORRECTED_POST_");
+
+    const revealResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments/${comment.id}/reveal`)
+      .set("Cookie", cookie)
+      .expect(403);
+    const reactionResponse = await request(app)
+      .put(`/api/comments/${comment.id}/reactions/${encodeURIComponent("👍")}`)
+      .set("Cookie", cookie)
+      .send({
+        emoji: "👍"
+      })
+      .expect(403);
+    const replyResponse = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", cookie)
+      .send({
+        body: "Reply behind the corrected post",
+        parentId: comment.id
+      })
+      .expect(403);
+
+    expect(revealResponse.body.error.message).toBe(
+      "Switch to Brave mode before revealing this comment."
+    );
+    expect(reactionResponse.body.error.message).toBe(
+      "Reach the required milestone before reacting to this comment."
+    );
+    expect(replyResponse.body.error.message).toBe(
+      "Reach the required milestone before commenting."
+    );
+    for (const response of [revealResponse, reactionResponse, replyResponse]) {
+      expect(JSON.stringify(response.body)).not.toContain("CORRECTED_POST_");
+    }
+    expect(repository.commentReactions).toHaveLength(0);
+    expect(repository.comments).toHaveLength(2);
+  });
+
+  it("locks comments behind their post after milestones are reordered", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 1,
+      postMilestonePosition: 1
+    });
+    const commentMilestone = repository.createMilestone(post.clubId, 2);
+    repository.createComment(post.id, user.id, commentMilestone, {
+      body: "REORDERED_COMMENT_BODY"
+    });
+    // Reordering swaps positions, leaving the comment earlier than its post.
+    post.requiredMilestone.position = 2;
+    commentMilestone.position = 1;
+
+    const response = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(response.body.comments[0]).toMatchObject({
+      visibility: "LOCKED",
+      requiredMilestone: {
+        id: post.requiredMilestone.id,
+        position: 2
+      }
+    });
+    expect(JSON.stringify(response.body)).not.toContain(
+      "REORDERED_COMMENT_BODY"
+    );
+
+    repository.setProgress(user.id, post.clubId, 2);
+
+    const unlockedResponse = await request(app)
+      .get(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .expect(200);
+
+    expect(unlockedResponse.body.comments[0]).toMatchObject({
+      visibility: "VISIBLE",
+      body: "REORDERED_COMMENT_BODY"
+    });
+  });
+
+  it("stores replies at the corrected post milestone when the parent is earlier", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(user.id, {
+      membershipUserId: user.id,
+      progressPosition: 2,
+      postMilestonePosition: 1
+    });
+    const correctedMilestone = repository.createMilestone(post.clubId, 2);
+    const parent = repository.createComment(
+      post.id,
+      user.id,
+      post.requiredMilestone,
+      {
+        body: "Parent before correction"
+      }
+    );
+    post.requiredMilestone = correctedMilestone;
+
+    const response = await request(app)
+      .post(`/api/posts/${post.id}/comments`)
+      .set("Cookie", await createSessionCookie(user))
+      .send({
+        body: "Reply after correction",
+        parentId: parent.id
+      })
+      .expect(201);
+
+    expect(response.body.comment.requiredMilestone).toMatchObject({
+      id: correctedMilestone.id,
+      position: 2
+    });
+    expect(repository.comments.at(-1)).toMatchObject({
+      parentId: parent.id,
+      requiredMilestone: correctedMilestone
+    });
+  });
+
   it("returns future comments through normal endpoints for Finished users", async () => {
     const user = repository.createStoredUser(validUserInput());
     const post = repository.createPostFixture(user.id, {

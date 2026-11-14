@@ -4,6 +4,18 @@ import type { CommentPostRecord } from "./comments.repository.js";
 
 type ClubVisibility = "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
 
+// A comment can never be safer than its post: moderator corrections and
+// milestone reordering can move the post later than its existing comments.
+export const getEffectiveCommentMilestone = <
+  TMilestone extends { position: number }
+>(
+  commentMilestone: TMilestone,
+  postMilestone: TMilestone
+): TMilestone =>
+  commentMilestone.position >= postMilestone.position
+    ? commentMilestone
+    : postMilestone;
+
 export const canViewPostComments = (post: {
   club: {
     visibility: ClubVisibility;
