@@ -9,6 +9,10 @@ argument-hint: "[report]"
 Process the open Dependabot PRs in `sen0mar/loresafe`: decide which are safe,
 verify them, ask the user **once**, then merge the approved ones sequentially.
 
+Reports go in the `reports/` folder at the **repository root** (git-ignored),
+not in this skill's folder. Every `reports/` path below is relative to the
+repository root.
+
 - `/deps-update` — full run: assess, verify, confirm, merge.
 - `/deps-update report` — assess and verify only; never merge.
 

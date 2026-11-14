@@ -1,6 +1,6 @@
 ---
 name: security-check
-description: Run an on-demand security check of the LoreSafe app and write a dated report to reports/. Use when the user asks to run a security check, security audit, or /security-check, optionally with a mode (quick, full, live).
+description: Run an on-demand security check of the LoreSafe app and write a dated report to the repository-root reports/ folder. Use when the user asks to run a security check, security audit, or /security-check, optionally with a mode (quick, full, live).
 argument-hint: "[quick|full|live]"
 ---
 
@@ -9,6 +9,10 @@ argument-hint: "[quick|full|live]"
 Find security regressions in this repository and the deployed app, then write
 one report. This skill **finds and reports**; it never fixes code, commits,
 opens PRs, or files issues.
+
+Reports go in the `reports/` folder at the **repository root** (git-ignored),
+not in this skill's folder. Every `reports/` path below is relative to the
+repository root; `checks/` and `accepted-risks.md` are relative to this skill.
 
 ## Modes
 
@@ -38,7 +42,7 @@ side effect of another mode.
 ## Procedure
 
 1. **Establish scope.**
-   - Read `reports/.last-run` if it exists (a single commit SHA). If missing,
+   - Read `reports/.security-check-last-run` if it exists (a single commit SHA). If missing,
      treat `quick` as `full` and say so in the report.
    - `quick`: `git diff --name-only <sha>..HEAD` plus uncommitted changes
      (`git status --short`). Prioritize files under `apps/api/src/modules/**`
@@ -69,7 +73,7 @@ side effect of another mode.
    `reports/YYYY-MM-DD-<mode>-security-check.md`. If the file exists, append
    `-2`, `-3`, and so on.
 8. **Record the run.** For `quick` and `full`, write the current `HEAD` SHA to
-   `reports/.last-run` only after the report is written. `live` does not update it.
+   `reports/.security-check-last-run` only after the report is written. `live` does not update it.
 9. **Reply in chat** with the counts by severity, the top findings (one line
    each), and the report path. Do not paste the whole report.
 
