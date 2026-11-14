@@ -5,7 +5,10 @@ import {
   requestUploadObjectDeletions
 } from "../../core/storage/storage-deletion.repository.js";
 import { activeUserBanWhere } from "../clubs/club-bans.js";
-import { lockClubAuthorizationChanges } from "../clubs/club-authorization-lock.js";
+import {
+  lockClubAuthorization,
+  lockClubAuthorizationChanges
+} from "../clubs/club-authorization-lock.js";
 import type { ValidatedImage } from "./image-validation.js";
 
 export type FileAssetPurpose = "AVATAR" | "CLUB_COVER" | "POST_IMAGE";
@@ -244,11 +247,13 @@ export const uploadsRepository: UploadsRepository = {
 
   markAssetReadyAndAttach: (asset, actorId, readyAt, validation, publish) =>
     prisma.$transaction(async (transaction) => {
-      if (asset.purpose === "CLUB_COVER") {
-        if (
-          !asset.clubId ||
-          !(await lockClubAuthorizationChanges(transaction, asset.clubId))
-        ) {
+      if (asset.purpose === "CLUB_COVER" || asset.purpose === "POST_IMAGE") {
+        const lockClub =
+          asset.purpose === "CLUB_COVER"
+            ? lockClubAuthorizationChanges
+            : lockClubAuthorization;
+
+        if (!asset.clubId || !(await lockClub(transaction, asset.clubId))) {
           return {
             status: "NOT_FOUND"
           };
@@ -279,7 +284,11 @@ export const uploadsRepository: UploadsRepository = {
         };
       }
 
-      if (currentAsset.purpose === "CLUB_COVER" && currentAsset.clubId) {
+      if (
+        (currentAsset.purpose === "CLUB_COVER" ||
+          currentAsset.purpose === "POST_IMAGE") &&
+        currentAsset.clubId
+      ) {
         const now = new Date();
         const clubAuthority = await transaction.club.findUnique({
           where: {
@@ -306,19 +315,24 @@ export const uploadsRepository: UploadsRepository = {
         });
         const role = clubAuthority?.memberships[0]?.role;
 
+        // Bans remove the membership, so check the ban first to report it.
+        if (clubAuthority && clubAuthority.bans.length > 0) {
+          return {
+            status: "BANNED"
+          };
+        }
+
         if (!clubAuthority || !role) {
           return {
             status: "NOT_FOUND"
           };
         }
 
-        if (clubAuthority.bans.length > 0) {
-          return {
-            status: "BANNED"
-          };
-        }
-
-        if (role !== "OWNER" && role !== "MODERATOR") {
+        if (
+          currentAsset.purpose === "CLUB_COVER" &&
+          role !== "OWNER" &&
+          role !== "MODERATOR"
+        ) {
           return {
             status: "FORBIDDEN"
           };

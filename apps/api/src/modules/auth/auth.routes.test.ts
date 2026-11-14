@@ -276,6 +276,46 @@ describe("auth routes", () => {
     expect(disconnectUser).toHaveBeenCalledTimes(2);
   });
 
+  it("answers resend and forgot-password without waiting for email delivery", async () => {
+    const pendingDelivery = () => new Promise<void>(() => undefined);
+    const sendEmailVerification = vi.fn(pendingDelivery);
+    const sendPasswordReset = vi.fn(pendingDelivery);
+    await repository.createUser({
+      email: "slow-unverified@example.com",
+      displayName: "Slow Unverified",
+      passwordHash: await hashPassword("correct horse battery staple"),
+      emailVerifiedAt: null
+    });
+    await repository.createUser({
+      email: "slow-verified@example.com",
+      displayName: "Slow Verified",
+      passwordHash: await hashPassword("correct horse battery staple")
+    });
+    app = createAuthTestApp(repository, {
+      delivery: { sendEmailVerification, sendPasswordReset }
+    });
+
+    for (const email of [
+      "slow-unverified@example.com",
+      "unknown@example.com"
+    ]) {
+      await request(app)
+        .post("/api/auth/verification/resend")
+        .send({ email })
+        .expect(202);
+    }
+
+    for (const email of ["slow-verified@example.com", "unknown@example.com"]) {
+      await request(app)
+        .post("/api/auth/password/forgot")
+        .send({ email })
+        .expect(202);
+    }
+
+    expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+    expect(sendPasswordReset).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects usernames reserved by active display names", async () => {
     await repository.createUser({
       email: "existing@example.com",

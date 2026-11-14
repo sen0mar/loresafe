@@ -395,6 +395,59 @@ describe("invite routes", () => {
     expect(repository.invites[0].usedCount).toBe(0);
   });
 
+  it("rejects invite creation by a banned moderator", async () => {
+    const moderator = await repository.createUser({
+      email: "moderator@example.com",
+      displayName: "Moderator",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Banned Moderator Club",
+      linkName: "banned-moderator-club",
+      visibility: "INVITE_ONLY"
+    });
+    repository.createMembership(moderator.id, club.id, "MODERATOR");
+    repository.createBan(moderator.id, club.id);
+
+    const response = await request(app)
+      .post("/api/clubs/banned-moderator-club/invites")
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({
+        expiresInDays: 3,
+        maxUses: 5
+      })
+      .expect(403);
+
+    expect(response.body.error.code).toBe("BANNED");
+    expect(repository.invites).toHaveLength(0);
+  });
+
+  it("rejects invite creation by a moderator whose membership was removed by a ban", async () => {
+    const moderator = await repository.createUser({
+      email: "moderator@example.com",
+      displayName: "Moderator",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub({
+      title: "Banned Moderator Club",
+      linkName: "banned-moderator-club",
+      visibility: "INVITE_ONLY"
+    });
+    repository.createBan(moderator.id, club.id);
+
+    const response = await request(app)
+      .post("/api/clubs/banned-moderator-club/invites")
+      .set("Cookie", await createSessionCookie(moderator))
+      .send({
+        expiresInDays: 3,
+        maxUses: 5
+      })
+      .expect(403);
+
+    expect(response.body.error.code).toBe("BANNED");
+    expect(repository.invites).toHaveLength(0);
+  });
+
   it("rejects invalid invite create bodies and accept bodies", async () => {
     const owner = await repository.createUser({
       email: "owner@example.com",

@@ -38,4 +38,36 @@ describe("session token verification", () => {
       verifySessionTokenWithSecrets(token, [env.JWT_SECRET])
     ).resolves.toBeNull();
   });
+
+  it("rejects unsigned, HS512, and expired tokens", async () => {
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    const signedToken = (alg: string) =>
+      new SignJWT({ sessionVersion: 1 })
+        .setProtectedHeader({ alg, typ: "JWT" })
+        .setIssuer(env.JWT_ISSUER)
+        .setAudience(env.JWT_AUDIENCE)
+        .setJti(crypto.randomUUID())
+        .setSubject(crypto.randomUUID())
+        .setIssuedAt();
+    const [, payload] = (
+      await signedToken("HS256").setExpirationTime("5m").sign(secret)
+    ).split(".");
+    const unsignedHeader = Buffer.from(
+      JSON.stringify({ alg: "none", typ: "JWT" })
+    ).toString("base64url");
+    const unsignedToken = `${unsignedHeader}.${payload}.`;
+    const hs512Token = await signedToken("HS512")
+      .setExpirationTime("5m")
+      .sign(secret);
+    const expiredToken = await signedToken("HS256")
+      .setIssuedAt(Math.floor(Date.now() / 1000) - 600)
+      .setExpirationTime(Math.floor(Date.now() / 1000) - 300)
+      .sign(secret);
+
+    for (const token of [unsignedToken, hs512Token, expiredToken]) {
+      await expect(
+        verifySessionTokenWithSecrets(token, [env.JWT_SECRET])
+      ).resolves.toBeNull();
+    }
+  });
 });

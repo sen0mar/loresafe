@@ -9,7 +9,34 @@ export const notFoundHandler: RequestHandler = (_req, _res, next) => {
   next(new HttpError(404, "NOT_FOUND", "Route not found"));
 };
 
-export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
+// express.json() rejects malformed or oversized bodies with plain errors that
+// carry a body-parser `type`. They are client mistakes, not server faults.
+const toBodyParserHttpError = (error: unknown): HttpError | null => {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("type" in error) ||
+    typeof error.type !== "string" ||
+    !("status" in error) ||
+    typeof error.status !== "number" ||
+    error.status < 400 ||
+    error.status >= 500
+  ) {
+    return null;
+  }
+
+  return error.type === "entity.too.large"
+    ? new HttpError(413, "PAYLOAD_TOO_LARGE", "Request body is too large")
+    : new HttpError(400, "BAD_REQUEST", "Request body could not be parsed");
+};
+
+export const errorHandler: ErrorRequestHandler = (
+  rawError,
+  req,
+  res,
+  _next
+) => {
+  const error = toBodyParserHttpError(rawError) ?? rawError;
   const isHttpError = error instanceof HttpError;
   const statusCode = isHttpError ? error.statusCode : 500;
   const code = isHttpError ? error.code : "INTERNAL_SERVER_ERROR";

@@ -28,4 +28,37 @@ describe("error middleware", () => {
       }
     });
   });
+
+  it("maps malformed JSON bodies to 400 BAD_REQUEST", async () => {
+    const response = await request(createJsonApp())
+      .post("/api/echo")
+      .set("content-type", "application/json")
+      .send("{bad")
+      .expect(400);
+
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it("maps oversized JSON bodies to 413 PAYLOAD_TOO_LARGE", async () => {
+    const response = await request(createJsonApp())
+      .post("/api/echo")
+      .set("content-type", "application/json")
+      .send(JSON.stringify({ text: "x".repeat(65 * 1024) }))
+      .expect(413);
+
+    expect(response.body.error.code).toBe("PAYLOAD_TOO_LARGE");
+  });
 });
+
+const createJsonApp = () => {
+  const app = express();
+
+  app.use(requestIdMiddleware);
+  app.use(express.json({ limit: "64kb" }));
+  app.post("/api/echo", (_req, res) => {
+    res.status(204).end();
+  });
+  app.use(errorHandler);
+
+  return app;
+};

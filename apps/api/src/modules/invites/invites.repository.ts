@@ -317,15 +317,15 @@ export const invitesRepository: InvitesRepository = {
 
       const role = authority?.memberships[0]?.role;
 
-      if (!authority || !role) {
+      if (authority && authority.bans.length > 0) {
         return {
-          status: "NOT_FOUND"
+          status: "BANNED"
         };
       }
 
-      if (authority.bans.length > 0) {
+      if (!authority || !role) {
         return {
-          status: "BANNED"
+          status: "NOT_FOUND"
         };
       }
 

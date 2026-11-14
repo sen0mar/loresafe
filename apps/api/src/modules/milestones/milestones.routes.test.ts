@@ -1174,6 +1174,109 @@ describe("milestones routes", () => {
     }
   );
 
+  it.each([
+    ["public", "PUBLIC"],
+    ["private", "PRIVATE"],
+    ["invite-only", "INVITE_ONLY"]
+  ] as const)(
+    "rejects %s club milestone reads from banned members",
+    async (label, visibility) => {
+      const reader = await repository.createUser(validUserInput());
+      const club = repository.createClub({
+        linkName: `${label}-plot-room`,
+        visibility
+      });
+      repository.createMilestone(club.id, {
+        position: 1,
+        safeTitle: "Safe checkpoint",
+        fullTitle: "Hidden secret"
+      });
+      // Bans remove the membership and leave an active ban row.
+      repository.createBan(reader.id, club.id);
+
+      const response = await request(app)
+        .get(`/api/clubs/${label}-plot-room/milestones`)
+        .set("x-request-id", `milestones-${label}-banned`)
+        .set("Cookie", await createSessionCookie(reader))
+        .expect(403);
+
+      expect(response.body).toEqual({
+        error: {
+          code: "BANNED",
+          message: "You are banned from this club.",
+          requestId: `milestones-${label}-banned`
+        }
+      });
+      expect(JSON.stringify(response.body)).not.toContain("Safe checkpoint");
+    }
+  );
+
+  it.each([
+    [
+      "creation",
+      "post",
+      () => "",
+      { safeTitle: "Opening chapters", spoilerName: false }
+    ],
+    [
+      "template generation",
+      "post",
+      () => "/templates",
+      { template: "BOOK", count: 12 }
+    ],
+    [
+      "updates",
+      "patch",
+      (milestoneId: string) => `/${milestoneId}`,
+      { safeTitle: "Renamed opening", spoilerName: false }
+    ],
+    [
+      "moves",
+      "post",
+      (milestoneId: string) => `/${milestoneId}/move`,
+      { direction: "DOWN" }
+    ]
+  ] as const)(
+    "rejects milestone %s from banned members",
+    async (label, method, path, body) => {
+      const user = await repository.createUser(validUserInput());
+      const club = repository.createClub({
+        linkName: "public-story-circle",
+        visibility: "PUBLIC"
+      });
+      const milestone = repository.createMilestone(club.id, {
+        position: 1,
+        safeTitle: "Opening chapters"
+      });
+      repository.createMilestone(club.id, {
+        position: 2,
+        safeTitle: "Middle chapters"
+      });
+      // Bans remove the membership and leave an active ban row.
+      repository.createBan(user.id, club.id);
+      const milestonesBefore = structuredClone(repository.milestones);
+      const requestId = `milestones-banned-${label.replace(" ", "-")}`;
+
+      const url = `/api/clubs/public-story-circle/milestones${path(milestone.id)}`;
+      const pendingRequest = request(app)[method](url);
+
+      const response = await pendingRequest
+        .set("x-request-id", requestId)
+        .set("Cookie", await createSessionCookie(user))
+        .send(body)
+        .expect(403);
+
+      expect(response.body).toEqual({
+        error: {
+          code: "BANNED",
+          message: "You are banned from this club.",
+          requestId
+        }
+      });
+      expect(repository.milestones).toEqual(milestonesBefore);
+    }
+  );
+
   it("does not return unsafe milestone full titles", async () => {
     const user = await repository.createUser(validUserInput());
     const club = repository.createClub({
@@ -1383,6 +1486,11 @@ class InMemoryMilestonesRepository
     clubId: string;
     role: "OWNER" | "MODERATOR" | "MEMBER";
   }> = [];
+  readonly bans: Array<{
+    userId: string;
+    clubId: string;
+    revokedAt: Date | null;
+  }> = [];
   readonly milestones: Array<MilestoneRecord & { clubId: string }> = [];
   readonly progressRows: StoredProgress[] = [];
   templateCreationTransactionCount = 0;
@@ -1449,6 +1557,14 @@ class InMemoryMilestonesRepository
       userId,
       clubId,
       role
+    });
+  };
+
+  createBan = (userId: string, clubId: string) => {
+    this.bans.push({
+      userId,
+      clubId,
+      revokedAt: null
     });
   };
 
@@ -1610,7 +1726,7 @@ class InMemoryMilestonesRepository
     return {
       id: club.id,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
-      isCurrentUserBanned: false
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 
@@ -1620,6 +1736,12 @@ class InMemoryMilestonesRepository
     { page, limit }: { page: number; limit: number }
   ): Promise<ListMilestonesResult | null> => {
     const club = this.findStoredClubByLinkName(linkName);
+
+    if (club && this.hasActiveBan(userId, club.id)) {
+      return {
+        status: "BANNED"
+      };
+    }
 
     if (!club || !this.canViewClubMilestones(club, userId)) {
       return null;
@@ -1674,6 +1796,12 @@ class InMemoryMilestonesRepository
     this.memberships.some(
       (membership) =>
         membership.clubId === club.id && membership.userId === userId
+    );
+
+  private hasActiveBan = (userId: string, clubId: string) =>
+    this.bans.some(
+      (ban) =>
+        ban.userId === userId && ban.clubId === clubId && ban.revokedAt === null
     );
 
   private findMembership = (userId: string, clubId: string) =>

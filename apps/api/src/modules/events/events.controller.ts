@@ -31,7 +31,7 @@ export const createEventsController = (
 
       res.status(200);
       res.set({
-        "Cache-Control": "no-cache, no-transform",
+        "Cache-Control": "private, no-store, no-transform",
         Connection: "keep-alive",
         "Content-Type": "text/event-stream",
         "X-Accel-Buffering": "no"

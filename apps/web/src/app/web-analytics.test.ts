@@ -28,6 +28,14 @@ describe("scrubAnalyticsEvent", () => {
     ).toEqual(pageview("https://www.loresafe.org/invite/[token]"));
   });
 
+  it("replaces invite tokens when the path uses different letter case", () => {
+    const scrubbed = scrubAnalyticsEvent(
+      pageview("https://www.loresafe.org/Invite/INVITE_SENTINEL")
+    );
+
+    expect(scrubbed?.url).not.toContain("INVITE_SENTINEL");
+  });
+
   it("keeps ordinary paths and event types", () => {
     expect(
       scrubAnalyticsEvent({

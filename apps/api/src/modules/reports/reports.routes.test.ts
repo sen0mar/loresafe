@@ -715,6 +715,69 @@ describe("reports routes", () => {
     expect(JSON.stringify(response.body)).not.toContain("UNSAFE");
   });
 
+  it("rejects report creation by a banned reporter", async () => {
+    const reporter = repository.createStoredUser(validUserInput());
+    const post = repository.createPostFixture(reporter.id, {
+      membershipUserId: reporter.id,
+      progressPosition: 1
+    });
+
+    repository.banMember(reporter.id, post.clubId);
+
+    const response = await request(app)
+      .post("/api/reports")
+      .set("Cookie", await createSessionCookie(reporter))
+      .send(validReportInput("POST", post.id))
+      .expect(403);
+
+    expect(response.body.error.code).toBe("BANNED");
+    expect(repository.reports).toHaveLength(0);
+  });
+
+  it("rejects moderation queue reads by a banned moderator", async () => {
+    const { club, moderator } = await createBannedModeratorFixture(repository);
+
+    const response = await request(app)
+      .get(`/api/clubs/${club.linkName}/moderation/reports`)
+      .set("Cookie", await createSessionCookie(moderator))
+      .expect(403);
+
+    expect(response.body.error.code).toBe("BANNED");
+    expect(JSON.stringify(response.body)).not.toContain("UNSAFE");
+  });
+
+  it.each([
+    ["post", "reveal", undefined],
+    [
+      "patch",
+      "required-milestone",
+      { requiredMilestoneId: crypto.randomUUID() }
+    ],
+    ["post", "hide", {}],
+    ["post", "delete", {}],
+    ["post", "warn", {}],
+    ["post", "ban", {}],
+    ["patch", "resolve", { status: "RESOLVED" }]
+  ] as const)(
+    "rejects %s moderation report %s by a banned moderator",
+    async (method, action, body) => {
+      const { club, moderator, report } =
+        await createBannedModeratorFixture(repository);
+
+      const path = `/api/clubs/${club.linkName}/moderation/reports/${report.id}/${action}`;
+      const agent = request(app);
+      const response = await agent[method](path)
+        .set("Cookie", await createSessionCookie(moderator))
+        .send(body)
+        .expect(403);
+
+      expect(response.body.error.code).toBe("BANNED");
+      expect(repository.reports[0]?.status).toBe("OPEN");
+      expect(repository.auditLogs).toHaveLength(0);
+      expect(repository.bans).toHaveLength(1);
+    }
+  );
+
   it("validates moderation action auth, role, notes, milestones, and ban expiry", async () => {
     const reporter = repository.createStoredUser(validUserInput());
     const member = repository.createStoredUser({
@@ -1429,6 +1492,27 @@ class InMemoryReportsRepository
     if (membershipIndex >= 0) {
       this.memberships.splice(membershipIndex, 1);
     }
+  };
+
+  banMember = (userId: string, clubId: string) => {
+    const role =
+      this.memberships.find(
+        (membership) =>
+          membership.userId === userId && membership.clubId === clubId
+      )?.role ?? null;
+    const now = new Date();
+
+    this.removeMembership(userId, clubId);
+    this.bans.push({
+      id: crypto.randomUUID(),
+      clubId,
+      userId,
+      roleAtBan: role,
+      expiresAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now
+    });
   };
 
   softDeleteAuthoredPosts = (
@@ -2244,6 +2328,40 @@ const createReportsTestApp = (
   app.use(errorHandler);
 
   return app;
+};
+
+const createBannedModeratorFixture = async (
+  repository: InMemoryReportsRepository
+) => {
+  const reporter = repository.createStoredUser(validUserInput());
+  const moderator = repository.createStoredUser({
+    ...validUserInput(),
+    email: "moderator@example.com"
+  });
+  const post = repository.createPostFixture(reporter.id, {
+    membershipUserId: reporter.id,
+    progressPosition: 1,
+    unsafeTitle: "UNSAFE_BANNED_TITLE",
+    unsafeBody: "UNSAFE_BANNED_BODY"
+  });
+  const club = repository.clubs.get(post.clubId);
+
+  if (!club) {
+    throw new Error("Expected post fixture to create a club.");
+  }
+
+  repository.createMembership(moderator.id, post.clubId, "MODERATOR");
+  const report = await repository.createReport(
+    reporter.id,
+    (await repository.findPostTarget(
+      post.id,
+      reporter.id
+    )) as ReportTargetRecord,
+    validReportInput("POST", post.id)
+  );
+  repository.banMember(moderator.id, post.clubId);
+
+  return { club, moderator, report };
 };
 
 const createSessionCookie = async (user: AuthUserRecord) => {

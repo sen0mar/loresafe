@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import express from "express";
 import { MemoryStore } from "express-rate-limit";
+import request from "supertest";
 
 import {
   registerParsedBodyRateLimiters,
@@ -111,7 +113,7 @@ describe("registerRateLimiters", () => {
       "/api/notifications",
       expect.any(Function)
     );
-    expect(app.delete).toHaveBeenCalledWith(
+    expect(app.delete).not.toHaveBeenCalledWith(
       "/api/notifications/selected",
       expect.any(Function)
     );
@@ -154,6 +156,24 @@ describe("registerRateLimiters", () => {
     expect(app.use).not.toHaveBeenCalledWith(
       "/api/search",
       expect.any(Function)
+    );
+  });
+});
+
+describe("notification mutation limiter", () => {
+  it("counts DELETE /api/notifications/selected once per request", async () => {
+    const app = express();
+
+    registerRateLimiters(app, createTestRateLimiters());
+    app.delete("/api/notifications/selected", (_req, res) => {
+      res.status(204).end();
+    });
+
+    const response = await request(app).delete("/api/notifications/selected");
+
+    expect(response.status).toBe(204);
+    expect(response.headers.ratelimit).toMatch(
+      /^"notifications-mutate"; r=179; t=\d+$/
     );
   });
 });
