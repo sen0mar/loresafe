@@ -536,6 +536,70 @@ describe("uploads routes", () => {
     ).toBeDefined();
   });
 
+  it("rejects post image completion after the uploader is banned", async () => {
+    const member = await repository.createUser({
+      email: "banned-uploader@example.com",
+      displayName: "Banned uploader",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const club = repository.createClub("story-room");
+    repository.createMembership(member.id, club.id, "MEMBER");
+    const cookie = await createSessionCookie(member);
+    const intent = await request(app)
+      .post("/api/uploads/post-images")
+      .set("Cookie", cookie)
+      .send(validPostImageIntent("story-room"))
+      .expect(201);
+    const staged = repository.getOnlyAsset();
+    storage.metadata.set(getUploadStagingKey(staged.objectKey), {
+      contentLength: staged.sizeBytes,
+      contentType: staged.contentType
+    });
+    repository.removeMembership(member.id, club.id);
+    repository.banUser(member.id, club.id);
+
+    const response = await request(app)
+      .post(`/api/uploads/${intent.body.asset.id}/complete`)
+      .set("Cookie", cookie)
+      .expect(403);
+
+    expect(response.body.error.code).toBe("BANNED");
+    expect(storage.writtenObjects.has(staged.objectKey)).toBe(false);
+    expect(repository.getOnlyAsset().status).toBe("PENDING");
+  });
+
+  it("does not let another user complete someone else's upload", async () => {
+    const owner = await repository.createUser({
+      email: "asset-owner@example.com",
+      displayName: "Asset owner",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const intruder = await repository.createUser({
+      email: "intruder@example.com",
+      displayName: "Intruder",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+    const intent = await request(app)
+      .post("/api/uploads/public-assets")
+      .set("Cookie", await createSessionCookie(owner))
+      .send(validAvatarIntent())
+      .expect(201);
+    const staged = repository.getOnlyAsset();
+    storage.metadata.set(getUploadStagingKey(staged.objectKey), {
+      contentLength: staged.sizeBytes,
+      contentType: staged.contentType
+    });
+
+    await request(app)
+      .post(`/api/uploads/${intent.body.asset.id}/complete`)
+      .set("Cookie", await createSessionCookie(intruder))
+      .expect(404);
+
+    expect(repository.getOnlyAsset().status).toBe("PENDING");
+    expect(storage.writtenObjects.has(staged.objectKey)).toBe(false);
+    expect(repository.users.get(intruder.id)?.avatarAssetId).toBeNull();
+  });
+
   it.each(["AVATAR", "CLUB_COVER", "POST_IMAGE"] as const)(
     "keeps published %s bytes unchanged when the original PUT is replayed",
     async (purpose) => {
@@ -967,7 +1031,10 @@ class InMemoryUploadsRepository
       };
     }
 
-    if (asset.purpose === "CLUB_COVER" && asset.clubId) {
+    if (
+      (asset.purpose === "CLUB_COVER" || asset.purpose === "POST_IMAGE") &&
+      asset.clubId
+    ) {
       if (this.bannedClubUsers.has(`${asset.clubId}:${actorId}`)) {
         return {
           status: "BANNED" as const
@@ -985,7 +1052,11 @@ class InMemoryUploadsRepository
         };
       }
 
-      if (role !== "OWNER" && role !== "MODERATOR") {
+      if (
+        asset.purpose === "CLUB_COVER" &&
+        role !== "OWNER" &&
+        role !== "MODERATOR"
+      ) {
         return {
           status: "FORBIDDEN" as const
         };

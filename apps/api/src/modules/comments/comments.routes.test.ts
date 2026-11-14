@@ -271,6 +271,49 @@ describe("comments routes", () => {
     });
   });
 
+  it.each([
+    ["list", "PUBLIC", "get", () => ""],
+    ["list", "PRIVATE", "get", () => ""],
+    ["reveal", "PUBLIC", "post", (commentId: string) => `/${commentId}/reveal`],
+    ["reveal", "PRIVATE", "post", (commentId: string) => `/${commentId}/reveal`]
+  ] as const)(
+    "rejects comment %s in a %s club from banned members",
+    async (_label, clubVisibility, method, path) => {
+      const user = repository.createStoredUser(validUserInput());
+      const post = repository.createPostFixture(user.id, {
+        clubVisibility,
+        progressPosition: 1,
+        postMilestonePosition: 1
+      });
+      repository.setProgress(user.id, post.clubId, 1, "BRAVE");
+      const comment = repository.createComment(
+        post.id,
+        user.id,
+        post.requiredMilestone,
+        {
+          body: "BANNED_READER_COMMENT_BODY"
+        }
+      );
+      // Bans remove the membership and leave an active ban row.
+      repository.createBan(user.id, post.clubId);
+
+      const url = `/api/posts/${post.id}/comments${path(comment.id)}`;
+      const pendingRequest = request(app)[method](url);
+
+      const response = await pendingRequest
+        .set("Cookie", await createSessionCookie(user))
+        .expect(403);
+
+      expect(response.body.error).toMatchObject({
+        code: "BANNED",
+        message: "You are banned from this club."
+      });
+      expect(JSON.stringify(response.body)).not.toContain(
+        "BANNED_READER_COMMENT_BODY"
+      );
+    }
+  );
+
   it("rejects direct comment deletion from banned users", async () => {
     const user = repository.createStoredUser(validUserInput());
     const post = repository.createPostFixture(user.id, {

@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | "INVITE_MAXED"
   | "INVITE_REVOKED"
   | "NOT_FOUND"
+  | "PAYLOAD_TOO_LARGE"
   | "SERVICE_UNAVAILABLE"
   | "UNAUTHORIZED"
   | "TOO_MANY_REQUESTS";

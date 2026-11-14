@@ -1,6 +1,7 @@
 import { Analytics, type BeforeSendEvent } from "@vercel/analytics/react";
 
-const INVITE_PATH = /^\/invite\/[^/]+/;
+// Case-insensitive because react-router matches /Invite/:token as well.
+const INVITE_PATH = /^\/invite\/[^/]+/i;
 
 // Page-view URLs must never carry secrets: reset/verify links put tokens in the
 // query string and invite links put them in the path. Keep only the pathname

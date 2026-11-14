@@ -215,6 +215,37 @@ describe("dashboard routes", () => {
       .expect(403);
   });
 
+  it("denies every dashboard read to a banned former member", async () => {
+    const user = repository.createStoredUser(validUserInput());
+    const club = repository.createClub("banned-dashboard-story");
+    const milestone = repository.createMilestone(club.id, 1, "Opening");
+    repository.createMembership(user.id, club.id);
+    repository.setProgress(user.id, club.id, milestone.id, "STRICT");
+    repository.addProgressHistory(user.id, club.id, null, milestone.id);
+    repository.createPost(club.id, user.id, milestone, {
+      title: "BANNED_DASHBOARD_TITLE"
+    });
+    repository.banUser(user.id, club.id);
+    const cookie = await createSessionCookie(user);
+
+    for (const path of [
+      "stats",
+      "popular-discussions",
+      "progress/summary",
+      "recently-unlocked/summary"
+    ]) {
+      const response = await request(app)
+        .get(`/api/clubs/banned-dashboard-story/${path}`)
+        .set("Cookie", cookie)
+        .expect(403);
+
+      expect(response.body.error.code).toBe("BANNED");
+      expect(JSON.stringify(response.body)).not.toContain(
+        "BANNED_DASHBOARD_TITLE"
+      );
+    }
+  });
+
   it("validates dashboard link names and bounded limits", async () => {
     const user = repository.createStoredUser(validUserInput());
 
@@ -281,6 +312,7 @@ class InMemoryDashboardRepository
   readonly posts: StoredPost[] = [];
   readonly comments: StoredComment[] = [];
   readonly postReactions: StoredPostReaction[] = [];
+  readonly bannedMemberships = new Set<string>();
 
   findActiveUserByEmail = async (email: string) =>
     this.usersByEmail.get(email) ?? null;
@@ -357,6 +389,19 @@ class InMemoryDashboardRepository
     this.memberships.push(membership);
 
     return membership;
+  };
+
+  banUser = (userId: string, clubId: string) => {
+    const membershipIndex = this.memberships.findIndex(
+      (membership) =>
+        membership.userId === userId && membership.clubId === clubId
+    );
+
+    if (membershipIndex >= 0) {
+      this.memberships.splice(membershipIndex, 1);
+    }
+
+    this.bannedMemberships.add(`${userId}:${clubId}`);
   };
 
   createMilestone = (clubId: string, position: number, safeTitle: string) => {
@@ -491,7 +536,7 @@ class InMemoryDashboardRepository
       id: club.id,
       visibility: club.visibility,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
-      isCurrentUserBanned: false,
+      isCurrentUserBanned: this.bannedMemberships.has(`${userId}:${club.id}`),
       progress: {
         mode: progress?.mode ?? "STRICT",
         currentMilestonePosition: currentMilestone?.position ?? null

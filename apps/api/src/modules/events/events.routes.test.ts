@@ -59,6 +59,8 @@ describe("events routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/event-stream");
+    expect(response.headers.get("cache-control")).toContain("private");
+    expect(response.headers.get("cache-control")).toContain("no-store");
     expect(streamText).toContain("retry: 3000");
     expect(streamText).toContain(": connected");
     expect(streamText).toContain(": heartbeat");

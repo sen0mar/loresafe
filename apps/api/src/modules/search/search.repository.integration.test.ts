@@ -182,6 +182,50 @@ describeDatabase("search spoiler boundaries", () => {
       await fixture.cleanup();
     }
   });
+
+  it("excludes clubs and posts from a club where the searcher is banned", async () => {
+    const fixture = await createFixture();
+    try {
+      await prisma.clubProgress.create({
+        data: {
+          userId: fixture.viewer.id,
+          clubId: fixture.club.id,
+          mode: "FINISHED"
+        }
+      });
+      const searchAll = () =>
+        service.search(fixture.viewer.id, {
+          q: fixture.term,
+          scope: "all",
+          filters: "safe,spoiler,clubs,posts",
+          limit: 20
+        });
+
+      const beforeBan = await searchAll();
+      expect(beforeBan.clubs.map(({ id }) => id)).toContain(fixture.club.id);
+      expect(beforeBan.posts.length).toBeGreaterThan(0);
+
+      await prisma.clubMembership.delete({
+        where: {
+          userId_clubId: { userId: fixture.viewer.id, clubId: fixture.club.id }
+        }
+      });
+      await prisma.clubBan.create({
+        data: {
+          clubId: fixture.club.id,
+          userId: fixture.viewer.id,
+          roleAtBan: "MEMBER",
+          reason: "Integration fixture"
+        }
+      });
+
+      const afterBan = await searchAll();
+      expect(afterBan.clubs.map(({ id }) => id)).not.toContain(fixture.club.id);
+      expect(afterBan.posts).toEqual([]);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
 });
 
 const search = (userId: string, q: string, filters: string) =>

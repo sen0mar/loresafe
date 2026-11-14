@@ -1,3 +1,4 @@
+import type { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../core/prisma/client.js";
 import {
   requestUploadObjectDeletions,
@@ -11,6 +12,23 @@ export type UploadsCleanupRepository = {
 const pendingUploadLifetimeMs = 20 * 60 * 1000;
 const unattachedReadyAssetLifetimeMs = 24 * 60 * 60 * 1000;
 const retryDeletionAfterMs = 5 * 60 * 1000;
+
+const unattachedAssetWhere = {
+  OR: [
+    {
+      purpose: "POST_IMAGE",
+      postId: null
+    },
+    {
+      purpose: "AVATAR",
+      avatarForUser: null
+    },
+    {
+      purpose: "CLUB_COVER",
+      coverForClub: null
+    }
+  ]
+} satisfies Prisma.FileAssetWhereInput;
 
 export const uploadsCleanupRepository: UploadsCleanupRepository = {
   requestCleanupForStaleAssets: (now, limit) =>
@@ -37,20 +55,7 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
               readyAt: {
                 lt: unattachedCutoff
               },
-              OR: [
-                {
-                  purpose: "POST_IMAGE",
-                  postId: null
-                },
-                {
-                  purpose: "AVATAR",
-                  avatarForUser: null
-                },
-                {
-                  purpose: "CLUB_COVER",
-                  coverForClub: null
-                }
-              ]
+              ...unattachedAssetWhere
             }
           ]
         },
@@ -74,7 +79,9 @@ export const uploadsCleanupRepository: UploadsCleanupRepository = {
         const claimed = await transaction.fileAsset.updateMany({
           where: {
             id: asset.id,
-            status: asset.status
+            status: asset.status,
+            // An attach that committed after the snapshot must keep its asset.
+            ...(asset.status === "READY" ? unattachedAssetWhere : {})
           },
           data: { status: "FAILED" }
         });

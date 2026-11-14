@@ -449,17 +449,12 @@ const issueIdentityToken = async ({
     expiresAt
   });
 
-  if (purpose === "VERIFY_EMAIL") {
-    await delivery
-      .sendEmailVerification({
-        email: user.email,
-        token,
-        expiresAt
-      })
-      .catch(() => undefined);
-  } else {
-    await delivery
-      .sendPasswordReset({ email: user.email, token, expiresAt })
-      .catch(() => undefined);
-  }
+  // Do not await delivery: a provider round trip that only known accounts pay
+  // would reveal account existence through response timing.
+  const delivered =
+    purpose === "VERIFY_EMAIL"
+      ? delivery.sendEmailVerification({ email: user.email, token, expiresAt })
+      : delivery.sendPasswordReset({ email: user.email, token, expiresAt });
+
+  void delivered.catch(() => undefined);
 };

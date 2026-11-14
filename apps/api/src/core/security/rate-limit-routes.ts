@@ -168,7 +168,8 @@ export const registerRateLimiters = (
   app.post("/api/notifications/read-all", notificationMutationRateLimiter);
   app.post("/api/notifications/:id/read", notificationMutationRateLimiter);
   app.delete("/api/notifications", notificationMutationRateLimiter);
-  app.delete("/api/notifications/selected", notificationMutationRateLimiter);
+  // Also covers DELETE /api/notifications/selected; registering that path too
+  // would count each request twice against the same limiter.
   app.delete("/api/notifications/:id", notificationMutationRateLimiter);
 };
 

@@ -64,12 +64,13 @@ export const createInvitesService = (
   createClubInvite: async (linkName, userId, input) => {
     const club = await repository.findClubForInviteCreation(linkName, userId);
 
-    if (!club || !club.currentUserRole) {
-      throw new HttpError(404, "NOT_FOUND", "Club not found");
+    // Bans remove the membership, so check the ban first to report it.
+    if (club?.isCurrentUserBanned) {
+      throw bannedFromClubError();
     }
 
-    if (club.isCurrentUserBanned) {
-      throw bannedFromClubError();
+    if (!club || !club.currentUserRole) {
+      throw new HttpError(404, "NOT_FOUND", "Club not found");
     }
 
     if (!canCreateClubInvite(club.currentUserRole)) {

@@ -45,6 +45,7 @@ not message text.
 | 403    | `FORBIDDEN`, `BANNED`                          | Do not retry without a permission/state change.                                                      |
 | 404    | `NOT_FOUND`                                    | Do not retry unless eventual creation is expected.                                                   |
 | 409    | `CONFLICT`, `INVITE_EXPIRED`, `INVITE_REVOKED` | Re-read state; retry only when the operation is documented idempotent and the conflict is transient. |
+| 413    | `PAYLOAD_TOO_LARGE`                            | Send a smaller body; do not retry unchanged.                                                         |
 | 429    | `TOO_MANY_REQUESTS`                            | Honor `Retry-After`/`RateLimit`; use jitter and never fan out retries.                               |
 | 500    | `INTERNAL_SERVER_ERROR`                        | Retry idempotent requests with bounded exponential backoff.                                          |
 | 503    | `SERVICE_UNAVAILABLE`                          | Retry idempotent requests with bounded exponential backoff.                                          |

@@ -582,6 +582,50 @@ describe("progress routes", () => {
     });
   });
 
+  it.each([
+    ["read", "get", "/progress", undefined],
+    ["recently unlocked", "get", "/recently-unlocked", undefined],
+    [
+      "update",
+      "patch",
+      "/progress",
+      { currentMilestoneId: null, mode: "STRICT" }
+    ],
+    ["next", "post", "/progress/next", undefined]
+  ] as const)(
+    "rejects progress %s from banned members",
+    async (label, method, path, body) => {
+      const user = repository.createStoredUser(validUserInput());
+      const club = repository.createClub("public-story-circle");
+      repository.createMilestone(club.id, {
+        position: 1,
+        safeTitle: "Opening"
+      });
+      // Bans remove the membership and leave an active ban row.
+      repository.createBan(user.id, club.id);
+      const requestId = `progress-banned-${label.replace(" ", "-")}`;
+
+      const url = `/api/clubs/public-story-circle${path}`;
+      const pendingRequest = request(app)[method](url);
+
+      const response = await pendingRequest
+        .set("Cookie", await createSessionCookie(user))
+        .set("x-request-id", requestId)
+        .send(body)
+        .expect(403);
+
+      expect(response.body).toEqual({
+        error: {
+          code: "BANNED",
+          message: "You are banned from this club.",
+          requestId
+        }
+      });
+      expect(repository.progressRows).toHaveLength(0);
+      expect(repository.history).toHaveLength(0);
+    }
+  );
+
   it("rejects milestones from another club", async () => {
     const user = repository.createStoredUser(validUserInput());
     const club = repository.createClub("public-story-circle");
@@ -790,6 +834,11 @@ class InMemoryProgressRepository
     clubId: string;
     role: "OWNER" | "MODERATOR" | "MEMBER";
   }> = [];
+  readonly bans: Array<{
+    userId: string;
+    clubId: string;
+    revokedAt: Date | null;
+  }> = [];
   readonly milestones: Array<ProgressMilestoneRecord & { clubId: string }> = [];
   readonly progressRows: StoredProgress[] = [];
   readonly history: StoredProgressHistory[] = [];
@@ -864,6 +913,14 @@ class InMemoryProgressRepository
     });
   };
 
+  createBan = (userId: string, clubId: string) => {
+    this.bans.push({
+      userId,
+      clubId,
+      revokedAt: null
+    });
+  };
+
   createMilestone = (
     clubId: string,
     input: Partial<ProgressMilestoneRecord> &
@@ -895,7 +952,7 @@ class InMemoryProgressRepository
     return {
       id: club.id,
       currentUserRole: this.findMembership(userId, club.id)?.role ?? null,
-      isCurrentUserBanned: false
+      isCurrentUserBanned: this.hasActiveBan(userId, club.id)
     };
   };
 
@@ -1134,6 +1191,12 @@ class InMemoryProgressRepository
 
     return null;
   };
+
+  private hasActiveBan = (userId: string, clubId: string) =>
+    this.bans.some(
+      (ban) =>
+        ban.userId === userId && ban.clubId === clubId && ban.revokedAt === null
+    );
 
   private findMembership = (userId: string, clubId: string) =>
     this.memberships.find(

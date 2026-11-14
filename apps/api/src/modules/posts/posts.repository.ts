@@ -423,6 +423,17 @@ export const postsRepository: PostsRepository = {
         return null;
       }
 
+      if (input.mediaAssetId) {
+        // Serialize with cleanup claims and concurrent attaches of this asset
+        // so the eligibility read below sees their committed result.
+        await transaction.$queryRaw`
+          SELECT "id"
+          FROM "file_assets"
+          WHERE "id" = ${input.mediaAssetId}::uuid
+          FOR UPDATE
+        `;
+      }
+
       const mediaAsset = input.mediaAssetId
         ? await transaction.fileAsset.findFirst({
             where: {
