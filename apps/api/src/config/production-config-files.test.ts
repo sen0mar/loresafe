@@ -472,6 +472,12 @@ describe("production configuration files", () => {
     expect(headerNames).toContain("Content-Security-Policy");
     expect(contentSecurityPolicy).toContain("https://*.ingest.sentry.io");
     expect(contentSecurityPolicy).toContain("https://*.ingest.de.sentry.io");
+    expect(contentSecurityPolicy).toMatch(
+      /connect-src [^;]*https:\/\/loresafe-bucket\.[a-f0-9]{32}\.r2\.cloudflarestorage\.com[ ;]/
+    );
+    expect(contentSecurityPolicy).not.toContain(
+      "https://*.r2.cloudflarestorage.com"
+    );
     expect(headerNames).toContain("Strict-Transport-Security");
     expect(headerNames).toContain("X-Content-Type-Options");
     expect(JSON.parse(rootPackage).scripts["production:readiness:check"]).toBe(
