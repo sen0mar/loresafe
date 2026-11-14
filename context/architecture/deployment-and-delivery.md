@@ -22,6 +22,9 @@
   origin, `PUT`, `GET`, `HEAD`, the `Content-Type` request header, and `ETag`
   exposure. The production policy template lives at
   `infra/cloudflare/r2-cors-production.json`.
+- The web CSP `connect-src` in `apps/web/vercel.json` must list the exact R2
+  bucket upload origin (`https://<bucket>.<account-id>.r2.cloudflarestorage.com`),
+  or browsers block presigned uploads. Update it if the bucket or account changes.
 
 Render API deployment:
 
