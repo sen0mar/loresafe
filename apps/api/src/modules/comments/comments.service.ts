@@ -28,7 +28,8 @@ import {
   canDeleteComment,
   canCreatePostComment,
   canToggleCommentReaction,
-  canViewPostComments
+  canViewPostComments,
+  getEffectiveCommentMilestone
 } from "./comments.policy.js";
 import type {
   CreatePostCommentRequest,
@@ -152,8 +153,12 @@ export const createCommentsService = (
       );
     }
 
-    const inheritedMilestone =
-      parentComment?.requiredMilestone ?? post.requiredMilestone;
+    const inheritedMilestone = parentComment
+      ? getEffectiveCommentMilestone(
+          parentComment.requiredMilestone,
+          post.requiredMilestone
+        )
+      : post.requiredMilestone;
     const selectedMilestone = await resolveRequiredMilestone(
       repository,
       post,
@@ -218,7 +223,10 @@ export const createCommentsService = (
       !canRevealRequiredMilestone({
         mode: post.club.progress.mode,
         currentMilestonePosition: post.club.progress.currentMilestonePosition,
-        requiredMilestonePosition: comment.requiredMilestone.position
+        requiredMilestonePosition: getEffectiveCommentMilestone(
+          comment.requiredMilestone,
+          post.requiredMilestone
+        ).position
       })
     ) {
       throw new HttpError(
@@ -263,7 +271,10 @@ export const createCommentsService = (
         mode: target.post.club.progress.mode,
         currentMilestonePosition:
           target.post.club.progress.currentMilestonePosition,
-        requiredMilestonePosition: target.comment.requiredMilestone.position
+        requiredMilestonePosition: getEffectiveCommentMilestone(
+          target.comment.requiredMilestone,
+          target.post.requiredMilestone
+        ).position
       })
     ) {
       throw new HttpError(
@@ -420,5 +431,6 @@ const toCommentVisibilityContext = (
 ) => ({
   ...post.club.progress,
   currentUserId,
-  currentUserRole: post.club.currentUserRole
+  currentUserRole: post.club.currentUserRole,
+  postRequiredMilestone: post.requiredMilestone
 });

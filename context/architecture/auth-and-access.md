@@ -59,6 +59,7 @@
 - Important policies: can view club, can join club, can manage club, can create post, can view post, can view comment, can reveal locked content, can moderate report, can upload media.
 - Active club bans are hard backend denials for all club-scoped reads and writes, including direct content routes, discovery, invites, uploads, moderation, and dashboard data.
 - Progress checks compare the member's trusted current progress/mode with the content's required milestone/order.
+- A comment's effective required milestone is the later of its own and its post's, evaluated at read time, so spoiler corrections and milestone reordering on a post also lock its existing comments and replies.
 
 ## Collaboration Model
 

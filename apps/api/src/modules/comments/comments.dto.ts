@@ -1,8 +1,14 @@
 import type { ProgressMode } from "../progress/progress.schema.js";
 import type { CommentReactionEmoji } from "./comments.schema.js";
 import { canViewRequiredMilestone } from "../spoilers/spoiler.policy.js";
-import type { CommentRecord } from "./comments.repository.js";
-import { canDeleteComment } from "./comments.policy.js";
+import type {
+  CommentMilestoneRecord,
+  CommentRecord
+} from "./comments.repository.js";
+import {
+  canDeleteComment,
+  getEffectiveCommentMilestone
+} from "./comments.policy.js";
 
 type ClubMembershipRole = "OWNER" | "MODERATOR" | "MEMBER";
 
@@ -98,17 +104,30 @@ export type CommentVisibilityContext = {
   currentMilestonePosition: number | null;
   currentUserId: string;
   currentUserRole: ClubMembershipRole | null;
+  postRequiredMilestone: CommentMilestoneRecord;
+};
+
+const toRequiredMilestoneDto = (
+  comment: CommentRecord,
+  context: CommentVisibilityContext
+): RequiredMilestoneDto => {
+  const milestone = getEffectiveCommentMilestone(
+    comment.requiredMilestone,
+    context.postRequiredMilestone
+  );
+
+  return {
+    id: milestone.id,
+    position: milestone.position,
+    label: milestone.safeTitle
+  };
 };
 
 export const toCommentDto = (
   comment: CommentRecord,
   context: CommentVisibilityContext
 ): CommentDto => {
-  const requiredMilestone = {
-    id: comment.requiredMilestone.id,
-    position: comment.requiredMilestone.position,
-    label: comment.requiredMilestone.safeTitle
-  };
+  const requiredMilestone = toRequiredMilestoneDto(comment, context);
   const base = {
     id: comment.id,
     status: comment.status,
@@ -125,7 +144,7 @@ export const toCommentDto = (
   const isVisible = canViewRequiredMilestone({
     mode: context.mode,
     currentMilestonePosition: context.currentMilestonePosition,
-    requiredMilestonePosition: comment.requiredMilestone.position
+    requiredMilestonePosition: requiredMilestone.position
   });
 
   if (!isVisible) {
@@ -162,11 +181,7 @@ export const toRevealedCommentDto = (
     username: comment.author.username
   },
   parentId: comment.parentId,
-  requiredMilestone: {
-    id: comment.requiredMilestone.id,
-    position: comment.requiredMilestone.position,
-    label: comment.requiredMilestone.safeTitle
-  },
+  requiredMilestone: toRequiredMilestoneDto(comment, context),
   permissions: toCommentPermissionsDto(comment, context),
   counts: {
     reactionCount: comment.reactionCount,
