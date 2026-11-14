@@ -8,6 +8,10 @@ argument-hint: '[report | apply "<item IDs or description>"]'
 
 Two modes. With no argument, run `report`.
 
+Reports go in the `reports/` folder at the **repository root** (git-ignored),
+not in this skill's folder. Every `reports/` path below is relative to the
+repository root.
+
 - `/cleanup` or `/cleanup report` — audit the whole repository and write a
   report. **Changes no code.**
 - `/cleanup apply "<selection>"` — apply only the selected items from the
