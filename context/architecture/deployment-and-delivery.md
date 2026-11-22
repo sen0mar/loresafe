@@ -92,8 +92,8 @@ Required groups:
 - R2 account, bucket, endpoint, access key, and secret.
 - Upstash Redis connection details.
 - Sentry DSNs.
-- Optional approved email-delivery provider adapter for the existing
-  verification/recovery boundary.
+- Resend API key and sender (`RESEND_API_KEY`, `EMAIL_FROM`) for verification
+  and password-reset email; the sending domain must be verified in Resend.
 
 Database migration safety and drift troubleshooting: [data and storage](data-and-storage.md#migrations).
 

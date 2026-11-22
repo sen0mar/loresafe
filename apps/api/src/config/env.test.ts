@@ -20,6 +20,8 @@ const productionServiceEnv = {
   R2_SECRET_ACCESS_KEY: "r2-secret-key",
   SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
   OPERATIONS_BEARER_TOKEN: "o".repeat(32),
+  RESEND_API_KEY: "re_test_key",
+  EMAIL_FROM: "LoreSafe <noreply@loresafe.example>",
   TRUST_PROXY_CIDRS: "loopback,linklocal,uniquelocal",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
   UPSTASH_REDIS_REST_URL: "https://redis.example"
@@ -45,7 +47,9 @@ describe("env validation", () => {
         expect.stringContaining("R2_SECRET_ACCESS_KEY"),
         expect.stringContaining("R2_BUCKET_NAME"),
         expect.stringContaining("R2_PUBLIC_BASE_URL"),
-        expect.stringContaining("SENTRY_DSN")
+        expect.stringContaining("SENTRY_DSN"),
+        expect.stringContaining("RESEND_API_KEY"),
+        expect.stringContaining("EMAIL_FROM")
       ])
     );
   });
@@ -149,6 +153,23 @@ describe("env validation", () => {
     expect(env).not.toHaveProperty("DEMO_USER_EMAIL");
     expect(env).not.toHaveProperty("DEMO_USER_DISPLAY_NAME");
     expect(env).not.toHaveProperty("DEMO_USER_PASSWORD");
+  });
+
+  it.each([
+    ["noreply@loresafe.example", true],
+    ["LoreSafe <noreply@loresafe.example>", true],
+    ["LoreSafe noreply@loresafe.example", false],
+    ["LoreSafe <noreply@loresafe.example>\r\nBcc: x@y.z", false]
+  ])("validates the email sender %j (valid=%s)", (emailFrom, valid) => {
+    const input = { ...baseEnv, EMAIL_FROM: emailFrom };
+
+    if (valid) {
+      expect(parseEnv(input).EMAIL_FROM).toBe(emailFrom);
+    } else {
+      expect(getEnvIssueSummary(input)).toEqual([
+        "EMAIL_FROM: Must be an address or a 'Name <address>' sender"
+      ]);
+    }
   });
 
   it("normalizes the public site origin", () => {

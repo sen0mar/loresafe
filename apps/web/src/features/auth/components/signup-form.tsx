@@ -91,7 +91,9 @@ export const SignupForm = () => {
     setFieldErrors({});
     signupMutation.mutate(toSignupRequest(parseResult.data), {
       onSuccess: () => {
-        toast.success("Check your email to verify your account");
+        toast.success(
+          "Check your email for a link to finish creating your account"
+        );
         navigate(loginPath, { replace: true });
       }
     });

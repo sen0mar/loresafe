@@ -440,7 +440,7 @@
             "$ref": "#/components/responses/ServiceUnavailable"
           }
         },
-        "x-idempotent": true
+        "x-idempotent": false
       }
     },
     "/api/auth/password/forgot": {

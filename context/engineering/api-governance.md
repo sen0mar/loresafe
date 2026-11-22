@@ -62,7 +62,7 @@ non-reversible account buckets; responses never reveal which bucket matched.
 - PATCH is idempotent only where `x-idempotent: true` says so. POST is not
   idempotent unless the contract explicitly marks it or accepts a stable command
   identifier. Upload completion and progress commands preserve retry results.
-- Email verification and password reset are idempotent; token purpose, replay, expiry, and account-neutral response rules are owned by [auth and access](../architecture/auth-and-access.md#authentication).
+- Password reset is idempotent. Email verification is not: confirming consumes the pending signup, so a replay returns the generic link error. Token purpose, replay, expiry, and account-neutral response rules are owned by [auth and access](../architecture/auth-and-access.md#authentication).
 - New resource state changes prefer standard PUT/PATCH/DELETE. Existing command
   POST routes remain during compatibility migrations; add the standard route,
   migrate first-party clients, deprecate the command route, then remove it only

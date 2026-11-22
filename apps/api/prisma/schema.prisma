@@ -199,6 +199,19 @@ model User {
   @@map("users")
 }
 
+model PendingSignup {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique(map: "pending_signups_email_unique") @db.VarChar(320)
+  username     String   @db.VarChar(30)
+  passwordHash String   @map("password_hash")
+  tokenHash    String   @unique(map: "pending_signups_token_hash_unique") @map("token_hash") @db.Char(64)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([expiresAt], map: "pending_signups_expires_at_idx")
+  @@map("pending_signups")
+}
+
 model EmailIdentityToken {
   id         String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String                    @map("user_id") @db.Uuid

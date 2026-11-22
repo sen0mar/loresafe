@@ -233,7 +233,7 @@ const apiRouteContracts: RouteContract[] = [
     "Authentication",
     "confirmEmailVerification",
     "CompletedResponseDto",
-    { body: "VerifyEmailRequest", idempotent: true }
+    { body: "VerifyEmailRequest" }
   ),
   publicRoute(
     "post",

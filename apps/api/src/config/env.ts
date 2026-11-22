@@ -116,6 +116,17 @@ const envSchema = z
     R2_SECRET_ACCESS_KEY: optionalStringSchema,
     R2_BUCKET_NAME: optionalStringSchema,
     R2_PUBLIC_BASE_URL: optionalUrlSchema,
+    RESEND_API_KEY: optionalStringSchema,
+    EMAIL_FROM: optionalStringSchema.pipe(
+      z
+        .string()
+        .max(320)
+        .regex(
+          /^(?:[^<>@\r\n]+ <[^<>@\s]+@[^<>@\s]+>|[^<>@\s]+@[^<>@\s]+)$/,
+          "Must be an address or a 'Name <address>' sender"
+        )
+        .optional()
+    ),
     R2_PRESIGNED_URL_TTL_SECONDS: z.coerce
       .number()
       .int()
@@ -192,7 +203,9 @@ const envSchema = z
       "R2_BUCKET_NAME",
       "R2_PUBLIC_BASE_URL",
       "SENTRY_DSN",
-      "OPERATIONS_BEARER_TOKEN"
+      "OPERATIONS_BEARER_TOKEN",
+      "RESEND_API_KEY",
+      "EMAIL_FROM"
     ] as const;
 
     for (const field of productionRequiredFields) {

@@ -104,7 +104,7 @@ describe("password recovery and verification forms", () => {
       routeObserver
     });
 
-    await screen.findByText("Your request is complete. You can now log in.");
+    await screen.findByText("Your email is verified. You can now log in.");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(routeObserver).toHaveBeenLastCalledWith(
       "/verify-email?source=email"
@@ -186,7 +186,7 @@ it("sends verification once across pending rerenders and removes the consumed to
       })
     );
   });
-  await screen.findByText("Your request is complete. You can now log in.");
+  await screen.findByText("Your email is verified. You can now log in.");
   expect(fetchMock).toHaveBeenCalledOnce();
   await waitFor(() =>
     expect(routeObserver).toHaveBeenLastCalledWith("/verify-email?source=email")

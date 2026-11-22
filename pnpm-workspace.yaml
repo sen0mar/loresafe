@@ -8,6 +8,9 @@ overrides:
   # Prisma 7.9.1 and 7.10.0 pin the vulnerable 7.x config-toolchain release.
   # Keep the patched release until Prisma bundles deepmerge-ts 8 upstream.
   deepmerge-ts: 8.0.0
+  # Prisma's config tooling pins effect 3.20.0 (GHSA-7589-6fvf-x4pw ReDoS);
+  # keep the patched 3.22 release until Prisma bundles it upstream.
+  effect: 3.22.4
   # Keep transitive URL and IP parsing on their patched API-compatible releases.
   fast-uri: 3.1.9
   ip-address: 10.7.4

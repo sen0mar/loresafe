@@ -22,10 +22,6 @@ export type EmailIdentityRepository = {
     tokenHash: string;
     expiresAt: Date;
   }) => Promise<void>;
-  consumeVerificationToken: (
-    tokenHash: string,
-    now: Date
-  ) => Promise<ConsumeEmailTokenResult>;
   consumePasswordResetToken: (input: {
     tokenHash: string;
     passwordHash: string;
@@ -77,48 +73,6 @@ export const emailIdentityRepository: EmailIdentityRepository = {
         },
         select: { id: true }
       });
-    }),
-
-  consumeVerificationToken: (tokenHash, now) =>
-    prisma.$transaction(async (transaction) => {
-      const token = await findToken(transaction, tokenHash, "VERIFY_EMAIL");
-
-      if (!token || token.expiresAt <= now) {
-        return { status: "INVALID" };
-      }
-
-      if (token.consumedAt) {
-        return { status: "ALREADY_CONSUMED", userId: token.userId };
-      }
-
-      const consumed = await transaction.emailIdentityToken.updateMany({
-        where: {
-          tokenHash,
-          purpose: "VERIFY_EMAIL",
-          consumedAt: null,
-          expiresAt: { gt: now }
-        },
-        data: { consumedAt: now }
-      });
-
-      if (consumed.count !== 1) {
-        const replay = await findToken(transaction, tokenHash, "VERIFY_EMAIL");
-
-        return replay?.consumedAt
-          ? { status: "ALREADY_CONSUMED", userId: replay.userId }
-          : { status: "INVALID" };
-      }
-
-      await transaction.user.updateMany({
-        where: {
-          id: token.userId,
-          deletedAt: null,
-          emailVerifiedAt: null
-        },
-        data: { emailVerifiedAt: now }
-      });
-
-      return { status: "SUCCESS", userId: token.userId };
     }),
 
   consumePasswordResetToken: ({ tokenHash, passwordHash, now }) =>
@@ -224,8 +178,6 @@ export const createMemoryEmailIdentityRepository =
           consumedAt: null
         });
       },
-      consumeVerificationToken: async (tokenHash, now) =>
-        consume(tokenHash, "VERIFY_EMAIL", now),
       consumePasswordResetToken: async ({ tokenHash, now }) =>
         consume(tokenHash, "RESET_PASSWORD", now)
     };

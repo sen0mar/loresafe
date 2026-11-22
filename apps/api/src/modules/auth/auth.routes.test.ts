@@ -47,7 +47,7 @@ describe("auth routes", () => {
     app = createAuthTestApp(repository);
   });
 
-  it("creates an unverified user with an account-neutral response and no session", async () => {
+  it("creates no user at signup and answers with an account-neutral response", async () => {
     const response = await request(app)
       .post("/api/auth/signup")
       .set("x-request-id", "signup-success")
@@ -62,9 +62,8 @@ describe("auth routes", () => {
       message: "If the account is eligible, an email has been sent."
     });
 
-    const storedUser = repository.usersByEmail.get("reader@example.com");
-    expect(storedUser?.passwordHash).toMatch(/^\$argon2id\$/);
-    expect(storedUser?.emailVerifiedAt).toBeNull();
+    expect(repository.usersByEmail.size).toBe(0);
+    expect(repository.nameReservations.size).toBe(0);
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
@@ -149,10 +148,12 @@ describe("auth routes", () => {
     }
   );
 
-  it("keeps unverified accounts unauthenticated until email confirmation", async () => {
+  it("creates the verified account only when the emailed link is confirmed", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
     const credentials = {
-      email: "unverified@example.com",
-      username: "unverified_reader",
+      email: "verify@example.com",
+      username: "verify_reader",
       password: "correct horse battery staple"
     };
 
@@ -161,59 +162,167 @@ describe("auth routes", () => {
       .post("/api/auth/login")
       .send({ email: credentials.email, password: credentials.password })
       .expect(401);
+
+    const token = delivery.lastVerificationToken(credentials.email);
+    expect(token).toHaveLength(43);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token })
+      .expect(200)
+      .expect({ message: "Request completed." });
+
+    const user = repository.usersByEmail.get(credentials.email);
+    expect(user?.username).toBe("verify_reader");
+    expect(user?.passwordHash).toMatch(/^\$argon2id\$/);
+    expect(user?.emailVerifiedAt).toBeInstanceOf(Date);
+    await request(app)
+      .post("/api/auth/login")
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
   });
 
-  it("treats a second verification click as an idempotent success", async () => {
-    const identityRepository = createMemoryEmailIdentityRepository();
-    let deliveredToken = "";
-    app = createAuthTestApp(repository, {
-      identityRepository,
-      delivery: {
-        sendEmailVerification: async ({ token }) => {
-          deliveredToken = token;
-        },
-        sendPasswordReset: async () => undefined
+  it("rejects a reused verification link with a link error that points to login", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
+
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "twice@example.com",
+        username: "twice_reader",
+        password: "correct horse battery staple"
+      })
+      .expect(202);
+    const token = delivery.lastVerificationToken("twice@example.com");
+
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token })
+      .expect(200);
+    const replay = await request(app)
+      .post("/api/auth/verification/confirm")
+      .set("x-request-id", "verify-replay")
+      .send({ token })
+      .expect(400);
+
+    expect(replay.body).toEqual({
+      error: {
+        code: "BAD_REQUEST",
+        message:
+          "This link is invalid or has expired. If you already verified your email, log in; otherwise sign up again.",
+        requestId: "verify-replay"
       }
+    });
+    expect(repository.usersByEmail.size).toBe(1);
+  });
+
+  it("invalidates an older link when the same email signs up again", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
+    const signup = (username: string) =>
+      request(app)
+        .post("/api/auth/signup")
+        .send({
+          email: "again@example.com",
+          username,
+          password: "correct horse battery staple"
+        })
+        .expect(202);
+
+    await signup("first_choice");
+    const firstToken = delivery.lastVerificationToken("again@example.com");
+    await signup("second_choice");
+    const secondToken = delivery.lastVerificationToken("again@example.com");
+
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: firstToken })
+      .expect(400);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: secondToken })
+      .expect(200);
+    expect(repository.usersByEmail.get("again@example.com")?.username).toBe(
+      "second_choice"
+    );
+  });
+
+  it("returns a conflict when the username is taken before confirmation", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
+
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "slow@example.com",
+        username: "contested_name",
+        password: "correct horse battery staple"
+      })
+      .expect(202);
+    await repository.createUser({
+      email: "fast@example.com",
+      displayName: "contested_name",
+      username: "contested_name",
+      passwordHash: "$argon2id$v=19$hash"
+    });
+
+    const response = await request(app)
+      .post("/api/auth/verification/confirm")
+      .set("x-request-id", "verify-conflict")
+      .send({ token: delivery.lastVerificationToken("slow@example.com") })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "CONFLICT",
+        message:
+          "That username was taken before you verified your email. Sign up again with a different username.",
+        requestId: "verify-conflict"
+      }
+    });
+    expect(repository.usersByEmail.has("slow@example.com")).toBe(false);
+  });
+
+  it("confirms an existing email's link without creating or changing an account", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
+    const owner = await repository.createUser({
+      email: "owner@example.com",
+      displayName: "owner_name",
+      username: "owner_name",
+      passwordHash: "$argon2id$v=19$owner"
     });
 
     await request(app)
       .post("/api/auth/signup")
       .send({
-        email: "verify@example.com",
-        username: "verify_reader",
+        email: "owner@example.com",
+        username: "squatter_name",
         password: "correct horse battery staple"
       })
       .expect(202);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: delivery.lastVerificationToken("owner@example.com") })
+      .expect(200);
 
-    expect(deliveredToken).toHaveLength(43);
-    await request(app)
-      .post("/api/auth/verification/confirm")
-      .send({ token: deliveredToken })
-      .expect(200)
-      .expect({ message: "Request completed." });
-    await request(app)
-      .post("/api/auth/verification/confirm")
-      .send({ token: deliveredToken })
-      .expect(200)
-      .expect({ message: "Request completed." });
+    expect(repository.usersByEmail.get("owner@example.com")).toBe(owner);
+    expect(repository.usersByEmail.size).toBe(1);
   });
 
-  it("keeps verification resend responses neutral for known and unknown emails", async () => {
-    const deliveries: string[] = [];
-    await repository.createUser({
-      email: "resend@example.com",
-      displayName: "Resend Reader",
-      passwordHash: await hashPassword("correct horse battery staple"),
-      emailVerifiedAt: null
-    });
-    app = createAuthTestApp(repository, {
-      delivery: {
-        sendEmailVerification: async ({ email }) => {
-          deliveries.push(email);
-        },
-        sendPasswordReset: async () => undefined
-      }
-    });
+  it("keeps verification resend responses neutral for pending and unknown emails", async () => {
+    const delivery = createCapturingDelivery();
+    app = createAuthTestApp(repository, { delivery });
+
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "resend@example.com",
+        username: "resend_reader",
+        password: "correct horse battery staple"
+      })
+      .expect(202);
+    const firstToken = delivery.lastVerificationToken("resend@example.com");
 
     const missing = await request(app)
       .post("/api/auth/verification/resend")
@@ -225,7 +334,18 @@ describe("auth routes", () => {
       .expect(202);
 
     expect(missing.body).toEqual(known.body);
-    expect(deliveries).toEqual(["resend@example.com"]);
+    expect(delivery.verificationEmails).toEqual([
+      "resend@example.com",
+      "resend@example.com"
+    ]);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: firstToken })
+      .expect(400);
+    await request(app)
+      .post("/api/auth/verification/confirm")
+      .send({ token: delivery.lastVerificationToken("resend@example.com") })
+      .expect(200);
   });
 
   it("keeps password-reset requests account neutral and reset replay idempotent", async () => {
@@ -276,16 +396,10 @@ describe("auth routes", () => {
     expect(disconnectUser).toHaveBeenCalledTimes(2);
   });
 
-  it("answers resend and forgot-password without waiting for email delivery", async () => {
+  it("answers signup, resend, and forgot-password without waiting for email delivery", async () => {
     const pendingDelivery = () => new Promise<void>(() => undefined);
     const sendEmailVerification = vi.fn(pendingDelivery);
     const sendPasswordReset = vi.fn(pendingDelivery);
-    await repository.createUser({
-      email: "slow-unverified@example.com",
-      displayName: "Slow Unverified",
-      passwordHash: await hashPassword("correct horse battery staple"),
-      emailVerifiedAt: null
-    });
     await repository.createUser({
       email: "slow-verified@example.com",
       displayName: "Slow Verified",
@@ -295,10 +409,16 @@ describe("auth routes", () => {
       delivery: { sendEmailVerification, sendPasswordReset }
     });
 
-    for (const email of [
-      "slow-unverified@example.com",
-      "unknown@example.com"
-    ]) {
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        email: "slow-pending@example.com",
+        username: "slow_pending",
+        password: "correct horse battery staple"
+      })
+      .expect(202);
+
+    for (const email of ["slow-pending@example.com", "unknown@example.com"]) {
       await request(app)
         .post("/api/auth/verification/resend")
         .send({ email })
@@ -312,7 +432,7 @@ describe("auth routes", () => {
         .expect(202);
     }
 
-    expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+    expect(sendEmailVerification).toHaveBeenCalledTimes(2);
     expect(sendPasswordReset).toHaveBeenCalledTimes(1);
   });
 
@@ -1011,6 +1131,35 @@ const createAuthTestApp = (
   app.use(errorHandler);
 
   return app;
+};
+
+const createCapturingDelivery = () => {
+  const verificationEmails: string[] = [];
+  const tokensByEmail = new Map<string, string>();
+
+  return {
+    verificationEmails,
+    sendEmailVerification: async ({
+      email,
+      token
+    }: {
+      email: string;
+      token: string;
+    }) => {
+      verificationEmails.push(email);
+      tokensByEmail.set(email, token);
+    },
+    sendPasswordReset: async () => undefined,
+    lastVerificationToken: (email: string) => {
+      const token = tokensByEmail.get(email);
+
+      if (!token) {
+        throw new Error(`No verification email was sent to ${email}.`);
+      }
+
+      return token;
+    }
+  } satisfies EmailDelivery & Record<string, unknown>;
 };
 
 const createLoggedInTestUser = async (

@@ -9,27 +9,41 @@
   must belong only to an isolated seeded demo account, and leave the action
   hidden when either value is missing or invalid. Local web builds fall back to
   the guarded demo-seed credentials when explicit public overrides are absent.
-- Signup creates an unverified account without a session and always returns the
-  same accepted response for new and existing email addresses when the requested
-  username is available, after comparable Argon2id work. Taken usernames return
-  the same conflict for either email state, including the email owner’s own
-  username. Uniqueness races recheck the name reservation instead of trusting
-  which conflicting constraint PostgreSQL reports first. Login rejects
-  unverified accounts with the generic credential response.
+- Signup creates no account and no session. It stores one pending signup per
+  email (`pending_signups`: email, username, Argon2id hash, link hash, 24-hour
+  expiry) and emails a verification link; a newer signup for the same email
+  replaces the older one and invalidates its link. Pending signups never
+  reserve usernames. Signup always returns the same accepted response for new
+  and existing email addresses when the requested username is available, after
+  comparable Argon2id work; existing emails take the same pending path and
+  their confirmation creates nothing. Taken usernames return the same conflict
+  for either email state, including the email owner’s own username.
+- Confirming the link creates the verified account and its name reservations in
+  the same transaction that consumes the pending row (row-locked, so double
+  clicks create one account). If the username was taken in the meantime, the
+  link is consumed and a conflict asks the user to sign up again; concurrent
+  confirmations recheck the name reservation instead of trusting which
+  conflicting constraint PostgreSQL reports first. Invalid, expired, and
+  already-used links share one link error that points to login. Login keeps
+  rejecting unverified accounts with the generic credential response.
+- Expired pending signups are purged in batches of at most 100 during signup
+  traffic; no timer or cron touches PostgreSQL.
 - Resend-verification and forgot-password requests return the same accepted response for eligible and ineligible accounts.
-- Email verification and password recovery use SHA-256 hashes of
-  cryptographically random, expiring, single-use tokens. Verification and reset
-  replay are idempotent successes only for the token's original purpose. Token
-  lookups enforce purpose before replay handling; wrong-purpose, invalid, or
-  expired links use one generic link error.
+- Verification links and password-reset tokens are SHA-256 hashes of
+  cryptographically random, expiring, single-use tokens. Password-reset replay
+  is an idempotent success; reset lookups enforce purpose, and wrong-purpose,
+  invalid, or expired reset links use one generic link error.
 - Successful browser verification and password reset replace the current
   history entry without token query parameters; unsuccessful attempts retain
   the link for retry. Other query parameters remain intact.
 - Successful password reset changes the Argon2id hash, increments the session
   version, and revokes every persisted session in the same transaction.
-- Email delivery is owned by the narrow `EmailDelivery` integration boundary.
-  Until a provider is approved and configured, the default adapter performs no
-  external delivery and never logs or returns raw tokens.
+- Email delivery is owned by the narrow `EmailDelivery` integration boundary,
+  backed by Resend's HTTP API when `RESEND_API_KEY` and `EMAIL_FROM` are set
+  (required in production; never used under `NODE_ENV=test`). Links point to
+  `PUBLIC_SITE_ORIGIN` in production and `CLIENT_ORIGIN` elsewhere. Delivery is
+  never awaited by the request, and failures log only the email kind and
+  provider status, never recipients, links, or tokens.
 - Password hashing: Argon2id.
 - Login result: a short-lived signed access JWT plus a rotating opaque refresh token, both stored in scoped HttpOnly, Secure, SameSite cookies.
 - Access JWTs include a minimal user/session version payload plus validated issuer, audience, subject, timestamps, and a unique session identifier.

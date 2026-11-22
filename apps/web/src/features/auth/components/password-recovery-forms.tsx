@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode
+} from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/shared/components/ui/button";
@@ -112,10 +118,14 @@ export const VerifyEmailCard = () => {
   const token = searchParams.get("token") ?? "";
   const verification = useVerifyEmail();
   const { mutate } = verification;
+  // Confirming consumes the link, so StrictMode's development double effect
+  // must not send the token twice and replace success with a link error.
+  const confirmedToken = useRef<string | null>(null);
   useRemoveConsumedToken(verification.isSuccess, searchParams, setSearchParams);
 
   useEffect(() => {
-    if (token.length >= 40) {
+    if (token.length >= 40 && confirmedToken.current !== token) {
+      confirmedToken.current = token;
       mutate(token);
     }
   }, [mutate, token]);
@@ -123,13 +133,13 @@ export const VerifyEmailCard = () => {
   return (
     <AuthActionCard
       title="Verify your email"
-      description="This link can be opened again safely after verification."
+      description="Confirming this link finishes creating your account."
     >
       {verification.isPending ? (
         <p className="text-sm text-muted">Verifying...</p>
       ) : verification.isSuccess ? (
         <p className="text-sm text-muted">
-          Your request is complete. You can now log in.
+          Your email is verified. You can now log in.
         </p>
       ) : (
         <AuthFormError

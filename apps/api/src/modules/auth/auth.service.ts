@@ -25,8 +25,7 @@ import type {
 import {
   authUsersRepository,
   type AuthUserRecord,
-  type AuthUsersRepository,
-  isUniqueConstraintError
+  type AuthUsersRepository
 } from "./auth.repository.js";
 import {
   authSessionsRepository,
@@ -43,6 +42,11 @@ import {
   hashEmailIdentityToken
 } from "./email-identity-token.js";
 import { emailDelivery, type EmailDelivery } from "./email-delivery.js";
+import {
+  createMemoryPendingSignupRepository,
+  pendingSignupRepository as defaultPendingSignupRepository,
+  type PendingSignupRepository
+} from "./pending-signup.repository.js";
 
 export type SignupResult = {
   accepted: true;
@@ -100,7 +104,11 @@ export const createAuthService = (
   authUsersRepository
     ? emailIdentityRepository
     : createMemoryEmailIdentityRepository(),
-  delivery: EmailDelivery = emailDelivery
+  delivery: EmailDelivery = emailDelivery,
+  pendingSignupRepository: PendingSignupRepository = usersRepository ===
+  authUsersRepository
+    ? defaultPendingSignupRepository
+    : createMemoryPendingSignupRepository(usersRepository)
 ): AuthService => {
   const allowLegacyUnpersistedTestTokens =
     env.NODE_ENV === "test" && usersRepository !== authUsersRepository;
@@ -147,66 +155,36 @@ export const createAuthService = (
     signup: async ({ email, username, password }) => {
       // Account existence never skips the signup Argon2id cost.
       const passwordHash = await hashPassword(password);
-      const [existingUser, existingReservedName] = await Promise.all([
-        usersRepository.findActiveUserByEmail(email),
-        usersRepository.findActiveUserByReservedName
-          ? usersRepository.findActiveUserByReservedName(
-              normalizeNameReservationKey(username)
-            )
-          : Promise.resolve(null)
-      ]);
+      const existingReservedName =
+        await usersRepository.findActiveUserByReservedName?.(
+          normalizeNameReservationKey(username)
+        );
 
       if (existingReservedName) {
         throw duplicateUsernameError();
       }
 
-      if (existingUser) {
-        await issueIdentityToken({
-          user: existingUser,
-          purpose: "VERIFY_EMAIL",
-          ttlMs: verificationTtlMs,
-          identityRepository,
-          delivery
-        });
+      // No account exists until the link is confirmed, so an unverified signup
+      // never takes the username. Existing emails follow the same path to keep
+      // the response, timing, and email side effects account neutral; their
+      // confirmation creates nothing.
+      const token = createEmailIdentityToken();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + verificationTtlMs);
 
-        return { accepted: true };
-      }
+      await pendingSignupRepository.savePendingSignup({
+        email,
+        username,
+        passwordHash,
+        tokenHash: hashEmailIdentityToken(token),
+        expiresAt,
+        now
+      });
+      sendWithoutWaiting(
+        delivery.sendEmailVerification({ email, token, expiresAt })
+      );
 
-      try {
-        const user = await usersRepository.createUser({
-          email,
-          displayName: username,
-          username,
-          passwordHash,
-          emailVerifiedAt: null
-        });
-        await issueIdentityToken({
-          user,
-          purpose: "VERIFY_EMAIL",
-          ttlMs: verificationTtlMs,
-          identityRepository,
-          delivery
-        });
-
-        return { accepted: true };
-      } catch (error) {
-        if (isUniqueConstraintError(error)) {
-          // Email and name constraints can both conflict. Their reporting order
-          // must not decide the public response or reveal email existence.
-          const reservedName =
-            await usersRepository.findActiveUserByReservedName?.(
-              normalizeNameReservationKey(username)
-            );
-
-          if (reservedName) {
-            throw duplicateUsernameError();
-          }
-
-          return { accepted: true };
-        }
-
-        throw error;
-      }
+      return { accepted: true };
     },
 
     login: async ({ email, password }) => {
@@ -322,27 +300,35 @@ export const createAuthService = (
 
     resendVerification: async ({ email }) => {
       await performNeutralIdentityWork();
-      const user = await usersRepository.findActiveUserByEmail(email);
+      const token = createEmailIdentityToken();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + verificationTtlMs);
+      const rotated = await pendingSignupRepository.rotatePendingSignupToken({
+        email,
+        tokenHash: hashEmailIdentityToken(token),
+        expiresAt,
+        now
+      });
 
-      if (user && user.emailVerifiedAt === null) {
-        await issueIdentityToken({
-          user,
-          purpose: "VERIFY_EMAIL",
-          ttlMs: verificationTtlMs,
-          identityRepository,
-          delivery
-        });
+      if (rotated) {
+        sendWithoutWaiting(
+          delivery.sendEmailVerification({ email, token, expiresAt })
+        );
       }
     },
 
     verifyEmail: async ({ token }) => {
-      const result = await identityRepository.consumeVerificationToken(
-        hashEmailIdentityToken(token),
-        new Date()
-      );
+      const result = await pendingSignupRepository.completePendingSignup({
+        tokenHash: hashEmailIdentityToken(token),
+        now: new Date()
+      });
 
       if (result.status === "INVALID") {
-        throw invalidIdentityTokenError();
+        throw invalidVerificationLinkError();
+      }
+
+      if (result.status === "USERNAME_TAKEN") {
+        throw usernameTakenBeforeVerificationError();
       }
     },
 
@@ -351,13 +337,7 @@ export const createAuthService = (
       const user = await usersRepository.findActiveUserByEmail(email);
 
       if (user && user.emailVerifiedAt !== null) {
-        await issueIdentityToken({
-          user,
-          purpose: "RESET_PASSWORD",
-          ttlMs: passwordResetTtlMs,
-          identityRepository,
-          delivery
-        });
+        await issuePasswordResetToken({ user, identityRepository, delivery });
       }
     },
 
@@ -415,6 +395,20 @@ const authenticationRequiredError = () =>
 const duplicateUsernameError = () =>
   new HttpError(409, "CONFLICT", "That username is already taken.");
 
+const invalidVerificationLinkError = () =>
+  new HttpError(
+    400,
+    "BAD_REQUEST",
+    "This link is invalid or has expired. If you already verified your email, log in; otherwise sign up again."
+  );
+
+const usernameTakenBeforeVerificationError = () =>
+  new HttpError(
+    409,
+    "CONFLICT",
+    "That username was taken before you verified your email. Sign up again with a different username."
+  );
+
 const invalidIdentityTokenError = () =>
   new HttpError(
     400,
@@ -425,36 +419,31 @@ const invalidIdentityTokenError = () =>
 const performNeutralIdentityWork = () =>
   hashPassword(createEmailIdentityToken()).then(() => undefined);
 
-const issueIdentityToken = async ({
+// Do not await delivery: a provider round trip that only known accounts pay
+// would reveal account existence through response timing.
+const sendWithoutWaiting = (delivered: Promise<void>) => {
+  void delivered.catch(() => undefined);
+};
+
+const issuePasswordResetToken = async ({
   user,
-  purpose,
-  ttlMs,
   identityRepository,
   delivery
 }: {
   user: Pick<AuthUserRecord, "id" | "email">;
-  purpose: "VERIFY_EMAIL" | "RESET_PASSWORD";
-  ttlMs: number;
   identityRepository: EmailIdentityRepository;
   delivery: EmailDelivery;
 }) => {
   const token = createEmailIdentityToken();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + ttlMs);
+  const expiresAt = new Date(Date.now() + passwordResetTtlMs);
 
   await identityRepository.issueToken({
     userId: user.id,
-    purpose,
+    purpose: "RESET_PASSWORD",
     tokenHash: hashEmailIdentityToken(token),
     expiresAt
   });
-
-  // Do not await delivery: a provider round trip that only known accounts pay
-  // would reveal account existence through response timing.
-  const delivered =
-    purpose === "VERIFY_EMAIL"
-      ? delivery.sendEmailVerification({ email: user.email, token, expiresAt })
-      : delivery.sendPasswordReset({ email: user.email, token, expiresAt });
-
-  void delivered.catch(() => undefined);
+  sendWithoutWaiting(
+    delivery.sendPasswordReset({ email: user.email, token, expiresAt })
+  );
 };
