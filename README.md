@@ -34,7 +34,7 @@ LoreSafe gives each club an ordered milestone timeline. Content declares the mil
 
 ## Features
 
-- Accounts and profiles with email verification and password recovery flows (email delivery setup is still pending; see below).
+- Accounts and profiles with email verification and password recovery emails sent through Resend; an account is created only after its email link is confirmed.
 - Public, private, and invite-only clubs with owner, moderator, and member roles.
 - Custom milestone timelines and templates for books, shows, movies, games, podcasts, courses, and other media.
 - Per-club progress history, quick advancement, explicit rewinds, and first-visit progress setup.
@@ -222,7 +222,7 @@ pnpm dev:api
 
 ### Optional demo data
 
-New accounts must verify their email before login. Verification and password recovery flows are implemented, but the default email adapter does not send messages; a delivery provider still needs to be configured. For local exploration, the demo seed below creates a verified account you can log in with.
+Signup stores a pending request and emails a verification link; the account (and its username) is created only when that link is confirmed. Emails are sent through Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set (both are required in production). Without them, local development sends nothing, so use the demo seed below for a verified account you can log in with. Tests never send email.
 
 The seed is deliberately guarded so it cannot silently write to the wrong database. Add these values to `.env`, making `DEMO_SEED_DATABASE_URL` exactly equal to `DATABASE_URL`:
 

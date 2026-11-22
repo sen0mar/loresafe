@@ -98,11 +98,11 @@ const privacySections = [
       <p>
         LoreSafe relies on Vercel for the public web app, Render for the API,
         Neon for managed PostgreSQL, Cloudflare R2 for uploaded media, Upstash
-        Redis for rate-limit counters, Sentry for configured error and
-        performance monitoring, and Vercel Web Analytics for cookieless,
-        aggregate visit statistics. Each provider handles only the information
-        needed for its service and applies its own infrastructure and retention
-        settings.
+        Redis for rate-limit counters, Resend for account verification and
+        password-reset emails, Sentry for configured error and performance
+        monitoring, and Vercel Web Analytics for cookieless, aggregate visit
+        statistics. Each provider handles only the information needed for its
+        service and applies its own infrastructure and retention settings.
       </p>
     )
   },
@@ -133,6 +133,11 @@ const privacySections = [
           <li>
             Active account and club data remains while the account or content is
             needed to provide the service, unless you delete it sooner.
+          </li>
+          <li>
+            Unconfirmed signups (email, username, and password hash) expire
+            after 24 hours and are removed in bounded request-driven batches; no
+            account exists until the emailed link is confirmed.
           </li>
           <li>
             Spent refresh-token hashes expire after 24 hours. Revoked sessions

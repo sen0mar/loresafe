@@ -1,4 +1,5 @@
 import { prisma } from "../../core/prisma/client.js";
+import type { Prisma } from "../../generated/prisma/client.js";
 import { normalizeNameReservationKey } from "../../core/identity/user-names.js";
 import {
   activeUserSelect,
@@ -85,43 +86,50 @@ export const authUsersRepository: AuthUsersRepository = {
       select: userCredentialsSelect
     }),
 
-  // The repository accepts the hash for writes but never selects it back into auth DTOs.
-  createUser: ({
+  createUser: (input) =>
+    prisma.$transaction((transaction) =>
+      createUserWithReservations(transaction, input)
+    )
+};
+
+// The repository accepts the hash for writes but never selects it back into auth DTOs.
+export const createUserWithReservations = async (
+  transaction: Prisma.TransactionClient,
+  {
     email,
     displayName,
     username,
     passwordHash,
     emailVerifiedAt
-  }) =>
-    prisma.$transaction(async (transaction) => {
-      const lockedUsername = username ?? toFallbackUsername(displayName);
-      const user = await transaction.user.create({
-        data: {
-          email,
-          displayName,
-          username: lockedUsername,
-          passwordHash,
-          emailVerifiedAt: emailVerifiedAt ?? null
-        },
-        select: activeUserSelect
-      });
+  }: CreateAuthUserInput
+): Promise<AuthUserRecord> => {
+  const lockedUsername = username ?? toFallbackUsername(displayName);
+  const user = await transaction.user.create({
+    data: {
+      email,
+      displayName,
+      username: lockedUsername,
+      passwordHash,
+      emailVerifiedAt: emailVerifiedAt ?? null
+    },
+    select: activeUserSelect
+  });
 
-      const reservationKeys = new Set([
-        normalizeNameReservationKey(lockedUsername),
-        normalizeNameReservationKey(displayName)
-      ]);
+  const reservationKeys = new Set([
+    normalizeNameReservationKey(lockedUsername),
+    normalizeNameReservationKey(displayName)
+  ]);
 
-      for (const normalizedName of reservationKeys) {
-        await transaction.userNameReservation.create({
-          data: {
-            normalizedName,
-            userId: user.id
-          }
-        });
+  for (const normalizedName of reservationKeys) {
+    await transaction.userNameReservation.create({
+      data: {
+        normalizedName,
+        userId: user.id
       }
+    });
+  }
 
-      return user;
-    })
+  return user;
 };
 
 export const isUniqueConstraintError = (error: unknown) =>

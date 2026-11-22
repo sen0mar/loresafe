@@ -212,6 +212,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 - Feature 189: Dependency security updates — Patched vulnerable runtime and development packages and refreshed transitive overrides, retaining the existing stack and CI audit requirements.
 
 - Feature 190: Vercel Web Analytics — Added cookieless, production-only visit statistics through same-origin Vercel Web Analytics with page-view URL scrubbing for query strings, fragments, and invite tokens, plus privacy policy and data inventory updates.
+- Feature 191: Resend email verification — Sent verification and password-reset email through Resend and moved signups into a `pending_signups` table so accounts and usernames exist only after the emailed link is confirmed; the migration removed never-verified signups and legacy verification tokens, and production now requires `RESEND_API_KEY` and `EMAIL_FROM`.
 
 ## Entry Format
 
