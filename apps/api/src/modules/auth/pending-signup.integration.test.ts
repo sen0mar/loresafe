@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "../../core/http/request-id.js";
 import { prisma } from "../../core/prisma/client.js";
 import { createAuthController } from "./auth.controller.js";
 import { authUsersRepository } from "./auth.repository.js";
+import { createAuthRouter } from "./auth.routes.js";
 import { createAuthService } from "./auth.service.js";
 import type { EmailDelivery } from "./email-delivery.js";
 import { hashEmailIdentityToken } from "./email-identity-token.js";
@@ -42,11 +43,10 @@ const createApp = () => {
     undefined,
     delivery
   );
-  const controller = createAuthController(service);
   const app = express();
   app.use(requestIdMiddleware, express.json());
-  app.post("/signup", controller.signup);
-  app.post("/confirm", controller.verifyEmail);
+  // The real router keeps the confirmation route's rate limiter in place.
+  app.use("/api/auth", createAuthRouter(createAuthController(service)));
   app.use(errorHandler);
   return { app, tokens };
 };
@@ -81,7 +81,7 @@ describeDatabase("pending signups", () => {
     const { app, tokens } = createApp();
 
     await request(app)
-      .post("/signup")
+      .post("/api/auth/signup")
       .send({ email: emails[0], username: names[0], password })
       .expect(202);
 
@@ -93,7 +93,7 @@ describeDatabase("pending signups", () => {
     ).toBe(0);
 
     await request(app)
-      .post("/confirm")
+      .post("/api/auth/verification/confirm")
       .send({ token: tokens.get(emails[0]!) })
       .expect(200);
 
@@ -122,7 +122,7 @@ describeDatabase("pending signups", () => {
     const responses = await Promise.all(
       names.map((username) =>
         request(app)
-          .post("/signup")
+          .post("/api/auth/signup")
           .send({ email: emails[0], username, password })
       )
     );
@@ -191,7 +191,7 @@ describeDatabase("pending signups", () => {
     const { app, tokens } = createApp();
 
     await request(app)
-      .post("/signup")
+      .post("/api/auth/signup")
       .send({ email: emails[0], username: names[0], password })
       .expect(202);
     await authUsersRepository.createUser({
@@ -203,7 +203,7 @@ describeDatabase("pending signups", () => {
     });
 
     const response = await request(app)
-      .post("/confirm")
+      .post("/api/auth/verification/confirm")
       .set("x-request-id", "confirm-taken")
       .send({ token: tokens.get(emails[0]!) })
       .expect(409);
