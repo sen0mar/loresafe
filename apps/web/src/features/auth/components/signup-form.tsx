@@ -34,6 +34,9 @@ import { DemoLoginButton } from "./demo-login-button.js";
 
 type SignupFieldErrors = Partial<Record<keyof SignupFormValues, string>>;
 
+// Stays far longer than the 1.6s default so readers can act on it.
+const SIGNUP_EMAIL_TOAST_DURATION_MS = 20_000;
+
 const initialValues: SignupFormValues = {
   email: "",
   username: "",
@@ -92,7 +95,13 @@ export const SignupForm = () => {
     signupMutation.mutate(toSignupRequest(parseResult.data), {
       onSuccess: () => {
         toast.success(
-          "Check your email for a link to finish creating your account"
+          "Check your email for a link to finish creating your account",
+          {
+            description:
+              "It can take a few minutes. If you don't see it, check your spam or junk folder.",
+            duration: SIGNUP_EMAIL_TOAST_DURATION_MS,
+            closeButton: true
+          }
         );
         navigate(loginPath, { replace: true });
       }
