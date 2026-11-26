@@ -1,7 +1,7 @@
 import cookieParser from "cookie-parser";
 import express from "express";
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { env } from "../../config/env.js";
 import { errorHandler } from "../../core/http/error-middleware.js";
@@ -15,7 +15,6 @@ import type {
   CreateAuthUserInput
 } from "../auth/auth.repository.js";
 import { createAuthService } from "../auth/auth.service.js";
-import type { EventsService } from "../events/events.service.js";
 import type { ProgressMode } from "../progress/progress.schema.js";
 import { createNotificationsController } from "./notifications.controller.js";
 import type {
@@ -419,48 +418,6 @@ describe("notifications routes", () => {
     ]);
   });
 
-  it("publishes a safe notification read event for the owning user", async () => {
-    const eventPublisher = createMockEventsService();
-    app = createNotificationsTestApp(repository, eventPublisher);
-    const user = repository.createStoredUser(validUserInput());
-    const club = repository.createClub("Read Event Club");
-    const milestone = repository.createMilestone(club.id, 1);
-    repository.setProgress(user.id, club.id, 1);
-    const notification = repository.createNotification(
-      user.id,
-      club.id,
-      milestone,
-      {
-        safeText: "UNSAFE_TEXT_SHOULD_NOT_BE_STREAMED"
-      }
-    );
-
-    await request(app)
-      .post(`/api/notifications/${notification.id}/read`)
-      .set("Cookie", await createSessionCookie(user))
-      .expect(200);
-
-    expect(eventPublisher.publishNotificationRead).toHaveBeenCalledTimes(1);
-    expect(eventPublisher.publishNotificationRead).toHaveBeenCalledWith(
-      user.id,
-      {
-        notificationId: notification.id,
-        club: {
-          id: club.id,
-          linkName: club.linkName
-        },
-        postId: notification.postId,
-        commentId: notification.commentId,
-        occurredAt: "2026-01-01T12:00:00.000Z"
-      }
-    );
-    expect(
-      JSON.stringify(
-        vi.mocked(eventPublisher.publishNotificationRead).mock.calls
-      )
-    ).not.toContain("UNSAFE_TEXT_SHOULD_NOT_BE_STREAMED");
-  });
-
   it("validates query params and notification ids", async () => {
     const user = repository.createStoredUser(validUserInput());
 
@@ -494,16 +451,12 @@ describe("notifications routes", () => {
 });
 
 const createNotificationsTestApp = (
-  repository: InMemoryNotificationsRepository,
-  eventPublisher: EventsService = createMockEventsService()
+  repository: InMemoryNotificationsRepository
 ) => {
   const app = express();
   const authService = createAuthService(repository);
   const authMiddleware = createAuthMiddleware(authService);
-  const notificationsService = createNotificationsService(
-    repository,
-    eventPublisher
-  );
+  const notificationsService = createNotificationsService(repository);
   const notificationsController =
     createNotificationsController(notificationsService);
 
@@ -519,17 +472,6 @@ const createNotificationsTestApp = (
 
   return app;
 };
-
-const createMockEventsService = (): EventsService => ({
-  getConnectionCount: vi.fn(() => 0),
-  subscribe: vi.fn(() => ({
-    heartbeat: () => true,
-    close: () => undefined
-  })),
-  disconnectUser: vi.fn(async () => undefined),
-  publishNotificationCreated: vi.fn(),
-  publishNotificationRead: vi.fn()
-});
 
 type StoredClub = {
   id: string;

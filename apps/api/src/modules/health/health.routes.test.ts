@@ -186,7 +186,7 @@ describe("health routes", () => {
       .expect(200);
 
     expect(response.text).toContain("loresafe_http_requests_total");
-    expect(response.text).toContain("loresafe_sse_connections");
+    expect(response.text).not.toContain("loresafe_sse_connections");
   });
 
   it("returns 503 with safe dependency status when readiness is degraded", async () => {

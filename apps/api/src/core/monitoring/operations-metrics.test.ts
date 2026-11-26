@@ -21,7 +21,7 @@ describe("operationsMetrics", () => {
       operationsMetrics.recordHttpRequest("GET", `/api/route-${index}`, 200, 1);
     }
 
-    const metrics = renderOperationsMetrics({ eventConnections: 0 });
+    const metrics = renderOperationsMetrics();
     const requestSeries = metrics
       .split("\n")
       .filter((line) => line.startsWith("loresafe_http_requests_total{"));

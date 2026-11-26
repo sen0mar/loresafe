@@ -213,6 +213,7 @@ Record one concise entry after a feature works end to end and the user asks to c
 
 - Feature 190: Vercel Web Analytics — Added cookieless, production-only visit statistics through same-origin Vercel Web Analytics with page-view URL scrubbing for query strings, fragments, and invite tokens, plus privacy policy and data inventory updates.
 - Feature 191: Resend email verification — Sent verification and password-reset email through Resend and moved signups into a `pending_signups` table so accounts and usernames exist only after the emailed link is confirmed; the migration removed never-verified signups and legacy verification tokens, and production now requires `RESEND_API_KEY` and `EMAIL_FROM`.
+- Feature 192: Remove unused SSE endpoint — Deleted the `/api/events` Server-Sent Events module that no client used since Feature 148, along with its rate limiter, `loresafe_sse_connections` metric, OpenAPI entry, logout/notification publishing hooks, and docs; notifications refresh on mount, focus, and own mutations only.
 
 ## Entry Format
 

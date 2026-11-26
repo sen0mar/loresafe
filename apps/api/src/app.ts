@@ -30,7 +30,6 @@ import {
   commentsRouter
 } from "./modules/comments/comments.routes.js";
 import { debugRouter } from "./modules/debug/debug.routes.js";
-import { eventsRouter } from "./modules/events/events.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import type { ReadinessDependencies } from "./modules/health/readiness.service.js";
 import {
@@ -88,7 +87,6 @@ export const createApp = (
   app.use("/api/debug", debugRouter);
   app.use("/api/public/clubs", publicClubsRouter);
   app.use("/api/auth", authRouter);
-  app.use("/api/events", eventsRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/search", searchRouter);

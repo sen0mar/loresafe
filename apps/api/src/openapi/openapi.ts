@@ -77,7 +77,7 @@ type RouteContract = {
   path: string;
   query?: keyof typeof contractSchemas;
   responseDto: string;
-  responseMediaType?: "application/json" | "text/event-stream" | "text/plain";
+  responseMediaType?: "application/json" | "text/plain";
   successStatus?: 200 | 201 | 202 | 204;
   summary: string;
   tag: string;
@@ -285,9 +285,6 @@ const apiRouteContracts: RouteContract[] = [
     "EmptyDto",
     { idempotent: true, successStatus: 204 }
   ),
-  secure("get", "/api/events", "Events", "streamEvents", "EventStreamDto", {
-    responseMediaType: "text/event-stream"
-  }),
   secure(
     "post",
     "/api/uploads/public-assets",
@@ -757,7 +754,7 @@ export const generateOpenApiDocument = () => {
       title: "LoreSafe API",
       version: "1.0.0",
       description:
-        "Versioned contract for LoreSafe's spoiler-safe REST and SSE API. Governance and compatibility rules live in context/engineering/api-governance.md."
+        "Versioned contract for LoreSafe's spoiler-safe REST API. Governance and compatibility rules live in context/engineering/api-governance.md."
     },
     servers: [{ url: "https://api.loresafe.org" }],
     security: [{ cookieSession: [] }],

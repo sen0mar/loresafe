@@ -26,7 +26,6 @@ export const registerRateLimiters = (
     commentReactionToggleRateLimiter,
     contentRevealRateLimiter,
     deepReadinessRateLimiter,
-    eventConnectionRateLimiter,
     expensiveReadRateLimiter,
     forgotPasswordRateLimiter,
     inviteAcceptRateLimiter,
@@ -120,7 +119,6 @@ export const registerRateLimiters = (
   );
   app.post("/api/reports", reportCreateRateLimiter);
   app.get("/api/search", searchRateLimiter);
-  app.get("/api/events", eventConnectionRateLimiter);
   app.get("/api/clubs/:linkName/stats", expensiveReadRateLimiter);
   app.get("/api/clubs/:linkName/popular-discussions", expensiveReadRateLimiter);
   app.get("/api/clubs/:linkName/progress/summary", expensiveReadRateLimiter);

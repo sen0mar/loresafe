@@ -31,7 +31,6 @@ import {
 } from "./auth.repository.js";
 import { createAuthRouter } from "./auth.routes.js";
 import { createAuthService } from "./auth.service.js";
-import type { EventsService } from "../events/events.service.js";
 import {
   createMemoryEmailIdentityRepository,
   type EmailIdentityRepository
@@ -351,7 +350,6 @@ describe("auth routes", () => {
   it("keeps password-reset requests account neutral and reset replay idempotent", async () => {
     const identityRepository = createMemoryEmailIdentityRepository();
     const resetTokens: string[] = [];
-    const disconnectUser = vi.fn(async () => undefined);
     await repository.createUser({
       email: "recovery@example.com",
       displayName: "Recovery Reader",
@@ -359,7 +357,6 @@ describe("auth routes", () => {
     });
     app = createAuthTestApp(repository, {
       identityRepository,
-      eventPublisher: { disconnectUser },
       delivery: {
         sendEmailVerification: async () => undefined,
         sendPasswordReset: async ({ token }) => {
@@ -393,7 +390,6 @@ describe("auth routes", () => {
       .post("/api/auth/password/reset")
       .send({ token, password: "a new correct horse battery staple" })
       .expect(200);
-    expect(disconnectUser).toHaveBeenCalledTimes(2);
   });
 
   it("answers signup, resend, and forgot-password without waiting for email delivery", async () => {
@@ -822,31 +818,6 @@ describe("auth routes", () => {
       .expect(401);
   });
 
-  it("revokes open realtime connections on authenticated logout", async () => {
-    const user = await repository.createUser({
-      email: "logout-reader@example.com",
-      displayName: "Logout Reader",
-      passwordHash: await hashPassword("correct horse battery staple")
-    });
-    const disconnectUser = vi.fn(async () => undefined);
-    app = createAuthTestApp(repository, {
-      eventPublisher: {
-        disconnectUser
-      }
-    });
-    const sessionToken = await createSessionToken({
-      userId: user.id,
-      sessionVersion: user.sessionVersion
-    });
-
-    await request(app)
-      .post("/api/auth/logout")
-      .set("Cookie", `${env.SESSION_COOKIE_NAME}=${sessionToken}`)
-      .expect(204);
-
-    expect(disconnectUser).toHaveBeenCalledWith(user.id);
-  });
-
   it("rate limits signup with the shared 429 response shape", async () => {
     app = createAuthTestApp(repository, {
       rateLimiters: createAuthTestRateLimiters({ signup: 1 })
@@ -1082,7 +1053,6 @@ const createAuthTestApp = (
   repository: AuthUsersRepository,
   options: {
     rateLimiters?: AuthRateLimiters;
-    eventPublisher?: Pick<EventsService, "disconnectUser">;
     identityRepository?: EmailIdentityRepository;
     delivery?: EmailDelivery;
     trustLoopbackProxy?: boolean;
@@ -1096,7 +1066,7 @@ const createAuthTestApp = (
     options.identityRepository,
     options.delivery
   );
-  const controller = createAuthController(service, options.eventPublisher);
+  const controller = createAuthController(service);
   const middleware = createAuthMiddleware(service);
 
   if (options.trustLoopbackProxy) {

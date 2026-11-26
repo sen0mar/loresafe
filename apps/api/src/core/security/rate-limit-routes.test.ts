@@ -64,7 +64,6 @@ describe("registerRateLimiters", () => {
       expect.any(Function)
     );
     expect(app.get).toHaveBeenCalledWith("/api/search", expect.any(Function));
-    expect(app.get).toHaveBeenCalledWith("/api/events", expect.any(Function));
     expect(app.get).toHaveBeenCalledWith(
       "/api/health/ready",
       expect.any(Function)
