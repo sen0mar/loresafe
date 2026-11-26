@@ -245,7 +245,6 @@ describe("users routes", () => {
     expect(accessCookie).toContain("Path=/");
     expect(refreshCookie).toContain("Expires=Thu, 01 Jan 1970");
     expect(refreshCookie).toContain("Path=/api/auth");
-    expect(repository.disconnectedUserIds).toEqual([user.id]);
     expect(user.sessionVersion).toBe(2);
     expect(await repository.findActiveUserById(user.id)).toBeNull();
     expect(repository.nameReservations.has("story_fan")).toBe(false);
@@ -933,11 +932,7 @@ const createUsersTestApp = (repository: InMemoryUsersRepository) => {
       repository.processedStorageDeletionIds.push(...deletionIds);
     }
   });
-  const usersController = createUsersController(usersService, {
-    disconnectUser: async (userId) => {
-      repository.disconnectedUserIds.push(userId);
-    }
-  });
+  const usersController = createUsersController(usersService);
 
   app.use(requestIdMiddleware);
   app.use(express.json());
@@ -967,7 +962,6 @@ class InMemoryUsersRepository implements AuthUsersRepository, UsersRepository {
   readonly progressRows: StoredProgress[] = [];
   readonly fileAssets: StoredFileAsset[] = [];
   readonly processedStorageDeletionIds: string[] = [];
-  readonly disconnectedUserIds: string[] = [];
   readonly storageDeletionObjectKeys = new Map<string, string>();
 
   findActiveUserByEmail = async (email: string) =>

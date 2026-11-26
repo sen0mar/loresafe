@@ -7,7 +7,6 @@ import {
   clearedSessionCookieOptions,
   refreshSessionCookieName
 } from "../../core/security/session-token.js";
-import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   deleteCurrentUserAccountRequestSchema,
   listCurrentUserClubsQuerySchema,
@@ -23,8 +22,7 @@ export type UsersController = {
 };
 
 export const createUsersController = (
-  service: UsersService = usersService,
-  eventPublisher: Pick<EventsService, "disconnectUser"> = eventsService
+  service: UsersService = usersService
 ): UsersController => ({
   deleteMe: async (req, res, next) => {
     try {
@@ -49,7 +47,6 @@ export const createUsersController = (
         parseResult.data
       );
 
-      await eventPublisher.disconnectUser(req.currentUser.id);
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(
         refreshSessionCookieName,

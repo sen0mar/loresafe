@@ -10,11 +10,7 @@ import {
   refreshSessionCookieOptions,
   sessionCookieOptions
 } from "../../core/security/session-token.js";
-import {
-  authService,
-  RefreshTokenReuseError,
-  type AuthService
-} from "./auth.service.js";
+import { authService, type AuthService } from "./auth.service.js";
 import {
   forgotPasswordRequestSchema,
   loginRequestSchema,
@@ -24,7 +20,6 @@ import {
   verifyEmailRequestSchema
 } from "./auth.schema.js";
 import "./auth.request.js";
-import { eventsService, type EventsService } from "../events/events.service.js";
 
 export type AuthController = {
   login: RequestHandler;
@@ -40,8 +35,7 @@ export type AuthController = {
 };
 
 export const createAuthController = (
-  service: AuthService = authService,
-  eventPublisher: Pick<EventsService, "disconnectUser"> = eventsService
+  service: AuthService = authService
 ): AuthController => ({
   signup: async (req, res, next) => {
     try {
@@ -96,16 +90,10 @@ export const createAuthController = (
 
   logout: async (req, res, next) => {
     try {
-      const revokedUserId = await service.revokeSession({
+      await service.revokeSession({
         sessionToken: getCookie(req.cookies, env.SESSION_COOKIE_NAME),
         refreshToken: getCookie(req.cookies, refreshSessionCookieName)
       });
-
-      const disconnectedUserId = revokedUserId ?? req.currentUser?.id;
-
-      if (disconnectedUserId) {
-        await eventPublisher.disconnectUser(disconnectedUserId);
-      }
 
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(
@@ -125,7 +113,6 @@ export const createAuthController = (
       }
 
       await service.revokeAllSessions(req.currentUser.id);
-      await eventPublisher.disconnectUser(req.currentUser.id);
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(
         refreshSessionCookieName,
@@ -155,10 +142,6 @@ export const createAuthController = (
       );
       res.status(200).json({ user: result.user });
     } catch (error) {
-      if (error instanceof RefreshTokenReuseError) {
-        await eventPublisher.disconnectUser(error.userId);
-      }
-
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(
         refreshSessionCookieName,
@@ -218,11 +201,7 @@ export const createAuthController = (
   resetPassword: async (req, res, next) => {
     try {
       const input = parseIdentityRequest(resetPasswordRequestSchema, req.body);
-      const userId = await service.resetPassword(input);
-
-      if (userId) {
-        await eventPublisher.disconnectUser(userId);
-      }
+      await service.resetPassword(input);
 
       res.clearCookie(env.SESSION_COOKIE_NAME, clearedSessionCookieOptions);
       res.clearCookie(

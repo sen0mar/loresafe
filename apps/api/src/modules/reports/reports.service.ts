@@ -4,7 +4,6 @@ import {
   encodeTimestampUuidCursor
 } from "../../core/http/cursor.js";
 import { bannedFromClubError } from "../clubs/club-bans.js";
-import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   toModerationReportDto,
   toReportDto,
@@ -88,8 +87,7 @@ export const createReportsService = (
   repository: ReportsRepository = {
     ...reportsQueryRepository,
     ...reportsCommandRepository
-  },
-  eventPublisher: EventsService = eventsService
+  }
 ): ReportsService => ({
   createReport: async (userId, input) => {
     const target = await findTarget(repository, userId, input);
@@ -164,32 +162,32 @@ export const createReportsService = (
     userId,
     input
   ) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.updateReportRequiredMilestone(club.id, reportId, userId, input)
     ),
 
   hideReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.hideReportedContent(club.id, reportId, userId, input)
     ),
 
   deleteReportedContentForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.deleteReportedContent(club.id, reportId, userId, input)
     ),
 
   warnReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.warnReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   banReportedContentAuthorForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.banReportedContentAuthor(club.id, reportId, userId, input)
     ),
 
   resolveModerationReportForClub: async (linkName, reportId, userId, input) =>
-    runModerationAction(linkName, userId, repository, eventPublisher, (club) =>
+    runModerationAction(linkName, userId, repository, (club) =>
       repository.resolveModerationReport(club.id, reportId, userId, input)
     )
 });
@@ -235,7 +233,6 @@ const runModerationAction = async (
   linkName: string,
   userId: string,
   repository: ReportsRepository,
-  eventPublisher: EventsService,
   action: (
     club: ModerationClubAccessRecord
   ) => ReturnType<ReportsRepository["hideReportedContent"]>
@@ -245,19 +242,6 @@ const runModerationAction = async (
   const result = await action(moderationClub);
 
   if (result.status === "SUCCESS") {
-    if (result.notification?.wasCreated) {
-      await eventPublisher.publishNotificationCreated(
-        result.notification.userId,
-        {
-          notificationId: result.notification.id,
-          club: result.notification.club,
-          postId: result.notification.postId,
-          commentId: result.notification.commentId,
-          occurredAt: result.notification.createdAt.toISOString()
-        }
-      );
-    }
-
     return {
       report: toModerationReportDto(result.report),
       ...(result.deletedPostCount !== undefined

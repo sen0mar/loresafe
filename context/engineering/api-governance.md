@@ -5,7 +5,7 @@
 ## Contract ownership
 
 - `apps/api/openapi/openapi.json` is the versioned OpenAPI 3.1 contract for the
-  supported REST and SSE surface. Request-body and query schemas are generated
+  supported REST surface. Request-body and query schemas are generated
   from the same Zod schemas used by controllers; `x-response-dto` names the
   narrow service/controller DTO that owns each successful response.
 - Run `pnpm api:contract:generate` after an intentional contract change and
@@ -20,8 +20,6 @@
   JavaScript clients never receive access or refresh tokens in response JSON.
 - State-changing browser requests require a trusted `Origin`; cross-origin API
   callers are not supported without an explicit reviewed CORS/CSRF design.
-- `/api/events` is authenticated `text/event-stream`; events carry safe IDs and
-  text only, and clients refetch authorized details through REST.
 
 ## Pagination
 

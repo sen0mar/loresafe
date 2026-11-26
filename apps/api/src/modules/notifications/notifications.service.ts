@@ -3,7 +3,6 @@ import {
   decodeTimestampUuidCursor,
   encodeTimestampUuidCursor
 } from "../../core/http/cursor.js";
-import { eventsService, type EventsService } from "../events/events.service.js";
 import {
   type DeleteNotificationResponse,
   type MarkAllNotificationsReadResponse,
@@ -44,8 +43,7 @@ export type NotificationsService = {
 };
 
 export const createNotificationsService = (
-  repository: NotificationsRepository = notificationsRepository,
-  eventPublisher: EventsService = eventsService
+  repository: NotificationsRepository = notificationsRepository
 ): NotificationsService => ({
   listNotifications: async (userId, query) => {
     const input: ListNotificationsInput = {
@@ -75,19 +73,6 @@ export const createNotificationsService = (
 
     if (!result) {
       throw new HttpError(404, "NOT_FOUND", "Notification not found");
-    }
-
-    if (result.notification.club) {
-      await eventPublisher.publishNotificationRead(userId, {
-        notificationId: result.notification.id,
-        club: {
-          id: result.notification.club.id,
-          linkName: result.notification.club.linkName
-        },
-        postId: result.notification.postId,
-        commentId: result.notification.commentId,
-        occurredAt: (result.notification.readAt ?? new Date()).toISOString()
-      });
     }
 
     return {

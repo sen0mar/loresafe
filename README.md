@@ -380,7 +380,7 @@ Run commands from the repository root.
 
 ## API and data model
 
-The API is REST JSON under `/api`, with SSE at `/api/events`. Major route groups cover authentication, users, clubs, invites, milestones, progress, posts, comments, reactions, notifications, reports, moderation, uploads, search, dashboards, public clubs, and operational health.
+The API is REST JSON under `/api`. Major route groups cover authentication, users, clubs, invites, milestones, progress, posts, comments, reactions, notifications, reports, moderation, uploads, search, dashboards, public clubs, and operational health.
 
 - The versioned OpenAPI 3.1 artifact is in [`apps/api/openapi/openapi.json`](apps/api/openapi/openapi.json).
 - Liveness is available at `GET /api/health`.

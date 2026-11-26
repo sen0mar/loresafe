@@ -40,11 +40,7 @@ export const operationsMetrics = {
   }
 };
 
-export const renderOperationsMetrics = ({
-  eventConnections
-}: {
-  eventConnections: number;
-}) => {
+export const renderOperationsMetrics = () => {
   const lines = [
     "# TYPE loresafe_http_requests_total counter",
     ...[...httpMetrics.entries()].flatMap(([key, metric]) => {
@@ -66,7 +62,6 @@ export const renderOperationsMetrics = ({
         `loresafe_readiness_dependency_duration_ms{dependency="${escapeLabel(dependency)}"} ${durationMs}`
     ),
     `loresafe_http_metric_series_dropped_total ${droppedHttpMetricSeries}`,
-    `loresafe_sse_connections ${eventConnections}`,
     `loresafe_storage_cleanup_completed_total ${storageCleanupCompleted}`,
     `loresafe_storage_cleanup_failed_total ${storageCleanupFailed}`
   ];

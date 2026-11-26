@@ -161,12 +161,6 @@ describe("rate limit defaults", () => {
         storePrefix: "loresafe:rl:uploads:post-images:",
         windowMs: 10 * 60 * 1000
       },
-      "events-connections": {
-        limit: 30,
-        skipSuccessfulRequests: true,
-        storePrefix: "loresafe:rl:events:connections:v2:",
-        windowMs: 10 * 60 * 1000
-      },
       "health-deep-readiness": {
         limit: 12,
         skipSuccessfulRequests: undefined,
@@ -305,7 +299,7 @@ describe("rate limit defaults", () => {
   it("keeps the shared rate-limit header behavior for every limiter", async () => {
     const options = await loadRateLimitOptions();
 
-    expect(options).toHaveLength(40);
+    expect(options).toHaveLength(39);
     expect(options).toEqual(
       options.map(() =>
         expect.objectContaining({
@@ -348,6 +342,6 @@ describe("rate limit defaults", () => {
     createRateLimiters({ storeFactory: testStoreFactory });
 
     expect(createStoreMock).not.toHaveBeenCalled();
-    expect(testStoreFactory).toHaveBeenCalledTimes(40);
+    expect(testStoreFactory).toHaveBeenCalledTimes(39);
   });
 });

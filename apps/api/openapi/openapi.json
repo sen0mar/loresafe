@@ -3,7 +3,7 @@
   "info": {
     "title": "LoreSafe API",
     "version": "1.0.0",
-    "description": "Versioned contract for LoreSafe's spoiler-safe REST and SSE API. Governance and compatibility rules live in context/engineering/api-governance.md."
+    "description": "Versioned contract for LoreSafe's spoiler-safe REST API. Governance and compatibility rules live in context/engineering/api-governance.md."
   },
   "servers": [
     {
@@ -755,56 +755,6 @@
           "204": {
             "description": "No response body.",
             "x-response-dto": "EmptyDto"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        },
-        "x-idempotent": true
-      }
-    },
-    "/api/events": {
-      "get": {
-        "operationId": "streamEvents",
-        "summary": "stream events",
-        "tags": [
-          "Events"
-        ],
-        "security": [
-          {
-            "cookieSession": []
-          }
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response.",
-            "x-response-dto": "EventStreamDto",
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"

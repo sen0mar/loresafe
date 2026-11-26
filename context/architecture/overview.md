@@ -31,7 +31,7 @@
 8. Controller returns a narrow DTO.
 9. TanStack Query updates or invalidates the relevant cache.
 
-REST JSON is the primary API. Local-only SSE is available to explicitly connected clients; the browser does not connect automatically, and there is no PostgreSQL event transport.
+REST JSON is the only API. There is no server push (SSE, WebSocket, or PostgreSQL event transport); clients refresh on mount, focus, and their own mutations.
 
 ## Core Invariants
 

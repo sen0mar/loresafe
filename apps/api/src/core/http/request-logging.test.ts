@@ -37,7 +37,7 @@ describe("requestLoggingMiddleware", () => {
     await request(app).get("/api/unknown-one");
     await request(app).get("/api/unknown-two");
 
-    const metrics = renderOperationsMetrics({ eventConnections: 0 });
+    const metrics = renderOperationsMetrics();
 
     expect(metrics).toContain(
       'path="/api/clubs/:clubId/posts",status="200"} 2'

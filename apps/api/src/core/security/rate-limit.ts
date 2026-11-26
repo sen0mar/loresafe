@@ -363,17 +363,6 @@ const standardRateLimitConfigs = {
     "uploads-post-images",
     "loresafe:rl:uploads:post-images:"
   ),
-  eventConnectionRateLimiter: {
-    ...createStandardRateLimitConfig(
-      10,
-      30,
-      "events-connections",
-      "loresafe:rl:events:connections:v2:"
-    ),
-    // Closed healthy streams should not consume the reconnect budget for the
-    // entire window; concurrent limits are enforced by eventsService.
-    skipSuccessfulRequests: true
-  },
   clubCreateRateLimiter: createStandardRateLimitConfig(
     10,
     45,

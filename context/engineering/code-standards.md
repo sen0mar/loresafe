@@ -62,7 +62,7 @@
 
 ## File Organization
 
-Frontend domains: auth, profile, clubs, milestones, progress, feed, posts, comments, notifications, moderation, uploads. Backend modules mirror these domains, with users for profiles and events for local SSE.
+Frontend domains: auth, profile, clubs, milestones, progress, feed, posts, comments, notifications, moderation, uploads. Backend modules mirror these domains, with users for profiles.
 
 Current conventions (create folders only when needed):
 
